@@ -4,23 +4,20 @@ final class PhpDump
 {
   private function __construct() {}
 
-  public static function dumpException( Exception $e = null, $indent = '' )
+  public static function dumpException( Exception $e, $indent )
   {
-    if ( $e === null )
-      return self::dumpShallow( $e );
+    return self::dumpExceptionWithTrace( $e, $e->getTrace(), $indent );
+  }
 
-    if ( $e instanceof FullErrorException || $e instanceof FailedAssertion )
-      $trace = $e->getTraceWithObjects();
-    else
-      $trace = $e->getTrace();
-
+  public static function dumpExceptionWithTrace( Exception $e, array $trace, $indent )
+  {
+    $exceptionClass = get_class( $e );
     $code           = self::dump( $e->getCode() );
     $message        = self::dump( $e->getMessage() );
     $file           = self::dump( $e->getFile() );
     $line           = self::dump( $e->getLine() );
-    $previous       = self::dumpException( $e->getPrevious(), "$indent  " );
     $trace          = self::dumpTrace( $trace, "$indent    " );
-    $exceptionClass = get_class( $e );
+    $previous       = self::dumpPreviousException( $e->getPrevious(), "$indent  " );
 
     return <<<eot
 $exceptionClass
@@ -31,21 +28,27 @@ $indent  previous exception: $previous
 eot;
   }
 
-  public static function dumpTrace( array $trace, $indent = '' )
+  private static function dumpPreviousException( Exception $e = null, $indent )
+  {
+    if ( $e === null )
+      return self::dump( $e );
+    else
+      return self::dumpException( $e, $indent );
+  }
+
+  public static function dumpTrace( array $trace, $indent )
   {
     $result = "";
 
-    foreach ( $trace as $call ) {
-      $file     = @$call['file'];
-      $line     = @$call['line'];
-      $class    = @$call['class'];
-      $object   = @$call['object'];
-      $type     = @$call['type'];
-      $function = @$call['function'];
-      $args     = @$call['args'];
+    foreach ( $trace as $c ) {
+      $class    = @$c['class'];
+      $object   = @$c['object'];
+      $type     = @$c['type'];
+      $function = @$c['function'];
+      $args     = @$c['args'];
 
-      $file = self::dump( $file );
-      $line = self::dump( $line );
+      $file = self::dump( @$c['file'] );
+      $line = self::dump( @$c['line'] );
 
       $functionCall = self::dumpFunctionCall( $class, $object, $type, $function, $args, "$indent  " );
 
@@ -65,20 +68,23 @@ eot;
     else
       $object = $class;
 
-    if ( isset( $args ) ) {
-      foreach ( $args as &$arg )
-        $arg = self::dump( $arg, "$indent  " );
-
-      $args = join( ', ', $args );
-
-      if ( $args === '' )
-        $args = '()';
-      else
-        $args = "( $args )";
-    } else
+    if ( isset( $args ) )
+      $args = self::dumpFunctionArgs( $args, $indent );
+    else
       $args = '';
 
     return "$object$type$function$args";
+  }
+
+  private static function dumpFunctionArgs( array $args, $indent )
+  {
+    if ( empty( $args ) )
+      return '()';
+
+    foreach ( $args as &$arg )
+      $arg = self::dump( $arg, "$indent  " );
+
+    return "( " . join( ', ', $args ) . " )";
   }
 
   public static function dump( $x, $indent = '' )
@@ -133,29 +139,52 @@ eot;
 
   private static function dumpString( $string )
   {
+    $result = '"';
+
+    $length = strlen( $string );
+
+    for ( $i = 0; $i < $length; $i++ )
+      $result .= self::escapeChar( $string[$i] );
+
+    $result .= '"';
+
+    if ( $result === "\"$string\"" )
+      return "'$string'";
+    else
+      return $result;
+  }
+
+  private static function escapeChar( $char )
+  {
     $map = array(
       "\\"       => '\\\\',
       "\n"       => '\n',
       "\r"       => '\r',
       "\t"       => '\t',
       "\v"       => '\v',
+      // TODO in PHP 5.3
       // "\e"       => '\e',
       "\f"       => '\f',
       "\$"       => '\$',
       "\""       => '\"',
-      chr( 127 ) => '\x' . dechex( 127 ),
     );
 
-    for ( $i = 0; $i < 32; $i++ )
-      if ( !isset( $map[chr( $i )] ) )
-        $map[chr( $i )] = '\x' . substr( '00' . dechex( $i ), -2 );
+    if ( isset( $map[$char] ) )
+      return $map[$char];
 
-    return '"' . str_replace( array_keys( $map ), array_values( $map ), $string ) . '"';
+    $ord = ord( $char );
+
+    if ( ( $ord >= 0 && $ord < 32 ) || $ord === 127 )
+      return '\x' . substr( '00' . dechex( $ord ), -2 );
+
+    return $char;
   }
 
   private static function dumpFloat( $float )
   {
-    if ( (string) (int) $float === (string) $float )
+    $int = (int) $float;
+
+    if ( "$int" === "$float" )
       return "$float.0";
     else
       return "$float";
@@ -172,6 +201,58 @@ eot;
     return false;
   }
 
+  private static function dumpArrayEntries( array $array, $indent, array $context )
+  {
+    $entries = array();
+
+    $isAssociative = self::isArrayAssociative( $array );
+
+    foreach ( $array as $k => &$v ) {
+      $value = self::dumpDeep( $v, "$indent  ", $context );
+
+      if ( $isAssociative )
+        $entries[] = self::dumpDeep( $k, "$indent  ", $context ) . " => $value";
+      else
+        $entries[] = $value;
+    }
+
+    return $entries;
+  }
+
+  private static function dumpArrayDeep( array $array, $indent, array $context )
+  {
+    $entries = self::dumpArrayEntries( $array, $indent, $context );
+
+    if ( count( $entries ) == 0 )
+      return 'array()';
+    else if ( count( $entries ) <= 3 )
+      return self::dumpArrayOneline( $entries, $indent );
+    else
+      return self::dumpArrayMultiline( $entries, $indent );
+  }
+
+  private static function dumpArrayOneline( array $entries, $indent )
+  {
+    $result = "array( " . join( ', ', $entries ) . " )";
+
+    if ( strstr( $result, "\n" ) === false )
+      return $result;
+    else
+      return self::dumpArrayMultiline( $entries, $indent );
+  }
+
+  private static function dumpArrayMultiline( array $entries, $indent )
+  {
+    $result = "array(\n";
+
+    foreach ( $entries as $value )
+      $result .= "$indent  $value,\n";
+
+    $result .= "$indent)";
+
+    return $result;
+  }
+
   private static function dumpArray( array &$array, $indent, array $context )
   {
     foreach ( $context as &$c )
@@ -180,43 +261,17 @@ eot;
 
     $context[] =& $array;
 
-    $entries = array();
-
-    $isAssociative = self::isArrayAssociative( $array );
-
-    foreach ( $array as $k => &$v ) {
-      if ( $isAssociative )
-        $keyPart = self::dumpDeep( $k, "$indent  ", $context ) . ' => ';
-      else
-        $keyPart = '';
-
-      $entries[] = $keyPart . self::dumpDeep( $v, "$indent  ", $context );
-    }
-
-    if ( count( $entries ) == 0 )
-      return 'array()';
-
-    if ( count( $entries ) <= 3 ) {
-      $joined = join( ', ', $entries );
-
-      if ( strstr( $joined, "\n" ) === false )
-        return "array( $joined )";
-    }
-
-    foreach ( $entries as &$value )
-      $value = "$indent  $value,\n";
-
-    $entries = join( '', $entries );
-
-    return "array(\n$entries$indent)";
+    return self::dumpArrayDeep( $array, $indent, $context );
   }
 
   private static function refsEqual( &$a, &$b )
   {
-    $aOld   = $a;
+    $temp   = $a;
     $a      = (object) null;
+
     $result = $a === $b;
-    $a      = $aOld;
+    $a      = $temp;
+
     return $result;
   }
 
@@ -226,31 +281,51 @@ eot;
       if ( is_object( $c ) && $object === $c )
         return self::dumpShallow( $object );
 
-    $objectValues = (array) $object;
-    $classname    = get_class( $object );
-
-    if ( empty( $objectValues ) )
-      return "new $classname {}";
-
     $context[] = $object;
 
-    $class      = new ReflectionClass( $object );
-    $properties = '';
-    $topClass   = true;
+    return self::dumpObjectDeep( $object, $indent, $context );
+  }
+
+  private static function dumpObjectDeep( $object, $indent, array $context )
+  {
+    $classname = get_class( $object );
+
+    $properties = self::dumpObjectProperties( $object, $indent, $context );
+
+    if ( empty( $properties ) )
+      return "new $classname {}";
+    else
+      return self::dumpObjectMultiline( $classname, $properties, $indent );
+  }
+
+  private static function dumpObjectMultiline( $classname, array $properties, $indent )
+  {
+    $result = "new $classname {\n";
+
+    foreach ( $properties as $prop )
+      $result .= "$indent  $prop;\n";
+
+    $result .= "$indent}";
+
+    return $result;
+  }
+
+  private static function dumpObjectProperties( $object, $indent, array $context )
+  {
+    $properties   = array();
+    $objectValues = (array) $object;
+    $class        = new ReflectionClass( $object );
+    $derived      = false;
 
     do {
-      foreach ( $class->getProperties() as $prop ) {
-        if ( !$prop->isStatic() && ( $topClass || $prop->isPrivate() ) ) {
-          $prop = self::dumpObjectProperty( $objectValues, $prop, "$indent  ", $context );
+      foreach ( $class->getProperties() as $prop )
+        if ( !$prop->isStatic() && ( $prop->isPrivate() || !$derived ) )
+          $properties[] = self::dumpObjectProperty( $objectValues, $prop, "$indent  ", $context );
 
-          $properties .= "$indent  $prop;\n";
-        }
-      }
-
-      $topClass = false;
+      $derived = true;
     } while ( $class = $class->getParentClass() );
 
-    return "new $classname {\n$properties$indent}";
+    return $properties;
   }
 
   private static function dumpObjectProperty( array $objectValues, ReflectionProperty $prop, $indent, $context )
