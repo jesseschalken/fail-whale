@@ -24,16 +24,21 @@ class ErrorHandler
 
   public final function handleFailedAssertion( $file, $line, $message )
   {
-    throw new CustomException( "Assertion failed: $message", null, $file, $line );
+    if ( $message !== '' )
+      $message = "Assertion failed: $message";
+    else
+      $message = "Assertion failed";
+
+    throw new CustomException( $message, null, $file, $line );
   }
 
-  public final function handleError( $type, $message, $file, $line, $context, $skip = 0 )
+  public final function handleError( $type, $message, $file, $line, $context )
   {
     // Note: See PHP bugs #61767 and #60909 as to why I can't just throw an exception.
 
     if ( error_reporting() & $type ) {
       $e = new ErrorException( $message, $type, null, $file, $line );
-      $this->handleException( $e, self::trace( $skip + 1 ) );
+      $this->handleException( $e, debug_backtrace() );
       exit;
     }
   }
@@ -52,7 +57,7 @@ class ErrorHandler
 
     error_reporting( E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR );
 
-    $this->handleError( $e['type'], $e['message'], $e['file'], $e['line'], 1 );
+    $this->handleError( $e['type'], $e['message'], $e['file'], $e['line'] );
   }
 
   protected function handleException( Exception $e, array $trace )
@@ -63,17 +68,7 @@ class ErrorHandler
     @header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
     @header( "Content-Type: text/plain; charset=UTF-8", true );
 
-    print 'uncaught ' . PhpDump::dumpExceptionWithTrace( $e, $trace ) . "\n";
-  }
-
-  private static function trace( $skip = 0 )
-  {
-    $trace = debug_backtrace();
-
-    while ( $skip-- >= 0 )
-      array_shift( $trace );
-
-    return $trace;
+    print 'uncaught ' . PhpExceptionDump::dumpExceptionWithTrace( $e, $trace ) . "\n";
   }
 }
 
