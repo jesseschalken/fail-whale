@@ -2,6 +2,8 @@
 
 class ErrorHandler
 {
+  private $lastHandledError = null;
+
   public function __construct()
   {
   }
@@ -15,68 +17,116 @@ class ErrorHandler
     assert_options( ASSERT_WARNING    , true   );
     assert_options( ASSERT_BAIL       , false  );
     assert_options( ASSERT_QUIET_EVAL , false  );
-    assert_options( ASSERT_CALLBACK   , array( $this, 'handleFailedAssertion' ) );
+    assert_options( ASSERT_CALLBACK   , array( $this, 'phpHandleFailedAssertion' ) );
 
-    set_error_handler          ( array( $this, 'handleError'             ) );
-    set_exception_handler      ( array( $this, 'handleUncaughtException' ) );
-    register_shutdown_function ( array( $this, 'handleShutdown'          ) );
+    set_error_handler          ( array( $this, 'phpHandleError'             ) );
+    set_exception_handler      ( array( $this, 'phpHandleUncaughtException' ) );
+    register_shutdown_function ( array( $this, 'phpHandleShutdown'          ) );
+
+    $this->lastHandledError = error_get_last();
   }
 
-  public final function handleFailedAssertion( $file, $line, $message )
+  public final function phpHandleFailedAssertion( $file, $line, $message )
   {
-    if ( $message !== '' )
-      $message = "Assertion failed: $message";
-    else
-      $message = "Assertion failed";
-
-    throw new CustomException( $message, null, $file, $line );
+    throw new AssertionFailedException( $file, $line, $message );
   }
 
-  public final function handleError( $type, $message, $file, $line, $context )
+  public final function phpHandleError( $type, $message, $file, $line, $localVariables = null )
   {
-    // Note: See PHP bugs #61767 and #60909 as to why I can't just throw an exception.
+    $this->lastHandledError = array(
+      'type'    => $type,
+      'message' => $message,
+      'file'    => $file,
+      'line'    => $line,
+    );
 
     if ( error_reporting() & $type ) {
-      $e = new ErrorException( $message, $type, null, $file, $line );
-      $this->handleException( $e, debug_backtrace() );
-      exit;
+      if ( $type & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE ) )
+        throw new ErrorException( $message, $type, null, $file, $line );
+
+      $trace = debug_backtrace();
+      array_shift( $trace );
+
+      $this->handleError( $type, $message, $file, $line, $localVariables, $trace );
+      exit( 1 );
     }
   }
 
-  public final function handleUncaughtException( Exception $e )
+  public final function phpHandleUncaughtException( Exception $e )
   {
-    return $this->handleException( $e, $e->getTrace() );
+    return $this->handleException( $e );
   }
 
-  public final function handleShutdown()
+  public final function phpHandleShutdown()
   {
     $e = error_get_last();
 
-    if ( $e === null )
-      return;
+    if ( $e !== null && $e !== $this->lastHandledError ) {
+      $trace = debug_backtrace();
+      array_shift( $trace );
 
-    error_reporting( E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR | E_USER_ERROR );
-
-    $this->handleError( $e['type'], $e['message'], $e['file'], $e['line'] );
+      $this->handleError( $e['type'], $e['message'], $e['file'], $e['line'], null, $trace );
+    }
   }
 
-  protected function handleException( Exception $e, array $trace )
+  protected function handleError( $type, $message, $file, $line, $localVariables, $trace )
+  {
+    $this->send( join( "\n", PhpDump::dumpError( $type, $message, $file, $line, $localVariables, $trace ) ) . "\n" );
+  }
+
+  protected function handleException( Exception $e )
+  {
+    $this->send( join( "\n", PhpDump::dumpException( $e ) ) . "\n" );
+  }
+
+  private function send( $text )
   {
     while ( ob_get_level() > 0 )
       ob_end_clean();
 
-    @header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
-    @header( "Content-Type: text/plain; charset=UTF-8", true );
+    if ( PHP_SAPI === 'cli' )
+      print $text;
+    else
+      $this->printHtml( $text );
+  }
 
-    print 'uncaught ' . PhpExceptionDump::dumpExceptionWithTrace( $e, $trace ) . "\n";
+  private function toHtml( $text )
+  {
+    return join( "\n", array(
+      "<div css=\"",
+      "  white-space: pre;",
+      "  font-family: 'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace;",
+      "  font-size: 10pt;",
+      "  color: black;",
+      "  display: block;",
+      "  background: white;",
+      "  border: none;",
+      "  margin: 0;",
+      "  padding: 0;",
+      "  line-height: 16px;",
+      "\">" . htmlspecialchars( $text, ENT_QUOTES, 'UTF-8' ) . "</div>",
+    ) );
+  }
+
+  private function printHtml( $text )
+  {
+    @header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
+    @header( "Content-Type: text/html; charset=UTF-8", true );
+
+    print $this->toHtml( $text );
   }
 }
 
-class CustomException extends Exception
+class AssertionFailedException extends Exception
 {
-  public function __construct( $message, $code, $file, $line, $previous = null )
+  public function __construct( $file, $line, $message )
   {
-    parent::__construct( $message, $code, $previous );
+    if ( $message !== '' )
+      $message = "Assertion failed";
+    else
+      $message = "Assertion failed: $message";
+
+    parent::__construct( $message );
 
     $this->file = $file;
     $this->line = $line;

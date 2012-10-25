@@ -1,107 +1,233 @@
 <?php
 
-final class PhpExceptionDump
+final class PhpDump
 {
-  private function __construct()
+  private static $errorTypes = array(
+    E_ERROR             => 'E_ERROR',
+    E_WARNING           => 'E_WARNING',
+    E_PARSE             => 'E_PARSE',
+    E_NOTICE            => 'E_NOTICE',
+    E_CORE_ERROR        => 'E_CORE_ERROR',
+    E_CORE_WARNING      => 'E_CORE_WARNING',
+    E_COMPILE_ERROR     => 'E_COMPILE_ERROR',
+    E_COMPILE_WARNING   => 'E_COMPILE_WARNING',
+    E_USER_ERROR        => 'E_USER_ERROR',
+    E_USER_WARNING      => 'E_USER_WARNING',
+    E_USER_NOTICE       => 'E_USER_NOTICE',
+    E_STRICT            => 'E_STRICT',
+    E_RECOVERABLE_ERROR => 'E_RECOVERABLE_ERROR',
+    E_DEPRECATED        => 'E_DEPRECATED',
+    E_USER_DEPRECATED   => 'E_USER_DEPRECATED',
+  );
+
+  public static function dumpError( $type, $message, $file, $line, $locals, $trace )
   {
+    $errorType = @self::$errorTypes[$type];
+    $message   = self::dumpShallow( $message );
+    $file      = self::dumpShallow( $file );
+    $line      = self::dumpShallow( $line );
+
+    $lines[] = "PHP error";
+    $lines[] = "  type $errorType";
+    $lines[] = "  message $message";
+    $lines[] = "  in file $file, line $line";
+    $lines[] = "";
+    $lines[] = "stack trace:";
+
+    foreach ( self::dumpTrace( $trace ) as $line )
+      $lines[] = "  $line";
+
+    $lines[] = "";
+    $lines[] = "locals:";
+
+    foreach ( self::dumpVariables( $locals ) as $line )
+      $lines[] = "  $line";
+
+    $lines[] = "";
+    $lines[] = "globals:";
+
+    foreach ( self::dumpVariables( $GLOBALS ) as $line )
+      $lines[] = "  $line";
+
+    return $lines;
   }
 
-  public static function dumpExceptionWithTrace( Exception $e, array $trace, $newline = "\n" )
+  private static function dumpVariables( array &$vars = null )
   {
+    if ( $vars === null )
+      return array( 'unavailable' );
+
+    if ( empty( $vars ) )
+      return array( 'none' );
+
+    $varLines = array();
+
+    foreach ( $vars as $k => &$v )
+      $varLines[] = self::wrap( self::asVariableName( $k ) . " = ", self::dumpRef( $v, array( &$vars ) ), ';' );
+
+    return self::addLineNumbers( self::groupLines( $varLines ) );
+  }
+
+  private static function groupLines( array $liness )
+  {
+    $lastWasMultiline = false;
+    $resultLines      = array();
+
+    foreach ( $liness as $k => $lines ) {
+      $isMultiline = count( $lines ) > 1;
+
+      if ( $k !== 0 )
+        if ( $lastWasMultiline || $isMultiline )
+          $resultLines[] = '';
+
+      foreach ( $lines as $line )
+        $resultLines[] = $line;
+
+      $lastWasMultiline = $isMultiline;
+    }
+
+    return $resultLines;
+  }
+
+  public static function dumpException( Exception $e )
+  {
+    $lines = self::dumpExceptionBrief( $e );
+    $lines[0] = "uncaught {$lines[0]}";
+    $lines[] = "";
+    $lines[] = "globals:";
+
+    foreach ( self::dumpVariables( $GLOBALS ) as $line )
+      $lines[] = "  $line";
+
+    return $lines;
+  }
+
+  private static function dumpExceptionBrief( Exception $e = null )
+  {
+    if ( $e === null )
+      return array( 'none' );
+
     $exceptionClass = get_class( $e );
     $code           = self::dumpShallow( $e->getCode() );
     $message        = self::dumpShallow( $e->getMessage() );
     $file           = self::dumpShallow( $e->getFile() );
     $line           = self::dumpShallow( $e->getLine() );
-    $trace          = self::dumpTrace( $trace, "$newline    " );
-    $previous       = self::dumpPreviousException( $e->getPrevious(), "$newline  " );
 
-    return join( $newline, array(
-      "$exceptionClass",
-      "  code $code, message $message",
-      "  in file $file, line $line",
-      "  stack trace:",
-      "    $trace",
-      "  previous exception: $previous",
-    ) );
+    $lines[] = "$exceptionClass";
+    $lines[] = "  code $code";
+    $lines[] = "  message $message";
+    $lines[] = "  in file $file, line $line";
+    $lines[] = "";
+    $lines[] = "stack trace:";
+
+    foreach ( self::dumpTrace( $e->getTrace() ) as $line )
+      $lines[] = "  $line";
+
+    $lines[] = "";
+    $lines[] = "previous exception:";
+
+    foreach ( self::dumpExceptionBrief( $e->getPrevious() ) as $line )
+      $lines[] = "  $line";
+
+    return $lines;
   }
 
-  private static function dumpTrace( array $trace, $newline )
+  private static function dumpTrace( array $trace = null )
   {
+    if ( $trace === null )
+      return array( 'unavailable' );
+
     foreach ( $trace as $c ) {
       $file = self::dumpShallow( @$c['file'] );
       $line = self::dumpShallow( @$c['line'] );
 
-      $functionCall = self::dumpFunctionCall( $c, "$newline  " );
-
       $lines[] = "- file $file, line $line";
-      $lines[] = "  $functionCall;";
+
+      foreach ( self::addLineNumbers( self::dumpFunctionCall( $c ) ) as $k => $line )
+        $lines[] = "    $line";
+
+      $lines[] = '';
     }
 
     $lines[] = "- {main}";
 
-    return join( $newline, $lines );
+    return $lines;
   }
 
-  private static function dumpPreviousException( Exception $e = null, $newline )
+  private static function addLineNumbers( array $lines )
   {
-    if ( $e === null )
-      return self::dumpShallow( $e );
-    else
-      return self::dumpExceptionWithTrace( $e, $e->getTrace(), $newline );
+    $numDigits = max( mb_strlen( (string) count( $lines ) ), 3 );
+    $space     = str_repeat( ' ', $numDigits );
+
+    $i = 1;
+
+    foreach ( $lines as &$line )
+      $line = mb_substr( $i++ . $space, 0, $numDigits ) . " $line";
+
+    return $lines;
   }
 
-  private static function dumpFunctionCall( array $call, $newline )
+  private static function dumpFunctionCall( array $call )
   {
     if ( isset( $call['object'] ) )
-      $object = self::dump( $call['object'], $newline );
+      $object = self::dump( $call['object'] );
     else if ( isset( $call['class'] ) )
-      $object = 'new ' . @$call['class'] . ' {…}';
+      $object = array( @$call['class'] );
     else
-      $object = '';
+      $object = array();
 
     if ( isset( $call['args'] ) )
-      $args = self::dumpFunctionArgs( $call['args'], $newline );
+      $args = self::dumpFunctionArgs( $call['args'] );
     else
-      $args = '( ? )';
+      $args = array( '( ? )' );
 
-    return $object . @$call['type'] . @$call['function'] . $args;
+    return self::concat( array(
+      $object,
+      array( @$call['type'] . @$call['function'] ),
+      $args,
+      array( ';' )
+    ) );
   }
 
-  private static function dumpFunctionArgs( array $args, $newline )
+  private static function dumpFunctionArgs( array $args )
   {
     if ( empty( $args ) )
-      return '()';
+      return array( '()' );
 
-    foreach ( $args as &$arg )
-      $arg = self::dump( $arg, "$newline  " );
+    $concat[] = array( '( ' );
+    $concat[] = self::dump( array_shift( $args ) );
 
-    return "( " . join( ', ', $args ) . " )";
+    foreach ( $args as $k => &$arg ) {
+      $concat[] = array( ', ' );
+      $concat[] = self::dump( $arg );
+    }
+
+    $concat[] = array( ' )' );
+
+    return self::concat( $concat );
   }
 
-  private static function dump( $x, $newline )
+  private static function asVariableName( $varname )
   {
-    return PhpDump::dump( $x, $newline );
+    if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $varname ) )
+      return "\$$varname";
+    else
+      return "\${" . self::dumpString( $varname ) . "}";
   }
 
-  private static function dumpShallow( $x )
+  public static function dump( $x )
   {
-    return PhpDump::dumpShallow( $x );
-  }
-}
-
-final class PhpDump
-{
-  public static function dump( $x, $newline = "\n" )
-  {
-    return self::dumpRef( $x, $newline );
+    return self::dumpRef( $x );
   }
 
-  public static function dumpRef( &$x, $newline = "\n" )
+  public static function dumpRef( &$x, array $arrayContext = array() )
   {
-    $self = new self( $newline );
+    $self = new self;
 
-    return $self->_dumpRef( $x );
+    foreach ( $arrayContext as &$a )
+      $self->arrayContext[] =& $a;
+
+    return $self->dumpRefLines( $x );
   }
 
   public static function dumpShallow( $x )
@@ -122,8 +248,8 @@ final class PhpDump
   {
     $escaped = '';
 
-    for ( $i = 0; $i < strlen( $string ); $i++ )
-      $escaped .= self::escapeChar( $string[$i] );
+    for ( $i = 0; $i < mb_strlen( $string ); $i++ )
+      $escaped .= self::escapeChar( mb_substr( $string, $i, 1 ) );
 
     return "\"$escaped\"";
   }
@@ -147,7 +273,7 @@ final class PhpDump
     $ord = ord( $char );
 
     if ( ( $ord >= 0 && $ord < 32 ) || $ord === 127 )
-      return '\x' . substr( '00' . dechex( $ord ), -2 );
+      return '\x' . mb_substr( '00' . dechex( $ord ), -2 );
 
     return $char;
   }
@@ -162,62 +288,24 @@ final class PhpDump
       return "$float";
   }
 
-  private $newline;
-  private $objectContext = array();
-  private $arrayContext  = array();
-
-  private function __construct( $newline )
+  private static function concat( array $liness )
   {
-    $this->newline = $newline;
+    $result = array();
+    $i      = 0;
+
+    foreach ( $liness as $lines )
+      foreach ( $lines as $k => $line )
+        if ( $k == 0 && $i != 0 )
+          $result[$i - 1] .= $line;
+        else
+          $result[$i++] = $line;
+
+    return $result;
   }
 
-  private function _dumpRef( &$x )
+  private static function wrap( $prepend, array $lines, $append )
   {
-    $self = clone $this;
-    $self->newline .= "  ";
-
-    if ( is_object( $x ) )
-      $lines = $self->dumpObjectLines( $x );
-    else if ( is_array( $x ) )
-      $lines = $self->dumpArrayLines( $x );
-    else
-      $lines = array( self::dumpShallow( $x ) );
-
-    return join( $this->newline, $lines );
-  }
-
-  private function dumpObjectProperty( array $object, ReflectionProperty $prop )
-  {
-    $name = $prop->getName();
-
-    if ( $prop->isPrivate() )
-      list( $access, $key ) = array( 'private', "\x00" . $prop->getDeclaringClass()->getName() . "\x00$name" );
-    else if ( $prop->isProtected() )
-      list( $access, $key ) = array( 'protected', "\x00*\x00$name" );
-    else if ( $prop->isPublic() )
-      list( $access, $key ) = array( 'public', "$name" );
-    else
-      assert( false );
-
-    return "$access \$$name = " . $this->_dumpRef( $object[$key] );
-  }
-
-  private function dumpObjectProperties( $o )
-  {
-    $properties    = array();
-    $object        = (array) $o;
-    $class         = new ReflectionClass( $o );
-    $isObjectClass = true;
-
-    do {
-      foreach ( $class->getProperties() as $prop )
-        if ( !$prop->isStatic() && ( $prop->isPrivate() || $isObjectClass ) )
-          $properties[] = self::dumpObjectProperty( $object, $prop );
-
-      $isObjectClass = false;
-    } while ( $class = $class->getParentClass() );
-
-    return $properties;
+    return self::concat( array( array( $prepend ), $lines, array( $append ) ) );
   }
 
   private static function isArrayAssociative( array $array )
@@ -231,49 +319,121 @@ final class PhpDump
     return false;
   }
 
-  private function dumpArrayEntries( array $array )
+  private static function refsEqual( &$a, &$b )
   {
-    $entries = array();
+    $temp   = $a;
+    $a      = (object) null;
+
+    $result = $a === $b;
+    $a      = $temp;
+
+    return $result;
+  }
+
+  private $objectContext = array();
+  private $arrayContext  = array();
+
+  private function __construct()
+  {
+  }
+
+  private function dumpRefLines( &$x )
+  {
+    $self = clone $this;
+
+    if ( is_object( $x ) )
+      return $self->dumpObjectLines( $x );
+    else if ( is_array( $x ) )
+      return $self->dumpArrayLines( $x );
+    else
+      return array( self::dumpShallow( $x ) );
+  }
+
+  private function dumpObjectPropertyLines( array $objectValues, ReflectionProperty $prop )
+  {
+    $name = $prop->getName();
+
+    if ( $prop->isPrivate() )
+      list( $access, $key ) = array( 'private', "\x00" . $prop->getDeclaringClass()->getName() . "\x00$name" );
+    else if ( $prop->isProtected() )
+      list( $access, $key ) = array( 'protected', "\x00*\x00$name" );
+    else if ( $prop->isPublic() )
+      list( $access, $key ) = array( 'public', "$name" );
+    else
+      assert( false );
+
+    $lines = $this->dumpRefLines( $objectValues[$key] );
+
+    return self::wrap( "$access " . self::asVariableName( $name ) . " = ", $lines, ';' );
+  }
+
+  private function dumpObjectPropertiesLines( $object )
+  {
+    $propertiesLines = array();
+    $objectValues  = (array) $object;
+    $class         = new ReflectionClass( $object );
+    $isObjectClass = true;
+
+    do {
+      foreach ( $class->getProperties() as $prop )
+        if ( !$prop->isStatic() && ( $prop->isPrivate() || $isObjectClass ) )
+          $propertiesLines[] = self::dumpObjectPropertyLines( $objectValues, $prop );
+
+      $isObjectClass = false;
+    } while ( $class = $class->getParentClass() );
+
+    return self::groupLines( $propertiesLines );
+  }
+
+  private function dumpArrayEntriesLines( array $array )
+  {
+    $entriesLines = array();
 
     $isAssociative = self::isArrayAssociative( $array );
 
-    foreach ( $array as $k => &$v )
-      if ( $isAssociative )
-        $entries[] = $this->_dumpRef( $k ) . " => " . $this->_dumpRef( $v );
-      else
-        $entries[] = $this->_dumpRef( $v );
+    foreach ( $array as $k => &$v ) {
+      $keyPart = $isAssociative ? self::dumpShallow( $k ) . " => " : "";
 
-    return $entries;
+      $entriesLines[] = self::wrap( $keyPart, $this->dumpRefLines( $v ), '' );
+    }
+
+    return $entriesLines;
   }
 
   private function dumpArrayDeep( array $array )
   {
-    $entries = $this->dumpArrayEntries( $array );
+    $entriesLines = $this->dumpArrayEntriesLines( $array );
 
-    if ( count( $entries ) == 0 )
+    if ( count( $entriesLines ) == 0 )
       return array( 'array()' );
-    else if ( count( $entries ) <= 3 )
-      return $this->dumpArrayOneline( $entries );
+    else if ( count( $entriesLines ) <= 3 )
+      return $this->dumpArrayOneline( $entriesLines );
     else
-      return $this->dumpArrayMultiline( $entries );
+      return $this->dumpArrayMultiline( $entriesLines );
   }
 
-  private function dumpArrayOneline( array $entries )
+  private function dumpArrayOneline( array $entriesLines )
   {
-    $result = "array( " . join( ', ', $entries ) . " )";
+    $entries = array();
 
-    if ( strstr( $result, "\n" ) === false )
-      return array( $result );
-    else
-      return self::dumpArrayMultiline( $entries );
+    foreach ( $entriesLines as $entryLines )
+      if ( count( $entryLines ) <= 1 )
+        $entries[] = join( '', $entryLines );
+      else
+        return $this->dumpArrayMultiline( $entriesLines );
+
+    return array( "array( " . join( ', ', $entries ) . " )" );
   }
 
-  private function dumpArrayMultiline( array $entries )
+  private function dumpArrayMultiline( array $entriesLines )
   {
     $lines[] = 'array(';
 
-    foreach ( $entries as $entry )
-      $lines[] .= "  $entry,";
+    foreach ( $entriesLines as &$entryLines )
+      $entryLines = self::wrap( '', $entryLines, ',' );
+
+    foreach ( self::groupLines( $entriesLines ) as $line )
+      $lines[] = "    $line";
 
     $lines[] = ')';
 
@@ -291,17 +451,6 @@ final class PhpDump
     return $this->dumpArrayDeep( $array );
   }
 
-  private static function refsEqual( &$a, &$b )
-  {
-    $temp   = $a;
-    $a      = (object) null;
-
-    $result = $a === $b;
-    $a      = $temp;
-
-    return $result;
-  }
-
   private function dumpObjectLines( $object )
   {
     foreach ( $this->objectContext as $c )
@@ -317,15 +466,15 @@ final class PhpDump
   {
     $classname = get_class( $object );
 
-    $properties = $this->dumpObjectProperties( $object );
+    $propertyLines = $this->dumpObjectPropertiesLines( $object );
 
-    if ( empty( $properties ) )
+    if ( empty( $propertyLines ) )
       return array( "new $classname {}" );
 
     $lines[] = "new $classname {";
 
-    foreach ( $properties as $prop )
-      $lines[] = "  $prop;";
+    foreach ( $propertyLines as $line )
+      $lines[] = "    $line";
 
     $lines[] = '}';
 
