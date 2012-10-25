@@ -31,25 +31,38 @@ class ErrorHandler
     throw new AssertionFailedException( $file, $line, $message );
   }
 
-  public final function phpHandleError( $type, $message, $file, $line, $localVariables = null )
+  private function isUserError( $type )
   {
-    $this->lastHandledError = array(
-      'type'    => $type,
-      'message' => $message,
-      'file'    => $file,
-      'line'    => $line,
+    $constants = array(
+      'E_USER_ERROR',
+      'E_USER_WARNING',
+      'E_USER_NOTICE',
+      'E_USER_DEPRECATED',
     );
 
+    foreach ( $constants as $c )
+      if ( @constant( $c ) === $type )
+        return true;
+
+    return false;
+  }
+
+  public final function phpHandleError( $type, $message, $file, $line, $localVariables = null )
+  {
     if ( error_reporting() & $type ) {
-      if ( $type & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE ) )
+      if ( $this->isUserError( $type ) )
         throw new ErrorException( $message, $type, null, $file, $line );
 
       $trace = debug_backtrace();
       array_shift( $trace );
 
       $this->handleError( $type, $message, $file, $line, $localVariables, $trace );
+
+      $this->lastHandledError = error_get_last();
       exit( 1 );
     }
+
+    $this->lastHandledError = error_get_last();
   }
 
   public final function phpHandleUncaughtException( Exception $e )
