@@ -2,61 +2,77 @@
 
 final class PhpDump
 {
-  private static $errorConstants = array(
-    'E_ERROR',
-    'E_WARNING',
-    'E_PARSE',
-    'E_NOTICE',
-    'E_CORE_ERROR',
-    'E_CORE_WARNING',
-    'E_COMPILE_ERROR',
-    'E_COMPILE_WARNING',
-    'E_USER_ERROR',
-    'E_USER_WARNING',
-    'E_USER_NOTICE',
-    'E_STRICT',
-    'E_RECOVERABLE_ERROR',
-    'E_DEPRECATED',
-    'E_USER_DEPRECATED',
-  );
-
-  private static function errorTypeString( $type )
+  public static function dumpException( Exception $e )
   {
-    foreach ( self::$errorConstants as $c )
-      if ( @constant( $c ) === $type )
-        return $c;
+    $lines = self::dumpExceptionBrief( $e );
+    $lines[0] = "uncaught {$lines[0]}";
+    $lines[] = "";
+    $lines[] = "globals:";
 
-    return 'unknown';
+    foreach ( self::dumpVariables( $GLOBALS ) as $line )
+      $lines[] = "  $line";
+
+    return $lines;
   }
 
-  public static function dumpError( $type, $message, $file, $line, $locals, $trace )
+  private static function dumpExceptionBrief( Exception $e = null )
   {
-    $errorType = self::errorTypeString( $type );
-    $message   = self::dumpShallow( $message );
-    $file      = self::dumpShallow( $file );
-    $line      = self::dumpShallow( $line );
+    $exceptionClass = get_class( $e );
+    $code           = self::dumpShallow( $e->getCode() );
+    $message        = self::dumpShallow( $e->getMessage() );
+    $file           = self::dumpShallow( $e->getFile() );
+    $line           = self::dumpShallow( $e->getLine() );
 
-    $lines[] = "PHP error";
-    $lines[] = "  type $errorType";
-    $lines[] = "  message $message";
-    $lines[] = "  in file $file, line $line";
+    if ( $e instanceof PhpErrorException )
+      $trace = $e->getFullTrace();
+    else
+      $trace = $e->getTrace();
+
+    $lines[] = "$exceptionClass";
+    $lines[] = "  code $code, message $message";
+    $lines[] = "  file $file, line $line";
     $lines[] = "";
     $lines[] = "stack trace:";
 
     foreach ( self::dumpTrace( $trace ) as $line )
       $lines[] = "  $line";
 
-    $lines[] = "";
-    $lines[] = "locals:";
+    if ( $e instanceof PhpErrorException ) {
+      $context = $e->getContext();
 
-    foreach ( self::dumpVariables( $locals ) as $line )
-      $lines[] = "  $line";
+      $lines[] = "";
+      $lines[] = "locals:";
 
-    $lines[] = "";
-    $lines[] = "globals:";
+      foreach ( self::dumpVariables( $context ) as $line )
+        $lines[] = "  $line";
+    }
 
-    foreach ( self::dumpVariables( $GLOBALS ) as $line )
-      $lines[] = "  $line";
+    if ( $e->getPrevious() !== null ) {
+      $lines[] = "";
+      $lines[] = "previous exception:";
+
+      foreach ( self::dumpExceptionBrief( $e->getPrevious() ) as $line )
+        $lines[] = "  $line";
+    }
+
+    return $lines;
+  }
+
+  private static function dumpTrace( array $trace = null )
+  {
+    foreach ( $trace as $c ) {
+      $file = self::dumpShallow( @$c['file'] );
+      $line = self::dumpShallow( @$c['line'] );
+
+      $lines[] = "- file $file, line $line";
+
+      foreach ( self::addLineNumbers( self::dumpFunctionCall( $c ) ) as $k => $line )
+        $lines[] = "    $line";
+
+      $lines[] = '';
+    }
+
+    $lines[] = "- {main}";
 
     return $lines;
   }
@@ -96,71 +112,6 @@ final class PhpDump
     }
 
     return $resultLines;
-  }
-
-  public static function dumpException( Exception $e )
-  {
-    $lines = self::dumpExceptionBrief( $e );
-    $lines[0] = "uncaught {$lines[0]}";
-    $lines[] = "";
-    $lines[] = "globals:";
-
-    foreach ( self::dumpVariables( $GLOBALS ) as $line )
-      $lines[] = "  $line";
-
-    return $lines;
-  }
-
-  private static function dumpExceptionBrief( Exception $e = null )
-  {
-    if ( $e === null )
-      return array( 'none' );
-
-    $exceptionClass = get_class( $e );
-    $code           = self::dumpShallow( $e->getCode() );
-    $message        = self::dumpShallow( $e->getMessage() );
-    $file           = self::dumpShallow( $e->getFile() );
-    $line           = self::dumpShallow( $e->getLine() );
-
-    $lines[] = "$exceptionClass";
-    $lines[] = "  code $code";
-    $lines[] = "  message $message";
-    $lines[] = "  in file $file, line $line";
-    $lines[] = "";
-    $lines[] = "stack trace:";
-
-    foreach ( self::dumpTrace( $e->getTrace() ) as $line )
-      $lines[] = "  $line";
-
-    $lines[] = "";
-    $lines[] = "previous exception:";
-
-    foreach ( self::dumpExceptionBrief( $e->getPrevious() ) as $line )
-      $lines[] = "  $line";
-
-    return $lines;
-  }
-
-  private static function dumpTrace( array $trace = null )
-  {
-    if ( $trace === null )
-      return array( 'unavailable' );
-
-    foreach ( $trace as $c ) {
-      $file = self::dumpShallow( @$c['file'] );
-      $line = self::dumpShallow( @$c['line'] );
-
-      $lines[] = "- file $file, line $line";
-
-      foreach ( self::addLineNumbers( self::dumpFunctionCall( $c ) ) as $k => $line )
-        $lines[] = "    $line";
-
-      $lines[] = '';
-    }
-
-    $lines[] = "- {main}";
-
-    return $lines;
   }
 
   private static function addLineNumbers( array $lines )
@@ -229,7 +180,7 @@ final class PhpDump
     return self::dumpRef( $x );
   }
 
-  public static function dumpRef( &$x, array $arrayContext = array() )
+  private static function dumpRef( &$x, array $arrayContext = array() )
   {
     $self = new self;
 
@@ -379,9 +330,9 @@ final class PhpDump
   private function dumpObjectPropertiesLines( $object )
   {
     $propertiesLines = array();
-    $objectValues  = (array) $object;
-    $class         = new ReflectionClass( $object );
-    $isObjectClass = true;
+    $objectValues    = (array) $object;
+    $class           = new ReflectionClass( $object );
+    $isObjectClass   = true;
 
     do {
       foreach ( $class->getProperties() as $prop )
