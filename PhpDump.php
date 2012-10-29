@@ -364,9 +364,15 @@ final class PhpDump
   {
     $entriesLines = $this->dumpArrayEntriesLines( $array );
 
-    if ( count( $entriesLines ) == 0 )
+    $totalSize = 0;
+
+    foreach ( $entriesLines as $entryLines )
+      foreach ( $entryLines as $line )
+        $totalSize += mb_strlen( $line );
+
+    if ( $totalSize == 0 )
       return array( 'array()' );
-    else if ( count( $entriesLines ) <= 3 )
+    else if ( $totalSize <= 32 )
       return $this->dumpArrayOneline( $entriesLines );
     else
       return $this->dumpArrayMultiline( $entriesLines );
