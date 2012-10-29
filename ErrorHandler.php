@@ -89,7 +89,7 @@ class ErrorHandler
   {
     $error = error_get_last();
 
-    if ( $error === null && $error === $this->lastError )
+    if ( $error === null || $error === $this->lastError )
       return;
 
     $fullTrace = debug_backtrace();
