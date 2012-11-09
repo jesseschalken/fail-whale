@@ -2,12 +2,12 @@
 
 final class PhpDump
 {
-	public static function dumpException( Exception $e )
+	public static function dumpExceptionLines( Exception $e )
 	{
 		$lines    = self::dumpExceptionBrief( $e );
 		$lines[0] = "uncaught {$lines[0]}";
 		$lines[]  = "";
-		$lines[]  = "globals:";
+		$lines[]  = "global variables:";
 
 		foreach ( self::dumpVariables( $GLOBALS ) as $line )
 			$lines[] = "  $line";
@@ -15,18 +15,26 @@ final class PhpDump
 		return $lines;
 	}
 
-	private static function dumpExceptionBrief( Exception $e = null )
+	public static function dumpExceptionOneLine( Exception $e )
 	{
 		$exceptionClass = get_class( $e );
-		$code           = self::dumpShallow( $e->getCode() );
+		$code           = (string) $e->getCode();
 		$message        = self::dumpShallow( $e->getMessage() );
 		$file           = self::dumpShallow( $e->getFile() );
 		$line           = self::dumpShallow( $e->getLine() );
 
-		if ( $e instanceof PhpErrorException )
-			$trace = $e->getFullTrace();
-		else
-			$trace = $e->getTrace();
+		return "uncaught $exceptionClass, code $code, message $message in file $file, line $line";
+	}
+
+	private static function dumpExceptionBrief( Exception $e )
+	{
+		$exceptionClass = get_class( $e );
+		$code           = (string) $e->getCode();
+		$message        = self::dumpShallow( $e->getMessage() );
+		$file           = self::dumpShallow( $e->getFile() );
+		$line           = self::dumpShallow( $e->getLine() );
+
+		$trace = $e instanceof PhpErrorException ? $e->getFullTrace() : $e->getTrace();
 
 		$lines[] = "$exceptionClass";
 		$lines[] = "  code $code, message $message";
@@ -42,13 +50,13 @@ final class PhpDump
 			$context = $e->getContext();
 
 			$lines[] = "";
-			$lines[] = "locals:";
+			$lines[] = "local variables:";
 
 			foreach ( self::dumpVariables( $context ) as $line )
 				$lines[] = "  $line";
 		}
 
-		if ( $e->getPrevious() !== null )
+		if ( PHP_VERSION_ID > 50300 && $e->getPrevious() !== null )
 		{
 			$lines[] = "";
 			$lines[] = "previous exception:";
@@ -69,7 +77,7 @@ final class PhpDump
 
 			$lines[] = "- file $file, line $line";
 
-			foreach ( self::addLineNumbers( self::dumpFunctionCall( $c ) ) as $k => $line )
+			foreach ( self::addLineNumbers( self::dumpFunctionCall( $c ) ) as $line )
 				$lines[] = "    $line";
 
 			$lines[] = '';
@@ -96,23 +104,23 @@ final class PhpDump
 		return self::addLineNumbers( self::groupLines( $varLines ) );
 	}
 
-	private static function groupLines( array $liness )
+	private static function groupLines( array $lineGroups )
 	{
-		$lastWasMultiline = false;
+		$lastWasMultiLine = false;
 		$resultLines      = array();
 
-		foreach ( $liness as $k => $lines )
+		foreach ( $lineGroups as $k => $lines )
 		{
-			$isMultiline = count( $lines ) > 1;
+			$isMultiLine = count( $lines ) > 1;
 
 			if ( $k !== 0 )
-				if ( $lastWasMultiline || $isMultiline )
+				if ( $lastWasMultiLine || $isMultiLine )
 					$resultLines[] = '';
 
 			foreach ( $lines as $line )
 				$resultLines[] = $line;
 
-			$lastWasMultiline = $isMultiline;
+			$lastWasMultiLine = $isMultiLine;
 		}
 
 		return $resultLines;
@@ -145,12 +153,12 @@ final class PhpDump
 		else
 			$args = array( '( ? )' );
 
-		return self::concat( array(
-		                          $object,
-		                          array( @$call['type'] . @$call['function'] ),
-		                          $args,
-		                          array( ';' )
-		                     ) );
+		return self::concatenate( array(
+		                               $object,
+		                               array( @$call['type'] . @$call['function'] ),
+		                               $args,
+		                               array( ';' ),
+		                          ) );
 	}
 
 	private static function dumpFunctionArgs( array $args )
@@ -158,26 +166,26 @@ final class PhpDump
 		if ( empty( $args ) )
 			return array( '()' );
 
-		$concat[] = array( '( ' );
-		$concat[] = self::dump( array_shift( $args ) );
+		$lineGroups[] = array( '( ' );
+		$lineGroups[] = self::dump( array_shift( $args ) );
 
-		foreach ( $args as $k => &$arg )
+		foreach ( $args as &$arg )
 		{
-			$concat[] = array( ', ' );
-			$concat[] = self::dump( $arg );
+			$lineGroups[] = array( ', ' );
+			$lineGroups[] = self::dump( $arg );
 		}
 
-		$concat[] = array( ' )' );
+		$lineGroups[] = array( ' )' );
 
-		return self::concat( $concat );
+		return self::concatenate( $lineGroups );
 	}
 
-	private static function asVariableName( $varname )
+	private static function asVariableName( $varName )
 	{
-		if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $varname ) )
-			return "\$$varname";
+		if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $varName ) )
+			return "\$$varName";
 		else
-			return "\${" . self::dumpString( $varname ) . "}";
+			return "\${" . self::dumpString( $varName ) . "}";
 	}
 
 	public static function dump( $x )
@@ -199,18 +207,25 @@ final class PhpDump
 	{
 		if ( is_int( $x ) )
 			return "$x";
+
 		if ( is_float( $x ) )
 			return self::dumpFloat( $x );
+
 		if ( is_null( $x ) )
 			return 'null';
+
 		if ( is_bool( $x ) )
 			return $x ? 'true' : 'false';
+
 		if ( is_resource( $x ) )
 			return get_resource_type( $x );
+
 		if ( is_array( $x ) )
 			return empty( $x ) ? 'array()' : 'array(…)';
+
 		if ( is_object( $x ) )
 			return 'new ' . get_class( $x ) . ' {…}';
+
 		if ( is_string( $x ) )
 			return self::dumpString( $x );
 
@@ -255,18 +270,15 @@ final class PhpDump
 	{
 		$int = (int) $float;
 
-		if ( "$int" === "$float" )
-			return "$float.0";
-		else
-			return "$float";
+		return "$int" === "$float" ? "$float.0" : "$float";
 	}
 
-	private static function concat( array $liness )
+	private static function concatenate( array $lineGroups )
 	{
 		$result = array();
 		$i      = 0;
 
-		foreach ( $liness as $lines )
+		foreach ( $lineGroups as $lines )
 			foreach ( $lines as $k => $line )
 				if ( $k == 0 && $i != 0 )
 					$result[$i - 1] .= $line;
@@ -278,7 +290,7 @@ final class PhpDump
 
 	private static function wrap( $prepend, array $lines, $append )
 	{
-		return self::concat( array( array( $prepend ), $lines, array( $append ) ) );
+		return self::concatenate( array( array( $prepend ), $lines, array( $append ) ) );
 	}
 
 	private static function isArrayAssociative( array $array )
@@ -316,46 +328,32 @@ final class PhpDump
 
 		if ( is_object( $x ) )
 			return $self->dumpObjectLines( $x );
-		else if ( is_array( $x ) )
+
+		if ( is_array( $x ) )
 			return $self->dumpArrayLines( $x );
-		else
-			return array( self::dumpShallow( $x ) );
-	}
 
-	private function dumpObjectPropertyLines( array $objectValues, ReflectionProperty $prop )
-	{
-		$name = $prop->getName();
-
-		if ( $prop->isPrivate() )
-			list( $access, $key ) = array( 'private', "\x00" . $prop->getDeclaringClass()->getName() . "\x00$name" );
-		else if ( $prop->isProtected() )
-			list( $access, $key ) = array( 'protected', "\x00*\x00$name" );
-		else if ( $prop->isPublic() )
-			list( $access, $key ) = array( 'public', "$name" );
-		else
-			return assert( false );
-
-		$lines = $this->dumpRefLines( $objectValues[$key] );
-
-		return self::wrap( "$access " . self::asVariableName( $name ) . " = ", $lines, ';' );
+		return array( self::dumpShallow( $x ) );
 	}
 
 	private function dumpObjectPropertiesLines( $object )
 	{
 		$propertiesLines = array();
-		$objectValues    = (array) $object;
-		$class           = new ReflectionClass( $object );
-		$isObjectClass   = true;
 
-		do
+		foreach ( (array) $object as $k => $propertyValue )
 		{
-			foreach ( $class->getProperties() as $prop )
-				if ( !$prop->isStatic() && ( $prop->isPrivate() || $isObjectClass ) )
-					$propertiesLines[] = self::dumpObjectPropertyLines( $objectValues, $prop );
+			@list( $empty, $className, $propertyName ) = explode( "\x00", $k );
 
-			$isObjectClass = false;
+			$access = 'public';
+
+			if ( $empty === '' )
+				$access = $className === '*' ? 'protected' : 'private';
+			else
+				$propertyName = $empty;
+
+			$propertiesLines[] = self::wrap( "$access " . self::asVariableName( $propertyName ) . " = ",
+			                                 $this->dumpRefLines( $propertyValue ),
+			                                 ';' );
 		}
-		while ( $class = $class->getParentClass() );
 
 		return self::groupLines( $propertiesLines );
 	}
@@ -380,21 +378,22 @@ final class PhpDump
 	{
 		$entriesLines = $this->dumpArrayEntriesLines( $array );
 
+		if ( empty( $entriesLines ) )
+			return array( 'array()' );
+
 		$totalSize = 0;
 
 		foreach ( $entriesLines as $entryLines )
 			foreach ( $entryLines as $line )
 				$totalSize += mb_strlen( $line );
 
-		if ( $totalSize == 0 )
-			return array( 'array()' );
-		else if ( $totalSize <= 32 )
-			return $this->dumpArrayOneline( $entriesLines );
+		if ( $totalSize <= 32 )
+			return $this->dumpArrayOneLine( $entriesLines );
 		else
-			return $this->dumpArrayMultiline( $entriesLines );
+			return $this->dumpArrayMultiLine( $entriesLines );
 	}
 
-	private function dumpArrayOneline( array $entriesLines )
+	private function dumpArrayOneLine( array $entriesLines )
 	{
 		$entries = array();
 
@@ -402,12 +401,12 @@ final class PhpDump
 			if ( count( $entryLines ) <= 1 )
 				$entries[] = join( '', $entryLines );
 			else
-				return $this->dumpArrayMultiline( $entriesLines );
+				return $this->dumpArrayMultiLine( $entriesLines );
 
 		return array( "array( " . join( ', ', $entries ) . " )" );
 	}
 
-	private function dumpArrayMultiline( array $entriesLines )
+	private function dumpArrayMultiLine( array $entriesLines )
 	{
 		$lines[] = 'array(';
 
@@ -446,14 +445,14 @@ final class PhpDump
 
 	private function dumpObjectLinesDeep( $object )
 	{
-		$classname = get_class( $object );
+		$className = get_class( $object );
 
 		$propertyLines = $this->dumpObjectPropertiesLines( $object );
 
 		if ( empty( $propertyLines ) )
-			return array( "new $classname {}" );
+			return array( "new $className {}" );
 
-		$lines[] = "new $classname {";
+		$lines[] = "new $className {";
 
 		foreach ( $propertyLines as $line )
 			$lines[] = "    $line";
@@ -463,4 +462,3 @@ final class PhpDump
 		return $lines;
 	}
 }
-

@@ -3,7 +3,7 @@
 
 require_once 'include.php';
 
-$e = new ErrorHandler;
+$e = ErrorHandler::create();
 $e->bind();
 
 error_reporting( -1 );
@@ -17,6 +17,7 @@ class A
 		$$a = 6;
 		unset( $a );
 		// $b = 6;
+		/** @var $c int */
 		print $c;
 		$a = null;
 		$a->lol();
@@ -37,6 +38,7 @@ class A
 	);
 	private $lol = 5;
 	private $blarg = array( null );
+	protected $foo = array();
 }
 
 class Blarg
