@@ -12,6 +12,8 @@ class A
 {
 	public function __construct()
 	{
+		$this->recursiveArray['a'] =& $this->recursiveArray;
+		$this->recursiveArray['this'] = $this;
 		// trigger_error( 'lol' );
 		$a  = 'lol lol';
 		$$a = 6;
@@ -39,6 +41,7 @@ class A
 	private $lol = 5;
 	private $blarg = array( null );
 	protected $foo = array();
+	private $recursiveArray = array();
 }
 
 class Blarg
