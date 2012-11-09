@@ -427,6 +427,21 @@ final class PhpDump
 			if ( self::refsEqual( $c, $array ) )
 				return array( 'array( *recursion* )' );
 
+		/**
+		 * In PHP 5.2.4, this class was not able to detect the recursion of the
+		 * following structure, resulting in a stack overflow.
+		 *
+		 *   $a         = new stdClass;
+		 *   $a->b      = array();
+		 *   $a->b['c'] =& $a->b;
+		 *
+		 * But PHP 5.3.17 was able. The exact reason I am not sure, but I will enforce
+		 * a maximum depth limit for PHP versions older than the earliest for which I
+		 * know the recursion detection works.
+		 */
+		if ( PHP_VERSION_ID < 50317 && count( $this->arrayContext ) > 10 )
+			return array( 'array( *maximum depth exceeded* )' );
+
 		$this->arrayContext[] =& $array;
 
 		return $this->dumpArrayDeep( $array );

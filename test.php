@@ -6,13 +6,17 @@ require_once 'include.php';
 $e = ErrorHandler::create();
 $e->bind();
 
+$v                 = new stdClass;
+$v->foo            = array();
+$v->foo['recurse'] =& $v->foo;
+
 error_reporting( -1 );
 
 class A
 {
 	public function __construct()
 	{
-		$this->recursiveArray['a'] =& $this->recursiveArray;
+		$this->recursiveArray['a']    =& $this->recursiveArray;
 		$this->recursiveArray['this'] = $this;
 		// trigger_error( 'lol' );
 		$a  = 'lol lol';
