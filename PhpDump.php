@@ -307,7 +307,7 @@ final class PhpDump
 	private static function refsEqual( &$a, &$b )
 	{
 		$temp = $a;
-		$a    = (object) null;
+		$a    = new stdClass;
 
 		$result = $a === $b;
 		$a      = $temp;
