@@ -339,7 +339,9 @@ final class PhpDump
 	{
 		$propertiesLines = array();
 
-		foreach ( (array) $object as $k => $propertyValue )
+		$objectProperties = (array) $object;
+
+		foreach ( $objectProperties as $k => &$propertyValue )
 		{
 			@list( $empty, $className, $propertyName ) = explode( "\x00", $k );
 
