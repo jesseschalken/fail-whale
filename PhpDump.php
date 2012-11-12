@@ -111,7 +111,7 @@ final class PhpDump
 
 		foreach ( $lineGroups as $k => $lines )
 		{
-			$isMultiLine = count( $lines ) > 1;
+			$isMultiLine = count( self::renderLines( $lines ) ) > 1;
 
 			if ( $k !== 0 )
 				if ( $lastWasMultiLine || $isMultiLine )
@@ -126,9 +126,21 @@ final class PhpDump
 		return $resultLines;
 	}
 
+	private static function renderLines( $lines )
+	{
+		$renderedLines = array();
+
+		foreach ( $lines as $line )
+			foreach ( explode( "\n", $line ) as $renderedLine )
+				$renderedLines[] = $renderedLine;
+
+		return $renderedLines;
+	}
+
 	private static function addLineNumbers( array $lines )
 	{
-		$numDigits = max( mb_strlen( (string) count( $lines ) ), 3 );
+		$lines     = self::renderLines( $lines );
+		$numDigits = max( strlen( (string) count( $lines ) ), 3 );
 		$space     = str_repeat( ' ', $numDigits );
 
 		$i = 1;
@@ -236,8 +248,20 @@ final class PhpDump
 	{
 		$escaped = '';
 
-		for ( $i = 0; $i < mb_strlen( $string ); $i++ )
-			$escaped .= self::escapeChar( mb_substr( $string, $i, 1 ) );
+		if ( mb_check_encoding( $string, 'UTF-8' ) )
+		{
+			$strlen = mb_strlen( $string, 'UTF-8' );
+
+			for ( $i = 0; $i < $strlen; $i++ )
+				$escaped .= self::escapeChar( mb_substr( $string, $i, 1, 'UTF-8' ) );
+		}
+		else
+		{
+			$strlen = strlen( $string );
+
+			for ( $i = 0; $i < $strlen; $i++ )
+				$escaped .= self::escapeChar( $string[$i] );
+		}
 
 		return "\"$escaped\"";
 	}
@@ -246,9 +270,9 @@ final class PhpDump
 	{
 		$map = array(
 			"\\" => '\\\\',
-			"\n" => '\n',
+			"\n" => "\n",
 			"\r" => '\r',
-			"\t" => '\t',
+			"\t" => "\t",
 			"\v" => '\v',
 			"\f" => '\f',
 			"\$" => '\$',
@@ -258,9 +282,12 @@ final class PhpDump
 		if ( isset( $map[$char] ) )
 			return $map[$char];
 
+		if ( strlen( $char ) > 1 )
+			return $char;
+
 		$ord = ord( $char );
 
-		if ( ( $ord >= 0 && $ord < 32 ) || $ord === 127 )
+		if ( !( $ord >= 32 && $ord < 127 ) )
 			return '\x' . mb_substr( '00' . dechex( $ord ), -2 );
 
 		return $char;
@@ -387,7 +414,7 @@ final class PhpDump
 
 		foreach ( $entriesLines as $entryLines )
 			foreach ( $entryLines as $line )
-				$totalSize += mb_strlen( $line );
+				$totalSize += mb_strlen( $line, 'UTF-8' );
 
 		if ( $totalSize <= 32 )
 			return $this->dumpArrayOneLine( $entriesLines );

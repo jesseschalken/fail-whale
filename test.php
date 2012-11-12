@@ -16,6 +16,9 @@ class A
 {
 	public function __construct()
 	{
+		for ( $i = 0; $i < 256; $i++ )
+			$this->allBytes .= chr( $i );
+
 		$this->recursiveArray['a']    =& $this->recursiveArray;
 		$this->recursiveArray['this'] = $this;
 		// trigger_error( 'lol' );
@@ -28,6 +31,16 @@ class A
 		$a = null;
 		$a->lol();
 	}
+
+	private $hebrewChars = "־׀׃׆אבגדהוזחטיךכלםמןנסעףפץצקרשתװױײ׳״";
+
+	private $allBytes = "";
+
+	private $multiLineString = "SELECT blarg
+FROM foo
+JOIN bah
+	ON foo.a = bah.b
+WHERE foo.id = 4";
 
 	// private $b = 7;
 	public $c = array(
