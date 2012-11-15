@@ -58,7 +58,7 @@ abstract class PhpDumper
 
 		foreach ( $lineGroups as $k => $lines )
 		{
-			$isMultiLine = count( self::renderLines( $lines ) ) > 1;
+			$isMultiLine = count( self::splitNewLines( $lines ) ) > 1;
 
 			if ( $k !== 0 )
 				if ( $lastWasMultiLine || $isMultiLine )
@@ -73,26 +73,15 @@ abstract class PhpDumper
 		return $resultLines;
 	}
 
-	protected static function renderLines( array $lines )
+	protected static function splitNewLines( array $lines )
 	{
-		$renderedLines = array();
-
-		foreach ( $lines as $line )
-			foreach ( explode( "\n", $line ) as $renderedLine )
-				$renderedLines[] = $renderedLine;
-
-		return $renderedLines;
+		return explode( "\n", join( "\n", $lines ) );
 	}
 
 	protected static function addLineNumbers( array $lines )
 	{
-		$numDigits = max( strlen( (string) count( $lines ) ), 3 );
-		$space     = str_repeat( ' ', $numDigits );
-
-		$i = 1;
-
-		foreach ( $lines as &$line )
-			$line = substr( $i++ . $space, 0, $numDigits ) . " $line";
+		foreach ( $lines as $k => &$line )
+			$line = substr( ( $k + 1 ) . '    ', 0, 4 ) . " $line";
 
 		return $lines;
 	}
@@ -580,7 +569,7 @@ final class PhpExceptionDumper extends PhpDumper
 
 			$lines[] = "- file $file, line $line";
 
-			foreach ( self::addLineNumbers( self::renderLines( $this->dumpFunctionCall( $c ) ) ) as $line )
+			foreach ( self::addLineNumbers( self::splitNewLines( $this->dumpFunctionCall( $c ) ) ) as $line )
 				$lines[] = "    $line";
 
 			$lines[] = '';
@@ -611,7 +600,7 @@ final class PhpExceptionDumper extends PhpDumper
 			                                 ) );
 		}
 
-		return self::addLineNumbers( self::renderLines( self::groupLines( $varLines ) ) );
+		return self::addLineNumbers( self::splitNewLines( self::groupLines( $varLines ) ) );
 	}
 
 	private function dumpFunctionCall( array $call )
