@@ -1,6 +1,6 @@
 <?php
 
-class ErrorHandler
+class PhpErrorHandler
 {
 	private $lastError = null;
 
@@ -87,16 +87,16 @@ class ErrorHandler
 
 	protected function handleException( Exception $e )
 	{
-		self::out( self::joinLines( PhpDump::dumpExceptionLines( $e ) ) );
+		self::out( PhpExceptionDumper::dumpExceptionOneLine( $e ), PhpExceptionDumper::dumpException( $e ) );
 	}
 
-	protected static function out( $text )
+	protected static function out( $title, $body )
 	{
 		while ( ob_get_level() > 0 )
 			ob_end_clean();
 
 		if ( PHP_SAPI === 'cli' )
-			print $text;
+			print $body;
 		else
 		{
 			if ( !headers_sent() )
@@ -105,33 +105,44 @@ class ErrorHandler
 				header( "Content-Type: text/html; charset=UTF-8", true );
 			}
 
-			print self::wrapHtml( $text );
+			print self::wrapHtml( $title, $body );
 		}
 	}
 
-	protected static function joinLines( array $lines )
+	private static function toHtml( $text )
 	{
-		return empty( $lines ) ? '' : join( PHP_EOL, $lines ) . PHP_EOL;
+		return htmlspecialchars( $text, ENT_COMPAT, "UTF-8" );
 	}
 
-	private static function wrapHtml( $text )
+	protected static function wrapHtml( $title, $body )
 	{
-		$html = htmlspecialchars( $text, ENT_QUOTES, 'UTF-8' );
+		$body  = self::toHtml( $body );
+		$title = self::toHtml( $title );
 
-		return <<<eot
-<div style="
-	white-space: pre;
-	font-family: 'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace;
-	font-size: 10pt;
-	color: #000000;
-	display: block;
-	background: white;
-	border: none;
-	margin: 0;
-	padding: 0;
-	line-height: 16px;
-">$html</div>
-eot;
+		return <<<html
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>$title</title>
+	</head>
+	<body>
+		<pre style="
+			white-space: pre;
+			font-family: 'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace;
+			font-size: 10pt;
+			color: #000000;
+			display: block;
+			background: white;
+			border: none;
+			margin: 0;
+			padding: 0;
+			line-height: 16px;
+			width: 100%;
+		">$body</pre>
+	</body>
+</html>
+html;
 	}
 }
 

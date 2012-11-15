@@ -3,7 +3,7 @@
 
 require_once 'include.php';
 
-$e = ErrorHandler::create();
+$e = PhpErrorHandler::create();
 $e->bind();
 
 $v                 = new stdClass;
