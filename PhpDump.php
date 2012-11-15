@@ -16,7 +16,12 @@ abstract class PhpDumper
 	 */
 	public abstract function dump( &$value );
 
-	protected final function dumpAny( &$value )
+	protected final function dumpRef( &$value )
+	{
+		return $this->dumper->dump( $value );
+	}
+
+	protected final function dumpValue( $value )
 	{
 		return $this->dumper->dump( $value );
 	}
@@ -26,9 +31,9 @@ abstract class PhpDumper
 		return $this->dumper->_dumpVariable( $varName );
 	}
 
-	protected final function dumpOneLine( &$value )
+	protected final function dumpOneLine( $value )
 	{
-		return join( '', $this->dumpAny( $value ) );
+		return join( '', $this->dumpValue( $value ) );
 	}
 
 	protected static function concatenate( array $lineGroups )
@@ -220,7 +225,7 @@ final class PhpArrayDumper extends PhpDumper
 		if ( PHP_VERSION_ID < 50317 && count( $this->arrayContext ) > 10 )
 			return array( 'array( *maximum depth exceeded* )' );
 
-		array_push( $this->arrayContext, $array );
+		$this->arrayContext[] =& $array;
 
 		$result = $this->dumpArrayDeep( $array );
 
@@ -241,11 +246,11 @@ final class PhpArrayDumper extends PhpDumper
 
 			if ( $isAssociative )
 			{
-				$parts[] = $this->dumpAny( $k );
+				$parts[] = $this->dumpValue( $k );
 				$parts[] = array( " => " );
 			}
 
-			$parts[] = $this->dumpAny( $v );
+			$parts[] = $this->dumpRef( $v );
 
 			$entriesLines[] = self::concatenate( $parts );
 		}
@@ -388,7 +393,7 @@ final class PhpObjectDumper extends PhpCachingDumper
 			                                             array( "$access " ),
 			                                             $this->dumpVariable( $propertyName ),
 			                                             array( ' = ' ),
-			                                             $this->dumpAny( $propertyValue ),
+			                                             $this->dumpRef( $propertyValue ),
 			                                             array( ';' )
 			                                        ) );
 		}
@@ -463,7 +468,7 @@ final class PhpVariableDumper extends PhpCachingDumper
 		else
 			return self::concatenate( array(
 			                               array( '${' ),
-			                               $this->dumpAny( $varName ),
+			                               $this->dumpValue( $varName ),
 			                               array( '}' ),
 			                          ) );
 	}
@@ -601,7 +606,7 @@ final class PhpExceptionDumper extends PhpDumper
 			$varLines[] = self::concatenate( array(
 			                                      $this->dumpVariable( $k ),
 			                                      array( ' = ' ),
-			                                      $this->dumpAny( $v ),
+			                                      $this->dumpRef( $v ),
 			                                      array( ';' ),
 			                                 ) );
 		}
@@ -612,7 +617,7 @@ final class PhpExceptionDumper extends PhpDumper
 	private function dumpFunctionCall( array $call )
 	{
 		if ( isset( $call['object'] ) )
-			$object = $this->dumpAny( $call['object'] );
+			$object = $this->dumpValue( $call['object'] );
 		else if ( isset( $call['class'] ) )
 			$object = array( @$call['class'] );
 		else
@@ -636,13 +641,10 @@ final class PhpExceptionDumper extends PhpDumper
 		if ( empty( $args ) )
 			return array( '()' );
 
-		$lineGroups[] = array( '( ' );
-		$lineGroups[] = $this->dumpAny( array_shift( $args ) );
-
-		foreach ( $args as &$arg )
+		foreach ( $args as $k => &$arg )
 		{
-			$lineGroups[] = array( ', ' );
-			$lineGroups[] = $this->dumpAny( $arg );
+			$lineGroups[] = array( $k === 0 ? '( ' : ', ' );
+			$lineGroups[] = $this->dumpRef( $arg );
 		}
 
 		$lineGroups[] = array( ' )' );
