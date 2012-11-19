@@ -38,7 +38,7 @@ class PhpErrorHandler
 
 	private function isErrorThrowable( PhpErrorException $e )
 	{
-		if ( $e->getSeverity() & ( E_USER_DEPRECATED | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
+		if ( $e->getSeverity() & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
 			return true;
 
 		return false;
