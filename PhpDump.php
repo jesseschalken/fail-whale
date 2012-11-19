@@ -533,19 +533,21 @@ final class PhpExceptionDumper extends PhpDumper
 		$lines[] = "  file $file";
 		$lines[] = "  line $line";
 
-		if ( $e instanceof PhpErrorException )
+		if ( $e instanceof ExceptionWithLocalVariables )
 		{
 			$lines[] = "";
 			$lines[] = "local variables:";
 
-			foreach ( $this->dumpVariables( $e->getContext() ) as $line )
+			foreach ( $this->dumpVariables( $e->getLocalVariables() ) as $line )
 				$lines[] = "  $line";
 		}
 
 		$lines[] = "";
 		$lines[] = "stack trace:";
 
-		foreach ( $this->dumpTrace( $e instanceof PhpErrorException ? $e->getFullTrace() : $e->getTrace() ) as $line )
+		$trace = $e instanceof ExceptionWithFullStackTrace ? $e->getFullStackTrace() : $e->getTrace();
+
+		foreach ( $this->dumpTrace( $trace ) as $line )
 			$lines[] = "  $line";
 
 		if ( PHP_VERSION_ID > 50300 && $e->getPrevious() !== null )

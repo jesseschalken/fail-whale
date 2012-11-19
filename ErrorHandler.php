@@ -33,7 +33,10 @@ class PhpErrorHandler
 
 	public final function handleFailedAssertion( $file, $line, $expression, $message = 'Assertion failed' )
 	{
-		throw new AssertionFailedException( $file, $line, $expression, $message );
+		$fullTrace = debug_backtrace();
+		array_shift( $fullTrace );
+
+		throw new AssertionFailedException( $file, $line, $expression, $message, $fullTrace );
 	}
 
 	private function isErrorThrowable( PhpErrorException $e )
@@ -44,14 +47,14 @@ class PhpErrorHandler
 		return false;
 	}
 
-	public final function handleError( $severity, $message, $file = null, $line = null, $context = null )
+	public final function handleError( $severity, $message, $file = null, $line = null, $localVariables = null )
 	{
 		if ( error_reporting() & $severity )
 		{
 			$fullTrace = debug_backtrace();
 			array_shift( $fullTrace );
 
-			$e = new PhpErrorException( $severity, $message, $file, $line, $context, $fullTrace );
+			$e = new PhpErrorException( $severity, $message, $file, $line, $localVariables, $fullTrace );
 
 			if ( $this->isErrorThrowable( $e ) )
 				throw $e;
@@ -146,29 +149,53 @@ html;
 	}
 }
 
-class AssertionFailedException extends Exception
+interface ExceptionWithLocalVariables
+{
+	/**
+	 * @return array
+	 */
+	public function getLocalVariables();
+}
+
+interface ExceptionWithFullStackTrace
+{
+	/**
+	 * @return array
+	 */
+	public function getFullStackTrace();
+}
+
+class AssertionFailedException extends Exception implements ExceptionWithFullStackTrace
 {
 	private $expression;
+	private $fullStackTrace;
 
 	/**
 	 * @param string    $file
 	 * @param int       $line
 	 * @param string    $expression
 	 * @param string    $message
+	 * @param array     $fullStackTrace
 	 */
-	public function __construct( $file, $line, $expression, $message )
+	public function __construct( $file, $line, $expression, $message, array $fullStackTrace )
 	{
-		$this->file       = $file;
-		$this->line       = $line;
-		$this->expression = $expression;
-		$this->message    = $message;
+		$this->file           = $file;
+		$this->line           = $line;
+		$this->expression     = $expression;
+		$this->message        = $message;
+		$this->fullStackTrace = $fullStackTrace;
+	}
+
+	public function getFullStackTrace()
+	{
+		return $this->fullStackTrace;
 	}
 }
 
-class PhpErrorException extends ErrorException
+class PhpErrorException extends ErrorException implements ExceptionWithLocalVariables, ExceptionWithFullStackTrace
 {
-	private $context = array();
-	private $fullTrace = array();
+	private $localVariables = array();
+	private $fullStackTrace = array();
 	private static $errorConstants = array(
 		E_ERROR             => 'E_ERROR',
 		E_WARNING           => 'E_WARNING',
@@ -192,25 +219,30 @@ class PhpErrorException extends ErrorException
 	 * @param string       $message
 	 * @param string|null  $file
 	 * @param int|null     $line
-	 * @param array|null   $context
-	 * @param array|null   $fullTrace
+	 * @param array|null   $localVariables
+	 * @param array|null   $fullStackTrace
 	 */
-	public function __construct( $severity, $message, $file, $line, array $context = null, array $fullTrace = null )
+	public function __construct( $severity,
+	                             $message,
+	                             $file,
+	                             $line,
+	                             array $localVariables = null,
+	                             array $fullStackTrace = null )
 	{
 		parent::__construct( $message, 0, $severity, $file, $line );
 
-		$this->context   = $context;
-		$this->fullTrace = $fullTrace;
-		$this->code      = isset( self::$errorConstants[$severity] ) ? self::$errorConstants[$severity] : 'E_?';
+		$this->localVariables = $localVariables;
+		$this->fullStackTrace = $fullStackTrace;
+		$this->code           = isset( self::$errorConstants[$severity] ) ? self::$errorConstants[$severity] : 'E_?';
 	}
 
-	public function getFullTrace()
+	public function getFullStackTrace()
 	{
-		return $this->fullTrace !== null ? $this->fullTrace : $this->getTrace();
+		return $this->fullStackTrace !== null ? $this->fullStackTrace : $this->getTrace();
 	}
 
-	public function getContext()
+	public function getLocalVariables()
 	{
-		return $this->context;
+		return $this->localVariables;
 	}
 }

@@ -33,15 +33,12 @@ class A
 	}
 
 	private $hebrewChars = "־׀׃׆אבגדהוזחטיךכלםמןנסעףפץצקרשתװױײ׳״";
-
 	private $allBytes = "";
-
 	private $multiLineString = "SELECT blarg
 FROM foo
 JOIN bah
 	ON foo.a = bah.b
 WHERE foo.id = 4";
-
 	// private $b = 7;
 	public $c = array(
 		array(
