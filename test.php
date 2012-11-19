@@ -12,6 +12,8 @@ $v->foo['recurse'] =& $v->foo;
 
 error_reporting( -1 );
 
+$f = curl_init();
+
 class A
 {
 	public function __construct()

@@ -185,7 +185,7 @@ final class PhpResourceDumper extends PhpDumper
 {
 	public function dump( &$resource )
 	{
-		return array( get_resource_type( $resource ) );
+		return array( get_resource_type( $resource ) . ' #' . (int) $resource );
 	}
 }
 
