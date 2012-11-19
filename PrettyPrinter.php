@@ -1,12 +1,15 @@
 <?php
 
-abstract class PhpDumper
+abstract class PrettyPrinter
 {
-	private $dumper;
+	/**
+	 * @var ValuePrettyPrinter
+	 */
+	private $prettyPrinter;
 
-	public function __construct( PhpCompositeDumper $dumper )
+	public function __construct( ValuePrettyPrinter $prettyPrinter )
 	{
-		$this->dumper = $dumper;
+		$this->prettyPrinter = $prettyPrinter;
 	}
 
 	/**
@@ -14,26 +17,26 @@ abstract class PhpDumper
 	 *
 	 * @return string[]
 	 */
-	public abstract function dump( &$value );
+	public abstract function prettyPrint( &$value );
 
-	protected final function dumpRef( &$value )
+	protected final function prettyPrintRef( &$value )
 	{
-		return $this->dumper->dump( $value );
+		return $this->prettyPrinter->prettyPrint( $value );
 	}
 
-	protected final function dumpValue( $value )
+	protected final function prettyPrintValue( $value )
 	{
-		return $this->dumper->dump( $value );
+		return $this->prettyPrinter->prettyPrint( $value );
 	}
 
-	protected final function dumpVariable( $varName )
+	protected function prettyPrintVariable( $varName )
 	{
-		return $this->dumper->_dumpVariable( $varName );
+		return $this->prettyPrinter->prettyPrintVariable( $varName );
 	}
 
-	protected final function dumpOneLine( $value )
+	protected final function prettyPrintOneLine( $value )
 	{
-		return join( '', $this->dumpValue( $value ) );
+		return join( '', $this->prettyPrintValue( $value ) );
 	}
 
 	protected static function concatenate( array $lineGroups )
@@ -87,11 +90,11 @@ abstract class PhpDumper
 	}
 }
 
-abstract class PhpCachingDumper extends PhpDumper
+abstract class CachingPrettyPrinter extends PrettyPrinter
 {
 	private $cache = array();
 
-	public final function dump( &$value )
+	public final function prettyPrint( &$value )
 	{
 		$serialized = $this->valueToString( $value );
 
@@ -106,7 +109,7 @@ abstract class PhpCachingDumper extends PhpDumper
 	protected abstract function cacheMiss( $value );
 }
 
-final class PhpStringDumper extends PhpCachingDumper
+final class StringPrettyPrinter extends CachingPrettyPrinter
 {
 	protected function cacheMiss( $string )
 	{
@@ -150,23 +153,23 @@ final class PhpStringDumper extends PhpCachingDumper
 	}
 }
 
-final class PhpBooleanDumper extends PhpDumper
+final class BooleanPrettyPrinter extends PrettyPrinter
 {
-	public function dump( &$value )
+	public function prettyPrint( &$value )
 	{
 		return array( $value ? 'true' : 'false' );
 	}
 }
 
-final class PhpIntegerDumper extends PhpDumper
+final class IntegerPrettyPrinter extends PrettyPrinter
 {
-	public function dump( &$int )
+	public function prettyPrint( &$int )
 	{
 		return array( "$int" );
 	}
 }
 
-final class PhpFloatDumper extends PhpCachingDumper
+final class FloatPrettyPrinter extends CachingPrettyPrinter
 {
 	protected function cacheMiss( $float )
 	{
@@ -181,19 +184,19 @@ final class PhpFloatDumper extends PhpCachingDumper
 	}
 }
 
-final class PhpResourceDumper extends PhpDumper
+final class ResourcePrettyPrinter extends PrettyPrinter
 {
-	public function dump( &$resource )
+	public function prettyPrint( &$resource )
 	{
 		return array( get_resource_type( $resource ) . ' #' . (int) $resource );
 	}
 }
 
-final class PhpArrayDumper extends PhpDumper
+final class ArrayPrettyPrinter extends PrettyPrinter
 {
 	private $arrayContext = array();
 
-	public function dump( &$array )
+	public function prettyPrint( &$array )
 	{
 		foreach ( $this->arrayContext as &$c )
 			if ( self::refsEqual( $c, $array ) )
@@ -216,14 +219,14 @@ final class PhpArrayDumper extends PhpDumper
 
 		$this->arrayContext[] =& $array;
 
-		$result = $this->dumpArrayDeep( $array );
+		$result = $this->prettyPrintArrayDeep( $array );
 
 		array_pop( $this->arrayContext );
 
 		return $result;
 	}
 
-	private function dumpArrayEntriesLines( array $array )
+	private function prettyPrintArrayEntriesLines( array $array )
 	{
 		$entriesLines = array();
 
@@ -235,11 +238,11 @@ final class PhpArrayDumper extends PhpDumper
 
 			if ( $isAssociative )
 			{
-				$parts[] = $this->dumpValue( $k );
+				$parts[] = $this->prettyPrintValue( $k );
 				$parts[] = array( " => " );
 			}
 
-			$parts[] = $this->dumpRef( $v );
+			$parts[] = $this->prettyPrintRef( $v );
 
 			$entriesLines[] = self::concatenate( $parts );
 		}
@@ -247,9 +250,9 @@ final class PhpArrayDumper extends PhpDumper
 		return $entriesLines;
 	}
 
-	private function dumpArrayDeep( array $array )
+	private function prettyPrintArrayDeep( array $array )
 	{
-		$entriesLines = $this->dumpArrayEntriesLines( $array );
+		$entriesLines = $this->prettyPrintArrayEntriesLines( $array );
 
 		if ( empty( $entriesLines ) )
 			return array( 'array()' );
@@ -261,12 +264,12 @@ final class PhpArrayDumper extends PhpDumper
 				$totalSize += strlen( $line );
 
 		if ( $totalSize <= 32 )
-			return $this->dumpArrayOneLine( $entriesLines );
+			return $this->prettyPrintArrayOneLine( $entriesLines );
 		else
-			return $this->dumpArrayMultiLine( $entriesLines );
+			return $this->prettyPrintArrayMultiLine( $entriesLines );
 	}
 
-	private function dumpArrayOneLine( array $entriesLines )
+	private function prettyPrintArrayOneLine( array $entriesLines )
 	{
 		$entries = array();
 
@@ -274,12 +277,12 @@ final class PhpArrayDumper extends PhpDumper
 			if ( count( $entryLines ) <= 1 )
 				$entries[] = join( '', $entryLines );
 			else
-				return $this->dumpArrayMultiLine( $entriesLines );
+				return $this->prettyPrintArrayMultiLine( $entriesLines );
 
 		return array( "array( " . join( ', ', $entries ) . " )" );
 	}
 
-	private function dumpArrayMultiLine( array $entriesLines )
+	private function prettyPrintArrayMultiLine( array $entriesLines )
 	{
 		$lines[] = 'array(';
 
@@ -317,7 +320,7 @@ final class PhpArrayDumper extends PhpDumper
 	}
 }
 
-final class PhpObjectDumper extends PhpCachingDumper
+final class ObjectPrettyPrinter extends CachingPrettyPrinter
 {
 	private $objectContext = array();
 
@@ -330,7 +333,7 @@ final class PhpObjectDumper extends PhpCachingDumper
 
 		$this->objectContext[$hash] = true;
 
-		$result = $this->dumpObjectLinesDeep( $object );
+		$result = $this->prettyPrintObjectLinesDeep( $object );
 
 		unset( $this->objectContext[$hash] );
 
@@ -342,11 +345,11 @@ final class PhpObjectDumper extends PhpCachingDumper
 		return spl_object_hash( $object );
 	}
 
-	private function dumpObjectLinesDeep( $object )
+	private function prettyPrintObjectLinesDeep( $object )
 	{
 		$className = get_class( $object );
 
-		$propertyLines = $this->dumpObjectPropertiesLines( $object );
+		$propertyLines = $this->prettyPrintObjectPropertiesLines( $object );
 
 		if ( empty( $propertyLines ) )
 			return array( "new $className {}" );
@@ -361,7 +364,7 @@ final class PhpObjectDumper extends PhpCachingDumper
 		return $lines;
 	}
 
-	private function dumpObjectPropertiesLines( $object )
+	private function prettyPrintObjectPropertiesLines( $object )
 	{
 		$propertiesLines = array();
 
@@ -380,9 +383,9 @@ final class PhpObjectDumper extends PhpCachingDumper
 
 			$propertiesLines[] = self::concatenate( array(
 			                                             array( "$access " ),
-			                                             $this->dumpVariable( $propertyName ),
+			                                             $this->prettyPrintVariable( $propertyName ),
 			                                             array( ' = ' ),
-			                                             $this->dumpRef( $propertyValue ),
+			                                             $this->prettyPrintRef( $propertyValue ),
 			                                             array( ';' )
 			                                        ) );
 		}
@@ -391,59 +394,61 @@ final class PhpObjectDumper extends PhpCachingDumper
 	}
 }
 
-final class PhpNullDumper extends PhpDumper
+final class NullPrettyPrinter extends PrettyPrinter
 {
-	public function dump( &$null )
+	public function prettyPrint( &$null )
 	{
 		return array( 'null' );
 	}
 }
 
-final class PhpUnknownDumper extends PhpDumper
+final class UnknownPrettyPrinter extends PrettyPrinter
 {
-	public function dump( &$unknown )
+	public function prettyPrint( &$unknown )
 	{
 		return array( 'unknown type' );
 	}
 }
 
-final class PhpCompositeDumper extends PhpDumper
+final class ValuePrettyPrinter extends PrettyPrinter
 {
-	/** @var PhpDumper[] */
-	private $dumpers = array();
-	private $variableDumper;
+	/** @var PrettyPrinter[] */
+	private $prettyPrinters = array();
+	private $variablePrettyPrinter;
 
 	public function __construct()
 	{
-		$this->dumpers = array(
-			'boolean'      => new PhpBooleanDumper( $this ),
-			'integer'      => new PhpIntegerDumper( $this ),
-			'double'       => new PhpFloatDumper( $this ),
-			'string'       => new PhpStringDumper( $this ),
-			'array'        => new PhpArrayDumper( $this ),
-			'object'       => new PhpObjectDumper( $this ),
-			'resource'     => new PhpResourceDumper( $this ),
-			'NULL'         => new PhpNullDumper( $this ),
-			'unknown type' => new PhpUnknownDumper( $this ),
+		$this->prettyPrinters = array(
+			'boolean'      => new BooleanPrettyPrinter( $this ),
+			'integer'      => new IntegerPrettyPrinter( $this ),
+			'double'       => new FloatPrettyPrinter( $this ),
+			'string'       => new StringPrettyPrinter( $this ),
+			'array'        => new ArrayPrettyPrinter( $this ),
+			'object'       => new ObjectPrettyPrinter( $this ),
+			'resource'     => new ResourcePrettyPrinter( $this ),
+			'NULL'         => new NullPrettyPrinter( $this ),
+			'unknown type' => new UnknownPrettyPrinter( $this ),
 		);
 
-		$this->variableDumper = new PhpVariableDumper( $this );
+		$this->variablePrettyPrinter = new VariablePrettyPrinter( $this );
 
 		parent::__construct( $this );
 	}
 
-	public final function dump( &$value )
+	public final function prettyPrint( &$value )
 	{
-		return $this->dumpers[gettype( $value )]->dump( $value );
+		$printer = $this->prettyPrinters[gettype( $value )];
+
+		return $printer->prettyPrint( $value );
 	}
 
-	public final function _dumpVariable( $varName )
+	public final function prettyPrintVariable( $varName )
 	{
-		return $this->variableDumper->dump( $varName );
+		return $this->variablePrettyPrinter->prettyPrint( $varName );
 	}
 }
 
-final class PhpVariableDumper extends PhpCachingDumper
+final class VariablePrettyPrinter extends CachingPrettyPrinter
 {
 	protected function valueToString( $value )
 	{
@@ -457,27 +462,27 @@ final class PhpVariableDumper extends PhpCachingDumper
 		else
 			return self::concatenate( array(
 			                               array( '${' ),
-			                               $this->dumpValue( $varName ),
+			                               $this->prettyPrintValue( $varName ),
 			                               array( '}' ),
 			                          ) );
 	}
 }
 
-final class PhpExceptionDumper extends PhpDumper
+final class ExceptionPrettyPrinter extends PrettyPrinter
 {
 	/**
 	 * @param Exception $exception
 	 *
 	 * @return string[]
 	 */
-	public function dump( &$exception )
+	public function prettyPrint( &$exception )
 	{
-		$lines    = $this->dumpExceptionBrief( $exception );
+		$lines    = $this->prettyPrintExceptionBrief( $exception );
 		$lines[0] = "uncaught {$lines[0]}";
 		$lines[]  = "";
 		$lines[]  = "global variables:";
 
-		foreach ( $this->dumpVariables( self::globals() ) as $line )
+		foreach ( $this->prettyPrintVariables( self::globals() ) as $line )
 			$lines[] = "  $line";
 
 		return $lines;
@@ -495,37 +500,37 @@ final class PhpExceptionDumper extends PhpDumper
 		return $globals;
 	}
 
-	public static function dumpExceptionOneLine( Exception $e )
+	public static function prettyPrintExceptionOneLine( Exception $e )
 	{
-		$self = new self( new PhpCompositeDumper );
+		$self = new self( new ValuePrettyPrinter );
 
 		$exceptionClass = get_class( $e );
 		$code           = (string) $e->getCode();
-		$message        = $self->dumpOneLine( $e->getMessage() );
-		$file           = $self->dumpOneLine( $e->getFile() );
-		$line           = $self->dumpOneLine( $e->getLine() );
+		$message        = $self->prettyPrintOneLine( $e->getMessage() );
+		$file           = $self->prettyPrintOneLine( $e->getFile() );
+		$line           = $self->prettyPrintOneLine( $e->getLine() );
 
 		return "uncaught $exceptionClass, code $code, message $message in file $file, line $line";
 	}
 
-	public static function dumpException( Exception $e )
+	public static function prettyPrintException( Exception $e )
 	{
-		$self   = new self( new PhpCompositeDumper );
+		$self   = new self( new ValuePrettyPrinter );
 		$result = '';
 
-		foreach ( $self->dump( $e ) as $line )
+		foreach ( $self->prettyPrint( $e ) as $line )
 			$result .= "$line\n";
 
 		return $result;
 	}
 
-	private function dumpExceptionBrief( Exception $e )
+	private function prettyPrintExceptionBrief( Exception $e )
 	{
 		$exceptionClass = get_class( $e );
 		$code           = (string) $e->getCode();
-		$message        = $this->dumpOneLine( $e->getMessage() );
-		$file           = $this->dumpOneLine( $e->getFile() );
-		$line           = $this->dumpOneLine( $e->getLine() );
+		$message        = $this->prettyPrintOneLine( $e->getMessage() );
+		$file           = $this->prettyPrintOneLine( $e->getFile() );
+		$line           = $this->prettyPrintOneLine( $e->getLine() );
 
 		$lines[] = "$exceptionClass";
 		$lines[] = "  code $code";
@@ -538,7 +543,7 @@ final class PhpExceptionDumper extends PhpDumper
 			$lines[] = "";
 			$lines[] = "local variables:";
 
-			foreach ( $this->dumpVariables( $e->getLocalVariables() ) as $line )
+			foreach ( $this->prettyPrintVariables( $e->getLocalVariables() ) as $line )
 				$lines[] = "  $line";
 		}
 
@@ -547,7 +552,7 @@ final class PhpExceptionDumper extends PhpDumper
 
 		$trace = $e instanceof ExceptionWithFullStackTrace ? $e->getFullStackTrace() : $e->getTrace();
 
-		foreach ( $this->dumpTrace( $trace ) as $line )
+		foreach ( $this->prettyPrintStackTrace( $trace ) as $line )
 			$lines[] = "  $line";
 
 		if ( PHP_VERSION_ID > 50300 && $e->getPrevious() !== null )
@@ -555,23 +560,23 @@ final class PhpExceptionDumper extends PhpDumper
 			$lines[] = "";
 			$lines[] = "previous exception:";
 
-			foreach ( $this->dumpExceptionBrief( $e->getPrevious() ) as $line )
+			foreach ( $this->prettyPrintExceptionBrief( $e->getPrevious() ) as $line )
 				$lines[] = "  $line";
 		}
 
 		return $lines;
 	}
 
-	private function dumpTrace( array $trace = null )
+	private function prettyPrintStackTrace( array $trace = null )
 	{
 		foreach ( $trace as $c )
 		{
-			$file = $this->dumpOneLine( @$c['file'] );
-			$line = $this->dumpOneLine( @$c['line'] );
+			$file = $this->prettyPrintOneLine( @$c['file'] );
+			$line = $this->prettyPrintOneLine( @$c['line'] );
 
 			$lines[] = "- file $file, line $line";
 
-			foreach ( self::addLineNumbers( self::splitNewLines( $this->dumpFunctionCall( $c ) ) ) as $line )
+			foreach ( self::addLineNumbers( self::splitNewLines( $this->prettyPrintFunctionCall( $c ) ) ) as $line )
 				$lines[] = "    $line";
 
 			$lines[] = '';
@@ -582,7 +587,7 @@ final class PhpExceptionDumper extends PhpDumper
 		return $lines;
 	}
 
-	private function dumpVariables( array $vars = null )
+	private function prettyPrintVariables( array $vars = null )
 	{
 		if ( $vars === null )
 			return array( 'unavailable' );
@@ -595,9 +600,9 @@ final class PhpExceptionDumper extends PhpDumper
 		foreach ( $vars as $k => &$v )
 		{
 			$varLines[] = self::concatenate( array(
-			                                      $this->dumpVariable( $k ),
+			                                      $this->prettyPrintVariable( $k ),
 			                                      array( ' = ' ),
-			                                      $this->dumpRef( $v ),
+			                                      $this->prettyPrintRef( $v ),
 			                                      array( ';' ),
 			                                 ) );
 		}
@@ -605,17 +610,17 @@ final class PhpExceptionDumper extends PhpDumper
 		return self::addLineNumbers( self::splitNewLines( self::groupLines( $varLines ) ) );
 	}
 
-	private function dumpFunctionCall( array $call )
+	private function prettyPrintFunctionCall( array $call )
 	{
 		if ( isset( $call['object'] ) )
-			$object = $this->dumpValue( $call['object'] );
+			$object = $this->prettyPrintValue( $call['object'] );
 		else if ( isset( $call['class'] ) )
 			$object = array( @$call['class'] );
 		else
 			$object = array();
 
 		if ( isset( $call['args'] ) )
-			$args = $this->dumpFunctionArgs( $call['args'] );
+			$args = $this->prettyPrintFunctionArgs( $call['args'] );
 		else
 			$args = array( '( ? )' );
 
@@ -627,7 +632,7 @@ final class PhpExceptionDumper extends PhpDumper
 		                          ) );
 	}
 
-	private function dumpFunctionArgs( array $args )
+	private function prettyPrintFunctionArgs( array $args )
 	{
 		if ( empty( $args ) )
 			return array( '()' );
@@ -635,7 +640,7 @@ final class PhpExceptionDumper extends PhpDumper
 		foreach ( $args as $k => &$arg )
 		{
 			$lineGroups[] = array( $k === 0 ? '( ' : ', ' );
-			$lineGroups[] = $this->dumpRef( $arg );
+			$lineGroups[] = $this->prettyPrintRef( $arg );
 		}
 
 		$lineGroups[] = array( ' )' );

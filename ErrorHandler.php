@@ -1,6 +1,6 @@
 <?php
 
-class PhpErrorHandler
+class ErrorHandler
 {
 	private $lastError = null;
 
@@ -39,7 +39,7 @@ class PhpErrorHandler
 		throw new AssertionFailedException( $file, $line, $expression, $message, $fullTrace );
 	}
 
-	private function isErrorThrowable( PhpErrorException $e )
+	private function isErrorThrowable( ErrorException $e )
 	{
 		if ( $e->getSeverity() & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
 			return true;
@@ -54,7 +54,7 @@ class PhpErrorHandler
 			$fullTrace = debug_backtrace();
 			array_shift( $fullTrace );
 
-			$e = new PhpErrorException( $severity, $message, $file, $line, $localVariables, $fullTrace );
+			$e = new FullErrorException( $severity, $message, $file, $line, $localVariables, $fullTrace );
 
 			if ( $this->isErrorThrowable( $e ) )
 				throw $e;
@@ -83,14 +83,14 @@ class PhpErrorHandler
 		$fullTrace = debug_backtrace();
 		array_shift( $fullTrace );
 
-		$e = new PhpErrorException( $error['type'], $error['message'], $error['file'], $error['line'], null, $fullTrace );
+		$e = new FullErrorException( $error['type'], $error['message'], $error['file'], $error['line'], null, $fullTrace );
 
 		$this->handleUncaughtException( $e );
 	}
 
 	protected function handleException( Exception $e )
 	{
-		self::out( PhpExceptionDumper::dumpExceptionOneLine( $e ), PhpExceptionDumper::dumpException( $e ) );
+		self::out( ExceptionPrettyPrinter::prettyPrintExceptionOneLine( $e ), ExceptionPrettyPrinter::prettyPrintException( $e ) );
 	}
 
 	protected static function out( $title, $body )
@@ -192,7 +192,7 @@ class AssertionFailedException extends Exception implements ExceptionWithFullSta
 	}
 }
 
-class PhpErrorException extends ErrorException implements ExceptionWithLocalVariables, ExceptionWithFullStackTrace
+class FullErrorException extends ErrorException implements ExceptionWithLocalVariables, ExceptionWithFullStackTrace
 {
 	private $localVariables = array();
 	private $fullStackTrace = array();
