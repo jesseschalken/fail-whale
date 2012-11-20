@@ -33,33 +33,19 @@ class ErrorHandler
 
 	public final function handleFailedAssertion( $file, $line, $expression, $message = 'Assertion failed' )
 	{
-		$fullTrace = debug_backtrace();
-		array_shift( $fullTrace );
-
-		throw new AssertionFailedException( $file, $line, $expression, $message, $fullTrace );
-	}
-
-	private function isErrorThrowable( ErrorException $e )
-	{
-		if ( $e->getSeverity() & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
-			return true;
-
-		return false;
+		throw new AssertionFailedException( $file, $line, $expression, $message, self::fullStackTrace() );
 	}
 
 	public final function handleError( $severity, $message, $file = null, $line = null, $localVariables = null )
 	{
 		if ( error_reporting() & $severity )
 		{
-			$fullTrace = debug_backtrace();
-			array_shift( $fullTrace );
+			$e = new FullErrorException( $severity, $message, $file, $line, $localVariables, self::fullStackTrace() );
 
-			$e = new FullErrorException( $severity, $message, $file, $line, $localVariables, $fullTrace );
-
-			if ( $this->isErrorThrowable( $e ) )
+			if ( $severity & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
 				throw $e;
-			else
-				$this->handleUncaughtException( $e );
+
+			$this->handleUncaughtException( $e );
 		}
 
 		$this->lastError = error_get_last();
@@ -77,20 +63,24 @@ class ErrorHandler
 	{
 		$error = error_get_last();
 
-		if ( $error === null || $error === $this->lastError )
-			return;
+		if ( $error !== null && $error !== $this->lastError )
+			$this->handleUncaughtException( new FullErrorException( $error['type'], $error['message'], $error['file'], $error['line'], null, self::fullStackTrace() ) );
+	}
 
-		$fullTrace = debug_backtrace();
-		array_shift( $fullTrace );
+	private static function fullStackTrace()
+	{
+		$trace = debug_backtrace();
 
-		$e = new FullErrorException( $error['type'], $error['message'], $error['file'], $error['line'], null, $fullTrace );
+		array_shift( $trace );
+		array_shift( $trace );
 
-		$this->handleUncaughtException( $e );
+		return $trace;
 	}
 
 	protected function handleException( Exception $e )
 	{
-		self::out( ExceptionPrettyPrinter::prettyPrintExceptionOneLine( $e ), ExceptionPrettyPrinter::prettyPrintException( $e ) );
+		self::out( ExceptionPrettyPrinter::prettyPrintExceptionOneLine( $e ),
+		           ExceptionPrettyPrinter::prettyPrintException( $e ) );
 	}
 
 	protected static function out( $title, $body )
