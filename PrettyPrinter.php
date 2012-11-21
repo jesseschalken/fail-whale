@@ -238,9 +238,9 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 
 		foreach ( $array as $k => &$v )
 			$entriesLines[] = self::concatenate( array_merge( $isAssociative ? array(
-						                                                           $this->prettyPrintValue( $k ),
-						                                                           array( ' => ' )
-					                                                           ) : array(),
+					                                                           $this->prettyPrintValue( $k ),
+					                                                           array( ' => ' ),
+				                                                           ) : array(),
 			                                                  array( $this->prettyPrintRef( $v ) ) ) );
 
 		return $entriesLines;
@@ -251,7 +251,7 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 		$entriesLines = $this->prettyPrintArrayEntriesLines( $array );
 
 		return $this->arrayShouldBePrintedMultiLine( $entriesLines ) ? $this->prettyPrintArrayMultiLine( $entriesLines )
-				: $this->prettyPrintArrayOneLine( $entriesLines );
+			: $this->prettyPrintArrayOneLine( $entriesLines );
 	}
 
 	private function arrayShouldBePrintedMultiLine( array $entriesLines )
@@ -346,14 +346,14 @@ final class ObjectPrettyPrinter extends CachingPrettyPrinter
 
 		foreach ( $objectProperties as $k => &$propertyValue )
 		{
-			$parts        = explode( "\x00", $k );
-			$empty        = array_shift( $parts );
-			$className    = array_shift( $parts );
-			$propertyName = array_shift( $parts );
-			$access       = 'public';
+			$parts         = explode( "\x00", $k );
+			$empty         = array_shift( $parts );
+			$definingClass = array_shift( $parts );
+			$propertyName  = array_shift( $parts );
+			$access        = 'public';
 
 			if ( $empty === '' )
-				$access = $className === '*' ? 'protected' : 'private';
+				$access = $definingClass === '*' ? 'protected' : 'private';
 			else
 				$propertyName = $empty;
 
@@ -518,22 +518,21 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 		                    ),
 		                    self::indentLines(
 			                    $e instanceof ExceptionWithLocalVariables && $e->getLocalVariables() !== null
-					                    ? $this->prettyPrintVariables( $e->getLocalVariables() )
-					                    : array( "unavailable" ) ),
+				                    ? $this->prettyPrintVariables( $e->getLocalVariables() ) : array( "unavailable" ) ),
 		                    array(
 		                         "",
 		                         "stack trace:",
 		                    ),
 		                    self::indentLines( $this->prettyPrintStackTrace(
 			                                       $e instanceof ExceptionWithFullStackTrace ? $e->getFullStackTrace()
-					                                       : $e->getTrace() ) ),
+				                                       : $e->getTrace() ) ),
 		                    array(
 		                         "",
 		                         "previous exception:",
 		                    ),
 		                    self::indentLines( PHP_VERSION_ID > 50300 && $e->getPrevious() !== null
-				                                       ? $this->prettyPrintExceptionBrief( $e->getPrevious() )
-				                                       : array( 'none' ) ) );
+			                                       ? $this->prettyPrintExceptionBrief( $e->getPrevious() )
+			                                       : array( 'none' ) ) );
 	}
 
 	private function prettyPrintStackTrace( array $stackTrace )
@@ -542,8 +541,8 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 
 		foreach ( $stackTrace as $stackFrame )
 			$stackFrameLines[] = array_merge( array(
-			                                       "- file " . $this->prettyPrintOneLine( @$stackFrame['file'] ) .
-			                                       ", line " . $this->prettyPrintOneLine( @$stackFrame['line'] ),
+			                                       "- file " . $this->prettyPrintOneLine( @$stackFrame['file'] )
+			                                       . ", line " . $this->prettyPrintOneLine( @$stackFrame['line'] ),
 			                                  ),
 			                                  self::indentLines( self::addLineNumbers( self::splitNewLines( $this->prettyPrintFunctionCall( $stackFrame ) ) ) ) );
 
