@@ -241,7 +241,7 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 					                                                           $this->prettyPrintLines( $k ),
 					                                                           array( ' => ' ),
 				                                                           ) : array(),
-			                                                  array( $this->prettyPrintLines( $v ) ) ) );
+			                                                  array( $this->prettyPrintRefLines( $v ) ) ) );
 
 		return $entriesLines;
 	}
