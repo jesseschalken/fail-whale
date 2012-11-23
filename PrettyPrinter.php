@@ -238,9 +238,9 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 
 		foreach ( $array as $k => &$v )
 			$entriesLines[] = self::concatenate( array_merge( $isAssociative ? array(
-						                                                           $this->prettyPrintLines( $k ),
-						                                                           array( ' => ' ),
-					                                                           ) : array(),
+					                                                           $this->prettyPrintLines( $k ),
+					                                                           array( ' => ' ),
+				                                                           ) : array(),
 			                                                  array( $this->prettyPrintLines( $v ) ) ) );
 
 		return $entriesLines;
@@ -346,14 +346,14 @@ final class ObjectPrettyPrinter extends CachingPrettyPrinter
 
 		foreach ( $objectProperties as $k => &$propertyValue )
 		{
-			$parts        = explode( "\x00", $k );
-			$empty        = array_shift( $parts );
-			$className    = array_shift( $parts );
-			$propertyName = array_shift( $parts );
-			$access       = 'public';
+			$parts         = explode( "\x00", $k );
+			$empty         = array_shift( $parts );
+			$definingClass = array_shift( $parts );
+			$propertyName  = array_shift( $parts );
+			$access        = 'public';
 
 			if ( $empty === '' )
-				$access = $className === '*' ? 'protected' : 'private';
+				$access = $definingClass === '*' ? 'protected' : 'private';
 			else
 				$propertyName = $empty;
 
@@ -494,7 +494,7 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 
 	public static function prettyPrintException( Exception $e )
 	{
-		$self   = new self( new ValuePrettyPrinter );
+		$self = new self( new ValuePrettyPrinter );
 
 		return join( "\n", $self->doPrettyPrint( $e ) ) . "\n";
 	}
