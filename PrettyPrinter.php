@@ -111,10 +111,12 @@ abstract class CachingPrettyPrinter extends PrettyPrinter
 
 	public final function doPrettyPrint( &$value )
 	{
-		if ( !isset( $this->cache[$value] ) )
-			$this->cache[$value] = $this->cacheMiss( $value );
+		$cacheKey = "$value";
 
-		return $this->cache[$value];
+		if ( !isset( $this->cache[$cacheKey] ) )
+			$this->cache[$cacheKey] = $this->cacheMiss( $value );
+
+		return $this->cache[$cacheKey];
 	}
 
 	protected abstract function cacheMiss( $value );
@@ -184,16 +186,18 @@ final class FloatPrettyPrinter extends CachingPrettyPrinter
 	}
 }
 
-final class ResourcePrettyPrinter extends PrettyPrinter
+final class ResourcePrettyPrinter extends CachingPrettyPrinter
 {
 	private $resourceIds = array();
 
-	public function doPrettyPrint( &$resource )
+	public function cacheMiss( $resource )
 	{
-		if ( !isset( $this->resourceIds[$resource] ) )
-			$this->resourceIds[$resource] = $this->newId();
+		$string = "$resource";
 
-		return array( get_resource_type( $resource ) . ' ' . $this->resourceIds[$resource] );
+		if ( !isset( $this->resourceIds[$string] ) )
+			$this->resourceIds[$string] = $this->newId();
+
+		return array( get_resource_type( $resource ) . ' ' . $this->resourceIds[$string] );
 	}
 }
 
