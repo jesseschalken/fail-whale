@@ -238,9 +238,9 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 
 		foreach ( $array as $k => &$v )
 			$entriesLines[] = self::concatenate( array_merge( $isAssociative ? array(
-					                                                           $this->prettyPrintLines( $k ),
-					                                                           array( ' => ' ),
-				                                                           ) : array(),
+					                                                                      $this->prettyPrintLines( $k ),
+					                                                                      array( ' => ' ),
+				                                                                      ) : array(),
 			                                                  array( $this->prettyPrintRefLines( $v ) ) ) );
 
 		return $entriesLines;
@@ -309,38 +309,30 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 	}
 }
 
-final class ObjectPrettyPrinter extends CachingPrettyPrinter
+final class ObjectPrettyPrinter extends PrettyPrinter
 {
-	private $objectContext = array();
+	private $objectsAlreadyPrinted = array();
 
-	protected function cacheMiss( $object )
+	public function doPrettyPrint( &$object )
 	{
-		$hash = $this->cacheKey( $object );
+		$hash      = spl_object_hash( $object );
+		$className = get_class( $object );
 
-		if ( isset( $this->objectContext[$hash] ) )
-			return array( 'new ' . get_class( $object ) . ' { *recursion* }' );
+		if ( isset( $this->objectsAlreadyPrinted[$hash] ) )
+			return array( "new $className $hash {...}" );
 
-		$this->objectContext[$hash] = true;
+		$this->objectsAlreadyPrinted[$hash] = true;
 
-		$result = $this->prettyPrintObjectLinesDeep( $object );
-
-		unset( $this->objectContext[$hash] );
-
-		return $result;
+		return $this->prettyPrintObjectLinesDeep( $object, $hash );
 	}
 
-	protected function cacheKey( $object )
-	{
-		return spl_object_hash( $object );
-	}
-
-	private function prettyPrintObjectLinesDeep( $object )
+	private function prettyPrintObjectLinesDeep( $object, $hash )
 	{
 		$className        = get_class( $object );
 		$objectProperties = (array) $object;
 
 		if ( empty( $objectProperties ) )
-			return array( "new $className {}" );
+			return array( "new $className $hash {}" );
 
 		$propertiesLines = array();
 
@@ -366,7 +358,7 @@ final class ObjectPrettyPrinter extends CachingPrettyPrinter
 			                                        ) );
 		}
 
-		return array_merge( array( "new $className {" ),
+		return array_merge( array( "new $className $hash {" ),
 		                    self::indentLines( self::groupLines( $propertiesLines ) ),
 		                    array( '}' ) );
 	}
