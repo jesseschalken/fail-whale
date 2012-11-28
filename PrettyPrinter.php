@@ -39,6 +39,11 @@ abstract class PrettyPrinter
 		return join( "\n", $this->prettyPrintLines( $value ) );
 	}
 
+	protected function newId()
+	{
+		return $this->prettyPrinter->newId();
+	}
+
 	protected static function concatenate( array $lineGroups )
 	{
 		$result = array();
@@ -106,15 +111,11 @@ abstract class CachingPrettyPrinter extends PrettyPrinter
 
 	public final function doPrettyPrint( &$value )
 	{
-		$key = $this->cacheKey( $value );
+		if ( !isset( $this->cache[$value] ) )
+			$this->cache[$value] = $this->cacheMiss( $value );
 
-		if ( !isset( $this->cache[$key] ) )
-			$this->cache[$key] = $this->cacheMiss( $value );
-
-		return $this->cache[$key];
+		return $this->cache[$value];
 	}
-
-	protected abstract function cacheKey( $value );
 
 	protected abstract function cacheMiss( $value );
 }
@@ -155,11 +156,6 @@ final class StringPrettyPrinter extends CachingPrettyPrinter
 
 		return array( "\"$escaped\"" );
 	}
-
-	protected function cacheKey( $value )
-	{
-		return $value;
-	}
 }
 
 final class BooleanPrettyPrinter extends PrettyPrinter
@@ -186,32 +182,40 @@ final class FloatPrettyPrinter extends CachingPrettyPrinter
 
 		return array( "$int" === "$float" ? "$float.0" : "$float" );
 	}
-
-	protected function cacheKey( $value )
-	{
-		return (string) $value;
-	}
 }
 
 final class ResourcePrettyPrinter extends PrettyPrinter
 {
+	private $resourceIds = array();
+
 	public function doPrettyPrint( &$resource )
 	{
-		return array( get_resource_type( $resource ) . ' #' . (int) $resource );
+		if ( !isset( $this->resourceIds[$resource] ) )
+			$this->resourceIds[$resource] = $this->newId();
+
+		return array( get_resource_type( $resource ) . ' ' . $this->resourceIds[$resource] );
 	}
 }
 
 final class ArrayPrettyPrinter extends PrettyPrinter
 {
-	private $arrayContext = array();
+	private $arrayStack = array();
+	private $arrayIdsReferenced = array();
 
 	public function doPrettyPrint( &$array )
 	{
-		foreach ( $this->arrayContext as &$c )
+		foreach ( $this->arrayStack as $id => &$c )
+		{
 			if ( self::refsEqual( $c, $array ) )
-				return array( 'array( *recursion* )' );
+			{
+				$this->arrayIdsReferenced[$id] = true;
+
+				return array( "array $id(…)" );
+			}
+		}
 
 		/**
+		 * ( $id1 = array( "recurse" => $id1 ) )
 		 * In PHP 5.2.4, this class was not able to detect the recursion of the
 		 * following structure, resulting in a stack overflow.
 		 *
@@ -223,14 +227,22 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 		 * a maximum depth limit for PHP versions older than the earliest for which I
 		 * know the recursion detection works.
 		 */
-		if ( PHP_VERSION_ID < 50317 && count( $this->arrayContext ) > 10 )
-			return array( 'array( *maximum depth exceeded* )' );
+		if ( PHP_VERSION_ID < 50317 && count( $this->arrayStack ) > 10 )
+			return array( '!maximum depth exceeded!' );
 
-		$this->arrayContext[] =& $array;
+		$id = $this->newId();
+
+		$this->arrayStack[$id] =& $array;
 
 		$result = $this->prettyPrintArrayDeep( $array );
+		$result = self::concatenate( array(
+		                                  array( isset( $this->arrayIdsReferenced[$id] ) ? "array $id(" : "array(" ),
+		                                  $result,
+		                                  array( ')' ),
+		                             ) );
 
-		array_pop( $this->arrayContext );
+		unset( $this->arrayStack[$id] );
+		unset( $this->arrayIdsReferenced[$id] );
 
 		return $result;
 	}
@@ -243,9 +255,9 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 
 		foreach ( $array as $k => &$v )
 			$entriesLines[] = self::concatenate( array_merge( $isAssociative ? array(
-					                                                                      $this->prettyPrintLines( $k ),
-					                                                                      array( ' => ' ),
-				                                                                      ) : array(),
+					                                                         $this->prettyPrintLines( $k ),
+					                                                         array( ' => ' ),
+				                                                         ) : array(),
 			                                                  array( $this->prettyPrintRefLines( $v ) ) ) );
 
 		return $entriesLines;
@@ -279,7 +291,7 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 		foreach ( $entriesLines as $entryLines )
 			$entries[] = $entryLines[0];
 
-		return array( empty( $entries ) ? 'array()' : "array( " . join( ', ', $entries ) . " )" );
+		return array( empty( $entries ) ? "" : " " . join( ', ', $entries ) . " " );
 	}
 
 	private function prettyPrintArrayMultiLine( array $entriesLines )
@@ -287,9 +299,9 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 		foreach ( $entriesLines as &$entryLines )
 			$entryLines = self::concatenate( array( $entryLines, array( ',' ) ) );
 
-		return array_merge( array( 'array(' ),
+		return array_merge( array( '' ),
 		                    self::indentLines( self::groupLines( $entriesLines ) ),
-		                    array( ')' ) );
+		                    array( '' ) );
 	}
 
 	private static function isArrayAssociative( array $array )
@@ -316,49 +328,61 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 
 final class ObjectPrettyPrinter extends PrettyPrinter
 {
-	private $objectsAlreadyPrinted = array();
+	private $objectIds = array();
 
 	public function doPrettyPrint( &$object )
 	{
-		$hash      = spl_object_hash( $object );
-		$className = get_class( $object );
+		$class = get_class( $object );
+		$hash  = spl_object_hash( $object );
 
-		if ( isset( $this->objectsAlreadyPrinted[$hash] ) )
-			return array( "new $className $hash {...}" );
+		if ( isset( $this->objectIds[$hash] ) )
+			return array( "new $class {$this->objectIds[$hash]} {…}" );
 
-		$this->objectsAlreadyPrinted[$hash] = true;
+		$this->objectIds[$hash] = $this->newId();
 
-		return $this->prettyPrintObjectLinesDeep( $object, $hash );
+		return self::concatenate( array(
+		                               array(
+			                               "new $class {$this->objectIds[$hash]}",
+			                               "{",
+		                               ),
+		                               $this->prettyPrintObjectLinesDeep( $object ),
+		                               array(
+			                               '}',
+		                               )
+		                          ) );
 	}
 
-	private function prettyPrintObjectLinesDeep( $object, $hash )
+	private function prettyPrintObjectLinesDeep( $object )
 	{
-		$className        = get_class( $object );
 		$objectProperties = (array) $object;
 
 		if ( empty( $objectProperties ) )
-			return array( "new $className $hash {}" );
+			return array( '' );
 
 		$propertiesLines = array();
 
-		foreach ( $objectProperties as $k => &$propertyValue )
+		foreach ( $objectProperties as $property => &$value )
 		{
-			$parts        = explode( "\x00", $k );
-			$access       = isset( $parts[1] ) ? ( $parts[1] === '*' ? 'protected' : 'private' ) : 'public';
-			$propertyName = isset( $parts[2] ) ? $parts[2] : $parts[0];
+			$access = 'public';
+
+			if ( $property[0] === "\x00" )
+			{
+				$access   = $property[1] === '*' && $property[2] === "\x00" ? 'protected' : 'private';
+				$property = substr( $property, strpos( $property, "\x00", 1 ) + 1 );
+			}
 
 			$propertiesLines[] = self::concatenate( array(
 			                                             array( "$access " ),
-			                                             $this->prettyPrintVariable( $propertyName ),
+			                                             $this->prettyPrintVariable( $property ),
 			                                             array( ' = ' ),
-			                                             $this->prettyPrintRefLines( $propertyValue ),
+			                                             $this->prettyPrintRefLines( $value ),
 			                                             array( ';' ),
 			                                        ) );
 		}
 
-		return array_merge( array( "new $className $hash {" ),
+		return array_merge( array( '' ),
 		                    self::indentLines( self::groupLines( $propertiesLines ) ),
-		                    array( '}' ) );
+		                    array( '' ) );
 	}
 }
 
@@ -383,6 +407,7 @@ final class ValuePrettyPrinter extends PrettyPrinter
 	/** @var PrettyPrinter[] */
 	private $prettyPrinters = array();
 	private $variablePrettyPrinter;
+	private $nextId = 1;
 
 	public function __construct()
 	{
@@ -414,15 +439,15 @@ final class ValuePrettyPrinter extends PrettyPrinter
 	{
 		return $this->variablePrettyPrinter->doPrettyPrint( $varName );
 	}
+
+	public final function newId()
+	{
+		return '#' . $this->nextId++;
+	}
 }
 
 final class VariablePrettyPrinter extends CachingPrettyPrinter
 {
-	protected function cacheKey( $value )
-	{
-		return $value;
-	}
-
 	protected function cacheMiss( $varName )
 	{
 		if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $varName ) )
