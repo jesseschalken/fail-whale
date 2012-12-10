@@ -147,10 +147,8 @@ final class StringPrettyPrinter extends CachingPrettyPrinter
 			{
 				$ord = ord( $char );
 
-				if ( $ord >= 32 && $ord <= 126 )
-					$this->characterEscapeCache[$char] = $char;
-				else
-					$this->characterEscapeCache[$char] = '\x' . substr( '00' . dechex( $ord ), -2 );
+				$this->characterEscapeCache[$char] =
+						$ord >= 32 && $ord <= 126 ? $char : '\x' . substr( '00' . dechex( $ord ), -2 );
 			}
 
 			$escaped .= $this->characterEscapeCache[$char];
@@ -259,9 +257,9 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 
 		foreach ( $array as $k => &$v )
 			$entriesLines[] = self::concatenate( array_merge( $isAssociative ? array(
-					                                                         $this->prettyPrintLines( $k ),
-					                                                         array( ' => ' ),
-				                                                         ) : array(),
+						                                                         $this->prettyPrintLines( $k ),
+						                                                         array( ' => ' ),
+					                                                         ) : array(),
 			                                                  array( $this->prettyPrintRefLines( $v ) ) ) );
 
 		return $entriesLines;
@@ -272,7 +270,7 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 		$entriesLines = $this->prettyPrintArrayEntriesLines( $array );
 
 		return $this->arrayShouldBePrintedMultiLine( $entriesLines ) ?
-			$this->prettyPrintArrayMultiLine( $entriesLines ) : $this->prettyPrintArrayOneLine( $entriesLines );
+				$this->prettyPrintArrayMultiLine( $entriesLines ) : $this->prettyPrintArrayOneLine( $entriesLines );
 	}
 
 	private function arrayShouldBePrintedMultiLine( array $entriesLines )
@@ -434,9 +432,7 @@ final class ValuePrettyPrinter extends PrettyPrinter
 
 	public final function doPrettyPrint( &$value )
 	{
-		$printer = $this->prettyPrinters[gettype( $value )];
-
-		return $printer->doPrettyPrint( $value );
+		return $this->prettyPrinters[gettype( $value )]->doPrettyPrint( $value );
 	}
 
 	public final function prettyPrintVariable( $varName )
@@ -533,21 +529,22 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 		                    ),
 		                    self::indentLines(
 			                    $e instanceof ExceptionWithLocalVariables && $e->getLocalVariables() !== null ?
-				                    $this->prettyPrintVariables( $e->getLocalVariables() ) : array( "unavailable" ) ),
+					                    $this->prettyPrintVariables( $e->getLocalVariables() ) :
+					                    array( "unavailable" ) ),
 		                    array(
 		                         "",
 		                         "stack trace:",
 		                    ),
 		                    self::indentLines( $this->prettyPrintStackTrace(
 			                                       $e instanceof ExceptionWithFullStackTrace ? $e->getFullStackTrace() :
-				                                       $e->getTrace() ) ),
+					                                       $e->getTrace() ) ),
 		                    array(
 		                         "",
 		                         "previous exception:",
 		                    ),
 		                    self::indentLines( PHP_VERSION_ID > 50300 && $e->getPrevious() !== null ?
-			                                       $this->prettyPrintExceptionBrief( $e->getPrevious() ) :
-			                                       array( 'none' ) ) );
+				                                       $this->prettyPrintExceptionBrief( $e->getPrevious() ) :
+				                                       array( 'none' ) ) );
 	}
 
 	private function prettyPrintStackTrace( array $stackTrace )
