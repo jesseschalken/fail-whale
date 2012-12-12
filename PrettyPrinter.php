@@ -503,16 +503,14 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 
 	public static function prettyPrintExceptionOneLine( Exception $e )
 	{
-		$self = new self( new ValuePrettyPrinter );
+		$self    = new self( new ValuePrettyPrinter );
+		$class   = get_class( $e );
+		$code    = $e->getCode();
+		$message = $self->prettyPrint( $e->getMessage() );
+		$file    = $self->prettyPrint( $e->getFile() );
+		$line    = $self->prettyPrint( $e->getLine() );
 
-		return join( ' ',
-		             array(
-		                  "uncaught " . get_class( $e ) . ",",
-		                  "code " . $e->getCode() . ",",
-		                  "message " . $self->prettyPrint( $e->getMessage() ),
-		                  "in file " . $self->prettyPrint( $e->getFile() ) . ",",
-		                  "line " . $self->prettyPrint( $e->getLine() ) . "",
-		             ) );
+		return "uncaught $class, code $code, message $message in file $file, line $line";
 	}
 
 	public static function prettyPrintException( Exception $e )
@@ -560,13 +558,14 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 		$stackFrameLines = array();
 
 		foreach ( $stackTrace as $stackFrame )
+		{
+			$file            = $this->prettyPrint( self::arrayGet( $stackFrame, 'file' ) );
+			$line            = $this->prettyPrint( self::arrayGet( $stackFrame, 'line' ) );
 			$stackFrameLines = array_merge( $stackFrameLines,
-			                                array(
-			                                     "- file " . $this->prettyPrint( @$stackFrame['file'] ) . ", line " .
-			                                     $this->prettyPrint( @$stackFrame['line'] ),
-			                                ),
+			                                array( "- file $file, line $line" ),
 			                                self::indentLines( self::addLineNumbers( $this->prettyPrintFunctionCall( $stackFrame ) ) ),
 			                                array( '' ) );
+		}
 
 		$stackFrameLines[] = '- {main}';
 
