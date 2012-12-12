@@ -64,11 +64,11 @@ class Blarg
 {
 	public static function foo()
 	{
-		new A( array( array( array( array( 3, 6, 2, 4 ) ) ) ) );
+		new A( array( array( array( array( 3, 6, 2, 4 ) ) ) ), 'lol' );
 	}
 }
 
-Blarg::foo();
+Blarg::foo( 34523466, "\n", 423452345 );
 
 echo PhpDump::dump( new A ) . "\n";
 
