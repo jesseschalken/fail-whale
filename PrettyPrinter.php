@@ -138,10 +138,8 @@ abstract class PrettyPrinter
 
 	protected static function addLineNumbers( array $lines )
 	{
-		$spaces = "     ";
-
 		foreach ( $lines as $k => &$line )
-			$line = substr( ( $k + 1 ) . $spaces, 0, strlen( $spaces ) ) . " $line";
+			$line = str_pad( $k + 1, 5 ) . " $line";
 
 		return $lines;
 	}
