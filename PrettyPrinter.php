@@ -313,7 +313,7 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 
 		return self::concatenateAligned( array(
 		                                      array(
-			                                      isset( $this->arrayIdsReferenced[$id] ) ? "array $id (" : "array("
+			                                      isset( $this->arrayIdsReferenced[$id] ) ? "array $id ( " : "array( "
 		                                      ),
 		                                      self::alignColumns( $entryRows ),
 		                                 ) );
