@@ -160,12 +160,12 @@ abstract class CachingPrettyPrinter extends PrettyPrinter
 
 	public final function doPrettyPrint( &$value )
 	{
-		$cacheKey = "$value";
+		$result =& $this->cache["$value"];
 
-		if ( !isset( $this->cache[$cacheKey] ) )
-			$this->cache[$cacheKey] = $this->cacheMiss( $value );
+		if ( !isset( $result ) )
+			$result = $this->cacheMiss( $value );
 
-		return $this->cache[$cacheKey];
+		return $result;
 	}
 
 	protected abstract function cacheMiss( $value );
@@ -191,17 +191,16 @@ final class StringPrettyPrinter extends CachingPrettyPrinter
 
 		for ( $i = 0; $i < $length; $i++ )
 		{
-			$char = $string[$i];
+			$char        = $string[$i];
+			$charEscaped =& $this->characterEscapeCache[$char];
 
-			if ( !isset( $this->characterEscapeCache[$char] ) )
+			if ( !isset( $charEscaped ) )
 			{
-				$ord = ord( $char );
-
-				$this->characterEscapeCache[$char] =
-						$ord >= 32 && $ord <= 126 ? $char : '\x' . substr( '00' . dechex( $ord ), -2 );
+				$ord         = ord( $char );
+				$charEscaped = $ord >= 32 && $ord <= 126 ? $char : '\x' . substr( '00' . dechex( $ord ), -2 );
 			}
 
-			$escaped .= $this->characterEscapeCache[$char];
+			$escaped .= $charEscaped;
 		}
 
 		return self::splitNewLines( array( "\"$escaped\"" ) );
@@ -240,7 +239,7 @@ final class ResourcePrettyPrinter extends CachingPrettyPrinter
 
 	public function cacheMiss( $resource )
 	{
-		$id =& $this->resourceIds[(string) $resource];
+		$id =& $this->resourceIds["$resource"];
 
 		if ( !isset( $id ) )
 			$id = $this->newId();
