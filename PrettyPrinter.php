@@ -15,23 +15,23 @@ abstract class PrettyPrinter
 	/**
 	 * @param $value
 	 *
-	 * @return string[]|string
+	 * @return string[]
 	 */
 	public abstract function doPrettyPrint( &$value );
 
 	protected final function prettyPrintRefLines( &$value )
 	{
-		return (array) $this->prettyPrinter->doPrettyPrint( $value );
+		return $this->prettyPrinter->doPrettyPrint( $value );
 	}
 
 	protected final function prettyPrintLines( $value )
 	{
-		return (array) $this->prettyPrinter->doPrettyPrint( $value );
+		return $this->prettyPrinter->doPrettyPrint( $value );
 	}
 
 	protected function prettyPrintVariable( $varName )
 	{
-		return (array) $this->prettyPrinter->prettyPrintVariable( $varName );
+		return $this->prettyPrinter->prettyPrintVariable( $varName );
 	}
 
 	protected final function prettyPrint( $value )
@@ -49,15 +49,14 @@ abstract class PrettyPrinter
 		return self::concatenate( $lineGroups, true );
 	}
 
-	protected static function concatenate( $lineGroups, $align = false )
+	protected static function concatenate( array $lineGroups, $align = false )
 	{
 		$result = array();
 		$i      = 0;
 		$space  = '';
 
-		foreach ( (array) $lineGroups as $lines )
-		{
-			foreach ( (array) $lines as $k => $line )
+		foreach ( $lineGroups as $lines ) {
+			foreach ( $lines as $k => $line )
 				if ( $k == 0 && $i != 0 )
 					$result[$i - 1] .= $line;
 				else
@@ -75,10 +74,8 @@ abstract class PrettyPrinter
 		return str_repeat( ' ', $num );
 	}
 
-	protected static function prepend( $prepend, $lines )
+	protected static function prepend( $prepend, array $lines )
 	{
-		$lines = (array) $lines;
-
 		if ( empty( $lines ) )
 			return array( $prepend );
 
@@ -87,10 +84,8 @@ abstract class PrettyPrinter
 		return $lines;
 	}
 
-	protected static function prependAligned( $prepend, $lines )
+	protected static function prependAligned( $prepend, array $lines )
 	{
-		$lines = (array) $lines;
-
 		$space = self::spaces( strlen( $prepend ) );
 
 		foreach ( $lines as $k => &$line )
@@ -99,10 +94,8 @@ abstract class PrettyPrinter
 		return $lines;
 	}
 
-	protected static function append( $lines, $append )
+	protected static function append( array $lines, $append )
 	{
-		$lines = (array) $lines;
-
 		if ( empty( $lines ) )
 			return array( $append );
 
@@ -111,15 +104,13 @@ abstract class PrettyPrinter
 		return $lines;
 	}
 
-	protected static function appendLines( &$lines, $append )
+	protected static function appendLines( array &$lines, array $append )
 	{
-		$lines = (array) $lines;
-
-		foreach ( (array) $append as $line )
+		foreach ( $append as $line )
 			$lines[] = $line;
 	}
 
-	protected static function wrap( $prepend, $lines, $append = '' )
+	protected static function wrap( $prepend, array $lines, $append = '' )
 	{
 		return self::prepend( $prepend, self::append( $lines, $append ) );
 	}
@@ -129,12 +120,12 @@ abstract class PrettyPrinter
 		return array_key_exists( $key, $array ) ? $array[$key] : $default;
 	}
 
-	protected static function alignColumns( $rows )
+	protected static function alignColumns( array $rows )
 	{
 		$columnWidths = array();
 
-		foreach ( (array) $rows as $row )
-			foreach ( (array) $row as $column => $cell )
+		foreach ( $rows as $row )
+			foreach ( $row as $column => $cell )
 				$columnWidths[$column] = max( self::arrayGet( $columnWidths, $column, 0 ),
 				                              self::textWidth( $cell ) );
 
@@ -143,11 +134,10 @@ abstract class PrettyPrinter
 
 		$lines = array();
 
-		foreach ( (array) $rows as $row )
-		{
+		foreach ( $rows as $row ) {
 			$lineGroups = array();
 
-			foreach ( (array) $row as $column => $cell )
+			foreach ( $row as $column => $cell )
 				$lineGroups[] = self::padTextWidth( $cell, $columnWidths[$column] );
 
 			self::appendLines( $lines, self::concatenateAligned( $lineGroups ) );
@@ -156,32 +146,26 @@ abstract class PrettyPrinter
 		return $lines;
 	}
 
-	private static function textWidth( $lines )
+	private static function textWidth( array $lines )
 	{
-		$lines = (array) $lines;
-
-		return empty( $lines ) ? 0 : strlen( $lines[count( $lines ) - 1] );
+		return strlen( self::arrayGet( $lines, count( $lines ) - 1, '' ) );
 	}
 
-	private static function padTextWidth( $lines, $width )
+	private static function padTextWidth( array $lines, $width )
 	{
 		return self::append( $lines, self::spaces( max( $width - self::textWidth( $lines ), 0 ) ) );
 	}
 
-	protected static function addLineNumbers( $lines )
+	protected static function addLineNumbers( array $lines )
 	{
-		$lines = (array) $lines;
-
 		foreach ( $lines as $k => &$line )
 			$line = str_pad( $k + 1, 5 ) . " $line";
 
 		return $lines;
 	}
 
-	protected static function indentLines( $lines )
+	protected static function indentLines( array $lines )
 	{
-		$lines = (array) $lines;
-
 		foreach ( $lines as &$line )
 			if ( $line !== "" )
 				$line = "    $line";
@@ -225,13 +209,11 @@ final class StringPrettyPrinter extends CachingPrettyPrinter
 		$escaped = '';
 		$length  = strlen( $string );
 
-		for ( $i = 0; $i < $length; $i++ )
-		{
+		for ( $i = 0; $i < $length; $i++ ) {
 			$char        = $string[$i];
 			$charEscaped =& $this->characterEscapeCache[$char];
 
-			if ( !isset( $charEscaped ) )
-			{
+			if ( !isset( $charEscaped ) ) {
 				$ord         = ord( $char );
 				$charEscaped = $ord >= 32 && $ord <= 126 ? $char : '\x' . substr( '00' . dechex( $ord ), -2 );
 			}
@@ -247,7 +229,7 @@ final class BooleanPrettyPrinter extends PrettyPrinter
 {
 	public function doPrettyPrint( &$value )
 	{
-		return $value ? 'true' : 'false';
+		return array( $value ? 'true' : 'false' );
 	}
 }
 
@@ -255,7 +237,7 @@ final class IntegerPrettyPrinter extends PrettyPrinter
 {
 	public function doPrettyPrint( &$int )
 	{
-		return "$int";
+		return array( "$int" );
 	}
 }
 
@@ -265,7 +247,7 @@ final class FloatPrettyPrinter extends CachingPrettyPrinter
 	{
 		$int = (int) $float;
 
-		return "$int" === "$float" ? "$float.0" : "$float";
+		return array( "$int" === "$float" ? "$float.0" : "$float" );
 	}
 }
 
@@ -291,10 +273,8 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 
 	public function doPrettyPrint( &$array )
 	{
-		foreach ( $this->arrayStack as $id => &$c )
-		{
-			if ( self::refsEqual( $c, $array ) )
-			{
+		foreach ( $this->arrayStack as $id => &$c ) {
+			if ( self::refsEqual( $c, $array ) ) {
 				$this->arrayIdsReferenced[$id] = true;
 
 				return array( "array $id(...)" );
@@ -395,8 +375,7 @@ final class ObjectPrettyPrinter extends PrettyPrinter
 		$objectProperties = (array) $object;
 		$propertyRows     = array();
 
-		foreach ( $objectProperties as $property => &$value )
-		{
+		foreach ( $objectProperties as $property => &$value ) {
 			$parts    = explode( "\x00", $property );
 			$access   = isset( $parts[1] ) ? ( $parts[1] == '*' ? 'protected' : 'private' ) : 'public';
 			$property = isset( $parts[2] ) ? $parts[2] : $parts[0];
@@ -553,10 +532,10 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 	private function dumpExceptionDescription( Exception $e )
 	{
 		return self::alignColumns( array(
-		                                array( "code: ", $e->getCode() ),
-		                                array( "message: ", $this->prettyPrintLines( $e->getMessage() ) ),
-		                                array( "file: ", $this->prettyPrintLines( $e->getFile() ) ),
-		                                array( "line: ", $this->prettyPrintLines( $e->getLine() ) ),
+		                                array( array( "code: " ), array( $e->getCode() ) ),
+		                                array( array( "message: " ), $this->prettyPrintLines( $e->getMessage() ) ),
+		                                array( array( "file: " ), $this->prettyPrintLines( $e->getFile() ) ),
+		                                array( array( "line: " ), $this->prettyPrintLines( $e->getLine() ) ),
 		                           ) );
 	}
 
@@ -565,7 +544,7 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 		if ( PHP_VERSION_ID > 50300 && $e->getPrevious() !== null )
 			return $this->prettyPrintExceptionBrief( $e->getPrevious() );
 		else
-			return 'none';
+			return array( 'none' );
 	}
 
 	private function prettyPrintExceptionStackTrace( Exception $e )
@@ -583,15 +562,14 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 		if ( $e instanceof ExceptionWithLocalVariables && $e->getLocalVariables() !== null )
 			return $this->prettyPrintVariables( $e->getLocalVariables() );
 		else
-			return "unavailable";
+			return array( "unavailable" );
 	}
 
 	private function prettyPrintStackTrace( array $stackTrace )
 	{
 		$stackFrameLines = array();
 
-		foreach ( $stackTrace as $stackFrame )
-		{
+		foreach ( $stackTrace as $stackFrame ) {
 			$file              = $this->prettyPrint( self::arrayGet( $stackFrame, 'file' ) );
 			$line              = $this->prettyPrint( self::arrayGet( $stackFrame, 'line' ) );
 			$stackFrameLines[] = "- file $file, line $line";
@@ -610,14 +588,14 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 	private function prettyPrintVariables( array $variables )
 	{
 		if ( empty( $variables ) )
-			return 'none';
+			return array( 'none' );
 
 		$variableRows = array();
 
 		foreach ( $variables as $k => &$v )
 			$variableRows[] = array(
 				$this->prettyPrintVariable( $k ),
-				' = ',
+				array( ' = ' ),
 				self::append( $this->prettyPrintRefLines( $v ), ';' ),
 			);
 
@@ -629,28 +607,30 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 		if ( isset( $stackFrame['object'] ) )
 			$object = $this->prettyPrintLines( $stackFrame['object'] );
 		else if ( isset( $stackFrame['class'] ) )
-			$object = $stackFrame['class'];
+			$object = array( $stackFrame['class'] );
 		else
-			$object = '';
+			$object = array( '' );
 
 		if ( isset( $stackFrame['args'] ) )
 			$args = $this->prettyPrintFunctionArgs( $stackFrame['args'] );
 		else
-			$args = '( ? )';
+			$args = array( '( ? )' );
 
 		return self::concatenateAligned( array(
 		                                      $object,
-		                                      self::arrayGet( $stackFrame, 'type', '' ) .
-		                                      self::arrayGet( $stackFrame, 'function', '' ),
+		                                      array(
+			                                      self::arrayGet( $stackFrame, 'type', '' ) .
+			                                      self::arrayGet( $stackFrame, 'function', '' ),
+		                                      ),
 		                                      $args,
-		                                      ';',
+		                                      array( ';' ),
 		                                 ) );
 	}
 
 	private function prettyPrintFunctionArgs( array $args )
 	{
 		if ( empty( $args ) )
-			return '()';
+			return array( '()' );
 
 		$lines   = array();
 		$lastKey = count( $args ) - 1;
