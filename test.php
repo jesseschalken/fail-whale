@@ -42,18 +42,14 @@ JOIN bah
 	ON foo.a = bah.b
 WHERE foo.id = 4";
 	// private $b = 7;
-	public $c = array(
-		array(
-			"SELECT blarg",
-			"FROM \"foo\"",
-			"WHERE foo.blah = 'lol'",
-			"  · AND foo.boo < 3",
-			"GROUP BY blarg.lol",
-		),
-		array( 4.0 ),
-		array( 4.2 ),
-		array( 4 ),
-	);
+	public $c = array( array( "SELECT blarg",
+	                          "FROM \"foo\"",
+	                          "WHERE foo.blah = 'lol'",
+	                          "  · AND foo.boo < 3",
+	                          "GROUP BY blarg.lol" ),
+	                   array( 4.0 ),
+	                   array( 4.2 ),
+	                   array( 4 ), );
 	private $lol = 5;
 	private $blarg = array( null );
 	protected $foo = array();

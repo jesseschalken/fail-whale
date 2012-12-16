@@ -38,8 +38,7 @@ class ErrorHandler
 
 	public final function handleError( $severity, $message, $file = null, $line = null, $localVariables = null )
 	{
-		if ( error_reporting() & $severity )
-		{
+		if ( error_reporting() & $severity ) {
 			$e = new FullErrorException( $severity, $message, $file, $line, $localVariables, self::fullStackTrace() );
 
 			if ( $severity & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
@@ -88,12 +87,10 @@ class ErrorHandler
 		while ( ob_get_level() > 0 )
 			ob_end_clean();
 
-		if ( PHP_SAPI === 'cli' )
+		if ( PHP_SAPI === 'cli' ) {
 			print $body;
-		else
-		{
-			if ( !headers_sent() )
-			{
+		} else {
+			if ( !headers_sent() ) {
 				header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
 				header( "Content-Type: text/html; charset=UTF-8", true );
 			}
@@ -186,23 +183,21 @@ class FullErrorException extends ErrorException implements ExceptionWithLocalVar
 {
 	private $localVariables = array();
 	private $fullStackTrace = array();
-	private static $errorConstants = array(
-		E_ERROR             => 'E_ERROR',
-		E_WARNING           => 'E_WARNING',
-		E_PARSE             => 'E_PARSE',
-		E_NOTICE            => 'E_NOTICE',
-		E_CORE_ERROR        => 'E_CORE_ERROR',
-		E_CORE_WARNING      => 'E_CORE_WARNING',
-		E_COMPILE_ERROR     => 'E_COMPILE_ERROR',
-		E_COMPILE_WARNING   => 'E_COMPILE_WARNING',
-		E_USER_ERROR        => 'E_USER_ERROR',
-		E_USER_WARNING      => 'E_USER_WARNING',
-		E_USER_NOTICE       => 'E_USER_NOTICE',
-		E_STRICT            => 'E_STRICT',
-		E_RECOVERABLE_ERROR => 'E_RECOVERABLE_ERROR',
-		E_DEPRECATED        => 'E_DEPRECATED',
-		E_USER_DEPRECATED   => 'E_USER_DEPRECATED',
-	);
+	private static $errorConstants = array( E_ERROR             => 'E_ERROR',
+	                                        E_WARNING           => 'E_WARNING',
+	                                        E_PARSE             => 'E_PARSE',
+	                                        E_NOTICE            => 'E_NOTICE',
+	                                        E_CORE_ERROR        => 'E_CORE_ERROR',
+	                                        E_CORE_WARNING      => 'E_CORE_WARNING',
+	                                        E_COMPILE_ERROR     => 'E_COMPILE_ERROR',
+	                                        E_COMPILE_WARNING   => 'E_COMPILE_WARNING',
+	                                        E_USER_ERROR        => 'E_USER_ERROR',
+	                                        E_USER_WARNING      => 'E_USER_WARNING',
+	                                        E_USER_NOTICE       => 'E_USER_NOTICE',
+	                                        E_STRICT            => 'E_STRICT',
+	                                        E_RECOVERABLE_ERROR => 'E_RECOVERABLE_ERROR',
+	                                        E_DEPRECATED        => 'E_DEPRECATED',
+	                                        E_USER_DEPRECATED   => 'E_USER_DEPRECATED' );
 
 	/**
 	 * @param int          $severity
