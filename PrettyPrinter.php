@@ -63,7 +63,7 @@ abstract class PrettyPrinter
 		return $result;
 	}
 
-	protected static function spaces( $num )
+	private static function spaces( $num )
 	{
 		return str_repeat( ' ', $num );
 	}
@@ -280,7 +280,7 @@ final class ArrayPrettyPrinter extends PrettyPrinter
 			if ( self::refsEqual( $c, $array ) ) {
 				$this->arrayIdsReferenced[$id] = true;
 
-				return array( "array $id(...)" );
+				return array( "array $id (...)" );
 			}
 		}
 
