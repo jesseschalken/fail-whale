@@ -47,7 +47,7 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 			return self::line( 'array()' );
 
 		$maxEntries      = $this->settings()->maxArrayEntries()->get();
-		$renderMultiLine = $this->settings()->multiLineArrays()->isYes();
+		$renderMultiLine = $this->settings()->renderArraysMultiLine()->isYes();
 		$isAssociative   = self::isArrayAssociative( $array );
 		$table           = new PrettyPrinterTable;
 

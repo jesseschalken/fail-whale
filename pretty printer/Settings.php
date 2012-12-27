@@ -2,16 +2,18 @@
 
 final class PrettyPrinterSettings
 {
-	private $escapeTabs = false;
+	private $escapeTabsInStrings = false;
 	private $splitMultiLineStrings = true;
-	private $multiLineArrays = true;
+	private $renderArraysMultiLine = true;
 	private $maxObjectProperties = PHP_INT_MAX;
 	private $maxArrayEntries = PHP_INT_MAX;
 	private $maxStringLength = PHP_INT_MAX;
+	private $showExceptionLocalVariables = true;
+	private $showExceptionGlobalVariables = true;
 
-	public function escapeTabs()
+	public function escapeTabsInStrings()
 	{
-		return new PrettyPrinterSettingYesNo( $this->escapeTabs );
+		return new PrettyPrinterSettingYesNo( $this->escapeTabsInStrings );
 	}
 
 	public function splitMultiLineStrings()
@@ -19,9 +21,9 @@ final class PrettyPrinterSettings
 		return new PrettyPrinterSettingYesNo( $this->splitMultiLineStrings );
 	}
 
-	public function multiLineArrays()
+	public function renderArraysMultiLine()
 	{
-		return new PrettyPrinterSettingYesNo( $this->multiLineArrays );
+		return new PrettyPrinterSettingYesNo( $this->renderArraysMultiLine );
 	}
 
 	public function maxStringLength()
@@ -37,6 +39,16 @@ final class PrettyPrinterSettings
 	public function maxObjectProperties()
 	{
 		return new PrettyPrinterSettingInt( $this->maxObjectProperties );
+	}
+
+	public function showExceptionLocalVariables()
+	{
+		return new PrettyPrinterSettingYesNo( $this->showExceptionLocalVariables );
+	}
+
+	public function showExceptionGlobalVariables()
+	{
+		return new PrettyPrinterSettingYesNo( $this->showExceptionGlobalVariables );
 	}
 
 	private function valuePrettyPrinter()
