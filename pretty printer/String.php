@@ -16,8 +16,7 @@ final class StringPrettyPrinter extends CachingPrettyPrinter
 		$settings = $this->settings();
 
 		$this->characterEscapeCache["\t"] = $settings->escapeTabsInStrings()->ifElse( '\t', "\t" );
-		$this->characterEscapeCache["\n"] = $settings->splitMultiLineStrings()->ifElse( "\\n\" .\n\"",
-		                                                                                '\n' );
+		$this->characterEscapeCache["\n"] = $settings->splitMultiLineStrings()->ifElse( "\\n\" .\n\"", '\n' );
 	}
 
 	protected function cacheMiss( $string )
