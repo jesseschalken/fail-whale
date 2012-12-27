@@ -44,11 +44,6 @@ final class PrettyPrinterSettings
 		return new ValuePrettyPrinter( $this );
 	}
 
-	private static function joinLines( array $lines )
-	{
-		return join( "\n", $lines );
-	}
-
 	public function prettyPrint( $value )
 	{
 		return $this->prettyPrintRef( $value );
@@ -56,17 +51,17 @@ final class PrettyPrinterSettings
 
 	public function prettyPrintRef( &$ref )
 	{
-		return self::joinLines( $this->valuePrettyPrinter()->doPrettyPrint( $ref ) );
+		return $this->valuePrettyPrinter()->doPrettyPrint( $ref )->join();
 	}
 
 	public function prettyPrintException( Exception $e )
 	{
-		return self::joinLines( $this->valuePrettyPrinter()->prettyPrintException( $e ) );
+		return $this->valuePrettyPrinter()->prettyPrintException( $e )->join();
 	}
 
 	public function prettyPrintVariables( array $variables )
 	{
-		return self::joinLines( $this->valuePrettyPrinter()->prettyPrintVariables( $variables ) );
+		return $this->valuePrettyPrinter()->prettyPrintVariables( $variables )->join();
 	}
 }
 

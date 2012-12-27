@@ -14,36 +14,36 @@ final class ObjectPrettyPrinter extends AbstractPrettyPrinter
 			$id = $this->newId();
 
 		if ( !$traverse )
-			return array( "new $class $id {...}" );
-
-		return array_merge( array( "new $class $id {" ),
-		                    self::indentLines( $this->prettyPrintObjectLinesDeep( $object ) ),
-		                    array( '}' ) );
+			return self::line( "new $class $id {...}" );
+		else
+			return $this->prettyPrintObjectLinesDeep( $object )->indent()->prependLine( "new $class $id {" )
+					->addLine( "}" );
 	}
 
 	private function prettyPrintObjectLinesDeep( $object )
 	{
 		$objectProperties    = (array) $object;
-		$propertyRows        = array();
 		$maxObjectProperties = $this->settings()->maxObjectProperties()->get();
+		$table               = new PrettyPrinterTable;
 
 		foreach ( $objectProperties as $property => &$value ) {
 			$parts    = explode( "\x00", $property );
 			$access   = isset( $parts[1] ) ? ( $parts[1] == '*' ? 'protected' : 'private' ) : 'public';
 			$property = isset( $parts[2] ) ? $parts[2] : $parts[0];
 
-			$propertyRows[] = array( self::prepend( "$access ", $this->prettyPrintVariable( $property ) ),
-			                         array( ' = ' ),
-			                         self::append( $this->prettyPrintRefLines( $value ), ';' ) );
+			$row = $table->newRow();
+			$row->addCell( $this->prettyPrintVariable( $property )->prepend( "$access " ) );
+			$row->addTextCell( ' = ' );
+			$row->addCell( $this->prettyPrintRef( $value )->append( ';' ) );
 
-			if ( count( $propertyRows ) >= $maxObjectProperties )
+			if ( $table->numRows() >= $maxObjectProperties )
 				break;
 		}
 
-		$lines = self::renderRowsAligned( $propertyRows );
+		$lines = $table->render();
 
-		if ( count( $propertyRows ) !== count( $objectProperties ) )
-			$lines[] = '...';
+		if ( $table->numRows() !== count( $objectProperties ) )
+			$lines->addLine( '...' );
 
 		return $lines;
 	}

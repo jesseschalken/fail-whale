@@ -1,53 +1,20 @@
 <?php
 
-class PrettyPrinterLines implements ArrayAccess, IteratorAggregate, Countable
+class PrettyPrinterLines
 {
-	public static function create( array $lines = array() )
-	{
-		return new self( $lines );
-	}
-
 	/**
 	 * @var string[]
 	 */
 	private $lines = array();
 
-	private function __construct( array $lines )
+	public static function split( $string )
+	{
+		return new self( $string === '' ? array() : explode( "\n", $string ) );
+	}
+
+	public function __construct( array $lines = array() )
 	{
 		$this->lines = $lines;
-	}
-
-	public function getIterator()
-	{
-		return new ArrayIterator( $this->lines );
-	}
-
-	public function offsetExists( $offset )
-	{
-		return isset( $this->lines[$offset] );
-	}
-
-	public function offsetGet( $offset )
-	{
-		return $this->lines[$offset];
-	}
-
-	public function offsetSet( $offset, $value )
-	{
-		if ( $offset === null )
-			$this->lines[] = $value;
-		else
-			$this->lines[$offset] = $value;
-	}
-
-	public function offsetUnset( $offset )
-	{
-		unset( $this->lines[$offset] );
-	}
-
-	public function lines()
-	{
-		return $this->lines;
 	}
 
 	public function prepend( $string )
@@ -90,11 +57,6 @@ class PrettyPrinterLines implements ArrayAccess, IteratorAggregate, Countable
 		return $this->prependAligned( $prepend )->append( $append );
 	}
 
-	public function isEmpty()
-	{
-		return count( $this ) == 0;
-	}
-
 	public function addLine( $line )
 	{
 		$this->lines[] = $line;
@@ -102,9 +64,11 @@ class PrettyPrinterLines implements ArrayAccess, IteratorAggregate, Countable
 		return $this;
 	}
 
-	public function count()
+	public function prependLine( $line )
 	{
-		return count( $this->lines );
+		array_unshift( $this->lines, $line );
+
+		return $this;
 	}
 
 	private static function spaces( $num )
@@ -112,16 +76,16 @@ class PrettyPrinterLines implements ArrayAccess, IteratorAggregate, Countable
 		return str_repeat( ' ', max( $num, 0 ) );
 	}
 
-	public function addLines( array $lines )
+	public function addLines( self $lines )
 	{
-		$this->lines = array_merge( $this->lines, $lines );
+		$this->lines = array_merge( $this->lines, $lines->lines );
 
 		return $this;
 	}
 
-	public function appendLines( array $lines )
+	public function appendLines( self $lines )
 	{
-		foreach ( $lines as $k => $line )
+		foreach ( $lines->lines as $k => $line )
 			if ( $k === 0 )
 				$this->append( $line );
 			else
@@ -130,17 +94,35 @@ class PrettyPrinterLines implements ArrayAccess, IteratorAggregate, Countable
 		return $this;
 	}
 
-	public function appendLinesAligned( array $lines )
+	public function prependLines( self $lines )
+	{
+		return $this->appendLines( $this->swapLines( $lines ) );
+	}
+
+	private function swapLines( self $lines )
+	{
+		$clone       = clone $this;
+		$this->lines = $lines->lines;
+
+		return $clone;
+	}
+
+	public function appendLinesAligned( self $lines )
 	{
 		$space = self::spaces( $this->width() );
 
-		foreach ( $lines as $k => $line )
+		foreach ( $lines->lines as $k => $line )
 			if ( $k === 0 )
 				$this->append( $line );
 			else
 				$this->lines[] = $space . $line;
 
 		return $this;
+	}
+
+	public function prependLinesAligned( self $lines )
+	{
+		return $this->appendLinesAligned( $this->swapLines( $lines ) );
 	}
 
 	public function indent()
@@ -160,5 +142,10 @@ class PrettyPrinterLines implements ArrayAccess, IteratorAggregate, Countable
 	public function width()
 	{
 		return empty( $this->lines ) ? 0 : strlen( $this->lines[count( $this->lines ) - 1] );
+	}
+
+	public function join()
+	{
+		return join( "\n", $this->lines );
 	}
 }

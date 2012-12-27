@@ -18,6 +18,11 @@ class A
 {
 	public function __construct()
 	{
+		$this->blarg( $this );
+	}
+
+	private function blarg(A $aaaaaa)
+	{
 		for ( $i = 0; $i < 256; $i++ )
 			$this->allBytes .= chr( $i );
 
@@ -28,10 +33,12 @@ class A
 		$$a = 6;
 		unset( $a );
 		// $b = 6;
+		// $settings = new PrettyPrinterSettings;
+		// print $settings->prettyPrintException( new Exception );
 		/** @var $c int */
 		print $c;
-		$a = null;
-		$a->lol();
+		// $a = null;
+		// $a->lol();
 	}
 
 	private $hebrewChars = "־׀׃׆אבגדהוזחטיךכלםמןנסעףפץצקרשתװױײ׳״";
@@ -71,8 +78,5 @@ function lololololl()
 
 lololololl();
 
-echo PhpDump::dump( new A ) . "\n";
-
-print $a;
 
 

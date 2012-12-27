@@ -11,7 +11,7 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 			if ( self::refsEqual( $c, $array ) ) {
 				$this->arrayIdsReferenced[$id] = true;
 
-				return array( "array $id (...)" );
+				return self::line( "array $id (...)" );
 			}
 		}
 
@@ -29,7 +29,7 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 		 * know the recursion detection works.
 		 */
 		if ( PHP_VERSION_ID < 50317 && count( $this->arrayStack ) > 10 )
-			return array( '!maximum depth exceeded!' );
+			return self::line( '!maximum depth exceeded!' );
 
 		$id                    = $this->newId();
 		$this->arrayStack[$id] =& $array;
@@ -44,42 +44,35 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 	private function prettyPrintArrayDeep( $id, array $array )
 	{
 		if ( empty( $array ) )
-			return array( 'array()' );
+			return self::line( 'array()' );
 
 		$maxEntries      = $this->settings()->maxArrayEntries()->get();
-		$resultRows      = array();
 		$isAssociative   = self::isArrayAssociative( $array );
 		$renderMultiLine = $this->settings()->multiLineArrays()->isYes();
-		$numEntriesDone  = 0;
+		$table           = new PrettyPrinterTable;
 
 		foreach ( $array as $k => &$v ) {
-			if ( $renderMultiLine )
-				$row =& $resultRows[];
-			else
-				$row =& $resultRows[0];
+			$row = $table->newRow();
 
-			if ( $row === null )
-				$row = array();
-
-			if ( $numEntriesDone >= $maxEntries )
+			if ( $table->numRows() > $maxEntries )
 				break;
 
-			if ( $isAssociative ) {
-				$row[] = $this->prettyPrintLines( $k );
-				$row[] = array( ' => ' );
-			}
+			if ( $isAssociative )
+				$row->addCell( $this->prettyPrint( $k ) )->addTextCell( ' => ' );
 
-			$numEntriesDone++;
+			$value = $this->prettyPrintRef( $v );
 
-			if ( $numEntriesDone == count( $array ) )
-				$row[] = $this->prettyPrintRefLines( $v );
-			else
-				$row[] = self::append( $this->prettyPrintRefLines( $v ), $renderMultiLine ? ',' : ', ' );
+			if ( $table->numRows() != count( $array ) )
+				$value->append( $renderMultiLine ? ',' : ', ' );
+
+			$row->addCell( $value );
 		}
 
-		return self::wrapAligned( isset( $this->arrayIdsReferenced[$id] ) ? "array $id ( " : "array( ",
-		                          self::renderRowsAligned( $resultRows ),
-		                          count( $array ) != $numEntriesDone ? '... )' : ' )' );
+		$lines = $renderMultiLine ? $table->render() : $table->renderOneLine();
+		$lines->wrapAligned( isset( $this->arrayIdsReferenced[$id] ) ? "array $id ( " : "array( ",
+		                     $table->numRows() > $maxEntries ? '... )' : ' )' );
+
+		return $lines;
 	}
 
 	private static function isArrayAssociative( array $array )
