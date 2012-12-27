@@ -78,8 +78,9 @@ class ErrorHandler
 
 	protected function handleException( Exception $e )
 	{
-		self::out( ExceptionPrettyPrinter::prettyPrintExceptionOneLine( $e ),
-		           ExceptionPrettyPrinter::prettyPrintException( $e ) );
+		$settings = new PrettyPrinterSettings;
+
+		self::out( 'error', $settings->prettyPrintException( $e ) );
 	}
 
 	protected static function out( $title, $body )
@@ -87,9 +88,9 @@ class ErrorHandler
 		while ( ob_get_level() > 0 )
 			ob_end_clean();
 
-		if ( PHP_SAPI === 'cli' ) {
+		if ( PHP_SAPI === 'cli' )
 			print $body;
-		} else {
+		else {
 			if ( !headers_sent() ) {
 				header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
 				header( "Content-Type: text/html; charset=UTF-8", true );
@@ -134,22 +135,6 @@ class ErrorHandler
 </html>
 html;
 	}
-}
-
-interface ExceptionWithLocalVariables
-{
-	/**
-	 * @return array
-	 */
-	public function getLocalVariables();
-}
-
-interface ExceptionWithFullStackTrace
-{
-	/**
-	 * @return array
-	 */
-	public function getFullStackTrace();
 }
 
 class AssertionFailedException extends Exception implements ExceptionWithFullStackTrace
