@@ -64,7 +64,12 @@ class Blarg
 	}
 }
 
-Blarg::foo( 34523466, "\n", 423452345 );
+function lololololl()
+{
+	Blarg::foo( 34523466, "\n", 423452345 );
+}
+
+lololololl();
 
 echo PhpDump::dump( new A ) . "\n";
 

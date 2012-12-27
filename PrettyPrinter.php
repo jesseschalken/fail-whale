@@ -559,14 +559,16 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 		$lines = array();
 
 		foreach ( $stackTrace as $stackFrame ) {
-			$file    = $this->prettyPrint( self::arrayGetDefault( $stackFrame, 'file' ) );
-			$line    = $this->prettyPrint( self::arrayGetDefault( $stackFrame, 'line' ) );
-			$lines[] = "- file $file, line $line";
+			$fileAndLine  = self::concatenateAligned( array( array( '- file ' ),
+			                                                 $this->prettyPrintRefLines( $stackFrame['file'] ),
+			                                                 array( ', line ' ),
+			                                                 $this->prettyPrintRefLines( $stackFrame['line'] ) ) );
+			$functionCall = self::addLineNumbers( $this->prettyPrintFunctionCall( $stackFrame ) );
 
 			self::appendLines( $lines,
-			                   self::indentLines( self::addLineNumbers( $this->prettyPrintFunctionCall( $stackFrame ) ) ) );
-
-			$lines[] = "";
+			                   array_merge( $fileAndLine,
+			                                self::indentLines( $functionCall ),
+			                                array( '' ) ) );
 		}
 
 		$lines[] = '- {main}';
@@ -593,10 +595,8 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 	{
 		if ( isset( $stackFrame['object'] ) )
 			$object = $this->prettyPrintLines( $stackFrame['object'] );
-		else if ( isset( $stackFrame['class'] ) )
-			$object = array( $stackFrame['class'] );
 		else
-			$object = array();
+			$object = array( self::arrayGetDefault( $stackFrame, 'class', '' ) );
 
 		if ( isset( $stackFrame['args'] ) )
 			$args = $this->prettyPrintFunctionArgs( $stackFrame['args'] );
@@ -615,13 +615,17 @@ final class ExceptionPrettyPrinter extends PrettyPrinter
 		if ( empty( $args ) )
 			return array( '()' );
 
-		$lines   = array();
-		$lastKey = count( $args ) - 1;
+		$pieces[] = array( '( ' );
 
-		foreach ( $args as $k => &$arg )
-			self::appendLines( $lines,
-			                   self::append( $this->prettyPrintRefLines( $arg ), $k === $lastKey ? ' )' : ',' ) );
+		foreach ( $args as $k => &$arg ) {
+			if ( $k !== 0 )
+				$pieces[] = array( ', ' );
 
-		return self::prependAligned( '( ', $lines );
+			$pieces[] = $this->prettyPrintRefLines( $arg );
+		}
+
+		$pieces[] = array( ' )' );
+
+		return self::concatenateAligned( $pieces );
 	}
 }
