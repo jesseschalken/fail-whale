@@ -39,7 +39,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		$descriptionTable->newRow()->addTextCell( 'message ' )
 				->addCell( PrettyPrinterLines::split( $e->getMessage() ) );
 		$descriptionTable->newRow()->addTextCell( 'file ' )->addCell( $this->prettyPrint( $e->getFile() ) );
-		$descriptionTable->newRow()->addTextCell( 'file ' )->addCell( $this->prettyPrint( $e->getLine() ) );
+		$descriptionTable->newRow()->addTextCell( 'line ' )->addCell( $this->prettyPrint( $e->getLine() ) );
 
 		$lines->addLines( $descriptionTable->render()->indent() );
 
@@ -85,7 +85,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		$lines = self::lines();
 
 		if ( isset( $stackFrame['object'] ) )
-			$lines->appendLinesAligned( $this->prettyPrint( $stackFrame['object'] ) );
+			$lines->appendLinesAligned( $this->prettyPrintRef( $stackFrame['object'] ) );
 		else if ( isset( $stackFrame['class'] ) )
 			$lines->append( $stackFrame['class'] );
 
@@ -110,14 +110,12 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		if ( empty( $args ) )
 			return self::line( '()' );
 
-		$lines = self::line( '( ' );
+		$lines = self::lines();
 
 		foreach ( $args as $k => &$arg )
 			$lines->append( $k === 0 ? '' : ', ' )->appendLinesAligned( $this->prettyPrintRef( $arg ) );
 
-		$lines->append( ' )' );
-
-		return $lines;
+		return $lines->wrapAligned( '( ', ' )' );
 	}
 }
 

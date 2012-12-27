@@ -111,6 +111,11 @@ final class PrettyPrinterSettingYesNo extends PrettyPrinterSetting
 	{
 		return $this->get() === false;
 	}
+
+	public function ifElse( $true, $false )
+	{
+		return $this->get() ? $true : $false;
+	}
 }
 
 final class PrettyPrinterSettingInt extends PrettyPrinterSetting

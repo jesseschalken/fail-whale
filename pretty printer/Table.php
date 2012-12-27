@@ -3,13 +3,13 @@
 class PrettyPrinterTable
 {
 	/**
-	 * @var PrettyPrinterRow[]
+	 * @var PrettyPrinterTableRow[]
 	 */
 	private $rows = array();
 
 	public function newRow()
 	{
-		return $this->rows[] = new PrettyPrinterRow;
+		return $this->rows[] = new PrettyPrinterTableRow;
 	}
 
 	public function render()
@@ -49,16 +49,12 @@ class PrettyPrinterTable
 	{
 		$columnWidths = array();
 
-		foreach ( $this->rows as $row ) {
-			foreach ( $row->cells() as $column => $lines ) {
-				$columnWidth =& $columnWidths[$column];
-
-				if ( $columnWidth === null )
-					$columnWidth = 0;
-
-				$columnWidth = max( $columnWidth, $lines->width() );
-			}
-		}
+		foreach ( $this->rows as $row )
+			foreach ( $row->cells() as $column => $lines )
+				if ( isset( $columnWidths[$column] ) )
+					$columnWidths[$column] = max( $columnWidths[$column], $lines->width() );
+				else
+					$columnWidths[$column] = $lines->width();
 
 		return $columnWidths;
 	}
@@ -69,7 +65,7 @@ class PrettyPrinterTable
 	}
 }
 
-class PrettyPrinterRow
+class PrettyPrinterTableRow
 {
 	/**
 	 * @var PrettyPrinterLines[]

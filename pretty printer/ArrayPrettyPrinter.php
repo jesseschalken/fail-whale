@@ -47,8 +47,8 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 			return self::line( 'array()' );
 
 		$maxEntries      = $this->settings()->maxArrayEntries()->get();
-		$isAssociative   = self::isArrayAssociative( $array );
 		$renderMultiLine = $this->settings()->multiLineArrays()->isYes();
+		$isAssociative   = self::isArrayAssociative( $array );
 		$table           = new PrettyPrinterTable;
 
 		foreach ( $array as $k => &$v ) {
@@ -58,7 +58,7 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 				break;
 
 			if ( $isAssociative )
-				$row->addCell( $this->prettyPrint( $k ) )->addTextCell( ' => ' );
+				$row->addCell( $this->prettyPrintRef( $k ) )->addTextCell( ' => ' );
 
 			$value = $this->prettyPrintRef( $v );
 

@@ -2,22 +2,22 @@
 
 final class StringPrettyPrinter extends CachingPrettyPrinter
 {
-	private $characterEscapeCache = array();
+	private $characterEscapeCache = array( "\\" => '\\\\',
+	                                       "\$" => '\$',
+	                                       "\r" => '\r',
+	                                       "\v" => '\v',
+	                                       "\f" => '\f',
+	                                       "\"" => '\"' );
 
 	public function __construct( ValuePrettyPrinter $valuePrettyPrinter )
 	{
 		parent::__construct( $valuePrettyPrinter );
 
-		$tab                        = $this->settings()->escapeTabs()->isYes() ? '\t' : "\t";
-		$newLine                    = $this->settings()->splitMultiLineStrings()->isYes() ? "\\n\" .\n\"" : '\n';
-		$this->characterEscapeCache = array( "\\" => '\\\\',
-		                                     "\$" => '\$',
-		                                     "\r" => '\r',
-		                                     "\v" => '\v',
-		                                     "\t" => $tab,
-		                                     "\n" => $newLine,
-		                                     "\f" => '\f',
-		                                     "\"" => '\"' );
+		$settings = $this->settings();
+
+		$this->characterEscapeCache["\t"] = $settings->escapeTabs()->ifElse( '\t', "\t" );
+		$this->characterEscapeCache["\n"] = $settings->splitMultiLineStrings()->ifElse( "\\n\" .\n\"",
+		                                                                                '\n' );
 	}
 
 	protected function cacheMiss( $string )

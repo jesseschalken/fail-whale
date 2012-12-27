@@ -9,12 +9,38 @@ class PrettyPrinterLines
 
 	public static function split( $string )
 	{
-		return new self( $string === '' ? array() : explode( "\n", $string ) );
+		return new self( explode( "\n", $string ) );
 	}
 
 	public function __construct( array $lines = array() )
 	{
 		$this->lines = $lines;
+	}
+
+	public function prependLine( $line )
+	{
+		array_unshift( $this->lines, $line );
+
+		return $this;
+	}
+
+	public function prependLines( self $lines )
+	{
+		return $this->appendLines( $this->swapLines( $lines ) );
+	}
+
+	public function addLine( $line )
+	{
+		$this->lines[] = $line;
+
+		return $this;
+	}
+
+	public function addLines( self $lines )
+	{
+		$this->lines = array_merge( $this->lines, $lines->lines );
+
+		return $this;
 	}
 
 	public function prepend( $string )
@@ -37,48 +63,17 @@ class PrettyPrinterLines
 		return $this;
 	}
 
+	public function prependLinesAligned( self $lines )
+	{
+		return $this->appendLinesAligned( $this->swapLines( $lines ) );
+	}
+
 	public function append( $string )
 	{
 		if ( empty( $this->lines ) )
 			$this->lines[] = $string;
 		else
 			$this->lines[count( $this->lines ) - 1] .= $string;
-
-		return $this;
-	}
-
-	public function wrap( $prepend, $append )
-	{
-		return $this->prepend( $prepend )->append( $append );
-	}
-
-	public function wrapAligned( $prepend, $append )
-	{
-		return $this->prependAligned( $prepend )->append( $append );
-	}
-
-	public function addLine( $line )
-	{
-		$this->lines[] = $line;
-
-		return $this;
-	}
-
-	public function prependLine( $line )
-	{
-		array_unshift( $this->lines, $line );
-
-		return $this;
-	}
-
-	private static function spaces( $num )
-	{
-		return str_repeat( ' ', max( $num, 0 ) );
-	}
-
-	public function addLines( self $lines )
-	{
-		$this->lines = array_merge( $this->lines, $lines->lines );
 
 		return $this;
 	}
@@ -94,19 +89,6 @@ class PrettyPrinterLines
 		return $this;
 	}
 
-	public function prependLines( self $lines )
-	{
-		return $this->appendLines( $this->swapLines( $lines ) );
-	}
-
-	private function swapLines( self $lines )
-	{
-		$clone       = clone $this;
-		$this->lines = $lines->lines;
-
-		return $clone;
-	}
-
 	public function appendLinesAligned( self $lines )
 	{
 		$space = self::spaces( $this->width() );
@@ -120,9 +102,27 @@ class PrettyPrinterLines
 		return $this;
 	}
 
-	public function prependLinesAligned( self $lines )
+	public function wrap( $prepend, $append )
 	{
-		return $this->appendLinesAligned( $this->swapLines( $lines ) );
+		return $this->prepend( $prepend )->append( $append );
+	}
+
+	public function wrapAligned( $prepend, $append )
+	{
+		return $this->prependAligned( $prepend )->append( $append );
+	}
+
+	private static function spaces( $num )
+	{
+		return str_repeat( ' ', max( $num, 0 ) );
+	}
+
+	private function swapLines( self $lines )
+	{
+		$clone       = clone $this;
+		$this->lines = $lines->lines;
+
+		return $clone;
 	}
 
 	public function indent()
