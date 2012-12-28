@@ -40,6 +40,15 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		$lines->addLine( get_class( $e ) . ' ' . $e->getCode() . ' in ' . $e->getFile() . ':' . $e->getLine() );
 		$lines->addLine();
 		$lines->addLines( PrettyPrinterLines::split( $e->getMessage() )->indent( '    ' ) );
+
+		if ( $this->settings()->showExceptionLocalVariables()->isYes() && $e instanceof ExceptionWithLocalVariables &&
+		     $e->getLocalVariables() !== null
+		) {
+			$lines->addLine();
+			$lines->addLine( "local variables:" );
+			$lines->addLines( $this->prettyPrintVariables( $e->getLocalVariables() )->indent() );
+		}
+
 		$lines->addLine();
 		$lines->addLine( "stack trace:" );
 
@@ -50,14 +59,6 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 			$lines->addLine();
 			$lines->addLine( "previous exception:" );
 			$lines->addLines( $this->prettyPrintExceptionNoGlobals( $e->getPrevious() )->indent() );
-		}
-
-		if ( $this->settings()->showExceptionLocalVariables()->isYes() && $e instanceof ExceptionWithLocalVariables &&
-		     $e->getLocalVariables() !== null
-		) {
-			$lines->addLine();
-			$lines->addLine( "local variables:" );
-			$lines->addLines( $this->prettyPrintVariables( $e->getLocalVariables() )->indent() );
 		}
 
 		return $lines;
