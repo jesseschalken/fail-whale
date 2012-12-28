@@ -12,12 +12,12 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		$lines = $this->prettyPrintExceptionNoGlobals( $exception );
 
 		if ( $this->settings()->showExceptionGlobalVariables()->isYes() ) {
-			$lines->addLine( '' );
+			$lines->addLine();
 			$lines->addLine( 'global variables:' );
 			$lines->addLines( $this->prettyPrintVariables( self::globals() )->indent() );
 		}
 
-		$lines->addLine( '' );
+		$lines->addLine();
 
 		return $lines;
 	}
@@ -36,35 +36,28 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 
 	private function prettyPrintExceptionNoGlobals( Exception $e )
 	{
-		$lines = self::line( 'uncaught ' . get_class( $e ) );
-
-		$descriptionTable = new PrettyPrinterTable;
-		$descriptionTable->newRow()->addTextCell( 'code ' )->addTextCell( $e->getCode() );
-		$descriptionTable->newRow()->addTextCell( 'message ' )
-				->addCell( PrettyPrinterLines::split( $e->getMessage() ) );
-		$descriptionTable->newRow()->addTextCell( 'file ' )->addCell( $this->prettyPrint( $e->getFile() ) );
-		$descriptionTable->newRow()->addTextCell( 'line ' )->addCell( $this->prettyPrint( $e->getLine() ) );
-
-		$lines->addLines( $descriptionTable->render()->indent() );
-
-		if ( $this->settings()->showExceptionLocalVariables()->isYes() && $e instanceof ExceptionWithLocalVariables &&
-		     $e->getLocalVariables() !== null
-		) {
-			$lines->addLine( '' );
-			$lines->addLine( "local variables:" );
-			$lines->addLines( $this->prettyPrintVariables( $e->getLocalVariables() )->indent() );
-		}
-
-		$lines->addLine( "" );
+		$lines = self::lines();
+		$lines->addLine( get_class( $e ) . ' ' . $e->getCode() . ' in ' . $e->getFile() . ':' . $e->getLine() );
+		$lines->addLine();
+		$lines->addLines( PrettyPrinterLines::split( $e->getMessage() )->indent( '    ' ) );
+		$lines->addLine();
 		$lines->addLine( "stack trace:" );
 
 		$stackTrace = $e instanceof ExceptionWithFullStackTrace ? $e->getFullStackTrace() : $e->getTrace();
 		$lines->addLines( $this->prettyPrintStackTrace( $stackTrace )->indent() );
 
 		if ( PHP_VERSION_ID > 50300 && $e->getPrevious() !== null ) {
-			$lines->addLine( "" );
+			$lines->addLine();
 			$lines->addLine( "previous exception:" );
 			$lines->addLines( $this->prettyPrintExceptionNoGlobals( $e->getPrevious() )->indent() );
+		}
+
+		if ( $this->settings()->showExceptionLocalVariables()->isYes() && $e instanceof ExceptionWithLocalVariables &&
+		     $e->getLocalVariables() !== null
+		) {
+			$lines->addLine();
+			$lines->addLine( "local variables:" );
+			$lines->addLines( $this->prettyPrintVariables( $e->getLocalVariables() )->indent() );
 		}
 
 		return $lines;
@@ -73,15 +66,16 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 	private function prettyPrintStackTrace( array $stackTrace )
 	{
 		$lines = self::lines();
+		$i     = 1;
 
 		foreach ( $stackTrace as $stackFrame ) {
-			$lines->addLine( '- file ' )->appendLinesAligned( $this->prettyPrintRef( $stackFrame['file'] ) )
-					->append( ', line ' )->appendLinesAligned( $this->prettyPrintRef( $stackFrame['line'] ) );
-
-			$lines->addLines( $this->prettyPrintFunctionCall( $stackFrame )->indent() )->addLine( '' );
+			$lines->addLine( "#$i {$stackFrame['file']}:{$stackFrame['line']}" );
+			$lines->addLines( $this->prettyPrintFunctionCall( $stackFrame )->indent( '      ' ) );
+			$lines->addLine();
+			$i++;
 		}
 
-		$lines->addLine( '- {main}' );
+		$lines->addLine( "#$i {main}" );
 
 		return $lines;
 	}

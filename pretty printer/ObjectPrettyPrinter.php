@@ -16,7 +16,7 @@ final class ObjectPrettyPrinter extends AbstractPrettyPrinter
 		if ( !$traverse )
 			return self::line( "new $class $id {...}" );
 		else
-			return $this->prettyPrintObjectLinesDeep( $object )->indent()->prependLine( "new $class $id {" )
+			return $this->prettyPrintObjectLinesDeep( $object )->indent( '    ' )->prependLine( "new $class $id {" )
 					->addLine( "}" );
 	}
 

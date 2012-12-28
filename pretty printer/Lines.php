@@ -29,7 +29,7 @@ class PrettyPrinterLines
 		return $this->appendLines( $this->swapLines( $lines ) );
 	}
 
-	public function addLine( $line )
+	public function addLine( $line = '' )
 	{
 		$this->lines[] = $line;
 
@@ -125,11 +125,11 @@ class PrettyPrinterLines
 		return $clone;
 	}
 
-	public function indent()
+	public function indent( $space = '  ' )
 	{
 		foreach ( $this->lines as &$line )
 			if ( $line !== '' )
-				$line = "    $line";
+				$line = $space . $line;
 
 		return $this;
 	}
