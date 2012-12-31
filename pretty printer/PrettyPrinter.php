@@ -2,9 +2,7 @@
 
 abstract class AbstractPrettyPrinter
 {
-	/**
-	 * @var ValuePrettyPrinter
-	 */
+	/** @var ValuePrettyPrinter */
 	private $valuePrettyPrinter;
 
 	public function __construct( ValuePrettyPrinter $prettyPrinter )
