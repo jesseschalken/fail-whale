@@ -2,7 +2,7 @@
 
 class ErrorHandler
 {
-	private $lastError = null;
+	private $lastError;
 
 	public static function create()
 	{
