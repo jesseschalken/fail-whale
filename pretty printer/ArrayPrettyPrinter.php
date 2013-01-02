@@ -16,7 +16,6 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 		}
 
 		/**
-		 * ( $id1 = array( "recurse" => $id1 ) )
 		 * In PHP 5.2.4, this class was not able to detect the recursion of the
 		 * following structure, resulting in a stack overflow.
 		 *
