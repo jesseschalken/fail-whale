@@ -11,7 +11,8 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 	{
 		$lines = $this->prettyPrintExceptionNoGlobals( $exception );
 
-		if ( $this->settings()->showExceptionGlobalVariables()->isYes() ) {
+		if ( $this->settings()->showExceptionGlobalVariables()->isYes() )
+		{
 			$lines->addLine();
 			$lines->addLine( 'global variables:' );
 			$lines->addLines( $this->prettyPrintVariables( self::globals() )->indent() );
@@ -40,25 +41,31 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		$lines->addLine( get_class( $e ) . ' ' . $e->getCode() . ' in ' . $e->getFile() . ':' . $e->getLine() );
 		$lines->addLine();
 		$lines->addLines( PrettyPrinterLines::split( $e->getMessage() )->indent( '    ' ) );
+		$lines->addLine();
 
-		if ( $this->settings()->showExceptionLocalVariables()->isYes() && $e instanceof ExceptionWithLocalVariables &&
-		     $e->getLocalVariables() !== null
-		) {
-			$lines->addLine();
+		if ( $this->settings()->showExceptionLocalVariables()->isYes() && $e instanceof ExceptionWithLocalVariables
+		     && $e->getLocalVariables() !== null
+		)
+		{
 			$lines->addLine( "local variables:" );
 			$lines->addLines( $this->prettyPrintVariables( $e->getLocalVariables() )->indent() );
+			$lines->addLine();
 		}
 
-		$lines->addLine();
-		$lines->addLine( "stack trace:" );
+		if ( $this->settings()->showExceptionStackTrace()->isYes() )
+		{
+			$lines->addLine( "stack trace:" );
 
-		$stackTrace = $e instanceof ExceptionWithFullStackTrace ? $e->getFullStackTrace() : $e->getTrace();
-		$lines->addLines( $this->prettyPrintStackTrace( $stackTrace )->indent() );
-
-		if ( PHP_VERSION_ID > 50300 && $e->getPrevious() !== null ) {
+			$stackTrace = $e instanceof ExceptionWithFullStackTrace ? $e->getFullStackTrace() : $e->getTrace();
+			$lines->addLines( $this->prettyPrintStackTrace( $stackTrace )->indent() );
 			$lines->addLine();
+		}
+
+		if ( PHP_VERSION_ID > 50300 && $e->getPrevious() !== null )
+		{
 			$lines->addLine( "previous exception:" );
 			$lines->addLines( $this->prettyPrintExceptionNoGlobals( $e->getPrevious() )->indent() );
+			$lines->addLine();
 		}
 
 		return $lines;
@@ -69,7 +76,8 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		$lines = self::lines();
 		$i     = 1;
 
-		foreach ( $stackTrace as $stackFrame ) {
+		foreach ( $stackTrace as $stackFrame )
+		{
 			$lines->addLine( "#$i {$stackFrame['file']}:{$stackFrame['line']}" );
 			$lines->addLines( $this->prettyPrintFunctionCall( $stackFrame )->indent( '      ' ) );
 			$lines->addLine();

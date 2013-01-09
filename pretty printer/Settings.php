@@ -10,6 +10,7 @@ final class PrettyPrinterSettings
 	private $maxStringLength = PHP_INT_MAX;
 	private $showExceptionLocalVariables = true;
 	private $showExceptionGlobalVariables = true;
+	private $showExceptionStackTrace = true;
 
 	public function escapeTabsInStrings()
 	{
@@ -49,6 +50,11 @@ final class PrettyPrinterSettings
 	public function showExceptionGlobalVariables()
 	{
 		return new PrettyPrinterSettingYesNo( $this->showExceptionGlobalVariables );
+	}
+
+	public function showExceptionStackTrace()
+	{
+		return new PrettyPrinterSettingYesNo( $this->showExceptionStackTrace );
 	}
 
 	private function valuePrettyPrinter()
