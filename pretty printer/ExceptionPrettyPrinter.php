@@ -13,12 +13,10 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 
 		if ( $this->settings()->showExceptionGlobalVariables()->isYes() )
 		{
-			$lines->addLine();
 			$lines->addLine( 'global variables:' );
 			$lines->addLines( $this->prettyPrintVariables( self::globals() )->indent() );
+			$lines->addLine();
 		}
-
-		$lines->addLine();
 
 		return $lines;
 	}
