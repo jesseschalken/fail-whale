@@ -2,9 +2,7 @@
 
 class PrettyPrinterLines
 {
-	/**
-	 * @var string[]
-	 */
+	/** @var string[] */
 	private $lines = array();
 
 	public static function split( $string )

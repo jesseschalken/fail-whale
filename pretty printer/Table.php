@@ -2,9 +2,7 @@
 
 class PrettyPrinterTable
 {
-	/**
-	 * @var PrettyPrinterTableRow[]
-	 */
+	/** @var PrettyPrinterTableRow[] */
 	private $rows = array();
 
 	public function newRow()
@@ -67,9 +65,7 @@ class PrettyPrinterTable
 
 class PrettyPrinterTableRow
 {
-	/**
-	 * @var PrettyPrinterLines[]
-	 */
+	/** @var PrettyPrinterLines[] */
 	private $cells = array();
 
 	public function cells()
