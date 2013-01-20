@@ -7,7 +7,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 	 *
 	 * @return PrettyPrinterLines
 	 */
-	public function doPrettyPrint( &$exception )
+	function doPrettyPrint( &$exception )
 	{
 		$lines = $this->prettyPrintExceptionNoGlobals( $exception );
 
@@ -28,7 +28,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		 * line) ends up removing the $GLOBALS superglobal itself.
 		 */
 		$globals = array_merge( $GLOBALS );
-		unset( $globals['GLOBALS'] );
+		unset( $globals[ 'GLOBALS' ] );
 
 		return $globals;
 	}
@@ -36,7 +36,13 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 	private function prettyPrintExceptionNoGlobals( Exception $e )
 	{
 		$lines = self::lines();
-		$lines->addLine( get_class( $e ) . ' ' . $e->getCode() . ' in ' . $e->getFile() . ':' . $e->getLine() );
+
+		$class = get_class( $e );
+		$code  = $e->getCode();
+		$file  = $e->getFile();
+		$line  = $e->getLine();
+
+		$lines->addLine( "$class $code in $file:$line" );
 		$lines->addLine();
 		$lines->addLines( PrettyPrinterLines::split( $e->getMessage() )->indent( '    ' ) );
 		$lines->addLine();
@@ -82,34 +88,26 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 			$i++;
 		}
 
-		$lines->addLine( "#$i {main}" );
-
-		return $lines;
+		return $lines->addLine( "#$i {main}" );
 	}
 
 	private function prettyPrintFunctionCall( array $stackFrame )
 	{
 		$lines = self::lines();
 
-		if ( isset( $stackFrame['object'] ) )
-			$lines->appendLinesAligned( $this->prettyPrintRef( $stackFrame['object'] ) );
-		else if ( isset( $stackFrame['class'] ) )
-			$lines->append( $stackFrame['class'] );
+		if ( isset( $stackFrame[ 'object' ] ) )
+			$lines->appendLinesAligned( $this->prettyPrintRef( $stackFrame[ 'object' ] ) );
+		else
+			$lines->append( pp_array_get( $stackFrame, 'class', '' ) );
 
-		if ( isset( $stackFrame['type'] ) )
-			$lines->append( $stackFrame['type'] );
+		$lines->append( pp_array_get( $stackFrame, 'type', '' ) . pp_array_get( $stackFrame, 'function', '' ) );
 
-		if ( isset( $stackFrame['function'] ) )
-			$lines->append( $stackFrame['function'] );
-
-		if ( isset( $stackFrame['args'] ) )
-			$lines->appendLinesAligned( $this->prettyPrintFunctionArgs( $stackFrame['args'] ) );
+		if ( isset( $stackFrame[ 'args' ] ) )
+			$lines->appendLinesAligned( $this->prettyPrintFunctionArgs( $stackFrame[ 'args' ] ) );
 		else
 			$lines->append( '( ? )' );
 
-		$lines->append( ';' );
-
-		return $lines;
+		return $lines->append( ';' );
 	}
 
 	private function prettyPrintFunctionArgs( array $args )
@@ -131,7 +129,7 @@ interface ExceptionWithLocalVariables
 	/**
 	 * @return array
 	 */
-	public function getLocalVariables();
+	function getLocalVariables();
 }
 
 interface ExceptionWithFullStackTrace
@@ -139,5 +137,5 @@ interface ExceptionWithFullStackTrace
 	/**
 	 * @return array
 	 */
-	public function getFullStackTrace();
+	function getFullStackTrace();
 }

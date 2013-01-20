@@ -5,54 +5,54 @@ final class PrettyPrinterSettings
 	private $escapeTabsInStrings = false;
 	private $splitMultiLineStrings = true;
 	private $renderArraysMultiLine = true;
-	private $maxObjectProperties = PHP_INT_MAX;
-	private $maxArrayEntries = PHP_INT_MAX;
-	private $maxStringLength = PHP_INT_MAX;
+	private $maxObjectProperties = INF;
+	private $maxArrayEntries = INF;
+	private $maxStringLength = INF;
 	private $showExceptionLocalVariables = true;
 	private $showExceptionGlobalVariables = true;
 	private $showExceptionStackTrace = true;
 
-	public function escapeTabsInStrings()
+	function escapeTabsInStrings()
 	{
 		return new PrettyPrinterSettingYesNo( $this->escapeTabsInStrings );
 	}
 
-	public function splitMultiLineStrings()
+	function splitMultiLineStrings()
 	{
 		return new PrettyPrinterSettingYesNo( $this->splitMultiLineStrings );
 	}
 
-	public function renderArraysMultiLine()
+	function renderArraysMultiLine()
 	{
 		return new PrettyPrinterSettingYesNo( $this->renderArraysMultiLine );
 	}
 
-	public function maxStringLength()
+	function maxStringLength()
 	{
-		return new PrettyPrinterSettingInt( $this->maxStringLength );
+		return new PrettyPrinterSettingNumber( $this->maxStringLength );
 	}
 
-	public function maxArrayEntries()
+	function maxArrayEntries()
 	{
-		return new PrettyPrinterSettingInt( $this->maxArrayEntries );
+		return new PrettyPrinterSettingNumber( $this->maxArrayEntries );
 	}
 
-	public function maxObjectProperties()
+	function maxObjectProperties()
 	{
-		return new PrettyPrinterSettingInt( $this->maxObjectProperties );
+		return new PrettyPrinterSettingNumber( $this->maxObjectProperties );
 	}
 
-	public function showExceptionLocalVariables()
+	function showExceptionLocalVariables()
 	{
 		return new PrettyPrinterSettingYesNo( $this->showExceptionLocalVariables );
 	}
 
-	public function showExceptionGlobalVariables()
+	function showExceptionGlobalVariables()
 	{
 		return new PrettyPrinterSettingYesNo( $this->showExceptionGlobalVariables );
 	}
 
-	public function showExceptionStackTrace()
+	function showExceptionStackTrace()
 	{
 		return new PrettyPrinterSettingYesNo( $this->showExceptionStackTrace );
 	}
@@ -62,22 +62,22 @@ final class PrettyPrinterSettings
 		return new ValuePrettyPrinter( $this );
 	}
 
-	public function prettyPrint( $value )
+	function prettyPrint( $value )
 	{
 		return $this->prettyPrintRef( $value );
 	}
 
-	public function prettyPrintRef( &$ref )
+	function prettyPrintRef( &$ref )
 	{
 		return $this->valuePrettyPrinter()->doPrettyPrint( $ref )->join();
 	}
 
-	public function prettyPrintException( Exception $e )
+	function prettyPrintException( Exception $e )
 	{
 		return $this->valuePrettyPrinter()->prettyPrintException( $e )->join();
 	}
 
-	public function prettyPrintVariables( array $variables )
+	function prettyPrintVariables( array $variables )
 	{
 		return $this->valuePrettyPrinter()->prettyPrintVariables( $variables )->join();
 	}
@@ -87,17 +87,17 @@ abstract class PrettyPrinterSetting
 {
 	private $ref;
 
-	public function __construct( &$ref )
+	function __construct( &$ref )
 	{
 		$this->ref =& $ref;
 	}
 
-	public function set( $value )
+	function set( $value )
 	{
 		$this->ref = $value;
 	}
 
-	public function get()
+	function get()
 	{
 		return $this->ref;
 	}
@@ -105,46 +105,46 @@ abstract class PrettyPrinterSetting
 
 final class PrettyPrinterSettingYesNo extends PrettyPrinterSetting
 {
-	public function yes()
+	function yes()
 	{
 		$this->set( true );
 	}
 
-	public function no()
+	function no()
 	{
 		$this->set( false );
 	}
 
-	public function set( $value )
+	function set( $value )
 	{
 		parent::set( (bool) $value );
 	}
 
-	public function isYes()
+	function isYes()
 	{
 		return $this->get() === true;
 	}
 
-	public function isNo()
+	function isNo()
 	{
 		return $this->get() === false;
 	}
 
-	public function ifElse( $true, $false )
+	function ifElse( $true, $false )
 	{
 		return $this->get() ? $true : $false;
 	}
 }
 
-final class PrettyPrinterSettingInt extends PrettyPrinterSetting
+final class PrettyPrinterSettingNumber extends PrettyPrinterSetting
 {
-	public function set( $value )
+	function set( $value )
 	{
-		parent::set( (int) $value );
+		parent::set( (float) $value );
 	}
 
 	public function infinity()
 	{
-		parent::set( PHP_INT_MAX );
+		parent::set( INF );
 	}
 }

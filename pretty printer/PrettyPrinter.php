@@ -1,11 +1,16 @@
 <?php
 
+function pp_array_get( $array, $key, $default = null )
+{
+	return isset( $array[ $key ] ) ? $array[ $key ] : $default;
+}
+
 abstract class AbstractPrettyPrinter
 {
 	/** @var ValuePrettyPrinter */
 	private $valuePrettyPrinter;
 
-	public function __construct( ValuePrettyPrinter $prettyPrinter )
+	function __construct( ValuePrettyPrinter $prettyPrinter )
 	{
 		$this->valuePrettyPrinter = $prettyPrinter;
 	}
@@ -20,7 +25,7 @@ abstract class AbstractPrettyPrinter
 	 *
 	 * @return PrettyPrinterLines
 	 */
-	public abstract function doPrettyPrint( &$value );
+	abstract function doPrettyPrint( &$value );
 
 	protected final function prettyPrintRef( &$value )
 	{
@@ -64,7 +69,8 @@ abstract class AbstractPrettyPrinter
 
 		$table = self::table();
 
-		foreach ( $variables as $k => &$v ) {
+		foreach ( $variables as $k => &$v )
+		{
 			$row = $table->newRow();
 			$row->addCell( $this->prettyPrintVariable( $k ) );
 			$row->addTextCell( ' = ' );
@@ -79,9 +85,9 @@ abstract class CachingPrettyPrinter extends AbstractPrettyPrinter
 {
 	private $cache = array();
 
-	public final function doPrettyPrint( &$value )
+	final function doPrettyPrint( &$value )
 	{
-		$result =& $this->cache["$value"];
+		$result =& $this->cache[ "$value" ];
 
 		if ( $result === null )
 			$result = $this->cacheMiss( $value );
@@ -99,7 +105,7 @@ abstract class CachingPrettyPrinter extends AbstractPrettyPrinter
 
 final class BooleanPrettyPrinter extends AbstractPrettyPrinter
 {
-	public function doPrettyPrint( &$value )
+	function doPrettyPrint( &$value )
 	{
 		return self::line( $value ? 'true' : 'false' );
 	}
@@ -107,7 +113,7 @@ final class BooleanPrettyPrinter extends AbstractPrettyPrinter
 
 final class IntegerPrettyPrinter extends AbstractPrettyPrinter
 {
-	public function doPrettyPrint( &$int )
+	function doPrettyPrint( &$int )
 	{
 		return self::line( "$int" );
 	}
@@ -127,9 +133,9 @@ final class ResourcePrettyPrinter extends CachingPrettyPrinter
 {
 	private $resourceIds = array();
 
-	public function cacheMiss( $resource )
+	function cacheMiss( $resource )
 	{
-		$id =& $this->resourceIds["$resource"];
+		$id =& $this->resourceIds[ "$resource" ];
 
 		if ( !isset( $id ) )
 			$id = $this->newId();
@@ -140,7 +146,7 @@ final class ResourcePrettyPrinter extends CachingPrettyPrinter
 
 final class NullPrettyPrinter extends AbstractPrettyPrinter
 {
-	public function doPrettyPrint( &$null )
+	function doPrettyPrint( &$null )
 	{
 		return self::line( 'null' );
 	}
@@ -148,7 +154,7 @@ final class NullPrettyPrinter extends AbstractPrettyPrinter
 
 final class UnknownPrettyPrinter extends AbstractPrettyPrinter
 {
-	public function doPrettyPrint( &$unknown )
+	function doPrettyPrint( &$unknown )
 	{
 		return self::line( 'unknown type' );
 	}
@@ -163,7 +169,7 @@ final class ValuePrettyPrinter extends AbstractPrettyPrinter
 	private $nextId = 1;
 	private $settings;
 
-	public function __construct( PrettyPrinterSettings $settings )
+	function __construct( PrettyPrinterSettings $settings )
 	{
 		$this->settings               = $settings;
 		$this->variablePrettyPrinter  = new VariablePrettyPrinter( $this );
@@ -181,32 +187,32 @@ final class ValuePrettyPrinter extends AbstractPrettyPrinter
 		parent::__construct( $this );
 	}
 
-	public final function doPrettyPrint( &$value )
+	function doPrettyPrint( &$value )
 	{
-		return $this->prettyPrinters[gettype( $value )]->doPrettyPrint( $value );
+		return $this->prettyPrinters[ gettype( $value ) ]->doPrettyPrint( $value );
 	}
 
-	public final function prettyPrintVariable( $varName )
+	function prettyPrintVariable( $varName )
 	{
 		return $this->variablePrettyPrinter->doPrettyPrint( $varName );
 	}
 
-	public final function prettyPrintException( Exception $e )
+	function prettyPrintException( Exception $e )
 	{
 		return $this->exceptionPrettyPrinter->doPrettyPrint( $e );
 	}
 
-	public final function newId()
+	function newId()
 	{
 		return '#' . $this->nextId++;
 	}
 
-	public final function settings()
+	function settings()
 	{
 		return $this->settings;
 	}
 
-	public function prettyPrintVariables( array $variables )
+	function prettyPrintVariables( array $variables )
 	{
 		return parent::prettyPrintVariables( $variables );
 	}

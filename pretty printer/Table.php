@@ -5,12 +5,12 @@ class PrettyPrinterTable
 	/** @var PrettyPrinterTableRow[] */
 	private $rows = array();
 
-	public function newRow()
+	function newRow()
 	{
-		return $this->rows[] = new PrettyPrinterTableRow;
+		return $this->rows[ ] = new PrettyPrinterTableRow;
 	}
 
-	public function render()
+	function render()
 	{
 		$this->alignColumns();
 		$lines = new PrettyPrinterLines;
@@ -21,7 +21,7 @@ class PrettyPrinterTable
 		return $lines;
 	}
 
-	public function renderOneLine()
+	function renderOneLine()
 	{
 		$lines = new PrettyPrinterLines;
 
@@ -31,6 +31,11 @@ class PrettyPrinterTable
 		return $lines;
 	}
 
+	function numRows()
+	{
+		return count( $this->rows );
+	}
+
 	private function alignColumns()
 	{
 		$columnWidths = $this->columnWidths();
@@ -38,7 +43,7 @@ class PrettyPrinterTable
 		foreach ( $this->rows as $row )
 			foreach ( $row->cells() as $column => $lines )
 				if ( $column !== count( $columnWidths ) - 1 )
-					$lines->padWidth( $columnWidths[$column] );
+					$lines->padWidth( $columnWidths[ $column ] );
 
 		return $this;
 	}
@@ -49,17 +54,9 @@ class PrettyPrinterTable
 
 		foreach ( $this->rows as $row )
 			foreach ( $row->cells() as $column => $lines )
-				if ( isset( $columnWidths[$column] ) )
-					$columnWidths[$column] = max( $columnWidths[$column], $lines->width() );
-				else
-					$columnWidths[$column] = $lines->width();
+				$columnWidths[ $column ] = max( pp_array_get( $columnWidths, $column, 0 ), $lines->width() );
 
 		return $columnWidths;
-	}
-
-	public function numRows()
-	{
-		return count( $this->rows );
 	}
 }
 
@@ -68,24 +65,24 @@ class PrettyPrinterTableRow
 	/** @var PrettyPrinterLines[] */
 	private $cells = array();
 
-	public function cells()
+	function cells()
 	{
 		return $this->cells;
 	}
 
-	public function addCell( PrettyPrinterLines $lines )
+	function addCell( PrettyPrinterLines $lines )
 	{
-		$this->cells[] = $lines;
+		$this->cells[ ] = $lines;
 
 		return $this;
 	}
 
-	public function addTextCell( $text )
+	function addTextCell( $text )
 	{
 		return $this->addCell( new PrettyPrinterLines( array( $text ) ) );
 	}
 
-	public function render()
+	function render()
 	{
 		$lines = new PrettyPrinterLines( array( '' ) );
 

@@ -2,14 +2,15 @@
 
 final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 {
-	private $arrayStack = array();
-	private $arrayIdsReferenced = array();
+	private $arrayStack = array(), $arrayIdsReferenced = array();
 
-	public function doPrettyPrint( &$array )
+	function doPrettyPrint( &$array )
 	{
-		foreach ( $this->arrayStack as $id => &$c ) {
-			if ( self::refsEqual( $c, $array ) ) {
-				$this->arrayIdsReferenced[$id] = true;
+		foreach ( $this->arrayStack as $id => &$c )
+		{
+			if ( self::refsEqual( $c, $array ) )
+			{
+				$this->arrayIdsReferenced[ $id ] = true;
 
 				return self::line( "array $id (...)" );
 			}
@@ -30,12 +31,12 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 		if ( PHP_VERSION_ID < 50317 && count( $this->arrayStack ) > 10 )
 			return self::line( '!maximum depth exceeded!' );
 
-		$id                    = $this->newId();
-		$this->arrayStack[$id] =& $array;
-		$result                = $this->prettyPrintArrayDeep( $id, $array );
+		$id                      = $this->newId();
+		$this->arrayStack[ $id ] =& $array;
+		$result                  = $this->prettyPrintArrayDeep( $id, $array );
 
-		unset( $this->arrayStack[$id] );
-		unset( $this->arrayIdsReferenced[$id] );
+		unset( $this->arrayStack[ $id ] );
+		unset( $this->arrayIdsReferenced[ $id ] );
 
 		return $result;
 	}
@@ -50,7 +51,8 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 		$isAssociative   = self::isArrayAssociative( $array );
 		$table           = new PrettyPrinterTable;
 
-		foreach ( $array as $k => &$v ) {
+		foreach ( $array as $k => &$v )
+		{
 			$row = $table->newRow();
 
 			if ( $table->numRows() > $maxEntries )
@@ -67,22 +69,16 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 			$row->addCell( $value );
 		}
 
-		$lines = $renderMultiLine ? $table->render() : $table->renderOneLine();
-		$lines->wrapAligned( isset( $this->arrayIdsReferenced[$id] ) ? "array $id ( " : "array( ",
-		                     $table->numRows() > $maxEntries ? '... )' : ' )' );
+		$lines     = $renderMultiLine ? $table->render() : $table->renderOneLine();
+		$arrayHead = isset( $this->arrayIdsReferenced[ $id ] ) ? "array $id ( " : "array( ";
+		$arrayTail = $table->numRows() > $maxEntries ? '... )' : ' )';
 
-		return $lines;
+		return $lines->wrapAligned( $arrayHead, $arrayTail );
 	}
 
 	private static function isArrayAssociative( array $array )
 	{
-		$i = 0;
-
-		foreach ( $array as $k => $v )
-			if ( $k !== $i++ )
-				return true;
-
-		return false;
+		return array_keys( $array ) !== range( 0, count( $array ) - 1 );
 	}
 
 	private static function refsEqual( &$a, &$b )
