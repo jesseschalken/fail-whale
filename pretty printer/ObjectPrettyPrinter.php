@@ -8,7 +8,7 @@ final class ObjectPrettyPrinter extends AbstractPrettyPrinter
 	{
 		$id       =& $this->objectIds[ spl_object_hash( $object ) ];
 		$class    = get_class( $object );
-		$traverse = !isset( $id ) && $this->settings()->maxObjectProperties()->get() !== 0;
+		$traverse = !isset( $id ) && $this->settings()->maxObjectProperties > 0;
 
 		if ( !isset( $id ) )
 			$id = $this->newId();
@@ -22,7 +22,7 @@ final class ObjectPrettyPrinter extends AbstractPrettyPrinter
 	private function prettyPrintObjectLinesDeep( $object )
 	{
 		$objectProperties    = (array) $object;
-		$maxObjectProperties = $this->settings()->maxObjectProperties()->get();
+		$maxObjectProperties = $this->settings()->maxObjectProperties;
 		$table               = new PrettyPrinterTable;
 
 		foreach ( $objectProperties as $property => &$value )

@@ -15,15 +15,15 @@ final class StringPrettyPrinter extends CachingPrettyPrinter
 
 		$settings = $this->settings();
 
-		$this->characterEscapeCache[ "\t" ] = $settings->escapeTabsInStrings()->ifElse( '\t', "\t" );
-		$this->characterEscapeCache[ "\n" ] = $settings->splitMultiLineStrings()->ifElse( "\\n\" .\n\"", '\n' );
+		$this->characterEscapeCache[ "\t" ] = $settings->escapeTabsInStrings ? '\t' : "\t";
+		$this->characterEscapeCache[ "\n" ] = $settings->splitMultiLineStrings ? "\\n\" .\n\"" : '\n';
 	}
 
 	protected function cacheMiss( $string )
 	{
 		$escaped   = '';
 		$length    = strlen( $string );
-		$maxLength = $this->settings()->maxStringLength()->get();
+		$maxLength = $this->settings()->maxStringLength;
 
 		for ( $i = 0; $i < $length && $i < $maxLength; $i++ )
 		{

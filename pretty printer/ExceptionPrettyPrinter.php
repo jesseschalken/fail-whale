@@ -11,7 +11,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 	{
 		$lines = $this->prettyPrintExceptionNoGlobals( $exception );
 
-		if ( $this->settings()->showExceptionGlobalVariables()->isYes() )
+		if ( $this->settings()->showExceptionGlobalVariables )
 		{
 			$lines->addLine( 'global variables:' );
 			$lines->addLines( $this->prettyPrintVariables( self::globals() )->indent() );
@@ -47,7 +47,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		$lines->addLines( PrettyPrinterLines::split( $e->getMessage() )->indent( '    ' ) );
 		$lines->addLine();
 
-		if ( $this->settings()->showExceptionLocalVariables()->isYes() && $e instanceof ExceptionWithLocalVariables
+		if ( $this->settings()->showExceptionLocalVariables && $e instanceof ExceptionWithLocalVariables
 		     && $e->getLocalVariables() !== null
 		)
 		{
@@ -56,7 +56,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 			$lines->addLine();
 		}
 
-		if ( $this->settings()->showExceptionStackTrace()->isYes() )
+		if ( $this->settings()->showExceptionStackTrace )
 		{
 			$lines->addLine( "stack trace:" );
 
