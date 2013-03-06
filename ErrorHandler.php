@@ -86,12 +86,23 @@ class ErrorHandler
 
 	protected static function out( $title, $body )
 	{
+		ErrorHandlerPageOutputter::out( $title, $body );
+	}
+}
+
+class ErrorHandlerPageOutputter
+{
+	public static function out( $title, $body )
+	{
 		while ( ob_get_level() > 0 )
 			ob_end_clean();
 
 		if ( PHP_SAPI === 'cli' )
+		{
 			print $body;
-		else {
+		}
+		else
+		{
 			if ( !headers_sent() ) {
 				header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
 				header( "Content-Type: text/html; charset=UTF-8", true );
@@ -101,12 +112,7 @@ class ErrorHandler
 		}
 	}
 
-	private static function toHtml( $text )
-	{
-		return htmlspecialchars( $text, ENT_COMPAT, "UTF-8" );
-	}
-
-	protected static function wrapHtml( $title, $body )
+	public static function wrapHtml( $title, $body )
 	{
 		$body  = self::toHtml( $body );
 		$title = self::toHtml( $title );
@@ -135,6 +141,11 @@ class ErrorHandler
 	</body>
 </html>
 html;
+	}
+
+	private static function toHtml( $text )
+	{
+		return htmlspecialchars( $text, ENT_COMPAT, "UTF-8" );
 	}
 }
 
