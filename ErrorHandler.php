@@ -89,7 +89,7 @@ class ErrorHandler
 		while( ob_get_level() > 0 && ob_end_clean() );
 
 		if ( PHP_SAPI === 'cli' )
-			print $body;
+			fwrite( STDERR, $body );
 		else {
 			if ( !headers_sent() ) {
 				header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
