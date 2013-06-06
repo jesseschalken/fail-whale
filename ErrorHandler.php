@@ -16,6 +16,7 @@ class ErrorHandler
 	public final function bind()
 	{
 		ini_set( 'display_errors', false );
+		ini_set( 'log_errors', false );
 		ini_set( 'html_errors', false );
 
 		assert_options( ASSERT_ACTIVE, true );
@@ -49,6 +50,8 @@ class ErrorHandler
 		}
 
 		$this->lastError = error_get_last();
+
+		return false;
 	}
 
 	public final function handleUncaughtException( Exception $e )
