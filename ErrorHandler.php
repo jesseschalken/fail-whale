@@ -51,7 +51,7 @@ class ErrorHandler
 
 		$this->lastError = error_get_last();
 
-		return false;
+		return true;
 	}
 
 	public final function handleUncaughtException( Exception $e )
