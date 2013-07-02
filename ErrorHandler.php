@@ -16,6 +16,7 @@ class ErrorHandler
 	public final function bind()
 	{
 		ini_set( 'display_errors', false );
+		ini_set( 'log_errors', false );
 		ini_set( 'html_errors', false );
 
 		assert_options( ASSERT_ACTIVE, true );
@@ -49,6 +50,8 @@ class ErrorHandler
 		}
 
 		$this->lastError = error_get_last();
+
+		return true;
 	}
 
 	public final function handleUncaughtException( Exception $e )
@@ -89,7 +92,7 @@ class ErrorHandler
 		while( ob_get_level() > 0 && ob_end_clean() );
 
 		if ( PHP_SAPI === 'cli' )
-			print $body;
+			fwrite( STDERR, $body );
 		else {
 			if ( !headers_sent() ) {
 				header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
