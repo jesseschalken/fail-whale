@@ -43,10 +43,10 @@ class ErrorHandler
 
 			$e = new FullErrorException( $severity, $message, $file, $line, $localVariables, self::fullStackTrace() );
 
-			// if ( $severity & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
+			if ( $severity & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
 				throw $e;
 
-			// $this->handleUncaughtException( $e );
+			$this->handleUncaughtException( $e );
 		}
 
 		$this->lastError = error_get_last();
