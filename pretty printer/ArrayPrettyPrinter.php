@@ -12,7 +12,7 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 			{
 				$this->arrayIdsReferenced[ $id ] = true;
 
-				return self::line( "array $id (...)" );
+				return self::line( "$id array(...)" );
 			}
 		}
 
@@ -70,7 +70,7 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 		}
 
 		$lines     = $renderMultiLine ? $table->render() : $table->renderOneLine();
-		$arrayHead = isset( $this->arrayIdsReferenced[ $id ] ) ? "array $id ( " : "array( ";
+		$arrayHead = isset( $this->arrayIdsReferenced[ $id ] ) ? "$id array( " : "array( ";
 		$arrayTail = $table->numRows() > $maxEntries ? '... )' : ' )';
 
 		return $lines->wrapAligned( $arrayHead, $arrayTail );
