@@ -1,6 +1,8 @@
 php-error-handler
 =================
 
-A WIP universal error handler for PHP which gives great debug output
+A universal error handler for PHP which gives great debug output
 
 Just run `./test.php`.
+
+Use by doing `ErrorHandler::create()->bind();`
