@@ -65,7 +65,6 @@ class ErrorHandler
 	public final function handleShutdown()
 	{
 		ini_set( 'memory_limit', '-1' );
-		set_time_limit( 0 );
 
 		$error = error_get_last();
 
