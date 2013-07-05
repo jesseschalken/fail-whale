@@ -95,7 +95,8 @@ class ErrorHandler
 
 	protected static function out( $title, $body )
 	{
-		while( ob_get_level() > 0 && ob_end_clean() );
+		while ( ob_get_level() > 0 && ob_end_clean() )
+			;
 
 		if ( PHP_SAPI === 'cli' )
 		{
@@ -155,11 +156,11 @@ class AssertionFailedException extends Exception implements ExceptionWithFullSta
 	private $expression, $fullStackTrace;
 
 	/**
-	 * @param string    $file
-	 * @param int       $line
-	 * @param string    $expression
-	 * @param string    $message
-	 * @param array     $fullStackTrace
+	 * @param string $file
+	 * @param int    $line
+	 * @param string $expression
+	 * @param string $message
+	 * @param array  $fullStackTrace
 	 */
 	function __construct( $file, $line, $expression, $message, array $fullStackTrace )
 	{
@@ -196,12 +197,12 @@ class FullErrorException extends ErrorException implements ExceptionWithLocalVar
 	                                        E_USER_DEPRECATED   => 'E_USER_DEPRECATED' );
 
 	/**
-	 * @param int          $severity
-	 * @param string       $message
-	 * @param string|null  $file
-	 * @param int|null     $line
-	 * @param array|null   $localVariables
-	 * @param array|null   $fullStackTrace
+	 * @param int         $severity
+	 * @param string      $message
+	 * @param string|null $file
+	 * @param int|null    $line
+	 * @param array|null  $localVariables
+	 * @param array|null  $fullStackTrace
 	 */
 	function __construct( $severity, $message, $file, $line, array $localVariables = null,
 	                      array $fullStackTrace = null )
