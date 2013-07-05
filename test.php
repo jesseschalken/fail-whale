@@ -6,9 +6,9 @@ require_once 'include.php';
 $e = ErrorHandler::create();
 $e->bind();
 
-$v                 = new stdClass;
-$v->foo            = array();
-$v->foo['recurse'] =& $v->foo;
+$v                   = new stdClass;
+$v->foo              = array();
+$v->foo[ 'recurse' ] =& $v->foo;
 
 error_reporting( -1 );
 
@@ -16,18 +16,18 @@ $f = curl_init();
 
 class A
 {
-	public function __construct()
+	function __construct()
 	{
 		$this->blarg( $this );
 	}
 
-	private function blarg(A $aaaaaa)
+	private function blarg( A $aaaaaa )
 	{
 		for ( $i = 0; $i < 256; $i++ )
 			$this->allBytes .= chr( $i );
 
-		$this->recursiveArray['a']    =& $this->recursiveArray;
-		$this->recursiveArray['this'] = $this;
+		$this->recursiveArray[ 'a' ]    =& $this->recursiveArray;
+		$this->recursiveArray[ 'this' ] = $this;
 		// trigger_error( 'lol' );
 		$a  = 'lol lol';
 		$$a = 6;
@@ -49,14 +49,14 @@ JOIN bah
 	ON foo.a = bah.b
 WHERE foo.id = 4";
 	// private $b = 7;
-	public $c = array( array( "SELECT blarg",
-	                          "FROM \"foo\"",
-	                          "WHERE foo.blah = 'lol'",
-	                          "  · AND foo.boo < 3",
-	                          "GROUP BY blarg.lol" ),
-	                   array( 4.0 ),
-	                   array( 4.2 ),
-	                   array( 4 ), );
+	var $c = array( array( "SELECT blarg",
+	                       "FROM \"foo\"",
+	                       "WHERE foo.blah = 'lol'",
+	                       "  · AND foo.boo < 3",
+	                       "GROUP BY blarg.lol" ),
+	                array( 4.0 ),
+	                array( 4.2 ),
+	                array( 4 ), );
 	private $lol = 5;
 	private $blarg = array( null );
 	protected $foo = array();
@@ -65,7 +65,7 @@ WHERE foo.id = 4";
 
 class Blarg
 {
-	public static function foo()
+	static function foo()
 	{
 		new A( array( array( array( array( 3, 6, 2, 4 ) ) ) ), 'lol' );
 	}

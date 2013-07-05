@@ -9,27 +9,29 @@ final class StringPrettyPrinter extends CachingPrettyPrinter
 	                                       "\f" => '\f',
 	                                       "\"" => '\"' );
 
-	public function __construct( ValuePrettyPrinter $valuePrettyPrinter )
+	function __construct( ValuePrettyPrinter $valuePrettyPrinter )
 	{
 		parent::__construct( $valuePrettyPrinter );
 
 		$settings = $this->settings();
 
-		$this->characterEscapeCache["\t"] = $settings->escapeTabsInStrings()->ifElse( '\t', "\t" );
-		$this->characterEscapeCache["\n"] = $settings->splitMultiLineStrings()->ifElse( "\\n\" .\n\"", '\n' );
+		$this->characterEscapeCache[ "\t" ] = $settings->escapeTabsInStrings ? '\t' : "\t";
+		$this->characterEscapeCache[ "\n" ] = $settings->splitMultiLineStrings ? "\\n\" .\n\"" : '\n';
 	}
 
 	protected function cacheMiss( $string )
 	{
 		$escaped   = '';
 		$length    = strlen( $string );
-		$maxLength = $this->settings()->maxStringLength()->get();
+		$maxLength = $this->settings()->maxStringLength;
 
-		for ( $i = 0; $i < $length && $i < $maxLength; $i++ ) {
-			$char        = $string[$i];
-			$charEscaped =& $this->characterEscapeCache[$char];
+		for ( $i = 0; $i < $length && $i < $maxLength; $i++ )
+		{
+			$char        = $string[ $i ];
+			$charEscaped =& $this->characterEscapeCache[ $char ];
 
-			if ( !isset( $charEscaped ) ) {
+			if ( !isset( $charEscaped ) )
+			{
 				$ord         = ord( $char );
 				$charEscaped = $ord >= 32 && $ord <= 126 ? $char : '\x' . substr( '00' . dechex( $ord ), -2 );
 			}

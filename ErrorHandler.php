@@ -4,7 +4,7 @@ class ErrorHandler
 {
 	private $lastError;
 
-	public static function create()
+	static function create()
 	{
 		return new self;
 	}
@@ -13,7 +13,7 @@ class ErrorHandler
 	{
 	}
 
-	public final function bind()
+	final function bind()
 	{
 		ini_set( 'display_errors', false );
 		ini_set( 'html_errors', false );
@@ -31,15 +31,15 @@ class ErrorHandler
 		$this->lastError = error_get_last();
 	}
 
-	public final function handleFailedAssertion( $file, $line, $expression, $message = 'Assertion failed' )
+	final function handleFailedAssertion( $file, $line, $expression, $message = 'Assertion failed' )
 	{
 		throw new AssertionFailedException( $file, $line, $expression, $message, self::fullStackTrace() );
 	}
 
-	public final function handleError( $severity, $message, $file = null, $line = null, $localVariables = null )
+	final function handleError( $severity, $message, $file = null, $line = null, $localVariables = null )
 	{
-		if ( error_reporting() & $severity ) {
-
+		if ( error_reporting() & $severity )
+		{
 			$e = new FullErrorException( $severity, $message, $file, $line, $localVariables, self::fullStackTrace() );
 
 			if ( $severity & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
@@ -51,7 +51,7 @@ class ErrorHandler
 		$this->lastError = error_get_last();
 	}
 
-	public final function handleUncaughtException( Exception $e )
+	final function handleUncaughtException( Exception $e )
 	{
 		$this->handleException( $e );
 
@@ -59,12 +59,16 @@ class ErrorHandler
 		exit( 1 );
 	}
 
-	public final function handleShutdown()
+	final function handleShutdown()
 	{
 		$error = error_get_last();
 
 		if ( $error !== null && $error !== $this->lastError )
-			$this->handleUncaughtException( new FullErrorException( $error['type'], $error['message'], $error['file'], $error['line'], null, self::fullStackTrace() ) );
+		{
+			$this->handleUncaughtException( new FullErrorException( $error[ 'type' ], $error[ 'message' ],
+			                                                        $error[ 'file' ], $error[ 'line' ], null,
+			                                                        self::fullStackTrace() ) );
+		}
 	}
 
 	private static function fullStackTrace()
@@ -90,9 +94,13 @@ class ErrorHandler
 			ob_end_clean();
 
 		if ( PHP_SAPI === 'cli' )
+		{
 			print $body;
-		else {
-			if ( !headers_sent() ) {
+		}
+		else
+		{
+			if ( !headers_sent() )
+			{
 				header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
 				header( "Content-Type: text/html; charset=UTF-8", true );
 			}
@@ -140,8 +148,7 @@ html;
 
 class AssertionFailedException extends Exception implements ExceptionWithFullStackTrace
 {
-	private $expression;
-	private $fullStackTrace;
+	private $expression, $fullStackTrace;
 
 	/**
 	 * @param string    $file
@@ -150,7 +157,7 @@ class AssertionFailedException extends Exception implements ExceptionWithFullSta
 	 * @param string    $message
 	 * @param array     $fullStackTrace
 	 */
-	public function __construct( $file, $line, $expression, $message, array $fullStackTrace )
+	function __construct( $file, $line, $expression, $message, array $fullStackTrace )
 	{
 		$this->file           = $file;
 		$this->line           = $line;
@@ -159,7 +166,7 @@ class AssertionFailedException extends Exception implements ExceptionWithFullSta
 		$this->fullStackTrace = $fullStackTrace;
 	}
 
-	public function getFullStackTrace()
+	function getFullStackTrace()
 	{
 		return $this->fullStackTrace;
 	}
@@ -167,8 +174,7 @@ class AssertionFailedException extends Exception implements ExceptionWithFullSta
 
 class FullErrorException extends ErrorException implements ExceptionWithLocalVariables, ExceptionWithFullStackTrace
 {
-	private $localVariables = array();
-	private $fullStackTrace = array();
+	private $localVariables, $fullStackTrace;
 	private static $errorConstants = array( E_ERROR             => 'E_ERROR',
 	                                        E_WARNING           => 'E_WARNING',
 	                                        E_PARSE             => 'E_PARSE',
@@ -193,26 +199,22 @@ class FullErrorException extends ErrorException implements ExceptionWithLocalVar
 	 * @param array|null   $localVariables
 	 * @param array|null   $fullStackTrace
 	 */
-	public function __construct( $severity,
-	                             $message,
-	                             $file,
-	                             $line,
-	                             array $localVariables = null,
-	                             array $fullStackTrace = null )
+	function __construct( $severity, $message, $file, $line, array $localVariables = null,
+	                      array $fullStackTrace = null )
 	{
 		parent::__construct( $message, 0, $severity, $file, $line );
 
 		$this->localVariables = $localVariables;
 		$this->fullStackTrace = $fullStackTrace;
-		$this->code           = isset( self::$errorConstants[$severity] ) ? self::$errorConstants[$severity] : 'E_?';
+		$this->code           = pp_array_get( self::$errorConstants, $severity, 'E_?' );
 	}
 
-	public function getFullStackTrace()
+	function getFullStackTrace()
 	{
-		return $this->fullStackTrace !== null ? $this->fullStackTrace : $this->getTrace();
+		return isset( $this->fullStackTrace ) ? $this->fullStackTrace : $this->getTrace();
 	}
 
-	public function getLocalVariables()
+	function getLocalVariables()
 	{
 		return $this->localVariables;
 	}
