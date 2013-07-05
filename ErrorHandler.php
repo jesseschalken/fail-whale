@@ -16,6 +16,7 @@ class ErrorHandler
 	final function bind()
 	{
 		ini_set( 'display_errors', false );
+		ini_set( 'log_errors', false );
 		ini_set( 'html_errors', false );
 
 		assert_options( ASSERT_ACTIVE, true );
@@ -49,6 +50,8 @@ class ErrorHandler
 		}
 
 		$this->lastError = error_get_last();
+
+		return true;
 	}
 
 	final function handleUncaughtException( Exception $e )
@@ -61,6 +64,8 @@ class ErrorHandler
 
 	final function handleShutdown()
 	{
+		ini_set( 'memory_limit', '-1' );
+
 		$error = error_get_last();
 
 		if ( $error !== null && $error !== $this->lastError )
@@ -90,12 +95,11 @@ class ErrorHandler
 
 	protected static function out( $title, $body )
 	{
-		while ( ob_get_level() > 0 )
-			ob_end_clean();
+		while( ob_get_level() > 0 && ob_end_clean() );
 
 		if ( PHP_SAPI === 'cli' )
 		{
-			print $body;
+			fwrite( STDERR, $body );
 		}
 		else
 		{
