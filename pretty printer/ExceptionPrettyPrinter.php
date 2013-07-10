@@ -1,9 +1,11 @@
 <?php
 
+namespace PrettyPrinter;
+
 final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 {
 	/**
-	 * @param Exception $exception
+	 * @param \Exception $exception
 	 *
 	 * @return PrettyPrinterLines
 	 */
@@ -33,7 +35,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		return $globals;
 	}
 
-	private function prettyPrintExceptionNoGlobals( Exception $e )
+	private function prettyPrintExceptionNoGlobals( \Exception $e )
 	{
 		$lines = self::lines();
 

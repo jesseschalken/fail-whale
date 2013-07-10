@@ -1,5 +1,7 @@
 <?php
 
+namespace PrettyPrinter;
+
 final class StringPrettyPrinter extends CachingPrettyPrinter
 {
 	private $characterEscapeCache = array( "\\" => '\\\\',

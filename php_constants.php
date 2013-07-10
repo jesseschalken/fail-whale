@@ -1,5 +1,7 @@
 <?php
 
+namespace ErrorHandler;
+
 function define_if_not_defined( $constant, $value )
 {
 	if ( !defined( $constant ) )

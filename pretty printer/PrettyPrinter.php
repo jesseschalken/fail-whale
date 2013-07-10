@@ -1,5 +1,7 @@
 <?php
 
+namespace PrettyPrinter;
+
 function pp_array_get( $array, $key, $default = null )
 {
 	return isset( $array[ $key ] ) ? $array[ $key ] : $default;
@@ -197,7 +199,7 @@ final class ValuePrettyPrinter extends AbstractPrettyPrinter
 		return $this->variablePrettyPrinter->doPrettyPrint( $varName );
 	}
 
-	function prettyPrintException( Exception $e )
+	function prettyPrintException( \Exception $e )
 	{
 		return $this->exceptionPrettyPrinter->doPrettyPrint( $e );
 	}

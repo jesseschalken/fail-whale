@@ -1,5 +1,7 @@
 <?php
 
+namespace PrettyPrinter;
+
 class PrettyPrinterLines
 {
 	/** @var string[] */
@@ -41,6 +43,11 @@ class PrettyPrinterLines
 		return $this;
 	}
 
+	/**
+	 * @param string $string
+	 *
+	 * @return self
+	 */
 	function prepend( $string )
 	{
 		if ( empty( $this->lines ) )
@@ -51,6 +58,11 @@ class PrettyPrinterLines
 		return $this;
 	}
 
+	/**
+	 * @param string $string
+	 *
+	 * @return self
+	 */
 	function prependAligned( $string )
 	{
 		$space = self::spaces( strlen( $string ) );
@@ -66,6 +78,11 @@ class PrettyPrinterLines
 		return $this->appendLinesAligned( $this->swapLines( $lines ) );
 	}
 
+	/**
+	 * @param string $string
+	 *
+	 * @return self
+	 */
 	function append( $string )
 	{
 		if ( empty( $this->lines ) )
@@ -115,6 +132,11 @@ class PrettyPrinterLines
 		return $this->prependLine( $prepend )->addLine( $append );
 	}
 
+	/**
+	 * @param string $space
+	 *
+	 * @return self
+	 */
 	function indent( $space = '  ' )
 	{
 		foreach ( $this->lines as &$line )

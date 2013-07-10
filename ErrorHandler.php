@@ -1,5 +1,11 @@
 <?php
 
+namespace ErrorHandler;
+
+use PrettyPrinter\ExceptionWithFullStackTrace;
+use PrettyPrinter\ExceptionWithLocalVariables;
+use PrettyPrinter\PrettyPrinterSettings;
+
 class ErrorHandler
 {
 	private $lastError;
@@ -51,7 +57,7 @@ class ErrorHandler
 		$this->lastError = error_get_last();
 	}
 
-	final function handleUncaughtException( Exception $e )
+	final function handleUncaughtException( \Exception $e )
 	{
 		$this->handleException( $e );
 
@@ -81,7 +87,7 @@ class ErrorHandler
 		return $trace;
 	}
 
-	protected function handleException( Exception $e )
+	protected function handleException( \Exception $e )
 	{
 		$settings = new PrettyPrinterSettings;
 
@@ -146,7 +152,7 @@ html;
 	}
 }
 
-class AssertionFailedException extends Exception implements ExceptionWithFullStackTrace
+class AssertionFailedException extends \Exception implements ExceptionWithFullStackTrace
 {
 	private $expression, $fullStackTrace;
 
@@ -172,7 +178,7 @@ class AssertionFailedException extends Exception implements ExceptionWithFullSta
 	}
 }
 
-class FullErrorException extends ErrorException implements ExceptionWithLocalVariables, ExceptionWithFullStackTrace
+class FullErrorException extends \ErrorException implements ExceptionWithLocalVariables, ExceptionWithFullStackTrace
 {
 	private $localVariables, $fullStackTrace;
 	private static $errorConstants = array( E_ERROR             => 'E_ERROR',
@@ -206,7 +212,7 @@ class FullErrorException extends ErrorException implements ExceptionWithLocalVar
 
 		$this->localVariables = $localVariables;
 		$this->fullStackTrace = $fullStackTrace;
-		$this->code           = pp_array_get( self::$errorConstants, $severity, 'E_?' );
+		$this->code           = \PrettyPrinter\pp_array_get( self::$errorConstants, $severity, 'E_?' );
 	}
 
 	function getFullStackTrace()

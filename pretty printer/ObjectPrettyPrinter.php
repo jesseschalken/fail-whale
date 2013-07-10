@@ -1,5 +1,7 @@
 <?php
 
+namespace PrettyPrinter;
+
 final class ObjectPrettyPrinter extends AbstractPrettyPrinter
 {
 	private $objectIds = array();

@@ -1,5 +1,7 @@
 <?php
 
+namespace PrettyPrinter;
+
 /**
  * This is just a dumb data structure. Don't make any assumptions about the values when referencing this class's
  * fields.
@@ -26,7 +28,7 @@ final class PrettyPrinterSettings
 		return $this->pp()->doPrettyPrint( $ref )->join();
 	}
 
-	function prettyPrintException( Exception $e )
+	function prettyPrintException( \Exception $e )
 	{
 		return $this->pp()->prettyPrintException( $e )->join();
 	}

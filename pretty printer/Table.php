@@ -1,5 +1,7 @@
 <?php
 
+namespace PrettyPrinter;
+
 class PrettyPrinterTable
 {
 	/** @var PrettyPrinterTableRow[] */

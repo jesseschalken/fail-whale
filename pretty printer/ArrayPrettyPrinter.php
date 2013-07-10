@@ -1,5 +1,7 @@
 <?php
 
+namespace PrettyPrinter;
+
 final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 {
 	private $arrayStack = array(), $arrayIdsReferenced = array();
@@ -84,7 +86,7 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 	private static function refsEqual( &$a, &$b )
 	{
 		$aOld   = $a;
-		$a      = new stdClass;
+		$a      = new \stdClass;
 		$result = $a === $b;
 		$a      = $aOld;
 

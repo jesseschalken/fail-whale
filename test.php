@@ -1,12 +1,14 @@
 #!/usr/bin/env php
 <?php
 
+namespace ErrorHandler;
+
 require_once 'include.php';
 
 $e = ErrorHandler::create();
 $e->bind();
 
-$v = new stdClass;
+$v = new \stdClass;
 $v->foo = array();
 $v->foo[ 'recurse' ] =& $v->foo;
 
