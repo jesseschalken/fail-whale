@@ -56,7 +56,7 @@ class PrettyPrinterTable
 
 		foreach ( $this->rows as $row )
 			foreach ( $row->cells() as $column => $lines )
-				$columnWidths[ $column ] = max( pp_array_get( $columnWidths, $column, 0 ), $lines->width() );
+				$columnWidths[ $column ] = max( array_get( $columnWidths, $column, 0 ), $lines->width() );
 
 		return $columnWidths;
 	}

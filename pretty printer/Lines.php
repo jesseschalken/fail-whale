@@ -153,7 +153,7 @@ class PrettyPrinterLines
 
 	function width()
 	{
-		return strlen( pp_array_get( $this->lines, count( $this->lines ) - 1, '' ) );
+		return strlen( array_get( $this->lines, count( $this->lines ) - 1, '' ) );
 	}
 
 	function join()

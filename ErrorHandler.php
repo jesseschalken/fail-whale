@@ -212,7 +212,7 @@ class FullErrorException extends \ErrorException implements HasLocalVariables, H
 
 		$this->localVariables = $localVariables;
 		$this->fullStackTrace = $fullStackTrace;
-		$this->code           = \PrettyPrinter\pp_array_get( self::$errorConstants, $severity, 'E_?' );
+		$this->code           = \PrettyPrinter\array_get( self::$errorConstants, $severity, 'E_?' );
 	}
 
 	function getFullStackTrace()

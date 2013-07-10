@@ -100,9 +100,9 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		if ( isset( $stackFrame[ 'object' ] ) )
 			$lines->appendLinesAligned( $this->prettyPrintRef( $stackFrame[ 'object' ] ) );
 		else
-			$lines->append( pp_array_get( $stackFrame, 'class', '' ) );
+			$lines->append( array_get( $stackFrame, 'class', '' ) );
 
-		$lines->append( pp_array_get( $stackFrame, 'type', '' ) . pp_array_get( $stackFrame, 'function', '' ) );
+		$lines->append( array_get( $stackFrame, 'type', '' ) . array_get( $stackFrame, 'function', '' ) );
 
 		if ( isset( $stackFrame[ 'args' ] ) )
 			$lines->appendLinesAligned( $this->prettyPrintFunctionArgs( $stackFrame[ 'args' ] ) );

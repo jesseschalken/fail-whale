@@ -2,7 +2,7 @@
 
 namespace PrettyPrinter;
 
-function pp_array_get( $array, $key, $default = null )
+function array_get( $array, $key, $default = null )
 {
 	return isset( $array[ $key ] ) ? $array[ $key ] : $default;
 }
