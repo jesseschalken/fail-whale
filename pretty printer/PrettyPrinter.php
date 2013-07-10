@@ -25,7 +25,7 @@ abstract class AbstractPrettyPrinter
 	/**
 	 * @param $value
 	 *
-	 * @return PrettyPrinterLines
+	 * @return Lines
 	 */
 	abstract function doPrettyPrint( &$value );
 
@@ -56,7 +56,7 @@ abstract class AbstractPrettyPrinter
 
 	protected static function lines( array $lines = array() )
 	{
-		return new PrettyPrinterLines( $lines );
+		return new Lines( $lines );
 	}
 
 	protected static function table()
@@ -100,7 +100,7 @@ abstract class CachingPrettyPrinter extends AbstractPrettyPrinter
 	/**
 	 * @param $value
 	 *
-	 * @return PrettyPrinterLines
+	 * @return Lines
 	 */
 	protected abstract function cacheMiss( $value );
 }
@@ -171,7 +171,7 @@ final class ValuePrettyPrinter extends AbstractPrettyPrinter
 	private $nextId = 1;
 	private $settings;
 
-	function __construct( PrettyPrinterSettings $settings )
+	function __construct( Settings $settings )
 	{
 		$this->settings               = $settings;
 		$this->variablePrettyPrinter  = new VariablePrettyPrinter( $this );

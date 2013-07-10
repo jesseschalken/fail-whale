@@ -41,7 +41,7 @@ final class StringPrettyPrinter extends CachingPrettyPrinter
 			$escaped .= $charEscaped;
 		}
 
-		return PrettyPrinterLines::split( "\"$escaped" . ( $i === $length ? "\"" : "..." ) );
+		return Lines::split( "\"$escaped" . ( $i === $length ? "\"" : "..." ) );
 	}
 }
 

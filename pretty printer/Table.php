@@ -15,7 +15,7 @@ class PrettyPrinterTable
 	function render()
 	{
 		$this->alignColumns();
-		$lines = new PrettyPrinterLines;
+		$lines = new Lines;
 
 		foreach ( $this->rows as $row )
 			$lines->addLines( $row->render() );
@@ -25,7 +25,7 @@ class PrettyPrinterTable
 
 	function renderOneLine()
 	{
-		$lines = new PrettyPrinterLines;
+		$lines = new Lines;
 
 		foreach ( $this->rows as $row )
 			$lines->appendLinesAligned( $row->render() );
@@ -64,7 +64,7 @@ class PrettyPrinterTable
 
 class PrettyPrinterTableRow
 {
-	/** @var PrettyPrinterLines[] */
+	/** @var Lines[] */
 	private $cells = array();
 
 	function cells()
@@ -72,7 +72,7 @@ class PrettyPrinterTableRow
 		return $this->cells;
 	}
 
-	function addCell( PrettyPrinterLines $lines )
+	function addCell( Lines $lines )
 	{
 		$this->cells[ ] = $lines;
 
@@ -81,12 +81,12 @@ class PrettyPrinterTableRow
 
 	function addTextCell( $text )
 	{
-		return $this->addCell( new PrettyPrinterLines( array( $text ) ) );
+		return $this->addCell( new Lines( array( $text ) ) );
 	}
 
 	function render()
 	{
-		$lines = new PrettyPrinterLines( array( '' ) );
+		$lines = new Lines( array( '' ) );
 
 		foreach ( $this->cells as $cell )
 			$lines->appendLinesAligned( $cell );

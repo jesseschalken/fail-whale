@@ -7,7 +7,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 	/**
 	 * @param \Exception $exception
 	 *
-	 * @return PrettyPrinterLines
+	 * @return Lines
 	 */
 	function doPrettyPrint( &$exception )
 	{
@@ -46,7 +46,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 
 		$lines->addLine( "$class $code in $file:$line" );
 		$lines->addLine();
-		$lines->addLines( PrettyPrinterLines::split( $e->getMessage() )->indent( '    ' ) );
+		$lines->addLines( Lines::split( $e->getMessage() )->indent( '    ' ) );
 		$lines->addLine();
 
 		if ( $this->settings()->showExceptionLocalVariables && $e instanceof HasLocalVariables

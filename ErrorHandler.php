@@ -4,7 +4,7 @@ namespace ErrorHandler;
 
 use PrettyPrinter\HasFullStackTrace;
 use PrettyPrinter\HasLocalVariables;
-use PrettyPrinter\PrettyPrinterSettings;
+use PrettyPrinter\Settings;
 
 class ErrorHandler
 {
@@ -89,7 +89,7 @@ class ErrorHandler
 
 	protected function handleException( \Exception $e )
 	{
-		$settings = new PrettyPrinterSettings;
+		$settings = new Settings;
 
 		self::out( 'error', $settings->prettyPrintException( $e ) );
 	}

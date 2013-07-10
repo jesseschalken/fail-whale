@@ -6,7 +6,7 @@ namespace PrettyPrinter;
  * This is just a dumb data structure. Don't make any assumptions about the values when referencing this class's
  * fields.
  */
-final class PrettyPrinterSettings
+final class Settings
 {
 	var $escapeTabsInStrings = false;
 	var $splitMultiLineStrings = true;

@@ -2,7 +2,7 @@
 
 namespace PrettyPrinter;
 
-class PrettyPrinterLines
+class Lines
 {
 	/** @var string[] */
 	private $lines = array();
@@ -46,7 +46,7 @@ class PrettyPrinterLines
 	/**
 	 * @param string $string
 	 *
-	 * @return self
+	 * @return Lines
 	 */
 	function prepend( $string )
 	{
@@ -61,7 +61,7 @@ class PrettyPrinterLines
 	/**
 	 * @param string $string
 	 *
-	 * @return self
+	 * @return Lines
 	 */
 	function prependAligned( $string )
 	{
@@ -81,7 +81,7 @@ class PrettyPrinterLines
 	/**
 	 * @param string $string
 	 *
-	 * @return self
+	 * @return Lines
 	 */
 	function append( $string )
 	{
@@ -135,7 +135,7 @@ class PrettyPrinterLines
 	/**
 	 * @param string $space
 	 *
-	 * @return self
+	 * @return Lines
 	 */
 	function indent( $space = '  ' )
 	{
