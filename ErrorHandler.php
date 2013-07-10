@@ -2,8 +2,8 @@
 
 namespace ErrorHandler;
 
-use PrettyPrinter\ExceptionWithFullStackTrace;
-use PrettyPrinter\ExceptionWithLocalVariables;
+use PrettyPrinter\HasFullStackTrace;
+use PrettyPrinter\HasLocalVariables;
 use PrettyPrinter\PrettyPrinterSettings;
 
 class ErrorHandler
@@ -152,7 +152,7 @@ html;
 	}
 }
 
-class AssertionFailedException extends \Exception implements ExceptionWithFullStackTrace
+class AssertionFailedException extends \Exception implements HasFullStackTrace
 {
 	private $expression, $fullStackTrace;
 
@@ -178,7 +178,7 @@ class AssertionFailedException extends \Exception implements ExceptionWithFullSt
 	}
 }
 
-class FullErrorException extends \ErrorException implements ExceptionWithLocalVariables, ExceptionWithFullStackTrace
+class FullErrorException extends \ErrorException implements HasLocalVariables, HasFullStackTrace
 {
 	private $localVariables, $fullStackTrace;
 	private static $errorConstants = array( E_ERROR             => 'E_ERROR',

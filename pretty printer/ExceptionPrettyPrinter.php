@@ -49,7 +49,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		$lines->addLines( PrettyPrinterLines::split( $e->getMessage() )->indent( '    ' ) );
 		$lines->addLine();
 
-		if ( $this->settings()->showExceptionLocalVariables && $e instanceof ExceptionWithLocalVariables
+		if ( $this->settings()->showExceptionLocalVariables && $e instanceof HasLocalVariables
 		     && $e->getLocalVariables() !== null
 		)
 		{
@@ -62,7 +62,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 		{
 			$lines->addLine( "stack trace:" );
 
-			$stackTrace = $e instanceof ExceptionWithFullStackTrace ? $e->getFullStackTrace() : $e->getTrace();
+			$stackTrace = $e instanceof HasFullStackTrace ? $e->getFullStackTrace() : $e->getTrace();
 			$lines->addLines( $this->prettyPrintStackTrace( $stackTrace )->indent() );
 			$lines->addLine();
 		}
@@ -126,7 +126,7 @@ final class ExceptionPrettyPrinter extends AbstractPrettyPrinter
 	}
 }
 
-interface ExceptionWithLocalVariables
+interface HasLocalVariables
 {
 	/**
 	 * @return array
@@ -134,7 +134,7 @@ interface ExceptionWithLocalVariables
 	function getLocalVariables();
 }
 
-interface ExceptionWithFullStackTrace
+interface HasFullStackTrace
 {
 	/**
 	 * @return array
