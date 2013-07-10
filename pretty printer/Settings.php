@@ -1,7 +1,7 @@
 <?php
 
 /**
- * This is just a dumb data structure. Don't make any assumptions about the values when referencing this class's 
+ * This is just a dumb data structure. Don't make any assumptions about the values when referencing this class's
  * fields.
  */
 final class PrettyPrinterSettings
