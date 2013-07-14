@@ -3,14 +3,26 @@
 namespace PrettyPrinter\TypeHandlers;
 
 use PrettyPrinter\ArrayUtil;
-use PrettyPrinter\TypeHandler;
 use PrettyPrinter\HasFullStackTrace;
 use PrettyPrinter\HasLocalVariables;
 use PrettyPrinter\Table;
 use PrettyPrinter\Text;
+use PrettyPrinter\TypeHandler;
 
 final class Exception extends TypeHandler
 {
+	private static function globals()
+	{
+		/**
+		 * Don't ask me why, but if I don't send $GLOBALS through array_merge(), unset( $globals['GLOBALS'] ) (next
+		 * line) ends up removing the $GLOBALS super global itself.
+		 */
+		$globals = array_merge( $GLOBALS );
+		unset( $globals[ 'GLOBALS' ] );
+
+		return $globals;
+	}
+
 	/**
 	 * @param \Exception $exception
 	 *
@@ -28,18 +40,6 @@ final class Exception extends TypeHandler
 		}
 
 		return $result;
-	}
-
-	private static function globals()
-	{
-		/**
-		 * Don't ask me why, but if I don't send $GLOBALS through array_merge(), unset( $globals['GLOBALS'] ) (next
-		 * line) ends up removing the $GLOBALS super global itself.
-		 */
-		$globals = array_merge( $GLOBALS );
-		unset( $globals[ 'GLOBALS' ] );
-
-		return $globals;
 	}
 
 	private function prettyPrintVariables( array $variables )

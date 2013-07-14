@@ -55,6 +55,13 @@ class Table implements \Countable
 		return $this;
 	}
 
+	function __clone()
+	{
+		foreach ( $this->rows as &$row )
+			foreach ( $row as &$cell )
+				$cell = clone $cell;
+	}
+
 	private function alignColumns()
 	{
 		$columnWidths = $this->columnWidths();
@@ -89,12 +96,5 @@ class Table implements \Countable
 		foreach ( $cells as $column => $cell )
 			if ( $column !== $lastColumn )
 				$cell->padWidth( $columnWidths[ $column ] );
-	}
-
-	function __clone()
-	{
-		foreach ( $this->rows as &$row )
-			foreach ( $row as &$cell )
-				$cell = clone $cell;
 	}
 }

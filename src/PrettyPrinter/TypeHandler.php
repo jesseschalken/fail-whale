@@ -2,8 +2,8 @@
 
 namespace PrettyPrinter;
 
-use PrettyPrinter\TypeHandlers\Any;
 use PrettyPrinter\Text;
+use PrettyPrinter\TypeHandlers\Any;
 
 abstract class TypeHandler
 {

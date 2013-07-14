@@ -3,8 +3,8 @@
 namespace PrettyPrinter\TypeHandlers;
 
 use PrettyPrinter\CachingTypeHandler;
-use PrettyPrinter\TypeHandlers\Any;
 use PrettyPrinter\Text;
+use PrettyPrinter\TypeHandlers\Any;
 
 final class String extends CachingTypeHandler
 {

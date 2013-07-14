@@ -3,10 +3,10 @@
 namespace PrettyPrinter\TypeHandlers;
 
 use PrettyPrinter\ArrayUtil;
-use PrettyPrinter\TypeHandler;
+use PrettyPrinter\Ref;
 use PrettyPrinter\Table;
 use PrettyPrinter\Text;
-use PrettyPrinter\Ref;
+use PrettyPrinter\TypeHandler;
 
 /**
  * Called "Array1" because "Array" is a reserved word.

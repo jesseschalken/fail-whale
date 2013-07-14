@@ -1,9 +1,9 @@
 <?php
 namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\TypeHandler;
 use PrettyPrinter\PrettyPrinter;
 use PrettyPrinter\Text;
+use PrettyPrinter\TypeHandler;
 
 final class Any extends TypeHandler
 {
@@ -15,17 +15,17 @@ final class Any extends TypeHandler
 
 	function __construct( PrettyPrinter $settings )
 	{
-		$this->settings         = $settings;
-		$this->variableHandler  = new Variable( $this );
-		$this->typeHandlers     = array( 'boolean'      => new Boolean( $this ),
-		                                 'integer'      => new Integer( $this ),
-		                                 'double'       => new Float( $this ),
-		                                 'string'       => new String( $this ),
-		                                 'array'        => new Array1( $this ),
-		                                 'object'       => new Object( $this ),
-		                                 'resource'     => new Resource( $this ),
-		                                 'NULL'         => new Null( $this ),
-		                                 'unknown type' => new Unknown( $this ) );
+		$this->settings        = $settings;
+		$this->variableHandler = new Variable( $this );
+		$this->typeHandlers    = array( 'boolean'      => new Boolean( $this ),
+		                                'integer'      => new Integer( $this ),
+		                                'double'       => new Float( $this ),
+		                                'string'       => new String( $this ),
+		                                'array'        => new Array1( $this ),
+		                                'object'       => new Object( $this ),
+		                                'resource'     => new Resource( $this ),
+		                                'NULL'         => new Null( $this ),
+		                                'unknown type' => new Unknown( $this ) );
 
 		parent::__construct( $this );
 	}

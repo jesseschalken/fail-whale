@@ -2,9 +2,9 @@
 
 namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\TypeHandler;
 use PrettyPrinter\Table;
 use PrettyPrinter\Text;
+use PrettyPrinter\TypeHandler;
 
 final class Object extends TypeHandler
 {

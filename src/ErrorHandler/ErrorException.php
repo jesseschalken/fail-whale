@@ -8,7 +8,6 @@ use PrettyPrinter\HasLocalVariables;
 
 class ErrorException extends \ErrorException implements HasLocalVariables, HasFullStackTrace
 {
-	private $localVariables, $fullStackTrace;
 	private static $errorConstants = array( E_ERROR             => 'E_ERROR',
 	                                        E_WARNING           => 'E_WARNING',
 	                                        E_PARSE             => 'E_PARSE',
@@ -24,6 +23,8 @@ class ErrorException extends \ErrorException implements HasLocalVariables, HasFu
 	                                        E_RECOVERABLE_ERROR => 'E_RECOVERABLE_ERROR',
 	                                        E_DEPRECATED        => 'E_DEPRECATED',
 	                                        E_USER_DEPRECATED   => 'E_USER_DEPRECATED' );
+
+	private $localVariables, $fullStackTrace;
 
 	/**
 	 * @param int         $severity

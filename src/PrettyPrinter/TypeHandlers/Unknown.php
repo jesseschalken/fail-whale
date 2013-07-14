@@ -1,8 +1,8 @@
 <?php
 namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\TypeHandler;
 use PrettyPrinter\Text;
+use PrettyPrinter\TypeHandler;
 
 final class Unknown extends TypeHandler
 {

@@ -6,12 +6,79 @@ use PrettyPrinter\PrettyPrinter;
 
 class ErrorHandler
 {
-	private $lastError;
-
 	static function create()
 	{
 		return new self;
 	}
+
+	protected static function out( $title, $body )
+	{
+		while ( ob_get_level() > 0 && ob_end_clean() )
+			;
+
+		if ( PHP_SAPI === 'cli' )
+		{
+			fwrite( STDERR, $body );
+		}
+		else
+		{
+			if ( !headers_sent() )
+			{
+				header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
+				header( "Content-Type: text/html; charset=UTF-8", true );
+			}
+
+			print self::wrapHtml( $title, $body );
+		}
+	}
+
+	protected static function wrapHtml( $title, $body )
+	{
+		$body  = self::toHtml( $body );
+		$title = self::toHtml( $title );
+
+		return <<<html
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8" />
+		<title>$title</title>
+	</head>
+	<body>
+		<pre style="
+			white-space: pre;
+			font-family: 'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace;
+			font-size: 10pt;
+			color: #000000;
+			display: block;
+			background: white;
+			border: none;
+			margin: 0;
+			padding: 0;
+			line-height: 16px;
+			width: 100%;
+		">$body</pre>
+	</body>
+</html>
+html;
+	}
+
+	private static function fullStackTrace()
+	{
+		$trace = debug_backtrace();
+
+		array_shift( $trace );
+		array_shift( $trace );
+
+		return $trace;
+	}
+
+	private static function toHtml( $text )
+	{
+		return htmlspecialchars( $text, ENT_COMPAT, "UTF-8" );
+	}
+
+	private $lastError;
 
 	protected function __construct()
 	{
@@ -80,78 +147,11 @@ class ErrorHandler
 		}
 	}
 
-	private static function fullStackTrace()
-	{
-		$trace = debug_backtrace();
-
-		array_shift( $trace );
-		array_shift( $trace );
-
-		return $trace;
-	}
-
 	protected function handleException( \Exception $e )
 	{
 		$settings = new PrettyPrinter;
 
 		self::out( 'error', $settings->prettyPrintException( $e ) );
-	}
-
-	protected static function out( $title, $body )
-	{
-		while ( ob_get_level() > 0 && ob_end_clean() )
-			;
-
-		if ( PHP_SAPI === 'cli' )
-		{
-			fwrite( STDERR, $body );
-		}
-		else
-		{
-			if ( !headers_sent() )
-			{
-				header( 'HTTP/1.1 500 Internal Server Error', true, 500 );
-				header( "Content-Type: text/html; charset=UTF-8", true );
-			}
-
-			print self::wrapHtml( $title, $body );
-		}
-	}
-
-	private static function toHtml( $text )
-	{
-		return htmlspecialchars( $text, ENT_COMPAT, "UTF-8" );
-	}
-
-	protected static function wrapHtml( $title, $body )
-	{
-		$body  = self::toHtml( $body );
-		$title = self::toHtml( $title );
-
-		return <<<html
-<!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8" />
-		<title>$title</title>
-	</head>
-	<body>
-		<pre style="
-			white-space: pre;
-			font-family: 'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace;
-			font-size: 10pt;
-			color: #000000;
-			display: block;
-			background: white;
-			border: none;
-			margin: 0;
-			padding: 0;
-			line-height: 16px;
-			width: 100%;
-		">$body</pre>
-	</body>
-</html>
-html;
 	}
 }
 
