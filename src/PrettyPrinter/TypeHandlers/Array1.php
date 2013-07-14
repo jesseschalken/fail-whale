@@ -1,9 +1,9 @@
 <?php
 
-namespace PrettyPrinter\Handlers;
+namespace PrettyPrinter\TypeHandlers;
 
 use PrettyPrinter\ArrayUtil;
-use PrettyPrinter\Handler;
+use PrettyPrinter\TypeHandler;
 use PrettyPrinter\Table;
 use PrettyPrinter\Text;
 use PrettyPrinter\Ref;
@@ -11,7 +11,7 @@ use PrettyPrinter\Ref;
 /**
  * Called "Array1" because "Array" is a reserved word.
  */
-final class Array1 extends Handler
+final class Array1 extends TypeHandler
 {
 	private $arrayStack = array(), $arrayIdsReferenced = array();
 

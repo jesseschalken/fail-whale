@@ -1,10 +1,10 @@
 <?php
-namespace PrettyPrinter\Handlers;
+namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\CachingHandler;
+use PrettyPrinter\CachingTypeHandler;
 use PrettyPrinter\Text;
 
-final class Resource extends CachingHandler
+final class Resource extends CachingTypeHandler
 {
 	private $resourceIds = array();
 

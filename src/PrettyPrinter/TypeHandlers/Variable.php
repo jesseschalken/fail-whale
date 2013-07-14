@@ -1,10 +1,10 @@
 <?php
-namespace PrettyPrinter\Handlers;
+namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\CachingHandler;
+use PrettyPrinter\CachingTypeHandler;
 use PrettyPrinter\Text;
 
-final class Variable extends CachingHandler
+final class Variable extends CachingTypeHandler
 {
 	protected function handleCacheMiss( $varName )
 	{

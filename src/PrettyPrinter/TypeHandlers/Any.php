@@ -1,13 +1,13 @@
 <?php
-namespace PrettyPrinter\Handlers;
+namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\Handler;
+use PrettyPrinter\TypeHandler;
 use PrettyPrinter\PrettyPrinter;
 use PrettyPrinter\Text;
 
-final class Any extends Handler
+final class Any extends TypeHandler
 {
-	/** @var Handler[] */
+	/** @var TypeHandler[] */
 	private $typeHandlers = array();
 	private $variableHandler;
 	private $nextId = 1;

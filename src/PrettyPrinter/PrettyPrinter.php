@@ -2,8 +2,8 @@
 
 namespace PrettyPrinter;
 
-use PrettyPrinter\Handlers\Any;
-use PrettyPrinter\Handlers\Exception;
+use PrettyPrinter\TypeHandlers\Any;
+use PrettyPrinter\TypeHandlers\Exception;
 
 /**
  * This is just a dumb data structure. Don't make any assumptions about the values when referencing this class's

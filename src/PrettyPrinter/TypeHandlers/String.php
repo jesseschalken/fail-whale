@@ -1,12 +1,12 @@
 <?php
 
-namespace PrettyPrinter\Handlers;
+namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\CachingHandler;
-use PrettyPrinter\Handlers\Any;
+use PrettyPrinter\CachingTypeHandler;
+use PrettyPrinter\TypeHandlers\Any;
 use PrettyPrinter\Text;
 
-final class String extends CachingHandler
+final class String extends CachingTypeHandler
 {
 	private $characterEscapeCache = array( "\\" => '\\\\',
 	                                       "\$" => '\$',

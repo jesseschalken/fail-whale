@@ -2,10 +2,10 @@
 
 namespace PrettyPrinter;
 
-use PrettyPrinter\Handlers\Any;
+use PrettyPrinter\TypeHandlers\Any;
 use PrettyPrinter\Text;
 
-abstract class Handler
+abstract class TypeHandler
 {
 	/** @var Any */
 	private $anyHandler;

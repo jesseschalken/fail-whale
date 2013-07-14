@@ -1,10 +1,10 @@
 <?php
-namespace PrettyPrinter\Handlers;
+namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\Handler;
+use PrettyPrinter\TypeHandler;
 use PrettyPrinter\Text;
 
-final class Boolean extends Handler
+final class Boolean extends TypeHandler
 {
 	function handleValue( &$value )
 	{

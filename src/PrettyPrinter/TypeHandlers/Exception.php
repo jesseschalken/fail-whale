@@ -1,15 +1,15 @@
 <?php
 
-namespace PrettyPrinter\Handlers;
+namespace PrettyPrinter\TypeHandlers;
 
 use PrettyPrinter\ArrayUtil;
-use PrettyPrinter\Handler;
+use PrettyPrinter\TypeHandler;
 use PrettyPrinter\HasFullStackTrace;
 use PrettyPrinter\HasLocalVariables;
 use PrettyPrinter\Table;
 use PrettyPrinter\Text;
 
-final class Exception extends Handler
+final class Exception extends TypeHandler
 {
 	/**
 	 * @param \Exception $exception

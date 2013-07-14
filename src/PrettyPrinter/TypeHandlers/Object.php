@@ -1,12 +1,12 @@
 <?php
 
-namespace PrettyPrinter\Handlers;
+namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\Handler;
+use PrettyPrinter\TypeHandler;
 use PrettyPrinter\Table;
 use PrettyPrinter\Text;
 
-final class Object extends Handler
+final class Object extends TypeHandler
 {
 	private $objectIds = array();
 

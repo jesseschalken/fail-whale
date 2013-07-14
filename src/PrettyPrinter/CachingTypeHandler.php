@@ -1,9 +1,9 @@
 <?php
 namespace PrettyPrinter;
 
-use PrettyPrinter\Handler;
+use PrettyPrinter\TypeHandler;
 
-abstract class CachingHandler extends Handler
+abstract class CachingTypeHandler extends TypeHandler
 {
 	private $cache = array();
 

@@ -1,10 +1,10 @@
 <?php
-namespace PrettyPrinter\Handlers;
+namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\CachingHandler;
+use PrettyPrinter\CachingTypeHandler;
 use PrettyPrinter\Text;
 
-final class Float extends CachingHandler
+final class Float extends CachingTypeHandler
 {
 	protected function handleCacheMiss( $float )
 	{
