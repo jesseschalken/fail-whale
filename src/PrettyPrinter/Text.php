@@ -4,9 +4,6 @@ namespace PrettyPrinter;
 
 class Text
 {
-	/** @var string[] */
-	private $lines = array();
-
 	static function split( $string )
 	{
 		$self        = new self;
@@ -27,6 +24,14 @@ class Text
 
 		return $self;
 	}
+
+	private static function spaces( $num )
+	{
+		return str_repeat( ' ', max( $num, 0 ) );
+	}
+
+	/** @var string[] */
+	private $lines = array();
 
 	function __construct()
 	{
@@ -174,11 +179,6 @@ class Text
 	function join()
 	{
 		return join( "\n", $this->lines );
-	}
-
-	private static function spaces( $num )
-	{
-		return str_repeat( ' ', max( $num, 0 ) );
 	}
 
 	private function swapLines( self $lines )
