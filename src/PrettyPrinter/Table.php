@@ -2,15 +2,20 @@
 
 namespace PrettyPrinter;
 
-class Table
+class Table implements \Countable
 {
-	/** @var TableRow[] */
-	private $rows = array();
-
-	function newRow()
+	private static function renderRow( array $row )
 	{
-		return $this->rows[ ] = new TableRow;
+		$result = new Text;
+
+		foreach ( $row as $cell )
+			$result->appendLinesAligned( $cell );
+
+		return $result;
 	}
+
+	/** @var (Text[])[] */
+	private $rows = array();
 
 	function render()
 	{
@@ -18,7 +23,7 @@ class Table
 		$result = new Text;
 
 		foreach ( $this->rows as $row )
-			$result->addLines( $row->render() );
+			$result->addLines( self::renderRow( $row ) );
 
 		return $result;
 	}
@@ -28,24 +33,35 @@ class Table
 		$result = new Text;
 
 		foreach ( $this->rows as $row )
-			$result->appendLinesAligned( $row->render() );
+			$result->appendLinesAligned( self::renderRow( $row ) );
 
 		return $result;
 	}
 
-	function numRows()
+	function count()
 	{
 		return count( $this->rows );
+	}
+
+	/**
+	 * @param Text[] $cell
+	 *
+	 * @return self
+	 */
+	function addRow( array $cell )
+	{
+		$this->rows[ ] = $cell;
+
+		return $this;
 	}
 
 	private function alignColumns()
 	{
 		$columnWidths = $this->columnWidths();
 
-		foreach ( $this->rows as $row )
-			foreach ( $row->cells() as $column => $text )
-				if ( $column !== count( $columnWidths ) - 1 )
-					$text->padWidth( $columnWidths[ $column ] );
+		/** @var $cell Text */
+		foreach ( $this->rows as $cells )
+			$this->alignRowColumns( $cells, $columnWidths );
 
 		return $this;
 	}
@@ -54,10 +70,31 @@ class Table
 	{
 		$columnWidths = array();
 
-		foreach ( $this->rows as $row )
-			foreach ( $row->cells() as $column => $lines )
-				$columnWidths[ $column ] = max( ArrayUtil::get( $columnWidths, $column, 0 ), $lines->width() );
+		/** @var $cell Text */
+		foreach ( $this->rows as $cells )
+			foreach ( $cells as $column => $cell )
+				$columnWidths[ $column ] = max( ArrayUtil::get( $columnWidths, $column, 0 ), $cell->width() );
 
 		return $columnWidths;
+	}
+
+	/**
+	 * @param Text[] $cells
+	 * @param        $columnWidths
+	 */
+	private function alignRowColumns( array $cells, array $columnWidths )
+	{
+		$lastColumn = ArrayUtil::lastKey( $cells );
+
+		foreach ( $cells as $column => $cell )
+			if ( $column !== $lastColumn )
+				$cell->padWidth( $columnWidths[ $column ] );
+	}
+
+	function __clone()
+	{
+		foreach ( $this->rows as &$row )
+			foreach ( $row as &$cell )
+				$cell = clone $cell;
 	}
 }

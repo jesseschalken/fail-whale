@@ -6,10 +6,7 @@ class Text
 {
 	static function split( $string )
 	{
-		$self        = new self;
-		$self->lines = explode( "\n", $string );
-
-		return $self;
+		return self::lines( explode( "\n", $string ) );
 	}
 
 	static function line( $line = '' )

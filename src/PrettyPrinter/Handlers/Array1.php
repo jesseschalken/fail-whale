@@ -2,9 +2,11 @@
 
 namespace PrettyPrinter\Handlers;
 
+use PrettyPrinter\ArrayUtil;
 use PrettyPrinter\Handler;
 use PrettyPrinter\Table;
 use PrettyPrinter\Text;
+use PrettyPrinter\Ref;
 
 /**
  * Called "Array1" because "Array" is a reserved word.
@@ -17,7 +19,7 @@ final class Array1 extends Handler
 	{
 		foreach ( $this->arrayStack as $id => &$c )
 		{
-			if ( self::refsEqual( $c, $array ) )
+			if ( Ref::equal( $c, $array ) )
 			{
 				$this->arrayIdsReferenced[ $id ] = true;
 
@@ -50,24 +52,6 @@ final class Array1 extends Handler
 		return $result;
 	}
 
-	protected function prettyPrintVariables( array $variables )
-	{
-		if ( empty( $variables ) )
-			return Text::line( 'none' );
-
-		$table = new Table;
-
-		foreach ( $variables as $k => &$v )
-		{
-			$row = $table->newRow();
-			$row->addCell( $this->prettyPrintVariable( $k ) );
-			$row->addTextCell( ' = ' );
-			$row->addCell( $this->prettyPrintRef( $v )->append( ';' ) );
-		}
-
-		return $table->render();
-	}
-
 	private function prettyPrintArrayDeep( $id, array $array )
 	{
 		if ( empty( $array ) )
@@ -75,47 +59,32 @@ final class Array1 extends Handler
 
 		$maxEntries      = $this->settings()->maxArrayEntries;
 		$renderMultiLine = $this->settings()->renderArraysMultiLine;
-		$isAssociative   = self::isArrayAssociative( $array );
+		$isAssociative   = ArrayUtil::isAssoc( $array );
 		$table           = new Table;
 
 		foreach ( $array as $k => &$v )
 		{
-			$row = $table->newRow();
+			if ( $table->count() == $maxEntries )
+			{
+				$table->addRow( array() );
+			}
+			else
+			{
+				$value = $this->prettyPrintRef( $v );
 
-			if ( $table->numRows() > $maxEntries )
-				break;
+				if ( $table->count() != count( $array ) - 1 )
+					$value->append( $renderMultiLine ? ',' : ', ' );
 
-			if ( $isAssociative )
-				$row->addCell( $this->prettyPrintRef( $k ) )->addTextCell( ' => ' );
-
-			$value = $this->prettyPrintRef( $v );
-
-			if ( $table->numRows() != count( $array ) )
-				$value->append( $renderMultiLine ? ',' : ', ' );
-
-			$row->addCell( $value );
+				$table->addRow( $isAssociative
+						                ? array( $this->prettyPrint( $k ), Text::line( ' => ' ), $value )
+						                : array( $value ) );
+			}
 		}
 
-		$result    = $renderMultiLine ? $table->render() : $table->renderOneLine();
-		$arrayHead = isset( $this->arrayIdsReferenced[ $id ] ) ? "$id array( " : "array( ";
-		$arrayTail = $table->numRows() > $maxEntries ? '... )' : ' )';
+		$result = $renderMultiLine ? $table->render() : $table->renderOneLine();
 
-		return $result->wrapAligned( $arrayHead, $arrayTail );
-	}
-
-	private static function isArrayAssociative( array $array )
-	{
-		return array_keys( $array ) !== range( 0, count( $array ) - 1 );
-	}
-
-	private static function refsEqual( &$a, &$b )
-	{
-		$aOld   = $a;
-		$a      = new \stdClass;
-		$result = $a === $b;
-		$a      = $aOld;
-
-		return $result;
+		return $result->wrapAligned( isset( $this->arrayIdsReferenced[ $id ] ) ? "$id array( " : "array( ",
+		                             $table->count() > $maxEntries ? '... )' : ' )' );
 	}
 }
 

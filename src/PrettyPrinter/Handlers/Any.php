@@ -3,7 +3,6 @@ namespace PrettyPrinter\Handlers;
 
 use PrettyPrinter\Handler;
 use PrettyPrinter\PrettyPrinter;
-use PrettyPrinter\Table;
 use PrettyPrinter\Text;
 
 final class Any extends Handler
@@ -49,23 +48,5 @@ final class Any extends Handler
 	function settings()
 	{
 		return $this->settings;
-	}
-
-	protected function prettyPrintVariables( array $variables )
-	{
-		if ( empty( $variables ) )
-			return Text::line( 'none' );
-
-		$table = new Table;
-
-		foreach ( $variables as $k => &$v )
-		{
-			$row = $table->newRow();
-			$row->addCell( $this->prettyPrintVariable( $k ) );
-			$row->addTextCell( ' = ' );
-			$row->addCell( $this->prettyPrintRef( $v )->append( ';' ) );
-		}
-
-		return $table->render();
 	}
 }

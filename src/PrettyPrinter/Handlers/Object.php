@@ -25,24 +25,6 @@ final class Object extends Handler
 			return $this->prettyPrintObjectLinesDeep( $object )->indent( '    ' )->wrapLines( "new $class $id {", "}" );
 	}
 
-	protected function prettyPrintVariables( array $variables )
-	{
-		if ( empty( $variables ) )
-			return Text::line( 'none' );
-
-		$table = new Table;
-
-		foreach ( $variables as $k => &$v )
-		{
-			$row = $table->newRow();
-			$row->addCell( $this->prettyPrintVariable( $k ) );
-			$row->addTextCell( ' = ' );
-			$row->addCell( $this->prettyPrintRef( $v )->append( ';' ) );
-		}
-
-		return $table->render();
-	}
-
 	private function prettyPrintObjectLinesDeep( $object )
 	{
 		$objectProperties    = (array) $object;
@@ -52,21 +34,22 @@ final class Object extends Handler
 		foreach ( $objectProperties as $property => &$value )
 		{
 			$parts    = explode( "\x00", $property );
-			$access   = isset( $parts[ 1 ] ) ? ( $parts[ 1 ] == '*' ? 'protected' : 'private' ) : 'public';
+			$access   = isset( $parts[ 1 ] ) ? ( $parts[ 1 ] === '*' ? 'protected' : 'private' ) : 'public';
 			$property = isset( $parts[ 2 ] ) ? $parts[ 2 ] : $parts[ 0 ];
 
-			$row = $table->newRow();
-			$row->addCell( $this->prettyPrintVariable( $property )->prepend( "$access " ) );
-			$row->addTextCell( ' = ' );
-			$row->addCell( $this->prettyPrintRef( $value )->append( ';' ) );
+			$table->addRow( array(
+			                     $this->prettyPrintVariable( $property )->prepend( "$access " ),
+			                     Text::line( ' = ' ),
+			                     $this->prettyPrintRef( $value )->append( ';' ),
+			                ) );
 
-			if ( $table->numRows() >= $maxObjectProperties )
+			if ( $table->count() >= $maxObjectProperties )
 				break;
 		}
 
 		$result = $table->render();
 
-		if ( $table->numRows() !== count( $objectProperties ) )
+		if ( $table->count() != count( $objectProperties ) )
 			$result->addLine( '...' );
 
 		return $result;

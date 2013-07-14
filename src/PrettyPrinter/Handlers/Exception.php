@@ -50,12 +50,11 @@ final class Exception extends Handler
 		$table = new Table;
 
 		foreach ( $variables as $k => &$v )
-		{
-			$row = $table->newRow();
-			$row->addCell( $this->prettyPrintVariable( $k ) );
-			$row->addTextCell( ' = ' );
-			$row->addCell( $this->prettyPrintRef( $v )->append( ';' ) );
-		}
+			$table->addRow( array(
+			                     $this->prettyPrintVariable( $k ),
+			                     Text::line( ' = ' ),
+			                     $this->prettyPrintRef( $v )->append( ';' ),
+			                ) );
 
 		return $table->render();
 	}
