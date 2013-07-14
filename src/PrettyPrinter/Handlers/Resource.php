@@ -8,7 +8,7 @@ final class Resource extends CachingHandler
 {
 	private $resourceIds = array();
 
-	function cacheMiss( $resource )
+	protected function handleCacheMiss( $resource )
 	{
 		$id =& $this->resourceIds[ "$resource" ];
 

@@ -6,7 +6,7 @@ use PrettyPrinter\Text;
 
 final class Float extends CachingHandler
 {
-	protected function cacheMiss( $float )
+	protected function handleCacheMiss( $float )
 	{
 		$int = (int) $float;
 

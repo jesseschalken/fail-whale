@@ -25,7 +25,7 @@ final class String extends CachingHandler
 		$this->characterEscapeCache[ "\n" ] = $settings->splitMultiLineStrings ? "\\n\" .\n\"" : '\n';
 	}
 
-	protected function cacheMiss( $string )
+	protected function handleCacheMiss( $string )
 	{
 		$escaped   = '';
 		$length    = strlen( $string );

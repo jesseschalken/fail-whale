@@ -12,7 +12,7 @@ abstract class CachingHandler extends Handler
 		$result =& $this->cache[ "$value" ];
 
 		if ( $result === null )
-			$result = $this->cacheMiss( $value );
+			$result = $this->handleCacheMiss( $value );
 
 		return clone $result;
 	}
@@ -22,7 +22,7 @@ abstract class CachingHandler extends Handler
 	 *
 	 * @return Text
 	 */
-	protected abstract function cacheMiss( $value );
+	protected abstract function handleCacheMiss( $value );
 
 	protected function prettyPrintVariables( array $variables )
 	{

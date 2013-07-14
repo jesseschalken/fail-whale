@@ -2,17 +2,6 @@
 namespace PrettyPrinter\Handlers;
 
 use PrettyPrinter\Handler;
-use PrettyPrinter\Handlers\Array1;
-use PrettyPrinter\Handlers\Boolean;
-use PrettyPrinter\Handlers\Exception;
-use PrettyPrinter\Handlers\Float;
-use PrettyPrinter\Handlers\Integer;
-use PrettyPrinter\Handlers\Null;
-use PrettyPrinter\Handlers\Object;
-use PrettyPrinter\Handlers\Resource;
-use PrettyPrinter\Handlers\String;
-use PrettyPrinter\Handlers\Unknown;
-use PrettyPrinter\Handlers\Variable;
 use PrettyPrinter\PrettyPrinter;
 use PrettyPrinter\Table;
 use PrettyPrinter\Text;
