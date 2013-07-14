@@ -1,0 +1,17 @@
+{
+    "name": "jesseschalken/php-error-handler",
+    "description": "A robust error handler and pretty printer for PHP",
+    "authors": [
+        {
+            "name": "Jesse Schalken",
+            "email": "me@jesseschalken.com"
+        }
+    ],
+    "require": {
+    },
+	"autoload": {
+		"psr-0": {
+			"": "src/"
+		}
+	}
+}

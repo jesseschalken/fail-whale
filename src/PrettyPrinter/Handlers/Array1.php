@@ -1,12 +1,19 @@
 <?php
 
-namespace PrettyPrinter;
+namespace PrettyPrinter\Handlers;
 
-final class ArrayPrettyPrinter extends AbstractPrettyPrinter
+use PrettyPrinter\Handler;
+use PrettyPrinter\Table;
+use PrettyPrinter\Text;
+
+/**
+ * Called "Array1" because "Array" is a reserved word.
+ */
+final class Array1 extends Handler
 {
 	private $arrayStack = array(), $arrayIdsReferenced = array();
 
-	function doPrettyPrint( &$array )
+	function handleValue( &$array )
 	{
 		foreach ( $this->arrayStack as $id => &$c )
 		{
@@ -14,7 +21,7 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 			{
 				$this->arrayIdsReferenced[ $id ] = true;
 
-				return self::line( "$id array(...)" );
+				return Text::line( "$id array(...)" );
 			}
 		}
 
@@ -31,7 +38,7 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 		 * know the recursion detection works.
 		 */
 		if ( PHP_VERSION_ID < 50317 && count( $this->arrayStack ) > 10 )
-			return self::line( '!maximum depth exceeded!' );
+			return Text::line( '!maximum depth exceeded!' );
 
 		$id                      = $this->newId();
 		$this->arrayStack[ $id ] =& $array;
@@ -43,15 +50,33 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 		return $result;
 	}
 
+	protected function prettyPrintVariables( array $variables )
+	{
+		if ( empty( $variables ) )
+			return Text::line( 'none' );
+
+		$table = new Table;
+
+		foreach ( $variables as $k => &$v )
+		{
+			$row = $table->newRow();
+			$row->addCell( $this->prettyPrintVariable( $k ) );
+			$row->addTextCell( ' = ' );
+			$row->addCell( $this->prettyPrintRef( $v )->append( ';' ) );
+		}
+
+		return $table->render();
+	}
+
 	private function prettyPrintArrayDeep( $id, array $array )
 	{
 		if ( empty( $array ) )
-			return self::line( 'array()' );
+			return Text::line( 'array()' );
 
 		$maxEntries      = $this->settings()->maxArrayEntries;
 		$renderMultiLine = $this->settings()->renderArraysMultiLine;
 		$isAssociative   = self::isArrayAssociative( $array );
-		$table           = new PrettyPrinterTable;
+		$table           = new Table;
 
 		foreach ( $array as $k => &$v )
 		{
@@ -71,11 +96,11 @@ final class ArrayPrettyPrinter extends AbstractPrettyPrinter
 			$row->addCell( $value );
 		}
 
-		$lines     = $renderMultiLine ? $table->render() : $table->renderOneLine();
+		$result    = $renderMultiLine ? $table->render() : $table->renderOneLine();
 		$arrayHead = isset( $this->arrayIdsReferenced[ $id ] ) ? "$id array( " : "array( ";
 		$arrayTail = $table->numRows() > $maxEntries ? '... )' : ' )';
 
-		return $lines->wrapAligned( $arrayHead, $arrayTail );
+		return $result->wrapAligned( $arrayHead, $arrayTail );
 	}
 
 	private static function isArrayAssociative( array $array )

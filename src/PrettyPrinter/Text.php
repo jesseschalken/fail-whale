@@ -2,19 +2,34 @@
 
 namespace PrettyPrinter;
 
-class Lines
+class Text
 {
 	/** @var string[] */
 	private $lines = array();
 
 	static function split( $string )
 	{
-		return new self( explode( "\n", $string ) );
+		$self        = new self;
+		$self->lines = explode( "\n", $string );
+
+		return $self;
 	}
 
-	function __construct( array $lines = array() )
+	static function line( $line = '' )
 	{
-		$this->lines = $lines;
+		return self::lines( array( $line ) );
+	}
+
+	static function lines( array $lines = array() )
+	{
+		$self        = new self;
+		$self->lines = $lines;
+
+		return $self;
+	}
+
+	function __construct()
+	{
 	}
 
 	function prependLine( $line )
@@ -46,7 +61,7 @@ class Lines
 	/**
 	 * @param string $string
 	 *
-	 * @return Lines
+	 * @return Text
 	 */
 	function prepend( $string )
 	{
@@ -61,7 +76,7 @@ class Lines
 	/**
 	 * @param string $string
 	 *
-	 * @return Lines
+	 * @return Text
 	 */
 	function prependAligned( $string )
 	{
@@ -81,7 +96,7 @@ class Lines
 	/**
 	 * @param string $string
 	 *
-	 * @return Lines
+	 * @return Text
 	 */
 	function append( $string )
 	{
@@ -135,7 +150,7 @@ class Lines
 	/**
 	 * @param string $space
 	 *
-	 * @return Lines
+	 * @return Text
 	 */
 	function indent( $space = '  ' )
 	{
@@ -153,7 +168,7 @@ class Lines
 
 	function width()
 	{
-		return strlen( array_get( $this->lines, count( $this->lines ) - 1, '' ) );
+		return strlen( ArrayUtil::get( $this->lines, count( $this->lines ) - 1, '' ) );
 	}
 
 	function join()

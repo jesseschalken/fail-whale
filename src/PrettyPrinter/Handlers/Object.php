@@ -1,12 +1,16 @@
 <?php
 
-namespace PrettyPrinter;
+namespace PrettyPrinter\Handlers;
 
-final class ObjectPrettyPrinter extends AbstractPrettyPrinter
+use PrettyPrinter\Handler;
+use PrettyPrinter\Table;
+use PrettyPrinter\Text;
+
+final class Object extends Handler
 {
 	private $objectIds = array();
 
-	function doPrettyPrint( &$object )
+	function handleValue( &$object )
 	{
 		$id       =& $this->objectIds[ spl_object_hash( $object ) ];
 		$class    = get_class( $object );
@@ -16,16 +20,34 @@ final class ObjectPrettyPrinter extends AbstractPrettyPrinter
 			$id = $this->newId();
 
 		if ( !$traverse )
-			return self::line( "new $class $id {...}" );
+			return Text::line( "new $class $id {...}" );
 		else
 			return $this->prettyPrintObjectLinesDeep( $object )->indent( '    ' )->wrapLines( "new $class $id {", "}" );
+	}
+
+	protected function prettyPrintVariables( array $variables )
+	{
+		if ( empty( $variables ) )
+			return Text::line( 'none' );
+
+		$table = new Table;
+
+		foreach ( $variables as $k => &$v )
+		{
+			$row = $table->newRow();
+			$row->addCell( $this->prettyPrintVariable( $k ) );
+			$row->addTextCell( ' = ' );
+			$row->addCell( $this->prettyPrintRef( $v )->append( ';' ) );
+		}
+
+		return $table->render();
 	}
 
 	private function prettyPrintObjectLinesDeep( $object )
 	{
 		$objectProperties    = (array) $object;
 		$maxObjectProperties = $this->settings()->maxObjectProperties;
-		$table               = new PrettyPrinterTable;
+		$table               = new Table;
 
 		foreach ( $objectProperties as $property => &$value )
 		{
@@ -42,12 +64,12 @@ final class ObjectPrettyPrinter extends AbstractPrettyPrinter
 				break;
 		}
 
-		$lines = $table->render();
+		$result = $table->render();
 
 		if ( $table->numRows() !== count( $objectProperties ) )
-			$lines->addLine( '...' );
+			$result->addLine( '...' );
 
-		return $lines;
+		return $result;
 	}
 }
 

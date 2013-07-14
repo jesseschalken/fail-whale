@@ -2,11 +2,14 @@
 
 namespace PrettyPrinter;
 
+use PrettyPrinter\Handlers\Any;
+use PrettyPrinter\Handlers\Exception;
+
 /**
  * This is just a dumb data structure. Don't make any assumptions about the values when referencing this class's
  * fields.
  */
-final class Settings
+final class PrettyPrinter
 {
 	var $escapeTabsInStrings = false;
 	var $splitMultiLineStrings = true;
@@ -25,21 +28,18 @@ final class Settings
 
 	function prettyPrintRef( &$ref )
 	{
-		return $this->pp()->doPrettyPrint( $ref )->join();
+		return $this->pp()->handleValue( $ref )->join();
 	}
 
 	function prettyPrintException( \Exception $e )
 	{
-		return $this->pp()->prettyPrintException( $e )->join();
-	}
+		$exceptionHandler = new Exception( $this->pp() );
 
-	function prettyPrintVariables( array $variables )
-	{
-		return $this->pp()->prettyPrintVariables( $variables )->join();
+		return $exceptionHandler->handleValue( $e )->join();
 	}
 
 	private function pp()
 	{
-		return new ValuePrettyPrinter( $this );
+		return new Any( $this );
 	}
 }

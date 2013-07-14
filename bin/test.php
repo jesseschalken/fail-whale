@@ -3,13 +3,13 @@
 
 namespace ErrorHandler;
 
-require_once 'include.php';
+require_once __DIR__ . '/../vendor/autoload.php';
 
 $e = ErrorHandler::create();
 $e->bind();
 
-$v = new \stdClass;
-$v->foo = array();
+$v                   = new \stdClass;
+$v->foo              = array();
 $v->foo[ 'recurse' ] =& $v->foo;
 
 error_reporting( -1 );

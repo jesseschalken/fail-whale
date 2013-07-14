@@ -1,8 +1,12 @@
 <?php
 
-namespace PrettyPrinter;
+namespace PrettyPrinter\Handlers;
 
-final class StringPrettyPrinter extends CachingPrettyPrinter
+use PrettyPrinter\CachingHandler;
+use PrettyPrinter\Handlers\Any;
+use PrettyPrinter\Text;
+
+final class String extends CachingHandler
 {
 	private $characterEscapeCache = array( "\\" => '\\\\',
 	                                       "\$" => '\$',
@@ -11,9 +15,9 @@ final class StringPrettyPrinter extends CachingPrettyPrinter
 	                                       "\f" => '\f',
 	                                       "\"" => '\"' );
 
-	function __construct( ValuePrettyPrinter $valuePrettyPrinter )
+	function __construct( Any $valueHandler )
 	{
-		parent::__construct( $valuePrettyPrinter );
+		parent::__construct( $valueHandler );
 
 		$settings = $this->settings();
 
@@ -41,7 +45,7 @@ final class StringPrettyPrinter extends CachingPrettyPrinter
 			$escaped .= $charEscaped;
 		}
 
-		return Lines::split( "\"$escaped" . ( $i === $length ? "\"" : "..." ) );
+		return Text::split( "\"$escaped" . ( $i === $length ? "\"" : "..." ) );
 	}
 }
 
