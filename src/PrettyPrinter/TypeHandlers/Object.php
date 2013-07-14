@@ -2,8 +2,8 @@
 
 namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\Table;
-use PrettyPrinter\Text;
+use PrettyPrinter\Utils\Table;
+use PrettyPrinter\Utils\Text;
 use PrettyPrinter\TypeHandler;
 
 final class Object extends TypeHandler
@@ -14,7 +14,7 @@ final class Object extends TypeHandler
 	{
 		$id       =& $this->objectIds[ spl_object_hash( $object ) ];
 		$class    = get_class( $object );
-		$traverse = !isset( $id ) && $this->settings()->maxObjectProperties > 0;
+		$traverse = !isset( $id ) && $this->maxObjectProperties() > 0;
 
 		if ( !isset( $id ) )
 			$id = $this->newId();
@@ -28,7 +28,7 @@ final class Object extends TypeHandler
 	private function prettyPrintObjectLinesDeep( $object )
 	{
 		$objectProperties    = (array) $object;
-		$maxObjectProperties = $this->settings()->maxObjectProperties;
+		$maxObjectProperties = $this->maxObjectProperties();
 		$table               = new Table;
 
 		foreach ( $objectProperties as $property => &$value )
@@ -53,6 +53,11 @@ final class Object extends TypeHandler
 			$result->addLine( '...' );
 
 		return $result;
+	}
+
+	private function maxObjectProperties()
+	{
+		return $this->settings()->maxObjectProperties()->get();
 	}
 }
 

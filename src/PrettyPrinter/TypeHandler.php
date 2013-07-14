@@ -2,7 +2,7 @@
 
 namespace PrettyPrinter;
 
-use PrettyPrinter\Text;
+use PrettyPrinter\Utils\Text;
 use PrettyPrinter\TypeHandlers\Any;
 
 abstract class TypeHandler
@@ -18,7 +18,7 @@ abstract class TypeHandler
 	/**
 	 * @param $value
 	 *
-	 * @return Text
+	 * @return \PrettyPrinter\Utils\Text
 	 */
 	abstract function handleValue( &$value );
 

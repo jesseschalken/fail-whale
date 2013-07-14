@@ -2,16 +2,14 @@
 namespace PrettyPrinter\TypeHandlers;
 
 use PrettyPrinter\PrettyPrinter;
-use PrettyPrinter\Text;
+use PrettyPrinter\Utils\Text;
 use PrettyPrinter\TypeHandler;
 
 final class Any extends TypeHandler
 {
 	/** @var TypeHandler[] */
 	private $typeHandlers = array();
-	private $variableHandler;
-	private $nextId = 1;
-	private $settings;
+	private $variableHandler, $nextId = 1, $settings;
 
 	function __construct( PrettyPrinter $settings )
 	{
@@ -45,8 +43,5 @@ final class Any extends TypeHandler
 		return '#' . $this->nextId++;
 	}
 
-	function settings()
-	{
-		return $this->settings;
-	}
+	function settings() { return $this->settings; }
 }

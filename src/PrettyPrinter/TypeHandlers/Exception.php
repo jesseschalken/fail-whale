@@ -2,11 +2,11 @@
 
 namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\ArrayUtil;
+use PrettyPrinter\Utils\ArrayUtil;
 use PrettyPrinter\HasFullStackTrace;
 use PrettyPrinter\HasLocalVariables;
-use PrettyPrinter\Table;
-use PrettyPrinter\Text;
+use PrettyPrinter\Utils\Table;
+use PrettyPrinter\Utils\Text;
 use PrettyPrinter\TypeHandler;
 
 final class Exception extends TypeHandler
@@ -26,13 +26,13 @@ final class Exception extends TypeHandler
 	/**
 	 * @param \Exception $exception
 	 *
-	 * @return Text
+	 * @return \PrettyPrinter\Utils\Text
 	 */
 	function handleValue( &$exception )
 	{
 		$result = $this->prettyPrintExceptionNoGlobals( $exception );
 
-		if ( $this->settings()->showExceptionGlobalVariables )
+		if ( $this->settings()->showExceptionGlobalVariables()->get() )
 		{
 			$result->addLine( 'global variables:' );
 			$result->addLines( $this->prettyPrintVariables( self::globals() )->indent() );
@@ -68,8 +68,9 @@ final class Exception extends TypeHandler
 		$result->addLines( Text::split( $e->getMessage() )->indent( '    ' ) );
 		$result->addLine();
 
-		if ( $this->settings()->showExceptionLocalVariables && $e instanceof HasLocalVariables
-		     && $e->getLocalVariables() !== null
+		if ( $this->settings()->showExceptionLocalVariables()->get() &&
+		     $e instanceof HasLocalVariables &&
+		     $e->getLocalVariables() !== null
 		)
 		{
 			$result->addLine( "local variables:" );
@@ -77,7 +78,7 @@ final class Exception extends TypeHandler
 			$result->addLine();
 		}
 
-		if ( $this->settings()->showExceptionStackTrace )
+		if ( $this->settings()->showExceptionStackTrace()->get() )
 		{
 			$result->addLine( "stack trace:" );
 

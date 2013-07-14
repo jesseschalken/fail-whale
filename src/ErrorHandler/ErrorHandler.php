@@ -65,12 +65,7 @@ html;
 
 	private static function fullStackTrace()
 	{
-		$trace = debug_backtrace();
-
-		array_shift( $trace );
-		array_shift( $trace );
-
-		return $trace;
+		return array_slice( debug_backtrace(), 2 );
 	}
 
 	private static function toHtml( $text )

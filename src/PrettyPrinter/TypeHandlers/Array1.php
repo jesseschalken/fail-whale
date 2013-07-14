@@ -2,10 +2,10 @@
 
 namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\ArrayUtil;
-use PrettyPrinter\Ref;
-use PrettyPrinter\Table;
-use PrettyPrinter\Text;
+use PrettyPrinter\Utils\ArrayUtil;
+use PrettyPrinter\Utils\Ref;
+use PrettyPrinter\Utils\Table;
+use PrettyPrinter\Utils\Text;
 use PrettyPrinter\TypeHandler;
 
 /**
@@ -57,14 +57,14 @@ final class Array1 extends TypeHandler
 		if ( empty( $array ) )
 			return Text::line( 'array()' );
 
-		$maxEntries      = $this->settings()->maxArrayEntries;
-		$renderMultiLine = $this->settings()->renderArraysMultiLine;
+		$maxEntries      = $this->settings()->maxArrayEntries()->get();
+		$renderMultiLine = $this->settings()->renderArraysMultiLine()->get();
 		$isAssociative   = ArrayUtil::isAssoc( $array );
 		$table           = new Table;
 
 		foreach ( $array as $k => &$v )
 		{
-			if ( $table->count() == $maxEntries )
+			if ( $table->count() >= $maxEntries )
 			{
 				$table->addRow( array() );
 			}

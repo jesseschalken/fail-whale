@@ -2,6 +2,8 @@
 
 namespace PrettyPrinter;
 
+use PrettyPrinter\Settings\Bool;
+use PrettyPrinter\Settings\Number;
 use PrettyPrinter\TypeHandlers\Any;
 use PrettyPrinter\TypeHandlers\Exception;
 
@@ -11,15 +13,33 @@ use PrettyPrinter\TypeHandlers\Exception;
  */
 final class PrettyPrinter
 {
-	var $escapeTabsInStrings = false;
-	var $splitMultiLineStrings = true;
-	var $renderArraysMultiLine = true;
-	var $maxObjectProperties = INF;
-	var $maxArrayEntries = INF;
-	var $maxStringLength = INF;
-	var $showExceptionLocalVariables = true;
-	var $showExceptionGlobalVariables = true;
-	var $showExceptionStackTrace = true;
+	private $escapeTabsInStrings = false;
+	private $splitMultiLineStrings = true;
+	private $renderArraysMultiLine = true;
+	private $maxObjectProperties = INF;
+	private $maxArrayEntries = INF;
+	private $maxStringLength = INF;
+	private $showExceptionLocalVariables = true;
+	private $showExceptionGlobalVariables = true;
+	private $showExceptionStackTrace = true;
+
+	function escapeTabsInStrings() { return new Bool( $this->escapeTabsInStrings ); }
+
+	function splitMultiLineStrings() { return new Bool( $this->splitMultiLineStrings ); }
+
+	function renderArraysMultiLine() { return new Bool( $this->renderArraysMultiLine ); }
+
+	function maxObjectProperties() { return new Bool( $this->maxObjectProperties ); }
+
+	function maxArrayEntries() { return new Number( $this->maxArrayEntries ); }
+
+	function maxStringLength() { return new Number( $this->maxStringLength ); }
+
+	function showExceptionLocalVariables() { return new Bool( $this->showExceptionLocalVariables ); }
+
+	function showExceptionGlobalVariables() { return new Bool( $this->showExceptionGlobalVariables ); }
+
+	function showExceptionStackTrace() { return new Bool( $this->showExceptionStackTrace ); }
 
 	function prettyPrint( $value )
 	{
@@ -28,18 +48,15 @@ final class PrettyPrinter
 
 	function prettyPrintRef( &$ref )
 	{
-		return $this->pp()->handleValue( $ref )->join();
+		$anyHandler = new Any( $this );
+
+		return $anyHandler->handleValue( $ref )->join();
 	}
 
 	function prettyPrintException( \Exception $e )
 	{
-		$exceptionHandler = new Exception( $this->pp() );
+		$exceptionHandler = new Exception( new Any( $this ) );
 
 		return $exceptionHandler->handleValue( $e )->join();
-	}
-
-	private function pp()
-	{
-		return new Any( $this );
 	}
 }

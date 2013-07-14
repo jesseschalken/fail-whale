@@ -2,7 +2,7 @@
 namespace PrettyPrinter\TypeHandlers;
 
 use PrettyPrinter\CachingTypeHandler;
-use PrettyPrinter\Text;
+use PrettyPrinter\Utils\Text;
 
 final class Resource extends CachingTypeHandler
 {

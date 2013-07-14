@@ -2,7 +2,7 @@
 namespace PrettyPrinter\TypeHandlers;
 
 use PrettyPrinter\TypeHandler;
-use PrettyPrinter\Text;
+use PrettyPrinter\Utils\Text;
 
 final class Integer extends TypeHandler
 {

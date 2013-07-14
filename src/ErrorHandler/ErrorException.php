@@ -2,7 +2,7 @@
 
 namespace ErrorHandler;
 
-use PrettyPrinter\ArrayUtil;
+use PrettyPrinter\Utils\ArrayUtil;
 use PrettyPrinter\HasFullStackTrace;
 use PrettyPrinter\HasLocalVariables;
 

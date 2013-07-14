@@ -1,6 +1,8 @@
 <?php
 
-namespace PrettyPrinter;
+namespace PrettyPrinter\Utils;
+
+use PrettyPrinter\Utils\ArrayUtil;
 
 class Text
 {
@@ -63,7 +65,7 @@ class Text
 	/**
 	 * @param string $string
 	 *
-	 * @return Text
+	 * @return \PrettyPrinter\Utils\Text
 	 */
 	function prepend( $string )
 	{
@@ -78,7 +80,7 @@ class Text
 	/**
 	 * @param string $string
 	 *
-	 * @return Text
+	 * @return \PrettyPrinter\Utils\Text
 	 */
 	function prependAligned( $string )
 	{
@@ -98,7 +100,7 @@ class Text
 	/**
 	 * @param string $string
 	 *
-	 * @return Text
+	 * @return \PrettyPrinter\Utils\Text
 	 */
 	function append( $string )
 	{
@@ -152,7 +154,7 @@ class Text
 	/**
 	 * @param string $space
 	 *
-	 * @return Text
+	 * @return \PrettyPrinter\Utils\Text
 	 */
 	function indent( $space = '  ' )
 	{

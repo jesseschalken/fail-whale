@@ -1,6 +1,9 @@
 <?php
 
-namespace PrettyPrinter;
+namespace PrettyPrinter\Utils;
+
+use PrettyPrinter\Utils\Text;
+use PrettyPrinter\Utils\ArrayUtil;
 
 class Table implements \Countable
 {
@@ -46,7 +49,7 @@ class Table implements \Countable
 	/**
 	 * @param Text[] $cell
 	 *
-	 * @return self
+	 * @return \PrettyPrinter\Utils\self
 	 */
 	function addRow( array $cell )
 	{
