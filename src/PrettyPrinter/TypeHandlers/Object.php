@@ -21,8 +21,8 @@ final class Object extends TypeHandler
 
 		if ( !$traverse )
 			return Text::line( "new $class $id {...}" );
-		else
-			return $this->prettyPrintObjectLinesDeep( $object )->indent( '    ' )->wrapLines( "new $class $id {", "}" );
+
+		return $this->prettyPrintObjectLinesDeep( $object )->indent( '    ' )->wrapLines( "new $class $id {", "}" );
 	}
 
 	private function prettyPrintObjectLinesDeep( $object )

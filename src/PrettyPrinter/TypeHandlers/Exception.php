@@ -63,12 +63,7 @@ final class Exception extends TypeHandler
 	{
 		$result = new Text;
 
-		$class = get_class( $e );
-		$code  = $e->getCode();
-		$file  = $e->getFile();
-		$line  = $e->getLine();
-
-		$result->addLine( "$class $code in $file:$line" );
+		$result->addLine( get_class( $e ) . " {$e->getCode()} in {$e->getFile()}:{$e->getLine()}" );
 		$result->addLine();
 		$result->addLines( Text::split( $e->getMessage() )->indent( '    ' ) );
 		$result->addLine();
@@ -86,8 +81,9 @@ final class Exception extends TypeHandler
 		{
 			$result->addLine( "stack trace:" );
 
-			$stackTrace = $e instanceof HasFullStackTrace ? $e->getFullStackTrace() : $e->getTrace();
-			$result->addLines( $this->prettyPrintStackTrace( $stackTrace )->indent() );
+			$result->addLines( $this->prettyPrintStackTrace( $e instanceof HasFullStackTrace
+					                                                 ? $e->getFullStackTrace()
+					                                                 : $e->getTrace() )->indent() );
 			$result->addLine();
 		}
 
