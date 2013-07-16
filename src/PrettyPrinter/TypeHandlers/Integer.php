@@ -8,6 +8,6 @@ final class Integer extends TypeHandler
 {
 	function handleValue( &$int )
 	{
-		return Text::line( "$int" );
+		return new Text( "$int" );
 	}
 }

@@ -12,7 +12,7 @@ class Table implements \Countable
 		$result = new Text;
 
 		foreach ( $row as $cell )
-			$result->appendLinesAligned( $cell );
+			$result->appendLines( $cell );
 
 		return $result;
 	}
@@ -36,7 +36,7 @@ class Table implements \Countable
 		$result = new Text;
 
 		foreach ( $this->rows as $row )
-			$result->appendLinesAligned( self::renderRow( $row ) );
+			$result->appendLines( self::renderRow( $row ) );
 
 		return $result;
 	}

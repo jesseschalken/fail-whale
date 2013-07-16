@@ -3,7 +3,7 @@
 namespace PrettyPrinter\TypeHandlers;
 
 use PrettyPrinter\Utils\ArrayUtil;
-use PrettyPrinter\HasFullStackTrace;
+use PrettyPrinter\HasStackTraceWithCurrentObjects;
 use PrettyPrinter\HasLocalVariables;
 use PrettyPrinter\Utils\Table;
 use PrettyPrinter\Utils\Text;
@@ -30,7 +30,7 @@ final class Exception extends TypeHandler
 	 */
 	function handleValue( &$exception )
 	{
-		$result = $this->prettyPrintExceptionNoGlobals( $exception );
+		$result = $this->prettyPrintExceptionWithoutGlobals( $exception );
 
 		if ( $this->settings()->showExceptionGlobalVariables()->get() )
 		{
@@ -45,27 +45,27 @@ final class Exception extends TypeHandler
 	private function prettyPrintVariables( array $variables )
 	{
 		if ( empty( $variables ) )
-			return Text::line( 'none' );
+			return new Text( 'none' );
 
 		$table = new Table;
 
 		foreach ( $variables as $k => &$v )
 			$table->addRow( array(
 			                     $this->prettyPrintVariable( $k ),
-			                     Text::line( ' = ' ),
+			                     new Text( ' = ' ),
 			                     $this->prettyPrintRef( $v )->append( ';' ),
 			                ) );
 
 		return $table->render();
 	}
 
-	private function prettyPrintExceptionNoGlobals( \Exception $e )
+	private function prettyPrintExceptionWithoutGlobals( \Exception $e )
 	{
 		$result = new Text;
 
 		$result->addLine( get_class( $e ) . " {$e->getCode()} in {$e->getFile()}:{$e->getLine()}" );
 		$result->addLine();
-		$result->addLines( Text::split( $e->getMessage() )->indent( '    ' ) );
+		$result->addLines( Text::create( $e->getMessage() )->indent()->indent() );
 		$result->addLine();
 
 		if ( $this->settings()->showExceptionLocalVariables()->get() &&
@@ -81,9 +81,8 @@ final class Exception extends TypeHandler
 		if ( $this->settings()->showExceptionStackTrace()->get() )
 		{
 			$result->addLine( "stack trace:" );
-
-			$result->addLines( $this->prettyPrintStackTrace( $e instanceof HasFullStackTrace
-					                                                 ? $e->getFullStackTrace()
+			$result->addLines( $this->prettyPrintStackTrace( $e instanceof HasStackTraceWithCurrentObjects
+					                                                 ? $e->getStackTraceWithCurrentObjects()
 					                                                 : $e->getTrace() )->indent() );
 			$result->addLine();
 		}
@@ -91,7 +90,7 @@ final class Exception extends TypeHandler
 		if ( PHP_VERSION_ID > 50300 && $e->getPrevious() !== null )
 		{
 			$result->addLine( "previous exception:" );
-			$result->addLines( $this->prettyPrintExceptionNoGlobals( $e->getPrevious() )->indent() );
+			$result->addLines( $this->prettyPrintExceptionWithoutGlobals( $e->getPrevious() )->indent() );
 			$result->addLine();
 		}
 
@@ -106,7 +105,7 @@ final class Exception extends TypeHandler
 		foreach ( $stackTrace as $stackFrame )
 		{
 			$result->addLine( "#$i {$stackFrame['file']}:{$stackFrame['line']}" );
-			$result->addLines( $this->prettyPrintFunctionCall( $stackFrame )->indent( '      ' ) );
+			$result->addLines( $this->prettyPrintFunctionCall( $stackFrame )->indent()->indent()->indent() );
 			$result->addLine();
 			$i++;
 		}
@@ -116,33 +115,32 @@ final class Exception extends TypeHandler
 
 	private function prettyPrintFunctionCall( array $stackFrame )
 	{
-		$result = new Text;
+		$object = isset( $stackFrame[ 'object' ] )
+				? $this->prettyPrintRef( $stackFrame[ 'object' ] )
+				: new Text( ArrayUtil::get( $stackFrame, 'class' ) );
 
-		if ( isset( $stackFrame[ 'object' ] ) )
-			$result->appendLinesAligned( $this->prettyPrintRef( $stackFrame[ 'object' ] ) );
-		else
-			$result->append( ArrayUtil::get( $stackFrame, 'class', '' ) );
+		$arguments = isset( $stackFrame[ 'args'] )
+				? $this->prettyPrintFunctionArgs( $stackFrame[ 'args' ] )
+				: new Text( '( ? )' );
 
-		$result->append( ArrayUtil::get( $stackFrame, 'type', '' ) . ArrayUtil::get( $stackFrame, 'function', '' ) );
-
-		if ( isset( $stackFrame[ 'args' ] ) )
-			$result->appendLinesAligned( $this->prettyPrintFunctionArgs( $stackFrame[ 'args' ] ) );
-		else
-			$result->append( '( ? )' );
-
-		return $result->append( ';' );
+		return Text::create()
+		       ->appendLines( $object )
+		       ->append( ArrayUtil::get( $stackFrame, 'type' ) )
+		       ->append( ArrayUtil::get( $stackFrame, 'function' ) )
+		       ->appendLines( $arguments )
+		       ->append( ';' );
 	}
 
 	private function prettyPrintFunctionArgs( array $args )
 	{
 		if ( empty( $args ) )
-			return Text::line( '()' );
+			return new Text( '()' );
 
 		$result = new Text;
 
 		foreach ( $args as $k => &$arg )
-			$result->append( $k === 0 ? '' : ', ' )->appendLinesAligned( $this->prettyPrintRef( $arg ) );
+			$result->append( $k === 0 ? '' : ', ' )->appendLines( $this->prettyPrintRef( $arg ) );
 
-		return $result->wrapAligned( '( ', ' )' );
+		return $result->wrap( '( ', ' )' );
 	}
 }

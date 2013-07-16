@@ -23,7 +23,7 @@ final class Array1 extends TypeHandler
 			{
 				$this->arrayIdsReferenced[ $id ] = true;
 
-				return Text::line( "$id array(...)" );
+				return new Text( "$id array(...)" );
 			}
 		}
 
@@ -40,7 +40,7 @@ final class Array1 extends TypeHandler
 		 * know the recursion detection works.
 		 */
 		if ( PHP_VERSION_ID < 50317 && count( $this->arrayStack ) > 10 )
-			return Text::line( '!maximum depth exceeded!' );
+			return new Text( '!maximum depth exceeded!' );
 
 		$id                      = $this->newId();
 		$this->arrayStack[ $id ] =& $array;
@@ -55,7 +55,7 @@ final class Array1 extends TypeHandler
 	private function prettyPrintArrayDeep( $id, array $array )
 	{
 		if ( empty( $array ) )
-			return Text::line( 'array()' );
+			return new Text( 'array()' );
 
 		$maxEntries      = $this->settings()->maxArrayEntries()->get();
 		$renderMultiLine = $this->settings()->renderArraysMultiLine()->get();
@@ -76,14 +76,14 @@ final class Array1 extends TypeHandler
 					$value->append( $renderMultiLine ? ',' : ', ' );
 
 				$table->addRow( $isAssociative
-						                ? array( $this->prettyPrint( $k ), Text::line( ' => ' ), $value )
+						                ? array( $this->prettyPrint( $k ), new Text( ' => ' ), $value )
 						                : array( $value ) );
 			}
 		}
 
 		$result = $renderMultiLine ? $table->render() : $table->renderOneLine();
 
-		return $result->wrapAligned( isset( $this->arrayIdsReferenced[ $id ] ) ? "$id array( " : "array( ",
+		return $result->wrap( isset( $this->arrayIdsReferenced[ $id ] ) ? "$id array( " : "array( ",
 		                             $table->count() > $maxEntries ? '... )' : ' )' );
 	}
 }

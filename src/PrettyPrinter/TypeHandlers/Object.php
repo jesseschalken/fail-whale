@@ -20,9 +20,9 @@ final class Object extends TypeHandler
 			$id = $this->newId();
 
 		if ( !$traverse )
-			return Text::line( "new $class $id {...}" );
+			return new Text( "new $class $id {...}" );
 
-		return $this->prettyPrintObjectLinesDeep( $object )->indent( '    ' )->wrapLines( "new $class $id {", "}" );
+		return $this->prettyPrintObjectLinesDeep( $object )->indent()->indent()->wrapLines( "new $class $id {", "}" );
 	}
 
 	private function prettyPrintObjectLinesDeep( $object )
@@ -39,7 +39,7 @@ final class Object extends TypeHandler
 
 			$table->addRow( array(
 			                     $this->prettyPrintVariable( $property )->prepend( "$access " ),
-			                     Text::line( ' = ' ),
+			                     new Text( ' = ' ),
 			                     $this->prettyPrintRef( $value )->append( ';' ),
 			                ) );
 

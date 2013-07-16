@@ -8,6 +8,6 @@ class Number extends Setting
 {
 	function set( $v )
 	{
-		return parent::set( is_int( $v ) ? $v : (float) $v );
+		return parent::set( $v === INF || $v === -INF ? $v : (int) $v );
 	}
 }

@@ -7,10 +7,6 @@ use PrettyPrinter\Settings\Number;
 use PrettyPrinter\TypeHandlers\Any;
 use PrettyPrinter\TypeHandlers\Exception;
 
-/**
- * This is just a dumb data structure. Don't make any assumptions about the values when referencing this class's
- * fields.
- */
 final class PrettyPrinter
 {
 	private $escapeTabsInStrings = false;

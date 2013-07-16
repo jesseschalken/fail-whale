@@ -3,10 +3,10 @@
 namespace ErrorHandler;
 
 use PrettyPrinter\Utils\ArrayUtil;
-use PrettyPrinter\HasFullStackTrace;
+use PrettyPrinter\HasStackTraceWithCurrentObjects;
 use PrettyPrinter\HasLocalVariables;
 
-class ErrorException extends \ErrorException implements HasLocalVariables, HasFullStackTrace
+class ErrorException extends \ErrorException implements HasLocalVariables, HasStackTraceWithCurrentObjects
 {
 	private static $errorConstants = array( E_ERROR             => 'E_ERROR',
 	                                        E_WARNING           => 'E_WARNING',
@@ -44,7 +44,7 @@ class ErrorException extends \ErrorException implements HasLocalVariables, HasFu
 		$this->code           = ArrayUtil::get( self::$errorConstants, $severity, 'E_?' );
 	}
 
-	function getFullStackTrace()
+	function getStackTraceWithCurrentObjects()
 	{
 		return isset( $this->fullStackTrace ) ? $this->fullStackTrace : $this->getTrace();
 	}

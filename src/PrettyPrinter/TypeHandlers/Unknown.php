@@ -8,6 +8,6 @@ final class Unknown extends TypeHandler
 {
 	function handleValue( &$unknown )
 	{
-		return Text::line( 'unknown type' );
+		return new Text( 'unknown type' );
 	}
 }

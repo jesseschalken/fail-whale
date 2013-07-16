@@ -15,6 +15,6 @@ final class Resource extends CachingTypeHandler
 		if ( !isset( $id ) )
 			$id = $this->newId();
 
-		return Text::line( get_resource_type( $resource ) . " $id" );
+		return new Text( get_resource_type( $resource ) . " $id" );
 	}
 }

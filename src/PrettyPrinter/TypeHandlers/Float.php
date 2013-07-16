@@ -10,6 +10,6 @@ final class Float extends CachingTypeHandler
 	{
 		$int = (int) $float;
 
-		return Text::line( "$int" === "$float" ? "$float.0" : "$float" );
+		return new Text( "$int" === "$float" ? "$float.0" : "$float" );
 	}
 }

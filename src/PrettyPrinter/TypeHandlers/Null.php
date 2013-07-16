@@ -8,6 +8,6 @@ final class Null extends TypeHandler
 {
 	function handleValue( &$null )
 	{
-		return Text::line( 'null' );
+		return new Text( 'null' );
 	}
 }

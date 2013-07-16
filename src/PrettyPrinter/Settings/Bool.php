@@ -10,4 +10,8 @@ class Bool extends Setting
 	{
 		return parent::set( (bool) $v );
 	}
+
+	function yes() { return $this->set( true ); }
+
+	function no() { return $this->set( false ); }
 }

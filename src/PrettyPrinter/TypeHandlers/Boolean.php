@@ -8,6 +8,6 @@ final class Boolean extends TypeHandler
 {
 	function handleValue( &$value )
 	{
-		return Text::line( $value ? 'true' : 'false' );
+		return new Text( $value ? 'true' : 'false' );
 	}
 }

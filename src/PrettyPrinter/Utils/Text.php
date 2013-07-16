@@ -2,26 +2,11 @@
 
 namespace PrettyPrinter\Utils;
 
-use PrettyPrinter\Utils\ArrayUtil;
-
 class Text
 {
-	static function split( $string )
+	static function create( $string = '' )
 	{
-		return self::lines( explode( "\n", $string ) );
-	}
-
-	static function line( $line = '' )
-	{
-		return self::lines( array( $line ) );
-	}
-
-	static function lines( array $lines = array() )
-	{
-		$self        = new self;
-		$self->lines = $lines;
-
-		return $self;
+		return new self( $string );
 	}
 
 	private static function spaces( $num )
@@ -32,8 +17,15 @@ class Text
 	/** @var string[] */
 	private $lines = array();
 
-	function __construct()
+	function __construct( $text = '' )
 	{
+		if ( "$text" !== "" )
+			$this->lines = explode( "\n", $text );
+	}
+
+	function __toString()
+	{
+		return $this->join();
 	}
 
 	function prependLine( $line )
@@ -43,14 +35,9 @@ class Text
 		return $this;
 	}
 
-	function prependLines( self $lines )
-	{
-		return $this->appendLines( $this->swapLines( $lines ) );
-	}
-
 	function addLine( $line = '' )
 	{
-		$this->lines[ ] = $line;
+		$this->lines[ ] = "$line";
 
 		return $this;
 	}
@@ -69,21 +56,6 @@ class Text
 	 */
 	function prepend( $string )
 	{
-		if ( empty( $this->lines ) )
-			$this->lines[ ] = $string;
-		else
-			$this->lines[ 0 ] = $string . $this->lines[ 0 ];
-
-		return $this;
-	}
-
-	/**
-	 * @param string $string
-	 *
-	 * @return \PrettyPrinter\Utils\Text
-	 */
-	function prependAligned( $string )
-	{
 		$space = self::spaces( strlen( $string ) );
 
 		foreach ( $this->lines as $k => &$line )
@@ -92,9 +64,9 @@ class Text
 		return $this;
 	}
 
-	function prependLinesAligned( self $lines )
+	function prependLines( self $lines )
 	{
-		return $this->appendLinesAligned( $this->swapLines( $lines ) );
+		return $this->appendLines( $this->swapLines( $lines ) );
 	}
 
 	/**
@@ -105,25 +77,14 @@ class Text
 	function append( $string )
 	{
 		if ( empty( $this->lines ) )
-			$this->lines[ ] = $string;
+			$this->addLine( $string );
 		else
-			$this->lines[ count( $this->lines ) - 1 ] .= $string;
+			$this->lines[ count( $this->lines ) - 1 ] .= "$string";
 
 		return $this;
 	}
 
 	function appendLines( self $lines )
-	{
-		foreach ( $lines->lines as $k => $line )
-			if ( $k === 0 )
-				$this->append( $line );
-			else
-				$this->lines[ ] = $line;
-
-		return $this;
-	}
-
-	function appendLinesAligned( self $lines )
 	{
 		$space = self::spaces( $this->width() );
 
@@ -131,7 +92,7 @@ class Text
 			if ( $k === 0 )
 				$this->append( $line );
 			else
-				$this->lines[ ] = $space . $line;
+				$this->addLine( $space . $line );
 
 		return $this;
 	}
@@ -141,26 +102,19 @@ class Text
 		return $this->prepend( $prepend )->append( $append );
 	}
 
-	function wrapAligned( $prepend, $append )
-	{
-		return $this->prependAligned( $prepend )->append( $append );
-	}
-
 	function wrapLines( $prepend, $append )
 	{
 		return $this->prependLine( $prepend )->addLine( $append );
 	}
 
 	/**
-	 * @param string $space
-	 *
 	 * @return \PrettyPrinter\Utils\Text
 	 */
-	function indent( $space = '  ' )
+	function indent()
 	{
 		foreach ( $this->lines as &$line )
 			if ( $line !== '' )
-				$line = $space . $line;
+				$line = "  $line";
 
 		return $this;
 	}
@@ -172,7 +126,7 @@ class Text
 
 	function width()
 	{
-		return strlen( ArrayUtil::get( $this->lines, count( $this->lines ) - 1, '' ) );
+		return empty( $this->lines ) ? 0 : strlen( $this->lines[ count( $this->lines ) - 1 ] );
 	}
 
 	function join()

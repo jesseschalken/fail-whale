@@ -45,7 +45,7 @@ final class String extends CachingTypeHandler
 			$escaped .= $charEscaped;
 		}
 
-		return Text::split( "\"$escaped" . ( $i === $length ? "\"" : "..." ) );
+		return new Text( "\"$escaped" . ( $i === $length ? "\"" : "..." ) );
 	}
 }
 
