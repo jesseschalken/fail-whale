@@ -77,7 +77,7 @@ class Text
 	function append( $string )
 	{
 		if ( empty( $this->lines ) )
-			$this->addLine( $string );
+			$this->lines[ ] = $string;
 		else
 			$this->lines[ count( $this->lines ) - 1 ] .= "$string";
 
@@ -92,7 +92,7 @@ class Text
 			if ( $k === 0 )
 				$this->append( $line );
 			else
-				$this->addLine( $space . $line );
+				$this->lines[] = $space . $line;
 
 		return $this;
 	}
@@ -126,7 +126,9 @@ class Text
 
 	function width()
 	{
-		return empty( $this->lines ) ? 0 : strlen( $this->lines[ count( $this->lines ) - 1 ] );
+		$lines = $this->lines;
+
+		return empty( $lines ) ? 0 : strlen( $lines[ count( $lines ) - 1 ] );
 	}
 
 	private function swapLines( self $lines )
