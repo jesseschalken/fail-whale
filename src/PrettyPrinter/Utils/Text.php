@@ -4,7 +4,7 @@ namespace PrettyPrinter\Utils;
 
 class Text
 {
-	static function create( $string = '' )
+	static function create( $string = "" )
 	{
 		return new self( $string );
 	}
@@ -17,15 +17,17 @@ class Text
 	/** @var string[] */
 	private $lines = array();
 
-	function __construct( $text = '' )
+	function __construct( $text = "" )
 	{
-		if ( "$text" !== "" )
-			$this->lines = explode( "\n", $text );
+		$this->lines = explode( "\n", $text );
+
+		if ( $this->lines[ count( $this->lines ) - 1 ] === "" )
+			array_pop( $this->lines );
 	}
 
 	function __toString()
 	{
-		return join( "\n", $this->lines );
+		return empty( $this->lines ) ? "" : join( "\n", $this->lines ) . "\n";
 	}
 
 	function prependLine( $line )
