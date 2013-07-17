@@ -107,14 +107,13 @@ class Text
 		return $this->prependLine( $prepend )->addLine( $append );
 	}
 
-	/**
-	 * @return \PrettyPrinter\Utils\Text
-	 */
-	function indent()
+	function indent( $times = 1 )
 	{
+		$space = self::spaces( $times * 2 );
+
 		foreach ( $this->lines as &$line )
 			if ( $line !== '' )
-				$line = "  $line";
+				$line = $space . $line;
 
 		return $this;
 	}

@@ -22,7 +22,7 @@ final class Object extends TypeHandler
 		if ( !$traverse )
 			return new Text( "new $class $id {...}" );
 
-		return $this->prettyPrintObjectLinesDeep( $object )->indent()->indent()->wrapLines( "new $class $id {", "}" );
+		return $this->prettyPrintObjectLinesDeep( $object )->indent( 2 )->wrapLines( "new $class $id {", "}" );
 	}
 
 	private function prettyPrintObjectLinesDeep( $object )

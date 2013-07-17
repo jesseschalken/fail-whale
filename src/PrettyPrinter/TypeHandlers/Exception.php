@@ -65,7 +65,7 @@ final class Exception extends TypeHandler
 
 		$result->addLine( get_class( $e ) . " {$e->getCode()} in {$e->getFile()}:{$e->getLine()}" );
 		$result->addLine();
-		$result->addLines( Text::create( $e->getMessage() )->indent()->indent() );
+		$result->addLines( Text::create( $e->getMessage() )->indent( 2 ) );
 		$result->addLine();
 
 		if ( $this->settings()->showExceptionLocalVariables()->get() &&
@@ -105,7 +105,7 @@ final class Exception extends TypeHandler
 		foreach ( $stackTrace as $stackFrame )
 		{
 			$result->addLine( "#$i {$stackFrame['file']}:{$stackFrame['line']}" );
-			$result->addLines( $this->prettyPrintFunctionCall( $stackFrame )->indent()->indent()->indent() );
+			$result->addLines( $this->prettyPrintFunctionCall( $stackFrame )->indent( 3 ) );
 			$result->addLine();
 			$i++;
 		}
