@@ -109,6 +109,11 @@ class Text
 		return $this->prependLine( $prepend )->addLine( $append );
 	}
 
+	/**
+	 * @param int $times
+	 *
+	 * @return self
+	 */
 	function indent( $times = 1 )
 	{
 		$space = self::spaces( $times * 2 );
