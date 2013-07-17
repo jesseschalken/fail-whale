@@ -46,13 +46,13 @@ final class PrettyPrinter
 	{
 		$anyHandler = new Any( $this );
 
-		return $anyHandler->handleValue( $ref )->join();
+		return $anyHandler->handleValue( $ref )->__toString();
 	}
 
 	function prettyPrintException( \Exception $e )
 	{
 		$exceptionHandler = new Exception( new Any( $this ) );
 
-		return $exceptionHandler->handleValue( $e )->join();
+		return $exceptionHandler->handleValue( $e )->__toString();
 	}
 }

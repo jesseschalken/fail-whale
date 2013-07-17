@@ -25,7 +25,7 @@ class Text
 
 	function __toString()
 	{
-		return $this->join();
+		return join( "\n", $this->lines );
 	}
 
 	function prependLine( $line )
@@ -127,11 +127,6 @@ class Text
 	function width()
 	{
 		return empty( $this->lines ) ? 0 : strlen( $this->lines[ count( $this->lines ) - 1 ] );
-	}
-
-	function join()
-	{
-		return join( "\n", $this->lines );
 	}
 
 	private function swapLines( self $lines )
