@@ -14,39 +14,50 @@ class Text
 		return str_repeat( ' ', max( $num, 0 ) );
 	}
 
-	/** @var string[] */
-	private $lines = array();
+	private $lines = array(), $hasEndingNewLine = false;
 
 	function __construct( $text = "" )
 	{
 		$this->lines = explode( "\n", $text );
 
-		if ( $this->lines[ count( $this->lines ) - 1 ] === "" )
+		if ( $this->hasEndingNewLine = $this->lines[ count( $this->lines ) -1 ] === "" )
 			array_pop( $this->lines );
 	}
 
 	function __toString()
 	{
-		return empty( $this->lines ) ? "" : join( "\n", $this->lines ) . "\n";
+		$joined = join( "\n", $this->lines );
+
+		return $this->hasEndingNewLine && !empty( $this->lines ) ? "$joined\n" : "$joined";
 	}
 
-	function prependLine( $line )
+	function setHasEndingNewLine( $value )
 	{
-		array_unshift( $this->lines, $line );
+		$this->hasEndingNewLine = (bool) $value;
 
 		return $this;
 	}
 
-	function addLine( $line = '' )
+	function prependLine( $line = "" )
 	{
-		$this->lines[ ] = "$line";
+		return $this->addLinesBefore( new self( "$line\n" ) );
+	}
+
+	function addLine( $line = "" )
+	{
+		return $this->addLines( new self( "$line\n" ) );
+	}
+
+	function addLines( self $add )
+	{
+		$this->lines = array_merge( $this->lines, $add->lines );
 
 		return $this;
 	}
 
-	function addLines( self $lines )
+	function addLinesBefore( self $addBefore )
 	{
-		$this->lines = array_merge( $this->lines, $lines->lines );
+		$this->lines = array_merge( $addBefore->lines, $this->lines );
 
 		return $this;
 	}
@@ -94,7 +105,7 @@ class Text
 			if ( $k === 0 )
 				$this->append( $line );
 			else
-				$this->lines[] = $space . $line;
+				$this->lines[ ] = $space . $line;
 
 		return $this;
 	}
