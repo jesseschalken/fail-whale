@@ -9,24 +9,23 @@ class ArrayUtil
 		return isset( $array[ $key ] ) ? $array[ $key ] : $default;
 	}
 
-	static function isAssoc( $array )
+	static function isAssoc( array $array )
 	{
-		$index = 0;
+		$i = 0;
 
-		foreach ( $array as $key => $value )
-			if ( $key !== $index++ )
-				return true;
+		foreach ( $array as $k => &$v )
+			if ( $k !== $i++ )
+				return false;
 
-		return false;
+		return true;
 	}
 
 	static function lastKey( array $array )
 	{
-		$keys = array_keys( $array );
+		foreach ( $array as $k => &$v )
+			;
 
-		assert( !empty( $keys ) );
-
-		return $keys[ count( $keys ) - 1 ];
+		return isset( $k ) ? $k : null;
 	}
 }
 
