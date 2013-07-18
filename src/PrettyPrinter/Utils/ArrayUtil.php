@@ -13,15 +13,17 @@ class ArrayUtil
 	{
 		$i = 0;
 
+		/** @noinspection PhpUnusedLocalVariableInspection */
 		foreach ( $array as $k => &$v )
 			if ( $k !== $i++ )
-				return false;
+				return true;
 
-		return true;
+		return false;
 	}
 
 	static function lastKey( array $array )
 	{
+		/** @noinspection PhpUnusedLocalVariableInspection */
 		foreach ( $array as $k => &$v )
 			;
 

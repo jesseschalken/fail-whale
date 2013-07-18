@@ -9,105 +9,84 @@ class Text
 		return new self( $string );
 	}
 
-	private static function spaces( $num )
-	{
-		return str_repeat( ' ', max( $num, 0 ) );
-	}
-
-	private $lines = array(), $hasEndingNewLine = false;
+	private $lines, $hasEndingNewLine = false;
 
 	function __construct( $text = "" )
 	{
-		$this->lines = explode( "\n", $text );
+		$this->lines            = new FlatArray( explode( "\n", $text ) );
+		$last                   = $this->lines->last();
+		$this->hasEndingNewLine = $last->get() === "";
 
-		if ( $this->hasEndingNewLine = $this->lines[ count( $this->lines ) -1 ] === "" )
-			array_pop( $this->lines );
+		if ( $this->hasEndingNewLine )
+			$last->remove();
 	}
 
 	function __toString()
 	{
-		$joined = join( "\n", $this->lines );
+		$joined = join( "\n", $this->lines->toArray() );
 
-		return $this->hasEndingNewLine && !empty( $this->lines ) ? "$joined\n" : "$joined";
+		return $this->hasEndingNewLine && !$this->lines->isEmpty() ? "$joined\n" : "$joined";
 	}
 
-	function setHasEndingNewLine( $value )
+	function __clone()
 	{
-		$this->hasEndingNewLine = (bool) $value;
-
-		return $this;
-	}
-
-	function prependLine( $line = "" )
-	{
-		return $this->addLinesBefore( new self( "$line\n" ) );
-	}
-
-	function addLine( $line = "" )
-	{
-		return $this->addLines( new self( "$line\n" ) );
+		$this->lines = clone $this->lines;
 	}
 
 	function addLines( self $add )
 	{
-		$this->lines = array_merge( $this->lines, $add->lines );
+		foreach ( $add->lines as $line )
+			$this->lines->add( $line );
+
+		return $this;
+	}
+
+	function swapLines( self $other )
+	{
+		$clone       = clone $this;
+		$this->lines = clone $other->lines;
+
+		return $clone;
+	}
+
+	function appendLines( self $append )
+	{
+		$space = str_repeat( ' ', $this->width() );
+		$last  = $this->lines->last();
+
+		foreach ( $append->lines as $k => $line )
+			if ( $k === 0 && $last->valid() )
+				$last->set( $last->get() . $line );
+			else
+				$this->lines->add( $space . $line );
+
+		return $this;
+	}
+
+	function width()
+	{
+		return strlen( $this->lines->last()->getDefault( '' ) );
+	}
+
+	/**
+	 * @param int $times
+	 *
+	 * @return self
+	 */
+	function indent( $times = 1 )
+	{
+		$space = str_repeat( '  ', $times );
+
+		foreach ( $this->lines as $k => $line )
+			if ( $line !== '' )
+				$this->lines[ $k ] = $space . $line;
 
 		return $this;
 	}
 
 	function addLinesBefore( self $addBefore )
 	{
-		$this->lines = array_merge( $addBefore->lines, $this->lines );
-
-		return $this;
-	}
-
-	/**
-	 * @param string $string
-	 *
-	 * @return \PrettyPrinter\Utils\Text
-	 */
-	function prepend( $string )
-	{
-		$space = self::spaces( strlen( $string ) );
-
-		foreach ( $this->lines as $k => &$line )
-			$line = ( $k === 0 ? $string : $space ) . $line;
-
-		return $this;
-	}
-
-	function prependLines( self $lines )
-	{
-		return $this->appendLines( $this->swapLines( $lines ) );
-	}
-
-	/**
-	 * @param string $string
-	 *
-	 * @return \PrettyPrinter\Utils\Text
-	 */
-	function append( $string )
-	{
-		if ( empty( $this->lines ) )
-			$this->lines[ ] = $string;
-		else
-			$this->lines[ count( $this->lines ) - 1 ] .= "$string";
-
-		return $this;
-	}
-
-	function appendLines( self $lines )
-	{
-		$space = self::spaces( $this->width() );
-
-		foreach ( $lines->lines as $k => $line )
-			if ( $k === 0 )
-				$this->append( $line );
-			else
-				$this->lines[ ] = $space . $line;
-
-		return $this;
+		return $this->addLines( $this->swapLines( $addBefore ) );
 	}
 
 	function wrap( $prepend, $append )
@@ -120,39 +99,33 @@ class Text
 		return $this->prependLine( $prepend )->addLine( $append );
 	}
 
-	/**
-	 * @param int $times
-	 *
-	 * @return self
-	 */
-	function indent( $times = 1 )
+	function addLine( $line = "" )
 	{
-		$space = self::spaces( $times * 2 );
+		return $this->addLines( new self( "$line\n" ) );
+	}
 
-		foreach ( $this->lines as &$line )
-			if ( $line !== '' )
-				$line = $space . $line;
+	function append( $string )
+	{
+		return $this->appendLines( new self( $string ) );
+	}
 
-		return $this;
+	function prepend( $string )
+	{
+		return $this->prependLines( new self( $string ) );
+	}
+
+	function prependLine( $line = "" )
+	{
+		return $this->addLines( $this->swapLines( new self( "$line\n" ) ) );
+	}
+
+	function prependLines( self $lines )
+	{
+		return $this->appendLines( $this->swapLines( $lines ) );
 	}
 
 	function padWidth( $width )
 	{
-		return $this->append( self::spaces( $width - $this->width() ) );
-	}
-
-	function width()
-	{
-		$lines = $this->lines;
-
-		return empty( $lines ) ? 0 : strlen( $lines[ count( $lines ) - 1 ] );
-	}
-
-	private function swapLines( self $lines )
-	{
-		$clone       = clone $this;
-		$this->lines = $lines->lines;
-
-		return $clone;
+		return $this->append( str_repeat( ' ', $width - $this->width() ) );
 	}
 }

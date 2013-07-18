@@ -225,6 +225,22 @@
                 <match>
                   <AND>
                     <TYPE>METHOD</TYPE>
+                    <NAME>__clone</NAME>
+                  </AND>
+                </match>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <TYPE>METHOD</TYPE>
+                    <NAME>__toString</NAME>
+                  </AND>
+                </match>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <TYPE>METHOD</TYPE>
                     <MODIFIER>PUBLIC</MODIFIER>
                   </AND>
                 </match>

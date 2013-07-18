@@ -8,6 +8,8 @@ require_once __DIR__ . '/../vendor/autoload.php';
 $e = ErrorHandler::create();
 $e->bind();
 
+ini_set( 'display_errors', 1 );
+
 $v                   = new \stdClass;
 $v->foo              = array();
 $v->foo[ 'recurse' ] =& $v->foo;

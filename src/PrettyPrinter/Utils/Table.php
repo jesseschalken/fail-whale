@@ -2,8 +2,8 @@
 
 namespace PrettyPrinter\Utils;
 
-use PrettyPrinter\Utils\Text;
 use PrettyPrinter\Utils\ArrayUtil;
+use PrettyPrinter\Utils\Text;
 
 class Table implements \Countable
 {
@@ -19,6 +19,13 @@ class Table implements \Countable
 
 	/** @var (Text[])[] */
 	private $rows = array();
+
+	function __clone()
+	{
+		foreach ( $this->rows as &$row )
+			foreach ( $row as &$cell )
+				$cell = clone $cell;
+	}
 
 	function render()
 	{
@@ -58,25 +65,7 @@ class Table implements \Countable
 		return $this;
 	}
 
-	function __clone()
-	{
-		foreach ( $this->rows as &$row )
-			foreach ( $row as &$cell )
-				$cell = clone $cell;
-	}
-
 	private function alignColumns()
-	{
-		$columnWidths = $this->columnWidths();
-
-		/** @var $cell Text */
-		foreach ( $this->rows as $cells )
-			$this->alignRowColumns( $cells, $columnWidths );
-
-		return $this;
-	}
-
-	private function columnWidths()
 	{
 		$columnWidths = array();
 
@@ -85,19 +74,16 @@ class Table implements \Countable
 			foreach ( $cells as $column => $cell )
 				$columnWidths[ $column ] = max( ArrayUtil::get( $columnWidths, $column, 0 ), $cell->width() );
 
-		return $columnWidths;
-	}
+		/** @var $cell Text */
+		foreach ( $this->rows as $cells )
+		{
+			$lastColumn = ArrayUtil::lastKey( $cells );
 
-	/**
-	 * @param Text[] $cells
-	 * @param        $columnWidths
-	 */
-	private function alignRowColumns( array $cells, array $columnWidths )
-	{
-		$lastColumn = ArrayUtil::lastKey( $cells );
+			foreach ( $cells as $column => $cell )
+				if ( $column !== $lastColumn )
+					$cell->padWidth( $columnWidths[ $column ] );
+		}
 
-		foreach ( $cells as $column => $cell )
-			if ( $column !== $lastColumn )
-				$cell->padWidth( $columnWidths[ $column ] );
+		return $this;
 	}
 }
