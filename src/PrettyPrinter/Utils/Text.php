@@ -128,4 +128,11 @@ class Text
 	{
 		return $this->append( str_repeat( ' ', $width - $this->width() ) );
 	}
+
+	function setHasEndingNewline( $value )
+	{
+		$this->hasEndingNewLine = $value;
+
+		return $this;
+	}
 }

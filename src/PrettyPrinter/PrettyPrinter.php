@@ -46,7 +46,7 @@ final class PrettyPrinter
 	{
 		$anyHandler = new Any( $this );
 
-		return $anyHandler->handleValue( $ref )->__toString();
+		return $anyHandler->handleValue( $ref )->setHasEndingNewline( false )->__toString();
 	}
 
 	function prettyPrintException( \Exception $e )
