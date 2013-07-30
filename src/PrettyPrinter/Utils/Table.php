@@ -7,16 +7,6 @@ use PrettyPrinter\Utils\Text;
 
 class Table implements \Countable
 {
-	private static function renderRow( array $row )
-	{
-		$result = new Text;
-
-		foreach ( $row as $cell )
-			$result->appendLines( $cell );
-
-		return $result;
-	}
-
 	/** @var (Text[])[] */
 	private $rows = array();
 
@@ -29,21 +19,34 @@ class Table implements \Countable
 
 	function render()
 	{
-		$this->alignColumns();
-		$result = new Text;
+		$columnWidths = array();
+		$result       = new Text;
 
-		foreach ( $this->rows as $row )
-			$result->addLines( self::renderRow( $row ) );
+		/** @var $cell Text */
+		foreach ( $this->rows as $cells )
+		{
+			foreach ( $cells as $column => $cell )
+			{
+				$width =& $columnWidths[ $column ];
+				$width = max( (int) $width, $cell->width() );
+			}
+		}
 
-		return $result;
-	}
+		foreach ( $this->rows as $cells )
+		{
+			$row        = new Text;
+			$lastColumn = ArrayUtil::lastKey( $cells );
 
-	function renderOneLine()
-	{
-		$result = new Text;
+			foreach ( $cells as $column => $cell )
+			{
+				if ( $column !== $lastColumn )
+					$cell->padWidth( $columnWidths[ $column ] );
 
-		foreach ( $this->rows as $row )
-			$result->appendLines( self::renderRow( $row ) );
+				$row->appendLines( $cell );
+			}
+
+			$result->addLines( $row );
+		}
 
 		return $result;
 	}
@@ -54,35 +57,16 @@ class Table implements \Countable
 	}
 
 	/**
-	 * @param Text[] $cell
+	 * @param Text[] $cells
 	 *
-	 * @return \PrettyPrinter\Utils\self
+	 * @return self
 	 */
-	function addRow( array $cell )
+	function addRow( array $cells )
 	{
-		$this->rows[ ] = $cell;
+		foreach ( $cells as &$cell )
+			$cell = clone $cell;
 
-		return $this;
-	}
-
-	private function alignColumns()
-	{
-		$columnWidths = array();
-
-		/** @var $cell Text */
-		foreach ( $this->rows as $cells )
-			foreach ( $cells as $column => $cell )
-				$columnWidths[ $column ] = max( ArrayUtil::get( $columnWidths, $column, 0 ), $cell->width() );
-
-		/** @var $cell Text */
-		foreach ( $this->rows as $cells )
-		{
-			$lastColumn = ArrayUtil::lastKey( $cells );
-
-			foreach ( $cells as $column => $cell )
-				if ( $column !== $lastColumn )
-					$cell->padWidth( $columnWidths[ $column ] );
-		}
+		$this->rows[ ] = $cells;
 
 		return $this;
 	}

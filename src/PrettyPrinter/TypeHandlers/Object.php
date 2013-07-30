@@ -13,20 +13,21 @@ final class Object extends TypeHandler
 	function handleValue( &$object )
 	{
 		$id       =& $this->objectIds[ spl_object_hash( $object ) ];
-		$class    = get_class( $object );
 		$traverse = !isset( $id ) && $this->maxObjectProperties() > 0;
 
 		if ( !isset( $id ) )
 			$id = $this->newId();
 
+		return $this->prettyPrintObject( $object, $traverse, $id );
+	}
+
+	private function prettyPrintObject( $object, $traverse, $id )
+	{
+		$class = get_class( $object );
+
 		if ( !$traverse )
 			return new Text( "new $class $id {...}" );
 
-		return $this->prettyPrintObjectLinesDeep( $object )->indent( 2 )->wrapLines( "new $class $id {", "}" );
-	}
-
-	private function prettyPrintObjectLinesDeep( $object )
-	{
 		$objectProperties    = $object instanceof \Closure ? array() : (array) $object;
 		$maxObjectProperties = $this->maxObjectProperties();
 		$table               = new Table;
@@ -37,11 +38,8 @@ final class Object extends TypeHandler
 			$access   = isset( $parts[ 1 ] ) ? ( $parts[ 1 ] === '*' ? 'protected' : 'private' ) : 'public';
 			$property = isset( $parts[ 2 ] ) ? $parts[ 2 ] : $parts[ 0 ];
 
-			$table->addRow( array(
-			                     $this->prettyPrintVariable( $property )->prepend( "$access " ),
-			                     new Text( ' = ' ),
-			                     $this->prettyPrintRef( $value )->append( ';' ),
-			                ) );
+			$table->addRow( array( $this->prettyPrintVariable( $property )->prepend( "$access " ),
+			                       $this->prettyPrintRef( $value )->wrap( ' = ', ';' ) ) );
 
 			if ( $table->count() >= $maxObjectProperties )
 				break;
@@ -52,7 +50,7 @@ final class Object extends TypeHandler
 		if ( $table->count() != count( $objectProperties ) )
 			$result->addLine( '...' );
 
-		return $result;
+		return $result->indent( 2 )->wrapLines( "new $class $id {", "}" );
 	}
 
 	private function maxObjectProperties()

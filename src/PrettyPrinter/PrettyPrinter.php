@@ -11,7 +11,6 @@ final class PrettyPrinter
 {
 	private $escapeTabsInStrings = false;
 	private $splitMultiLineStrings = true;
-	private $renderArraysMultiLine = true;
 	private $maxObjectProperties = INF;
 	private $maxArrayEntries = INF;
 	private $maxStringLength = INF;
@@ -22,8 +21,6 @@ final class PrettyPrinter
 	function escapeTabsInStrings() { return new Bool( $this->escapeTabsInStrings ); }
 
 	function splitMultiLineStrings() { return new Bool( $this->splitMultiLineStrings ); }
-
-	function renderArraysMultiLine() { return new Bool( $this->renderArraysMultiLine ); }
 
 	function maxObjectProperties() { return new Bool( $this->maxObjectProperties ); }
 

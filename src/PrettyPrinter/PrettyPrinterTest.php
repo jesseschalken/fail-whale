@@ -123,7 +123,6 @@ new PrettyPrinter\TypeHandlers\Any #1 {
     private $settings        = new PrettyPrinter\PrettyPrinter #22 {
                                    private $escapeTabsInStrings          = false;
                                    private $splitMultiLineStrings        = true;
-                                   private $renderArraysMultiLine        = true;
                                    private $maxObjectProperties          = INF;
                                    private $maxArrayEntries              = INF;
                                    private $maxStringLength              = INF;

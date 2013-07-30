@@ -50,11 +50,8 @@ final class Exception extends TypeHandler
 		$table = new Table;
 
 		foreach ( $variables as $k => &$v )
-			$table->addRow( array(
-			                     $this->prettyPrintVariable( $k ),
-			                     new Text( ' = ' ),
-			                     $this->prettyPrintRef( $v )->append( ';' ),
-			                ) );
+			$table->addRow( array( $this->prettyPrintVariable( $k ),
+			                       $this->prettyPrintRef( $v )->wrap( ' = ', ';' ) ) );
 
 		return $table->render();
 	}
@@ -87,7 +84,7 @@ final class Exception extends TypeHandler
 			$result->addLine();
 		}
 
-		if ( PHP_VERSION_ID > 50300 && $e->getPrevious() !== null )
+		if ( $e->getPrevious() !== null )
 		{
 			$result->addLine( "previous exception:" );
 			$result->addLines( $this->prettyPrintExceptionWithoutGlobals( $e->getPrevious() )->indent() );
@@ -104,7 +101,7 @@ final class Exception extends TypeHandler
 
 		foreach ( $stackTrace as $stackFrame )
 		{
-			$result->addLine( "#$i {$stackFrame['file']}:{$stackFrame['line']}" );
+			$result->addLine( "#$i $stackFrame[file]:$stackFrame[line]" );
 			$result->addLines( $this->prettyPrintFunctionCall( $stackFrame )->indent( 3 ) );
 			$result->addLine();
 			$i++;
@@ -117,16 +114,16 @@ final class Exception extends TypeHandler
 	{
 		$object = isset( $stackFrame[ 'object' ] )
 				? $this->prettyPrintRef( $stackFrame[ 'object' ] )
-				: new Text( ArrayUtil::get( $stackFrame, 'class' ) );
+				: new Text( ArrayUtil::get( $stackFrame, 'class', '' ) );
 
-		$arguments = isset( $stackFrame[ 'args'] )
+		$arguments = isset( $stackFrame[ 'args' ] )
 				? $this->prettyPrintFunctionArgs( $stackFrame[ 'args' ] )
 				: new Text( '( ? )' );
 
 		return Text::create()
 		       ->appendLines( $object )
-		       ->append( ArrayUtil::get( $stackFrame, 'type' ) )
-		       ->append( ArrayUtil::get( $stackFrame, 'function' ) )
+		       ->append( ArrayUtil::get( $stackFrame, 'type', '' ) )
+		       ->append( ArrayUtil::get( $stackFrame, 'function', '' ) )
 		       ->appendLines( $arguments )
 		       ->append( ';' );
 	}
@@ -139,7 +136,12 @@ final class Exception extends TypeHandler
 		$result = new Text;
 
 		foreach ( $args as $k => &$arg )
-			$result->append( $k === 0 ? '' : ', ' )->appendLines( $this->prettyPrintRef( $arg ) );
+		{
+			if ( $k !== 0 )
+				$result->append( ', ' );
+
+			$result->appendLines( $this->prettyPrintRef( $arg ) );
+		}
 
 		return $result->wrap( '( ', ' )' );
 	}

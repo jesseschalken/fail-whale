@@ -57,34 +57,36 @@ final class Array1 extends TypeHandler
 		if ( empty( $array ) )
 			return new Text( 'array()' );
 
-		$maxEntries      = $this->settings()->maxArrayEntries()->get();
-		$renderMultiLine = $this->settings()->renderArraysMultiLine()->get();
-		$isAssociative   = ArrayUtil::isAssoc( $array );
-		$table           = new Table;
+		$maxEntries    = $this->settings()->maxArrayEntries()->get();
+		$isAssociative = ArrayUtil::isAssoc( $array );
+		$table         = new Table;
 
 		foreach ( $array as $k => &$v )
 		{
 			if ( $table->count() >= $maxEntries )
-			{
-				$table->addRow( array() );
-			}
-			else
-			{
-				$value = $this->prettyPrintRef( $v );
+				break;
 
-				if ( $table->count() != count( $array ) - 1 )
-					$value->append( $renderMultiLine ? ',' : ', ' );
+			$value = $this->prettyPrintRef( $v );
 
-				$table->addRow( $isAssociative
-						                ? array( $this->prettyPrint( $k ), new Text( ' => ' ), $value )
-						                : array( $value ) );
-			}
+			if ( $table->count() != count( $array ) - 1 )
+				$value->append( ',' );
+
+			$table->addRow( $isAssociative
+					                ? array( $this->prettyPrint( $k ), $value->prepend( ' => ' ) )
+					                : array( $value ) );
 		}
 
-		$result = $renderMultiLine ? $table->render() : $table->renderOneLine();
+		$result = $table->render();
 
-		return $result->wrap( isset( $this->arrayIdsReferenced[ $id ] ) ? "$id array( " : "array( ",
-		                             $table->count() > $maxEntries ? '... )' : ' )' );
+		if ( $table->count() != count( $array ) )
+			$result->addLine( '...' );
+
+		$result->wrap( 'array( ', ' )' );
+
+		if ( isset( $this->arrayIdsReferenced[ $id ] ) )
+			$result->prepend( "$id " );
+
+		return $result;
 	}
 }
 
