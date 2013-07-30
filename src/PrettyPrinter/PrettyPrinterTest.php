@@ -2,6 +2,7 @@
 
 namespace PrettyPrinter;
 
+use PrettyPrinter\Test\DummyClass2;
 use PrettyPrinter\TypeHandlers\Any;
 
 class PrettyPrinterTest extends \PHPUnit_Framework_TestCase
@@ -155,7 +156,36 @@ new stdClass #1 {
     public $foo = "bar";
 }
 s
- );
+		);
+	}
+
+	function testObjectArrayRecursion()
+	{
+		$object      = new \stdClass;
+		$array       = array( $object );
+		$object->foo =& $array;
+
+		$this->assertPrettyRef( $array, <<<'s'
+array( new stdClass #2 {
+           public $foo = array( new stdClass #2 {...} );
+       } )
+s
+		);
+	}
+
+	function testObjectProperties()
+	{
+		$this->assertPretty( new DummyClass2, <<<'s'
+new PrettyPrinter\Test\DummyClass2 #1 {
+    public $public2       = null;
+    private $private2     = null;
+    protected $protected2 = null;
+    public $public1       = null;
+    private $private1     = null;
+    protected $protected1 = null;
+}
+s
+		);
 	}
 
 	private function assertPretty( $value, $expected )

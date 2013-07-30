@@ -13,7 +13,7 @@ final class Object extends TypeHandler
 	function handleValue( &$object )
 	{
 		$id       =& $this->objectIds[ spl_object_hash( $object ) ];
-		$traverse = !isset( $id ) && $this->maxObjectProperties() > 0;
+		$traverse = !isset( $id ) && $this->maxProperties() > 0;
 
 		if ( !isset( $id ) )
 			$id = $this->newId();
@@ -28,32 +28,44 @@ final class Object extends TypeHandler
 		if ( !$traverse )
 			return new Text( "new $class $id {...}" );
 
-		$objectProperties    = $object instanceof \Closure ? array() : (array) $object;
-		$maxObjectProperties = $this->maxObjectProperties();
-		$table               = new Table;
+		$maxProperties = $this->maxProperties();
+		$numProperties = 0;
+		$table         = new Table;
 
-		foreach ( $objectProperties as $property => &$value )
+		for ( $reflection = new \ReflectionObject( $object );
+		      $reflection !== false;
+		      $reflection = $reflection->getParentClass() )
 		{
-			$parts    = explode( "\x00", $property );
-			$access   = isset( $parts[ 1 ] ) ? ( $parts[ 1 ] === '*' ? 'protected' : 'private' ) : 'public';
-			$property = isset( $parts[ 2 ] ) ? $parts[ 2 ] : $parts[ 0 ];
+			foreach ( $reflection->getProperties() as $property )
+			{
+				if ( $property->isStatic() )
+					continue;
 
-			$table->addRow( array( $this->prettyPrintVariable( $property )->prepend( "$access " ),
-			                       $this->prettyPrintRef( $value )->wrap( ' = ', ';' ) ) );
+				if ( $property->getDeclaringClass()->getName() !== $reflection->getName() )
+					continue;
 
-			if ( $table->count() >= $maxObjectProperties )
-				break;
+				$numProperties++;
+				$property->setAccessible( true );
+
+				$access = $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
+
+				$table->addRow( array( $this->prettyPrintVariable( $property->getName() )->prepend( "$access " ),
+				                       $this->prettyPrint( $property->getValue( $object ) )->wrap( ' = ', ';' ) ) );
+
+				if ( $table->count() >= $maxProperties )
+					break;
+			}
 		}
 
 		$result = $table->render();
 
-		if ( $table->count() != count( $objectProperties ) )
+		if ( $table->count() != $numProperties )
 			$result->addLine( '...' );
 
 		return $result->indent( 2 )->wrapLines( "new $class $id {", "}" );
 	}
 
-	private function maxObjectProperties()
+	private function maxProperties()
 	{
 		return $this->settings()->maxObjectProperties()->get();
 	}
