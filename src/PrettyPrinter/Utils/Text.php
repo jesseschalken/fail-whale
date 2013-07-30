@@ -9,11 +9,12 @@ class Text
 		return new self( $string );
 	}
 
-	private $lines, $hasEndingNewLine = false;
+	private $lines, $hasEndingNewLine, $newLine;
 
-	function __construct( $text = "" )
+	function __construct( $text = "", $newLine = "\n" )
 	{
-		$this->lines            = new FlatArray( explode( "\n", $text ) );
+		$this->newLine          = $newLine;
+		$this->lines            = new FlatArray( explode( $newLine, $text ) );
 		$last                   = $this->lines->last();
 		$this->hasEndingNewLine = $last->get() === "";
 
@@ -23,9 +24,14 @@ class Text
 
 	function __toString()
 	{
-		$joined = join( "\n", $this->lines->toArray() );
+		$newLine = $this->newLine;
+		$lines   = $this->lines;
+		$result  = join( $newLine, $lines->toArray() );
 
-		return $this->hasEndingNewLine && !$this->lines->isEmpty() ? "$joined\n" : "$joined";
+		if ( $this->hasEndingNewLine && !$lines->isEmpty() )
+			$result .= $newLine;
+
+		return $result;
 	}
 
 	function __clone()
@@ -101,7 +107,7 @@ class Text
 
 	function addLine( $line = "" )
 	{
-		return $this->addLines( new self( "$line\n" ) );
+		return $this->addLines( new self( $line . $this->newLine ) );
 	}
 
 	function append( $string )
@@ -116,7 +122,7 @@ class Text
 
 	function prependLine( $line = "" )
 	{
-		return $this->addLines( $this->swapLines( new self( "$line\n" ) ) );
+		return $this->addLines( $this->swapLines( new self( $line . $this->newLine ) ) );
 	}
 
 	function prependLines( self $lines )
@@ -131,7 +137,7 @@ class Text
 
 	function setHasEndingNewline( $value )
 	{
-		$this->hasEndingNewLine = $value;
+		$this->hasEndingNewLine = (bool) $value;
 
 		return $this;
 	}

@@ -84,6 +84,6 @@ class FlatArray implements \ArrayAccess, \Countable, \IteratorAggregate
 
 	function isEmpty()
 	{
-		return count( $this ) === 0;
+		return count( $this ) == 0;
 	}
 }
