@@ -27,7 +27,7 @@ final class Object extends TypeHandler
 
 	private function prettyPrintObjectLinesDeep( $object )
 	{
-		$objectProperties    = (array) $object;
+		$objectProperties    = $object instanceof \Closure ? array() : (array) $object;
 		$maxObjectProperties = $this->maxObjectProperties();
 		$table               = new Table;
 

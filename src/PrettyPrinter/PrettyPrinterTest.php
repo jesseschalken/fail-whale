@@ -137,6 +137,15 @@ s
 		);
 	}
 
+	function testClosure()
+	{
+		$this->assertPretty( function () { }, <<<'s'
+new Closure #1 {
+}
+s
+		);
+	}
+
 	private function assertPretty( $value, $expected )
 	{
 		$this->assertPrettyRef( $value, $expected );
