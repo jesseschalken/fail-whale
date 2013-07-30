@@ -145,6 +145,19 @@ s
 		);
 	}
 
+	function testStdClass()
+	{
+		$object      = new \stdClass;
+		$object->foo = 'bar';
+
+		$this->assertPretty( $object, <<<'s'
+new stdClass #1 {
+    public $foo = "bar";
+}
+s
+ );
+	}
+
 	private function assertPretty( $value, $expected )
 	{
 		$this->assertPrettyRef( $value, $expected );
