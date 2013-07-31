@@ -38,10 +38,7 @@ final class Object extends TypeHandler
 		{
 			foreach ( $reflection->getProperties() as $property )
 			{
-				if ( $property->isStatic() )
-					continue;
-
-				if ( $property->getDeclaringClass()->getName() !== $reflection->getName() )
+				if ( $property->isStatic() || $property->class !== $reflection->name )
 					continue;
 
 				$numProperties++;
@@ -53,7 +50,7 @@ final class Object extends TypeHandler
 
 				$access = $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
 
-				$table->addRow( array( $this->prettyPrintVariable( $property->getName() )->prepend( "$access " ),
+				$table->addRow( array( $this->prettyPrintVariable( $property->name )->prepend( "$access " ),
 				                       $this->prettyPrint( $property->getValue( $object ) )->wrap( ' = ', ';' ) ) );
 			}
 		}

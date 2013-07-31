@@ -11,18 +11,6 @@ use PrettyPrinter\TypeHandler;
 
 final class Exception extends TypeHandler
 {
-	private static function globals()
-	{
-		/**
-		 * Don't ask me why, but if I don't send $GLOBALS through array_merge(), unset( $globals['GLOBALS'] ) (next
-		 * line) ends up removing the $GLOBALS super global itself.
-		 */
-		$globals = array_merge( $GLOBALS );
-		unset( $globals[ 'GLOBALS' ] );
-
-		return $globals;
-	}
-
 	/**
 	 * @param \Exception $exception
 	 *
@@ -35,23 +23,77 @@ final class Exception extends TypeHandler
 		if ( $this->settings()->showExceptionGlobalVariables()->get() )
 		{
 			$result->addLine( 'global variables:' );
-			$result->addLines( $this->prettyPrintVariables( self::globals() )->indent() );
+			$result->addLines( $this->prettyPrintGlobalState()->indent() );
 			$result->addLine();
 		}
 
 		return $result;
 	}
 
-	private function prettyPrintVariables( array $variables )
+	private function prettyPrintGlobalState()
 	{
-		if ( empty( $variables ) )
+		$superGlobals = array_fill_keys( array( '_POST',
+		                                        '_GET',
+		                                        '_SESSION',
+		                                        '_COOKIE',
+		                                        '_FILES',
+		                                        '_REQUEST',
+		                                        '_ENV',
+		                                        '_SERVER' ), true );
+		$globals      = array();
+
+		foreach ( $GLOBALS as $name => &$value )
+			if ( $name !== 'GLOBALS' )
+				$globals[ ] = array( isset( $superGlobals[ $name ] ) ? '' : 'global ', $name, &$value );
+
+		foreach ( get_declared_classes() as $class )
+		{
+			$reflection = new \ReflectionClass( $class );
+
+			foreach ( $reflection->getProperties( \ReflectionProperty::IS_STATIC ) as $property )
+			{
+				$property->setAccessible( true );
+
+				$access = $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
+
+				$globals[ ] = array( "$access static $property->class::", $property->name, $property->getValue() );
+			}
+
+			foreach ( $reflection->getMethods() as $method )
+				foreach ( $method->getStaticVariables() as $variable => $value )
+					$globals[ ] = array( "function $class::$method->name()::static ", $variable, &$value );
+		}
+
+		foreach ( get_defined_functions() as $section )
+		{
+			foreach ( $section as $function )
+			{
+				$reflection = new \ReflectionFunction( $function );
+
+				foreach ( $reflection->getStaticVariables() as $variable => $value )
+					$globals[ ] = array( "function $reflection->name()::static ", $variable, &$value );
+			}
+		}
+
+		if ( empty( $globals ) )
 			return new Text( 'none' );
 
 		$table = new Table;
 
-		foreach ( $variables as $k => &$v )
-			$table->addRow( array( $this->prettyPrintVariable( $k ),
-			                       $this->prettyPrintRef( $v )->wrap( ' = ', ';' ) ) );
+		foreach ( $globals as &$global )
+			$table->addRow( array( $this->prettyPrintVariable( $global[ 1 ] )->prepend( $global[ 0 ] ),
+			                       $this->prettyPrintRef( $global[ 2 ] )->wrap( ' = ', ';' ) ) );
+
+		return $table->render();
+	}
+
+	private function prettyPrintVariables( array $variables )
+	{
+		$table = new Table;
+
+		foreach ( $variables as $name => &$value )
+			$table->addRow( array( $this->prettyPrintVariable( $name ),
+			                       $this->prettyPrintRef( $value )->wrap( ' = ', ';' ) ) );
 
 		return $table->render();
 	}

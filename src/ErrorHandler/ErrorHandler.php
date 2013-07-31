@@ -145,6 +145,9 @@ html;
 	protected function handleException( \Exception $e )
 	{
 		$settings = new PrettyPrinter;
+		$settings->maxStringLength()->set( 100 );
+		$settings->maxArrayEntries()->set( 10 );
+		$settings->maxObjectProperties()->set( 10 );
 
 		self::out( 'error', $settings->prettyPrintException( $e ) );
 	}
