@@ -56,10 +56,14 @@ final class PrettyPrinter
 	function assertPrettyIs( $value, $expectedPretty )
 	{
 		\PHPUnit_Framework_TestCase::assertEquals( $expectedPretty, $this->prettyPrint( $value ) );
+
+		return $this;
 	}
 
 	function assertPrettyRefIs( &$ref, $expectedPretty )
 	{
 		\PHPUnit_Framework_TestCase::assertEquals( $expectedPretty, $this->prettyPrintRef( $ref ) );
+
+		return $this;
 	}
 }

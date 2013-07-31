@@ -208,5 +208,35 @@ new PrettyPrinter\Test\DummyClass2 #1 {
 s
 		);
 	}
+
+	function testMaxArrayEntries()
+	{
+		self::pp()->maxArrayEntries()->set( 3 )
+		->assertPrettyIs( range( 1, 10 ), <<<'s'
+array( 1,
+       2,
+       3,
+       ... )
+s
+				)
+		->assertPrettyIs( array( "blarg" => "foo",
+		                         "bar"   => "bar" ),
+					<<<'s'
+array( "blarg" => "foo",
+       "bar"   => "bar" )
+s
+				)
+		->assertPrettyIs( array( "blarg"    => "foo",
+		                         "bar"      => "bar",
+		                         "bawreara" => "wrjenrg",
+		                         "awfjnrg"  => "awrrg" ),
+					<<<'s'
+array( "blarg"    => "foo",
+       "bar"      => "bar",
+       "bawreara" => "wrjenrg",
+       ... )
+s
+				);
+	}
 }
 
