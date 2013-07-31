@@ -45,15 +45,16 @@ final class Object extends TypeHandler
 					continue;
 
 				$numProperties++;
+
+				if ( $table->count() >= $maxProperties )
+					continue;
+
 				$property->setAccessible( true );
 
 				$access = $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
 
 				$table->addRow( array( $this->prettyPrintVariable( $property->getName() )->prepend( "$access " ),
 				                       $this->prettyPrint( $property->getValue( $object ) )->wrap( ' = ', ';' ) ) );
-
-				if ( $table->count() >= $maxProperties )
-					break;
 			}
 		}
 

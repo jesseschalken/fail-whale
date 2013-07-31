@@ -4,10 +4,11 @@ namespace PrettyPrinter;
 
 class Setting
 {
-	private $ref;
+	private $ref, $pp;
 
-	function __construct( &$ref )
+	function __construct( PrettyPrinter $pp, &$ref )
 	{
+		$this->pp  = $pp;
 		$this->ref =& $ref;
 	}
 
@@ -17,6 +18,6 @@ class Setting
 	{
 		$this->ref = $v;
 
-		return $this;
+		return $this->pp;
 	}
 }

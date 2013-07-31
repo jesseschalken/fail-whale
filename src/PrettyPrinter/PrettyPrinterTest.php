@@ -7,22 +7,28 @@ use PrettyPrinter\TypeHandlers\Any;
 
 class PrettyPrinterTest extends \PHPUnit_Framework_TestCase
 {
+	private static function pp()
+	{
+		return new PrettyPrinter;
+	}
+
 	function testSimpleValues()
 	{
-		$this->assertPretty( null, "null" );
-		$this->assertPretty( false, "false" );
-		$this->assertPretty( true, "true" );
-		$this->assertPretty( INF, "INF" );
-		$this->assertPretty( -INF, "-INF" );
-		$this->assertPretty( (float) 0, "0.0" );
-		$this->assertPretty( 0, "0" );
-		$this->assertPretty( 0.0, "0.0" );
-		$this->assertPretty( 1, "1" );
-		$this->assertPretty( -1.99, "-1.99" );
-		$this->assertPretty( "lol", '"lol"' );
-		$this->assertPretty( array(), "array()" );
-		$this->assertPretty( array( "foo" ), 'array( "foo" )' );
-		$this->assertPretty( array( "foo", "foo" ),
+		$pp = self::pp();
+		$pp->assertPrettyIs( null, "null" );
+		$pp->assertPrettyIs( false, "false" );
+		$pp->assertPrettyIs( true, "true" );
+		$pp->assertPrettyIs( INF, "INF" );
+		$pp->assertPrettyIs( -INF, "-INF" );
+		$pp->assertPrettyIs( (float) 0, "0.0" );
+		$pp->assertPrettyIs( 0, "0" );
+		$pp->assertPrettyIs( 0.0, "0.0" );
+		$pp->assertPrettyIs( 1, "1" );
+		$pp->assertPrettyIs( -1.99, "-1.99" );
+		$pp->assertPrettyIs( "lol", '"lol"' );
+		$pp->assertPrettyIs( array(), "array()" );
+		$pp->assertPrettyIs( array( "foo" ), 'array( "foo" )' );
+		$pp->assertPrettyIs( array( "foo", "foo" ),
 			<<<'s'
 array( "foo",
        "foo" )
@@ -35,7 +41,7 @@ s
 		$recursiveArray              = array();
 		$recursiveArray[ 'recurse' ] =& $recursiveArray;
 
-		$this->assertPrettyRef( $recursiveArray,
+		self::pp()->assertPrettyRefIs( $recursiveArray,
 			<<<'s'
 #1 array( "recurse" => #1 array(...) )
 s
@@ -44,7 +50,7 @@ s
 
 	function testMultiLineString()
 	{
-		$this->assertPretty( <<<'s'
+		self::pp()->assertPrettyIs( <<<'s'
  weaf waef 8we 7f8tweyufgij2k3e wef f
 sdf wf wef
     wef
@@ -70,7 +76,7 @@ s
 
 	function testComplexObject()
 	{
-		$this->assertPretty( new Any( new PrettyPrinter ), <<<'s'
+		self::pp()->assertPrettyIs( new Any( new PrettyPrinter ), <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
@@ -139,7 +145,7 @@ s
 
 	function testClosure()
 	{
-		$this->assertPretty( function () { }, <<<'s'
+		self::pp()->assertPrettyIs( function () { }, <<<'s'
 new Closure #1 {
 }
 s
@@ -151,7 +157,7 @@ s
 		$object      = new \stdClass;
 		$object->foo = 'bar';
 
-		$this->assertPretty( $object, <<<'s'
+		self::pp()->assertPrettyIs( $object, <<<'s'
 new stdClass #1 {
     public $foo = "bar";
 }
@@ -165,7 +171,7 @@ s
 		$array       = array( $object );
 		$object->foo =& $array;
 
-		$this->assertPrettyRef( $array, <<<'s'
+		self::pp()->assertPrettyRefIs( $array, <<<'s'
 array( new stdClass #2 {
            public $foo = array( new stdClass #2 {...} );
        } )
@@ -175,7 +181,7 @@ s
 
 	function testObjectProperties()
 	{
-		$this->assertPretty( new DummyClass2, <<<'s'
+		self::pp()->assertPrettyIs( new DummyClass2, <<<'s'
 new PrettyPrinter\Test\DummyClass2 #1 {
     public $public2       = null;
     private $private2     = null;
@@ -188,18 +194,19 @@ s
 		);
 	}
 
-	private function assertPretty( $value, $expected )
+	function testMaxObjectProperties()
 	{
-		$this->assertPrettyRef( $value, $expected );
-	}
-
-	private function assertPrettyRef( &$value, $expected )
-	{
-		$prettyPrinter = new PrettyPrinter;
-
-		$actual = $prettyPrinter->prettyPrintRef( $value );
-
-		$this->assertEquals( $expected, $actual );
+		self::pp()->maxObjectProperties()->set( 5 )->assertPrettyIs( new DummyClass2, <<<'s'
+new PrettyPrinter\Test\DummyClass2 #1 {
+    public $public2       = null;
+    private $private2     = null;
+    protected $protected2 = null;
+    public $public1       = null;
+    private $private1     = null;
+    ...
+}
+s
+		);
 	}
 }
 

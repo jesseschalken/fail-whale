@@ -18,21 +18,21 @@ final class PrettyPrinter
 	private $showExceptionGlobalVariables = true;
 	private $showExceptionStackTrace = true;
 
-	function escapeTabsInStrings() { return new Bool( $this->escapeTabsInStrings ); }
+	function escapeTabsInStrings() { return new Bool( $this, $this->escapeTabsInStrings ); }
 
-	function splitMultiLineStrings() { return new Bool( $this->splitMultiLineStrings ); }
+	function splitMultiLineStrings() { return new Bool( $this, $this->splitMultiLineStrings ); }
 
-	function maxObjectProperties() { return new Bool( $this->maxObjectProperties ); }
+	function maxObjectProperties() { return new Number( $this, $this->maxObjectProperties ); }
 
-	function maxArrayEntries() { return new Number( $this->maxArrayEntries ); }
+	function maxArrayEntries() { return new Number( $this, $this->maxArrayEntries ); }
 
-	function maxStringLength() { return new Number( $this->maxStringLength ); }
+	function maxStringLength() { return new Number( $this, $this->maxStringLength ); }
 
-	function showExceptionLocalVariables() { return new Bool( $this->showExceptionLocalVariables ); }
+	function showExceptionLocalVariables() { return new Bool( $this, $this->showExceptionLocalVariables ); }
 
-	function showExceptionGlobalVariables() { return new Bool( $this->showExceptionGlobalVariables ); }
+	function showExceptionGlobalVariables() { return new Bool( $this, $this->showExceptionGlobalVariables ); }
 
-	function showExceptionStackTrace() { return new Bool( $this->showExceptionStackTrace ); }
+	function showExceptionStackTrace() { return new Bool( $this, $this->showExceptionStackTrace ); }
 
 	function prettyPrint( $value )
 	{
@@ -51,5 +51,15 @@ final class PrettyPrinter
 		$exceptionHandler = new Exception( new Any( $this ) );
 
 		return $exceptionHandler->handleValue( $e )->__toString();
+	}
+
+	function assertPrettyIs( $value, $expectedPretty )
+	{
+		\PHPUnit_Framework_TestCase::assertEquals( $expectedPretty, $this->prettyPrint( $value ) );
+	}
+
+	function assertPrettyRefIs( &$ref, $expectedPretty )
+	{
+		\PHPUnit_Framework_TestCase::assertEquals( $expectedPretty, $this->prettyPrintRef( $ref ) );
 	}
 }
