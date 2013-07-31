@@ -238,5 +238,11 @@ array( "blarg"    => "foo",
 s
 				);
 	}
+
+	function testMaxStringLength()
+	{
+		self::pp()->maxStringLength()->set( 10 )
+		->assertPrettyIs( "wafkjawejf bawjehfb awjhefb j,awhebf ", '"wafkjawejf...' );
+	}
 }
 
