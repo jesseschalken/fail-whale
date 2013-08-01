@@ -12,6 +12,16 @@ use PrettyPrinter\TypeHandler;
 final class Exception extends TypeHandler
 {
 	/**
+	 * @param \ReflectionProperty|\ReflectionMethod $property
+	 *
+	 * @return string
+	 */
+	static function propertyOrMethodAccess( $property )
+	{
+		return $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
+	}
+
+	/**
 	 * @param \Exception $exception
 	 *
 	 * @return \PrettyPrinter\Utils\Text
@@ -54,14 +64,16 @@ final class Exception extends TypeHandler
 			{
 				$property->setAccessible( true );
 
-				$access = $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
-
+				$access     = self::propertyOrMethodAccess( $property );
 				$globals[ ] = array( "$access static $property->class::", $property->name, $property->getValue() );
 			}
 
 			foreach ( $reflection->getMethods() as $method )
 				foreach ( $method->getStaticVariables() as $variable => $value )
-					$globals[ ] = array( "function $class::$method->name()::static ", $variable, &$value );
+				{
+					$access     = self::propertyOrMethodAccess( $method );
+					$globals[ ] = array( "$access function $class::$method->name()::static ", $variable, &$value );
+				}
 		}
 
 		foreach ( get_defined_functions() as $section )

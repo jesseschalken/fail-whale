@@ -48,7 +48,7 @@ final class Object extends TypeHandler
 
 				$property->setAccessible( true );
 
-				$access = $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
+				$access = Exception::propertyOrMethodAccess( $property );
 
 				$table->addRow( array( $this->prettyPrintVariable( $property->name )->prepend( "$access " ),
 				                       $this->prettyPrint( $property->getValue( $object ) )->wrap( ' = ', ';' ) ) );
