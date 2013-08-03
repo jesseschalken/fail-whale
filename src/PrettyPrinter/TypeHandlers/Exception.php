@@ -69,11 +69,13 @@ final class Exception extends TypeHandler
 			}
 
 			foreach ( $reflection->getMethods() as $method )
+			{
 				foreach ( $method->getStaticVariables() as $variable => $value )
 				{
 					$access     = self::propertyOrMethodAccess( $method );
-					$globals[ ] = array( "$access function $class::$method->name()::static ", $variable, &$value );
+					$globals[ ] = array( "$access function $method->class::$method->name()::static ", $variable, &$value );
 				}
+			}
 		}
 
 		foreach ( get_defined_functions() as $section )
