@@ -55,6 +55,11 @@ class Text
 		return $clone;
 	}
 
+	/**
+	 * @param Text $append
+	 *
+	 * @return self
+	 */
 	function appendLines( self $append )
 	{
 		$space = str_repeat( ' ', $this->width() );
@@ -105,6 +110,11 @@ class Text
 		return $this->prependLine( $prepend )->addLine( $append );
 	}
 
+	/**
+	 * @param string $line
+	 *
+	 * @return self
+	 */
 	function addLine( $line = "" )
 	{
 		return $this->addLines( new self( $line . $this->newLineChar ) );

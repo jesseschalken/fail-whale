@@ -2,6 +2,8 @@
 
 namespace ErrorHandler;
 
+use PrettyPrinter\ExceptionExceptionInfo;
+use PrettyPrinter\HasExceptionInfo;
 use PrettyPrinter\PrettyPrinter;
 
 class ErrorHandler
@@ -9,6 +11,16 @@ class ErrorHandler
 	static function create()
 	{
 		return new self;
+	}
+
+	static function prettyPrinter()
+	{
+		$settings = new PrettyPrinter;
+		$settings->maxStringLength()->set( 100 );
+		$settings->maxArrayEntries()->set( 10 );
+		$settings->maxObjectProperties()->set( 10 );
+
+		return $settings;
 	}
 
 	protected static function out( $title, $body )
@@ -134,22 +146,19 @@ html;
 
 		$error = error_get_last();
 
-		if ( $error !== null && $error !== $this->lastError )
-		{
-			$this->handleUncaughtException( new ErrorException( $error[ 'type' ], $error[ 'message' ],
-			                                                    $error[ 'file' ], $error[ 'line' ], null,
-			                                                    self::fullStackTrace() ) );
-		}
+		if ( $error === null || $error === $this->lastError )
+			return;
+
+		$this->handleUncaughtException( new ErrorException( $error[ 'type' ], $error[ 'message' ],
+		                                                    $error[ 'file' ], $error[ 'line' ], null,
+		                                                    self::fullStackTrace() ) );
 	}
 
 	protected function handleException( \Exception $e )
 	{
-		$settings = new PrettyPrinter;
-		$settings->maxStringLength()->set( 100 );
-		$settings->maxArrayEntries()->set( 10 );
-		$settings->maxObjectProperties()->set( 10 );
+		$e = $e instanceof HasExceptionInfo ? $e->info() : new ExceptionExceptionInfo( $e );
 
-		self::out( 'error', $settings->prettyPrintException( $e ) );
+		self::out( 'error', self::prettyPrinter()->prettyPrintException( $e ) );
 	}
 }
 

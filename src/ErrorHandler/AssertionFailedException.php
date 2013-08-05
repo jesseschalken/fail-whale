@@ -2,9 +2,10 @@
 
 namespace ErrorHandler;
 
-use PrettyPrinter\HasStackTraceWithCurrentObjects;
+use PrettyPrinter\ExceptionExceptionInfo;
+use PrettyPrinter\HasExceptionInfo;
 
-class AssertionFailedException extends \Exception implements HasStackTraceWithCurrentObjects
+class AssertionFailedException extends \Exception implements HasExceptionInfo
 {
 	private $expression, $fullStackTrace;
 
@@ -24,9 +25,9 @@ class AssertionFailedException extends \Exception implements HasStackTraceWithCu
 		$this->fullStackTrace = $fullStackTrace;
 	}
 
-	function getStackTraceWithCurrentObjects()
+	function info()
 	{
-		return $this->fullStackTrace;
+		return new ExceptionExceptionInfo( $this, null, $this->fullStackTrace );
 	}
 }
 

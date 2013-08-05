@@ -32,7 +32,7 @@ abstract class TypeHandler
 		return $this->anyHandler->handleValue( $value );
 	}
 
-	protected function prettyPrintVariable( $varName )
+	function prettyPrintVariable( $varName )
 	{
 		return $this->anyHandler->prettyPrintVariable( $varName );
 	}

@@ -2,29 +2,20 @@
 
 namespace ErrorHandler;
 
+use PrettyPrinter\ExceptionExceptionInfo;
+use PrettyPrinter\HasExceptionInfo;
 use PrettyPrinter\Utils\ArrayUtil;
-use PrettyPrinter\HasStackTraceWithCurrentObjects;
-use PrettyPrinter\HasLocalVariables;
 
-class ErrorException extends \ErrorException implements HasLocalVariables, HasStackTraceWithCurrentObjects
+class ErrorException extends \ErrorException implements HasExceptionInfo
 {
-	private $localVariables, $fullStackTrace;
+	private $localVariables, $stackTrace;
 
-	/**
-	 * @param int         $severity
-	 * @param string      $message
-	 * @param string|null $file
-	 * @param int|null    $line
-	 * @param array|null  $localVariables
-	 * @param array|null  $fullStackTrace
-	 */
-	function __construct( $severity, $message, $file, $line, array $localVariables = null,
-	                      array $fullStackTrace = null )
+	function __construct( $severity, $message, $file, $line, array $localVariables = null, array $stackTrace )
 	{
 		parent::__construct( $message, 0, $severity, $file, $line );
 
 		$this->localVariables = $localVariables;
-		$this->fullStackTrace = $fullStackTrace;
+		$this->stackTrace     = $stackTrace;
 		$this->code           = ArrayUtil::get( array( E_ERROR             => 'E_ERROR',
 		                                               E_WARNING           => 'E_WARNING',
 		                                               E_PARSE             => 'E_PARSE',
@@ -42,13 +33,8 @@ class ErrorException extends \ErrorException implements HasLocalVariables, HasSt
 		                                               E_USER_DEPRECATED   => 'E_USER_DEPRECATED' ), $severity, 'E_?' );
 	}
 
-	function getStackTraceWithCurrentObjects()
+	function info()
 	{
-		return isset( $this->fullStackTrace ) ? $this->fullStackTrace : $this->getTrace();
-	}
-
-	function getLocalVariables()
-	{
-		return $this->localVariables;
+		return new ExceptionExceptionInfo( $this, $this->localVariables, $this->stackTrace );
 	}
 }

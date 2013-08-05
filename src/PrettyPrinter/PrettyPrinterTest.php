@@ -2,7 +2,9 @@
 
 namespace PrettyPrinter;
 
+use ErrorHandler\ErrorHandler;
 use PrettyPrinter\Test\DummyClass2;
+use PrettyPrinter\Test\MockException;
 use PrettyPrinter\TypeHandlers\Any;
 
 class PrettyPrinterTest extends \PHPUnit_Framework_TestCase
@@ -243,6 +245,44 @@ s
 	{
 		self::pp()->maxStringLength()->set( 10 )
 		->assertPrettyIs( "wafkjawejf bawjehfb awjhefb j,awhebf ", '"wafkjawejf...' );
+	}
+
+	function testException()
+	{
+		self::assertEquals( self::pp()->prettyPrintException( new MockException ), <<<'s'
+PrettyPrinter\Test\MockException Dummy exception code in /the/path/to/muh/file:9000
+
+    This is a dummy exception message.
+
+    lololool
+
+local variables:
+  $lol = 8;
+  $foo = "bar";
+
+stack trace:
+  #1 /path/to/muh/file:1928
+        new PrettyPrinter\Test\DummyClass1 #1 {
+            public $public1       = null;
+            private $private1     = null;
+            protected $protected1 = null;
+        }->aFunction( new PrettyPrinter\Test\DummyClass2 #2 {
+                          public $public2       = null;
+                          private $private2     = null;
+                          protected $protected2 = null;
+                          public $public1       = null;
+                          private $private1     = null;
+                          protected $protected1 = null;
+                      } );
+
+  #2 {main}
+
+global variables:
+  none
+
+
+s
+ );
 	}
 }
 
