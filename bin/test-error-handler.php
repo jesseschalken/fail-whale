@@ -16,6 +16,7 @@ $v->foo[ 'recurse' ] =& $v->foo;
 
 error_reporting( -1 );
 
+/** @noinspection PhpUnusedLocalVariableInspection */
 $f = curl_init();
 
 class A
@@ -25,7 +26,8 @@ class A
 		$this->blarg( $this );
 	}
 
-	private function blarg( A $aaaaaa )
+	private function blarg( /** @noinspection PhpUnusedParameterInspection */
+		A $aaaaaa )
 	{
 		for ( $i = 0; $i < 256; $i++ )
 			$this->allBytes .= chr( $i );
@@ -45,9 +47,11 @@ class A
 		// $a->lol();
 	}
 
-	private $hebrewChars = "־׀׃׆אבגדהוזחטיךכלםמןנסעףפץצקרשתװױײ׳״";
+	private /** @noinspection PhpUnusedPrivateFieldInspection */
+			$hebrewChars = "־׀׃׆אבגדהוזחטיךכלםמןנסעףפץצקרשתװױײ׳״";
 	private $allBytes = "";
-	private $multiLineString = "SELECT blarg
+	private /** @noinspection PhpUnusedPrivateFieldInspection */
+			$multiLineString = "SELECT blarg
 FROM foo
 JOIN bah
 	ON foo.a = bah.b
@@ -61,8 +65,10 @@ WHERE foo.id = 4";
 	                array( 4.0 ),
 	                array( 4.2 ),
 	                array( 4 ), );
-	private $lol = 5;
-	private $blarg = array( null );
+	private /** @noinspection PhpUnusedPrivateFieldInspection */
+			$lol = 5;
+	private /** @noinspection PhpUnusedPrivateFieldInspection */
+			$blarg = array( null );
 	protected $foo = array();
 	private $recursiveArray = array();
 }
