@@ -278,7 +278,11 @@ stack trace:
   #2 {main}
 
 global variables:
-  none
+  private static BlahClass::$blahProperty                                 = null;
+  function BlahAnotherClass()::static $public                             = null;
+  global ${"lol global"}                                                  = null;
+  protected function BlahYetAnotherClass::blahMethod()::static $lolStatic = null;
+  $blahVariable                                                           = null;
 
 
 s

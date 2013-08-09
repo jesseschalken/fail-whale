@@ -4,7 +4,13 @@
 namespace PrettyPrinter\Test;
 
 use PrettyPrinter\ExceptionInfo;
+use PrettyPrinter\Reflection\ClassStaticProperty;
+use PrettyPrinter\Reflection\FunctionStaticVariable;
+use PrettyPrinter\Reflection\GlobalVariable;
+use PrettyPrinter\Reflection\MethodStaticVariable;
+use PrettyPrinter\Reflection\Variable;
 use PrettyPrinter\TypeHandlers;
+use PrettyPrinter\Utils\Ref;
 
 class MockException extends ExceptionInfo
 {
@@ -62,6 +68,12 @@ s;
 
 	function globalVariables()
 	{
-		return array();
+		return array(
+			new ClassStaticProperty( 'BlahClass', 'private', 'blahProperty', Ref::create() ),
+			new FunctionStaticVariable( 'BlahAnotherClass', 'public', Ref::create() ),
+			new GlobalVariable( 'lol global', Ref::create() ),
+			new MethodStaticVariable( 'BlahYetAnotherClass', 'blahMethod', 'protected', 'lolStatic', Ref::create() ),
+			new Variable( 'blahVariable', Ref::create() ),
+		);
 	}
 }

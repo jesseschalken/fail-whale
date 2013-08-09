@@ -9,12 +9,12 @@ class Ref
 		return $ref;
 	}
 
-	static function set( &$ref, $value )
+	static function set( &$ref, $value = null )
 	{
 		$ref = $value;
 	}
 
-	static function &create( $value )
+	static function &create( $value = null )
 	{
 		return $value;
 	}
