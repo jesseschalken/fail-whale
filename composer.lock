@@ -3,8 +3,11 @@
         "This file locks the dependencies of your project to a known state",
         "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file"
     ],
-    "hash": "33bbdbe3cf4815c23d1ffed8cc2fb0ca",
+    "hash": "70ee88ef78f38c0ebb7a517847c81c22",
     "packages": [
+
+    ],
+    "packages-dev": [
         {
             "name": "phpunit/php-code-coverage",
             "version": "1.2.12",
@@ -414,9 +417,6 @@
             "homepage": "http://symfony.com",
             "time": "2013-07-11 19:36:36"
         }
-    ],
-    "packages-dev": [
-
     ],
     "aliases": [
 
