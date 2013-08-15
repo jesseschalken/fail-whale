@@ -91,21 +91,18 @@ new PrettyPrinter\TypeHandlers\Any #1 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
                                                         },
                                       "string"       => new PrettyPrinter\TypeHandlers\String #7 {
-                                                            private $escapedChars = array( "\\"   => "\\\\",
-                                                                                           "\$"   => "\\\$",
-                                                                                           "\r"   => "\\r",
-                                                                                           "\v"   => "\\v",
-                                                                                           "\f"   => "\\f",
-                                                                                           "\""   => "\\\"",
-                                                                                           "	"    => "	",
-                                                                                           "\n" .
-                                                                                           ""     => "\\n\" .\n" .
-                                                                                                     "\"",
-                                                                                           "\x00" => "\\x00",
-                                                                                           "\x01" => "\\x01",
-                                                                                           ... );
-                                                            private $cache        = array();
-                                                            private $anyHandler   = new PrettyPrinter\TypeHandlers\Any #1 {...};
+                                                            private $characterEscapeCache = array( "\\" => "\\\\",
+                                                                                                   "\$" => "\\\$",
+                                                                                                   "\r" => "\\r",
+                                                                                                   "\v" => "\\v",
+                                                                                                   "\f" => "\\f",
+                                                                                                   "\"" => "\\\"",
+                                                                                                   "	"  => "	",
+                                                                                                   "\n" .
+                                                                                                   ""   => "\\n\" .\n" .
+                                                                                                           "\"" );
+                                                            private $cache                = array();
+                                                            private $anyHandler           = new PrettyPrinter\TypeHandlers\Any #1 {...};
                                                         },
                                       "array"        => new PrettyPrinter\TypeHandlers\Array1 #10 {
                                                             private $arrayStack         = array();
