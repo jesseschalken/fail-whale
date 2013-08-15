@@ -77,7 +77,12 @@ final class Exception extends TypeHandler
 
 	private function prettyPrintExceptionHeader( ExceptionInfo $e )
 	{
-		return Text::create( get_class( $e ) . " {$e->code()} in {$e->file()}:{$e->line()}" )
+		$class = $e->exceptionClassName();
+		$code  = $e->code();
+		$file  = $e->file();
+		$line  = $e->line();
+
+		return Text::create( "$class $code in $file:$line" )
 		       ->addLine()
 		       ->addLines( Text::create( $e->message() )->indent( 2 ) )
 		       ->addLine();

@@ -31,4 +31,9 @@ class ExceptionExceptionInfo extends ExceptionInfo
 	function localVariables() { return $this->localVariables; }
 
 	function stackTrace() { return isset( $this->stackTrace ) ? $this->stackTrace : $this->e->getTrace(); }
+
+	function exceptionClassName()
+	{
+		return get_class( $this->e );
+	}
 }

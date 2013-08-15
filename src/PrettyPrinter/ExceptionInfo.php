@@ -11,6 +11,8 @@ use PrettyPrinter\Utils\Ref;
 
 abstract class ExceptionInfo
 {
+	abstract function exceptionClassName();
+
 	abstract function message();
 
 	abstract function code();

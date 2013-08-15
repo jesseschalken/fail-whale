@@ -76,4 +76,9 @@ s;
 			new Variable( 'blahVariable', Ref::create() ),
 		);
 	}
+
+	function exceptionClassName()
+	{
+		return 'MuhMockException';
+	}
 }
