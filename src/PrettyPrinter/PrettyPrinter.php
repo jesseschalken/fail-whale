@@ -49,11 +49,18 @@ final class PrettyPrinter
 		return $anyHandler->handleValue( $ref )->setHasEndingNewline( false )->__toString();
 	}
 
-	function prettyPrintException( ExceptionInfo $e )
+	function prettyPrintExceptionInfo( ExceptionInfo $e )
 	{
 		$exceptionHandler = new ExceptionHandler( new Any( $this ) );
 
 		return $exceptionHandler->handleValue( $e )->__toString();
+	}
+
+	function prettyPrintException( \Exception $e )
+	{
+		return $this->prettyPrintExceptionInfo( $e instanceof HasExceptionInfo
+				                                        ? $e->info()
+				                                        : new ExceptionExceptionInfo( $e ) );
 	}
 
 	function assertPrettyIs( $value, $expectedPretty )

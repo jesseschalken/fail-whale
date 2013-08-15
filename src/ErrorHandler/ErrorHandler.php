@@ -154,8 +154,6 @@ html;
 
 	protected function handleException( \Exception $e )
 	{
-		$e = $e instanceof HasExceptionInfo ? $e->info() : new ExceptionExceptionInfo( $e );
-
 		self::out( 'error', self::prettyPrinter()->prettyPrintException( $e ) );
 	}
 }

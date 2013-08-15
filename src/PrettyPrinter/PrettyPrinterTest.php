@@ -249,7 +249,7 @@ s
 
 	function testException()
 	{
-		self::assertEquals( self::pp()->prettyPrintException( new MockException ), <<<'s'
+		self::assertEquals( self::pp()->prettyPrintExceptionInfo( new MockException ), <<<'s'
 PrettyPrinter\Test\MockException Dummy exception code in /the/path/to/muh/file:9000
 
     This is a dummy exception message.
