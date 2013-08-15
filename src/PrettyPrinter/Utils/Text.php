@@ -156,4 +156,9 @@ class Text
 
 		return $this;
 	}
+
+	function count()
+	{
+		return $this->lines->count();
+	}
 }

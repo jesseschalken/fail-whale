@@ -141,14 +141,26 @@ final class Exception extends TypeHandler
 		if ( empty( $args ) )
 			return new Text( '()' );
 
-		$result = new Text;
+		$pretties    = array();
+		$isMultiLine = false;
+		$result      = new Text;
 
-		foreach ( $args as $k => &$arg )
+		foreach ( $args as &$arg )
+		{
+			$pretty      = $this->prettyPrintRef( $arg );
+			$isMultiLine = $isMultiLine || $pretty->count() > 1;
+			$pretties[ ] = $pretty;
+		}
+
+		foreach ( $pretties as $k => $pretty )
 		{
 			if ( $k !== 0 )
 				$result->append( ', ' );
 
-			$result->appendLines( $this->prettyPrintRef( $arg ) );
+			if ( $isMultiLine )
+				$result->addLines( $pretty );
+			else
+				$result->appendLines( $pretty );
 		}
 
 		return $result->wrap( '( ', ' )' );
