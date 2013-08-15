@@ -15,12 +15,10 @@ class ErrorHandler
 
 	static function prettyPrinter()
 	{
-		$settings = new PrettyPrinter;
-		$settings->maxStringLength()->set( 100 );
-		$settings->maxArrayEntries()->set( 10 );
-		$settings->maxObjectProperties()->set( 10 );
-
-		return $settings;
+		return PrettyPrinter::create()
+		       ->maxStringLength()->set( 100 )
+		       ->maxArrayEntries()->set( 10 )
+		       ->maxObjectProperties()->set( 10 );
 	}
 
 	protected static function out( $title, $body )

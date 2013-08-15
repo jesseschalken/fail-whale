@@ -2,14 +2,16 @@
 
 namespace PrettyPrinter;
 
+use PrettyPrinter\ExceptionInfo;
 use PrettyPrinter\Settings\Bool;
 use PrettyPrinter\Settings\Number;
 use PrettyPrinter\TypeHandlers\Any;
 use PrettyPrinter\TypeHandlers\Exception as ExceptionHandler;
-use PrettyPrinter\ExceptionInfo;
 
 final class PrettyPrinter
 {
+	static function create() { return new self; }
+
 	private $escapeTabsInStrings = false;
 	private $splitMultiLineStrings = true;
 	private $maxObjectProperties = INF;
