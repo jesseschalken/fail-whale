@@ -3,7 +3,6 @@
 namespace ErrorHandler;
 
 use PrettyPrinter\ExceptionExceptionInfo;
-use PrettyPrinter\HasExceptionInfo;
 use PrettyPrinter\PrettyPrinter;
 
 class ErrorHandler
@@ -13,6 +12,9 @@ class ErrorHandler
 		return new self;
 	}
 
+	/**
+	 * @return PrettyPrinter
+	 */
 	static function prettyPrinter()
 	{
 		return PrettyPrinter::create()
