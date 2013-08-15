@@ -55,9 +55,7 @@ abstract class ExceptionInfo
 			{
 				foreach ( $method->getStaticVariables() as $name => $value )
 				{
-					$globals[ ] = new MethodStaticVariable( $method->class, $method->getName(),
-					                                        TypeHandlers\Exception::propertyOrMethodAccess( $method ),
-					                                        $name, $value );
+					$globals[ ] = new MethodStaticVariable( $method->class, $method->getName(), $name, $value );
 				}
 			}
 		}

@@ -72,7 +72,7 @@ s;
 			new ClassStaticProperty( 'BlahClass', 'private', 'blahProperty', Ref::create() ),
 			new FunctionStaticVariable( 'BlahAnotherClass', 'public', Ref::create() ),
 			new GlobalVariable( 'lol global', Ref::create() ),
-			new MethodStaticVariable( 'BlahYetAnotherClass', 'blahMethod', 'protected', 'lolStatic', Ref::create() ),
+			new MethodStaticVariable( 'BlahYetAnotherClass', 'blahMethod', 'lolStatic', Ref::create() ),
 			new Variable( 'blahVariable', Ref::create() ),
 		);
 	}

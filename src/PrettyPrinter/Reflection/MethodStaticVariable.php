@@ -6,19 +6,18 @@ use PrettyPrinter\Utils\Text;
 
 class MethodStaticVariable extends Variable
 {
-	private $class, $method, $access;
+	private $class, $method;
 
-	function __construct( $class, $method, $access, $name, &$value )
+	function __construct( $class, $method, $name, &$value )
 	{
 		$this->class  = $class;
 		$this->method = $method;
-		$this->access = $access;
 
 		parent::__construct( $name, $value );
 	}
 
 	function prefix()
 	{
-		return new Text( "$this->access function $this->class::$this->method()::static " );
+		return new Text( "function $this->class::$this->method()::static " );
 	}
 }
