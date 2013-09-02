@@ -14,35 +14,30 @@ class Text
 	function __construct( $text = "", $newLineChar = "\n" )
 	{
 		$this->newLineChar      = $newLineChar;
-		$this->lines            = new FlatArray( explode( $newLineChar, $text ) );
-		$last                   = $this->lines->last();
-		$this->hasEndingNewLine = $last->get() === "";
+		$lines                  =& $this->lines;
+		$lines                  = explode( $newLineChar, $text );
+		$this->hasEndingNewLine = $lines[ count( $lines ) - 1 ] === "";
 
 		if ( $this->hasEndingNewLine )
-			$last->remove();
+			array_pop( $lines );
 	}
 
 	function __toString()
 	{
 		$newLine = $this->newLineChar;
 		$lines   = $this->lines;
-		$result  = join( $newLine, $lines->toArray() );
+		$result  = join( $newLine, $lines );
 
-		if ( $this->hasEndingNewLine && !$lines->isEmpty() )
+		if ( $this->hasEndingNewLine && !empty( $lines ) )
 			$result .= $newLine;
 
 		return $result;
 	}
 
-	function __clone()
-	{
-		$this->lines = clone $this->lines;
-	}
-
 	function addLines( self $add )
 	{
 		foreach ( $add->lines as $line )
-			$this->lines->add( $line );
+			$this->lines[ ] = $line;
 
 		return $this;
 	}
@@ -50,7 +45,7 @@ class Text
 	function swapLines( self $other )
 	{
 		$clone       = clone $this;
-		$this->lines = clone $other->lines;
+		$this->lines = $other->lines;
 
 		return $clone;
 	}
@@ -63,20 +58,22 @@ class Text
 	function appendLines( self $append )
 	{
 		$space = str_repeat( ' ', $this->width() );
-		$last  = $this->lines->last();
+		$lines =& $this->lines;
 
 		foreach ( $append->lines as $k => $line )
-			if ( $k === 0 && $last->valid() )
-				$last->set( $last->get() . $line );
+			if ( $k === 0 && !empty( $lines ) )
+				$lines[ count( $lines ) - 1 ] .= $line;
 			else
-				$this->lines->add( $space . $line );
+				$lines[ ] = $space . $line;
 
 		return $this;
 	}
 
 	function width()
 	{
-		return strlen( $this->lines->last()->getDefault( '' ) );
+		$lines = $this->lines;
+
+		return empty( $lines ) ? 0 : strlen( $lines[ count( $lines ) - 1 ] );
 	}
 
 	/**
@@ -159,6 +156,6 @@ class Text
 
 	function count()
 	{
-		return $this->lines->count();
+		return count( $this->lines );
 	}
 }
