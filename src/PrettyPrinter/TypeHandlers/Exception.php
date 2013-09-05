@@ -33,7 +33,7 @@ final class Exception extends TypeHandler
 
 	private function prettyPrintGlobalState( ExceptionInfo $exception )
 	{
-		return $this->prettyPrintGlobalVariables( $exception )->indent()->prependLine( 'global variables:' )->addLine();
+		return $this->prettyPrintGlobalVariables( $exception )->indent()->wrapLines( 'global variables:' );
 	}
 
 	private function prettyPrintGlobalVariables( ExceptionInfo $exception )
@@ -63,7 +63,7 @@ final class Exception extends TypeHandler
 			$table->addRow( array( $this->prettyPrintVariable( $name ),
 			                       $this->prettyPrintRef( $value )->wrap( ' = ', ';' ) ) );
 
-		return $table->render()->indent()->prependLine( "local variables:" )->addLine();
+		return $table->render()->indent()->wrapLines( "local variables:" );
 	}
 
 	private function prettyPrintExceptionWithoutGlobals( ExceptionInfo $e )
@@ -83,9 +83,7 @@ final class Exception extends TypeHandler
 		$line  = $e->line();
 
 		return Text::create( "$class $code in $file:$line" )
-		       ->addLine()
-		       ->addLines( Text::create( $e->message() )->indent( 2 ) )
-		       ->addLine();
+		       ->addLines( Text::create( $e->message() )->indent( 2 )->wrapLines() );
 	}
 
 	private function prettyPrintPreviousException( ExceptionInfo $exception )
@@ -93,8 +91,7 @@ final class Exception extends TypeHandler
 		if ( $exception->previous() === null )
 			return new Text;
 
-		return $this->prettyPrintExceptionWithoutGlobals( $exception )->indent()->prependLine( "previous exception:" )
-		       ->addLine();
+		return $this->prettyPrintExceptionWithoutGlobals( $exception )->indent()->wrapLines( "previous exception:" );
 	}
 
 	private function prettyPrintStackTrace( ExceptionInfo $exception )
@@ -113,7 +110,7 @@ final class Exception extends TypeHandler
 			$i++;
 		}
 
-		return $result->addLine( "#$i {main}" )->indent()->prependLine( "stack trace:" )->addLine();
+		return $result->addLine( "#$i {main}" )->indent()->wrapLines( "stack trace:" );
 	}
 
 	private function prettyPrintFunctionCall( array $stackFrame )

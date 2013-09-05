@@ -102,7 +102,7 @@ class Text
 		return $this->prepend( $prepend )->append( $append );
 	}
 
-	function wrapLines( $prepend, $append )
+	function wrapLines( $prepend = '', $append = '' )
 	{
 		return $this->prependLine( $prepend )->addLine( $append );
 	}
