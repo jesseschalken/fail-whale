@@ -34,6 +34,11 @@ class Text
 		return $result;
 	}
 
+	/**
+	 * @param Text $add
+	 *
+	 * @return self
+	 */
 	function addLines( self $add )
 	{
 		foreach ( $add->lines as $line )
