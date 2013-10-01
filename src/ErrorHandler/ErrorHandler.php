@@ -146,12 +146,26 @@ html;
 
 		$error = error_get_last();
 
-		if ( $error === null || $error === $this->lastError )
+		if ( $error === null || $error === $this->lastError || !$this->isCurrentErrorHandler() )
 			return;
 
 		$this->handleUncaughtException( new ErrorException( $error[ 'type' ], $error[ 'message' ],
 		                                                    $error[ 'file' ], $error[ 'line' ], null,
 		                                                    self::fullStackTrace() ) );
+	}
+
+	private function isCurrentErrorHandler()
+	{
+		return self::currentErrorHandler() === array( $this, 'handleError' );
+	}
+
+	private static function currentErrorHandler()
+	{
+		$result = set_error_handler( function () {} );
+
+		restore_error_handler();
+
+		return $result;
 	}
 
 	protected function handleException( \Exception $e )
