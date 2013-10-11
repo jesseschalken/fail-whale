@@ -33,6 +33,9 @@ final class Exception extends TypeHandler
 
 	private function prettyPrintGlobalState( ExceptionInfo $exception )
 	{
+		if ( !$this->settings()->showExceptionGlobalVariables()->get() )
+					return new Text;
+
 		return $this->prettyPrintGlobalVariables( $exception )->indent()->wrapLines( 'global variables:' );
 	}
 
@@ -54,6 +57,9 @@ final class Exception extends TypeHandler
 
 	private function prettyPrintLocalVariables( ExceptionInfo $exception )
 	{
+		if ( !$this->settings()->showExceptionLocalVariables()->get() )
+			return new Text;
+
 		if ( $exception->localVariables() === null )
 			return new Text;
 
