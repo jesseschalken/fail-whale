@@ -97,7 +97,7 @@ final class Exception extends TypeHandler
 		if ( $exception->previous() === null )
 			return new Text;
 
-		return $this->prettyPrintExceptionWithoutGlobals( $exception )->indent()->wrapLines( "previous exception:" );
+		return $this->prettyPrintExceptionWithoutGlobals( $exception )->indent( 2 )->wrapLines( "previous exception:" );
 	}
 
 	private function prettyPrintStackTrace( ExceptionInfo $exception )
