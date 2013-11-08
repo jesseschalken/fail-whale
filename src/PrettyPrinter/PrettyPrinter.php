@@ -58,9 +58,7 @@ final class PrettyPrinter
 
 	function prettyPrintException( \Exception $e )
 	{
-		return $this->prettyPrintExceptionInfo( $e instanceof HasExceptionInfo
-				                                        ? $e->info()
-				                                        : new ExceptionExceptionInfo( $e ) );
+		return $this->prettyPrintExceptionInfo( ExceptionInfo::fromException( $e ) );
 	}
 
 	function assertPrettyIs( $value, $expectedPretty )

@@ -11,6 +11,11 @@ use PrettyPrinter\Utils\Ref;
 
 abstract class ExceptionInfo
 {
+	static function fromException( \Exception $e )
+	{
+		return $e instanceof HasExceptionInfo ? $e->info() : new ExceptionExceptionInfo( $e );
+	}
+
 	abstract function exceptionClassName();
 
 	abstract function message();

@@ -25,7 +25,7 @@ class ExceptionExceptionInfo extends ExceptionInfo
 	{
 		$previous = $this->e->getPrevious();
 
-		return isset( $previous ) ? new self( $previous ) : null;
+		return isset( $previous ) ? ExceptionInfo::fromException( $previous ) : null;
 	}
 
 	function localVariables() { return $this->localVariables; }
