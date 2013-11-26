@@ -13,25 +13,21 @@ class Text
 
 	function __construct( $text = "", $newLineChar = "\n" )
 	{
-		$this->newLineChar      = $newLineChar;
-		$lines                  =& $this->lines;
-		$lines                  = explode( $newLineChar, $text );
-		$this->hasEndingNewLine = $lines[ count( $lines ) - 1 ] === "";
+		$this->newLineChar = $newLineChar;
+		$this->lines       = explode( $this->newLineChar, $text );
 
-		if ( $this->hasEndingNewLine )
-			array_pop( $lines );
+		if ( $this->hasEndingNewLine = $this->lines[ count( $this->lines ) - 1 ] === "" )
+			array_pop( $this->lines );
 	}
 
 	function __toString()
 	{
-		$newLine = $this->newLineChar;
-		$lines   = $this->lines;
-		$result  = join( $newLine, $lines );
+		$text = join( $this->newLineChar, $this->lines );
 
-		if ( $this->hasEndingNewLine && !empty( $lines ) )
-			$result .= $newLine;
+		if ( $this->hasEndingNewLine && !empty( $this->lines ) )
+			$text .= $this->newLineChar;
 
-		return $result;
+		return $text;
 	}
 
 	/**
