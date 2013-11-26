@@ -2,7 +2,6 @@
 
 namespace PrettyPrinter;
 
-use ErrorHandler\ErrorHandler;
 use PrettyPrinter\Test\DummyClass2;
 use PrettyPrinter\Test\MockException;
 use PrettyPrinter\TypeHandlers\Any;

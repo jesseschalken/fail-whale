@@ -2,9 +2,6 @@
 
 namespace PrettyPrinter\Utils;
 
-use PrettyPrinter\Utils\ArrayUtil;
-use PrettyPrinter\Utils\Text;
-
 class Table implements \Countable
 {
 	/** @var (Text[])[] */

@@ -2,7 +2,6 @@
 
 namespace PrettyPrinter;
 
-use PrettyPrinter\ExceptionInfo;
 use PrettyPrinter\Settings\Bool;
 use PrettyPrinter\Settings\Number;
 use PrettyPrinter\TypeHandlers\Any;

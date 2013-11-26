@@ -2,7 +2,6 @@
 
 namespace ErrorHandler;
 
-use PrettyPrinter\ExceptionExceptionInfo;
 use PrettyPrinter\PrettyPrinter;
 
 class ErrorHandler
