@@ -28,9 +28,6 @@ final class Object extends TypeHandler
 		if ( !$traverse )
 			return new Text( "new $class $id {...}" );
 
-		if ( $object instanceof \Exception )
-			return new Text( "new $class $id { !exception! }" );
-
 		$maxProperties = $this->maxProperties();
 		$numProperties = 0;
 		$table         = new Table;
