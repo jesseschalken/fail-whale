@@ -46,7 +46,6 @@ namespace PrettyPrinter\TypeHandlers
 	use PrettyPrinter\PrettyPrinter;
 	use PrettyPrinter\TypeHandler;
 	use PrettyPrinter\Utils\ArrayUtil;
-	use PrettyPrinter\Utils\Ref;
 	use PrettyPrinter\Utils\Table;
 	use PrettyPrinter\Utils\Text;
 	use PrettyPrinter\ExceptionInfo;
@@ -125,8 +124,6 @@ namespace PrettyPrinter\TypeHandlers
 	 */
 	final class Array1 extends TypeHandler
 	{
-		private $arrayStack = array(), $arrayIdsReferenced = array();
-
 		/**
 		 * @param array $array
 		 *
@@ -134,42 +131,10 @@ namespace PrettyPrinter\TypeHandlers
 		 */
 		function handleArray( &$array )
 		{
-			foreach ( $this->arrayStack as $id => &$c )
-			{
-				if ( Ref::equal( $c, $array ) )
-				{
-					$this->arrayIdsReferenced[ $id ] = true;
-
-					return new Text( "$id array(...)" );
-				}
-			}
-
-			/**
-			 * In PHP 5.2.4, this class was not able to detect the recursion of the
-			 * following structure, resulting in a stack overflow.
-			 *
-			 *   $a         = new stdClass;
-			 *   $a->b      = array();
-			 *   $a->b['c'] =& $a->b;
-			 *
-			 * But PHP 5.3.17 was able. The exact reason I am not sure, but I will enforce
-			 * a maximum depth limit for PHP versions older than the earliest for which I
-			 * know the recursion detection works.
-			 */
-			if ( PHP_VERSION_ID < 50317 && count( $this->arrayStack ) > 10 )
-				return new Text( '!maximum depth exceeded!' );
-
-			$id                      = $this->newId();
-			$this->arrayStack[ $id ] =& $array;
-			$result                  = $this->prettyPrintArrayDeep( $id, $array );
-
-			unset( $this->arrayStack[ $id ] );
-			unset( $this->arrayIdsReferenced[ $id ] );
-
-			return $result;
+			return $this->prettyPrintArrayDeep( $array );
 		}
 
-		private function prettyPrintArrayDeep( $id, array $array )
+		private function prettyPrintArrayDeep( array $array )
 		{
 			if ( empty( $array ) )
 				return new Text( 'array()' );
@@ -199,9 +164,6 @@ namespace PrettyPrinter\TypeHandlers
 				$result->addLine( '...' );
 
 			$result->wrap( 'array( ', ' )' );
-
-			if ( isset( $this->arrayIdsReferenced[ $id ] ) )
-				$result->prepend( "$id " );
 
 			return $result;
 		}
@@ -237,7 +199,7 @@ namespace PrettyPrinter\TypeHandlers
 		 *
 		 * @return \PrettyPrinter\Utils\Text
 		 */
-		function handleValue( &$exception )
+		function handleValue( ExceptionInfo $exception )
 		{
 			return $this->prettyPrintExceptionWithoutGlobals( $exception )
 			            ->addLines( $this->prettyPrintGlobalState( $exception ) );
@@ -426,8 +388,6 @@ namespace PrettyPrinter\TypeHandlers
 
 	final class Object extends TypeHandler
 	{
-		private $objectIds = array();
-
 		/**
 		 * @param object $object
 		 *
@@ -435,21 +395,12 @@ namespace PrettyPrinter\TypeHandlers
 		 */
 		function handleObject( $object )
 		{
-			$id       =& $this->objectIds[ spl_object_hash( $object ) ];
-			$traverse = !isset( $id ) && $this->maxProperties() > 0;
-
-			if ( !isset( $id ) )
-				$id = $this->newId();
-
-			return $this->prettyPrintObject( $object, $traverse, $id );
+			return $this->prettyPrintObject( $object );
 		}
 
-		private function prettyPrintObject( $object, $traverse, $id )
+		private function prettyPrintObject( $object )
 		{
 			$class = get_class( $object );
-
-			if ( !$traverse )
-				return new Text( "new $class $id {...}" );
 
 			$maxProperties = $this->maxProperties();
 			$numProperties = 0;
@@ -483,7 +434,7 @@ namespace PrettyPrinter\TypeHandlers
 			if ( $table->count() != $numProperties )
 				$result->addLine( '...' );
 
-			return $result->indent( 2 )->wrapLines( "new $class $id {", "}" );
+			return $result->indent( 2 )->wrapLines( "new $class {", "}" );
 		}
 
 		private function maxProperties()
@@ -494,8 +445,6 @@ namespace PrettyPrinter\TypeHandlers
 
 	final class Resource extends TypeHandler
 	{
-		private $resourceIds = array();
-
 		/**
 		 * @param resource $resource
 		 *
@@ -503,38 +452,12 @@ namespace PrettyPrinter\TypeHandlers
 		 */
 		function handleResource( $resource )
 		{
-			$id =& $this->resourceIds[ "$resource" ];
-
-			if ( !isset( $id ) )
-				$id = $this->newId();
-
-			return new Text( get_resource_type( $resource ) . " $id" );
+			return new Text( get_resource_type( $resource ) );
 		}
 	}
 
 	final class String extends TypeHandler
 	{
-		private $characterEscapeCache = array( "\\" => '\\\\',
-		                                       "\$" => '\$',
-		                                       "\r" => '\r',
-		                                       "\v" => '\v',
-		                                       "\f" => '\f',
-		                                       "\"" => '\"' );
-
-		function __construct( Any $valueHandler )
-		{
-			parent::__construct( $valueHandler );
-
-			$settings = $this->settings();
-
-			$this->characterEscapeCache[ "\t" ] = $settings->escapeTabsInStrings()->get() ? '\t' : "\t";
-			$this->characterEscapeCache[ "\n" ] = $settings->splitMultiLineStrings()->get() ? <<<'s'
-\n" .
-"
-s
-					: '\n';
-		}
-
 		/**
 		 * @param string $string
 		 *
@@ -542,13 +465,29 @@ s
 		 */
 		function handleString( $string )
 		{
+			$settings = $this->settings();
+
+			$characterEscapeCache = array( "\\" => '\\\\',
+			                               "\$" => '\$',
+			                               "\r" => '\r',
+			                               "\v" => '\v',
+			                               "\f" => '\f',
+			                               "\"" => '\"' );
+
+			$characterEscapeCache[ "\t" ] = $settings->escapeTabsInStrings()->get() ? '\t' : "\t";
+			$characterEscapeCache[ "\n" ] = $settings->splitMultiLineStrings()->get() ? <<<'s'
+\n" .
+"
+s
+					: '\n';
+
 			$escaped = '';
 			$length  = min( strlen( $string ), $this->settings()->maxStringLength()->get() );
 
 			for ( $i = 0; $i < $length; $i++ )
 			{
 				$char        = $string[ $i ];
-				$charEscaped =& $this->characterEscapeCache[ $char ];
+				$charEscaped =& $characterEscapeCache[ $char ];
 
 				if ( !isset( $charEscaped ) )
 				{
