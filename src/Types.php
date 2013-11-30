@@ -6,7 +6,14 @@ namespace PrettyPrinter
 
 	class Memory
 	{
+		/** @var PrettyPrinter */
 		private $settings;
+		/** @var Types\Value[] */
+		private $values = array();
+		/** @var int[][] */
+		private $cache = array();
+		/** @var int */
+		private $nextId = 0;
 
 		function settings() { return $this->settings; }
 
@@ -17,7 +24,29 @@ namespace PrettyPrinter
 
 		function prettyPrintRef( &$value )
 		{
-			return $this->createValue( $value )->render();
+			return $this->fromID( $this->toID( $value ) )->render();
+		}
+
+		function toID( &$value )
+		{
+			$value  = $this->createValue( $value );
+			$type   = $value->type();
+			$string = $value->toString();
+
+			if ( !isset( $this->cache[ $type ][ $string ] ) )
+				return $this->cache[ $type ][ $string ];
+
+			$id = $this->nextId++;
+
+			$this->values[ $id ]             = $value;
+			$this->cache[ $type ][ $string ] = $id;
+
+			return $id;
+		}
+
+		function fromID( $id )
+		{
+			return $this->values[ $id ];
 		}
 
 		/**
@@ -54,16 +83,18 @@ namespace PrettyPrinter
 			return new Types\Unknown( $this );
 		}
 
-		function prettyPrint( $value )
-		{
-			return $this->prettyPrintRef( $value );
-		}
+		function prettyPrint( $value ) { return $this->prettyPrintRef( $value ); }
 
+		/**
+		 * @param string $name
+		 *
+		 * @return Utils\Text
+		 */
 		function prettyPrintVariable( $name )
 		{
 			if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name ) )
 				return new Utils\Text( "$$name" );
-				
+
 			$string = new Types\String( $this, $name );
 
 			return $string->render()->wrap( '${', '}' );
@@ -81,36 +112,40 @@ namespace PrettyPrinter\Types
 
 	abstract class Value
 	{
-		private $settings;
+		private $memory;
 
 		function __construct( Memory $memory )
 		{
-			$this->settings = $memory;
+			$this->memory = $memory;
 		}
 
-		/**
-		 * @return Text
-		 */
+		/** @return Text */
 		abstract function render();
 
-		protected function settings() { return $this->settings->settings(); }
+		/** @return string */
+		abstract function type();
+
+		/** @return string */
+		abstract function toString();
+
+		protected function settings() { return $this->memory->settings(); }
 
 		protected final function prettyPrintRef( &$value )
 		{
-			return $this->settings->prettyPrintRef( $value );
+			return $this->memory->prettyPrintRef( $value );
 		}
 
 		protected final function prettyPrint( $value )
 		{
-			return $this->settings->prettyPrintRef( $value );
+			return $this->memory->prettyPrintRef( $value );
 		}
 
 		protected final function prettyPrintVariable( $varName )
 		{
-			return $this->settings->prettyPrintVariable( $varName );
+			return $this->memory->prettyPrintVariable( $varName );
 		}
 
-		protected function typeHandler() { return $this->settings; }
+		protected function memory() { return $this->memory; }
 	}
 
 	/**
@@ -118,6 +153,7 @@ namespace PrettyPrinter\Types
 	 */
 	final class Array1 extends Value
 	{
+		private static $uniqueStringId = 0;
 		private $array;
 
 		function __construct( array &$array )
@@ -160,6 +196,10 @@ namespace PrettyPrinter\Types
 
 			return $result;
 		}
+
+		function type() { return 'array'; }
+
+		function toString() { return (string) self::$uniqueStringId++; }
 	}
 
 	final class Boolean extends Value
@@ -177,10 +217,11 @@ namespace PrettyPrinter\Types
 			parent::__construct( $memory );
 		}
 
-		function render()
-		{
-			return new Text( $this->bool ? 'true' : 'false' );
-		}
+		function render() { return new Text( $this->bool ? 'true' : 'false' ); }
+
+		function type() { return 'boolean'; }
+
+		function toString() { return $this->bool ? '1' : '0'; }
 	}
 
 	final class Exception extends Value
@@ -231,7 +272,7 @@ namespace PrettyPrinter\Types
 			$table = new Table;
 
 			foreach ( $globals as $global )
-				$table->addRow( array( $global->prettyPrint( $this->typeHandler() ),
+				$table->addRow( array( $global->prettyPrint( $this->memory() ),
 				                       $this->prettyPrintRef( $global->value() )->wrap( ' = ', ';' ) ) );
 
 			return $table->render();
@@ -356,6 +397,10 @@ namespace PrettyPrinter\Types
 
 			return $result->wrap( '( ', ' )' );
 		}
+
+		function type() { return 'exception'; }
+
+		function toString() { return spl_object_hash( $this->exception ); }
 	}
 
 	final class Float extends Value
@@ -382,6 +427,10 @@ namespace PrettyPrinter\Types
 			parent::__construct( $memory );
 			$this->float = $float;
 		}
+
+		function type() { return 'float'; }
+
+		function toString() { return "$this->float"; }
 	}
 
 	final class Integer extends Value
@@ -391,10 +440,7 @@ namespace PrettyPrinter\Types
 		 */
 		private $int;
 
-		function render()
-		{
-			return new Text( "$this->int" );
-		}
+		function render() { return new Text( "$this->int" ); }
 
 		/**
 		 * @param Memory $memory
@@ -405,14 +451,19 @@ namespace PrettyPrinter\Types
 			parent::__construct( $memory );
 			$this->int = $int;
 		}
+
+		function type() { return 'integer'; }
+
+		function toString() { return "$this->int"; }
 	}
 
 	final class Null extends Value
 	{
-		function render()
-		{
-			return new Text( 'null' );
-		}
+		function render() { return new Text( 'null' ); }
+
+		function type() { return 'null'; }
+
+		function toString() { return ''; }
 	}
 
 	final class Object extends Value
@@ -471,6 +522,10 @@ namespace PrettyPrinter\Types
 			parent::__construct( $memory );
 			$this->object = $object;
 		}
+
+		function type() { return 'object'; }
+
+		function toString() { return spl_object_hash( $this->object ); }
 	}
 
 	final class Resource extends Value
@@ -491,6 +546,10 @@ namespace PrettyPrinter\Types
 			parent::__construct( $memory );
 			$this->resource = $resource;
 		}
+
+		function type() { return 'resource'; }
+
+		function toString() { return "$this->resource"; }
 	}
 
 	final class String extends Value
@@ -545,14 +604,19 @@ s
 			$this->string = $string;
 			parent::__construct( $memory );
 		}
+
+		function type() { return 'string'; }
+
+		function toString() { return $this->string; }
 	}
 
 	final class Unknown extends Value
 	{
-		function render()
-		{
-			return new Text( 'unknown type' );
-		}
+		function render() { return new Text( 'unknown type' ); }
+
+		function type() { return 'unknown'; }
+
+		function toString() { return ''; }
 	}
 }
 
