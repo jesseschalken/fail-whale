@@ -2,8 +2,7 @@
 
 namespace PrettyPrinter
 {
-	use PrettyPrinter\Types\Value;
-	use PrettyPrinter\Types\Variable;
+	use PrettyPrinter\Types;
 
 	class Memory
 	{
@@ -18,7 +17,41 @@ namespace PrettyPrinter
 
 		function prettyPrintRef( &$value )
 		{
-			return Value::create( $this, $value )->render();
+			return $this->createValue( $value )->render();
+		}
+
+		/**
+		 * @param mixed $value
+		 *
+		 * @return Types\Value
+		 */
+		function createValue( &$value )
+		{
+			if ( is_bool( $value ) )
+				return new Types\Boolean( $this, $value );
+
+			if ( is_string( $value ) )
+				return new Types\String( $this, $value );
+
+			if ( is_int( $value ) )
+				return new Types\Integer( $this, $value );
+
+			if ( is_float( $value ) )
+				return new Types\Float( $this, $value );
+
+			if ( is_object( $value ) )
+				return new Types\Object( $this, $value );
+
+			if ( is_array( $value ) )
+				return new Types\Array1( $this, $value );
+
+			if ( is_resource( $value ) )
+				return new Types\Resource( $this, $value );
+
+			if ( is_null( $value ) )
+				return new Types\Null( $this );
+
+			return new Types\Unknown( $this );
 		}
 
 		function prettyPrint( $value )
@@ -28,7 +61,7 @@ namespace PrettyPrinter
 
 		function prettyPrintVariable( $varName )
 		{
-			$var = new Variable( $this, $varName );
+			$var = new Types\Variable( $this, $varName );
 
 			return $var->render();
 		}
@@ -45,41 +78,6 @@ namespace PrettyPrinter\Types
 
 	abstract class Value
 	{
-		/**
-		 * @param Memory $memory
-		 * @param mixed  $value
-		 *
-		 * @return self
-		 */
-		static function create( Memory $memory, &$value )
-		{
-			if ( is_bool( $value ) )
-				return new Boolean( $memory, $value );
-
-			if ( is_string( $value ) )
-				return new String( $memory, $value );
-
-			if ( is_int( $value ) )
-				return new Integer( $memory, $value );
-
-			if ( is_float( $value ) )
-				return new Float( $memory, $value );
-
-			if ( is_object( $value ) )
-				return new Object( $memory, $value );
-
-			if ( is_array( $value ) )
-				return new Array1( $memory, $value );
-
-			if ( is_resource( $value ) )
-				return new Resource( $memory, $value );
-
-			if ( is_null( $value ) )
-				return new Null( $memory );
-
-			return new Unknown( $memory );
-		}
-
 		private $settings;
 
 		function __construct( Memory $memory )
