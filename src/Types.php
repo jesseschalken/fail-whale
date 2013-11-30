@@ -146,6 +146,16 @@ namespace PrettyPrinter\Types
 		}
 
 		protected function memory() { return $this->memory; }
+
+		protected function renderFromID( $value )
+		{
+			return $this->memory()->fromID( $value )->render();
+		}
+		
+		protected function toID( &$value )
+		{
+			return $this->memory()->toID( $value );
+		}
 	}
 
 	/**
@@ -163,38 +173,54 @@ namespace PrettyPrinter\Types
 
 		function render()
 		{
-			$array = $this->array;
+			$keyValuePairs = array();
 
-			if ( empty( $array ) )
+			foreach ( $this->array as $k => &$v )
+			{
+				$keyValuePairs[ ] = array(
+					'key'   => $this->toID( $k ),
+					'value' => $this->toID( $v ),
+				);
+			}
+
+			return $this->render2( ArrayUtil::isAssoc( $this->array ), $keyValuePairs );
+		}
+
+		function render2( $isAssociative, array $keyValuePairs )
+		{
+			if ( empty( $keyValuePairs ) )
 				return new Text( 'array()' );
 
 			$maxEntries    = $this->settings()->maxArrayEntries()->get();
-			$isAssociative = ArrayUtil::isAssoc( $array );
 			$table         = new Table;
 
-			foreach ( $array as $k => &$v )
+			foreach ( $keyValuePairs as $keyValuePair )
 			{
 				if ( $table->count() >= $maxEntries )
 					break;
 
-				$value = $this->prettyPrintRef( $v );
+				$key   = $keyValuePair[ 'key' ];
+				$value = $keyValuePair[ 'value' ];
 
-				if ( $table->count() != count( $array ) - 1 )
+				$value = $this->renderFromID( $value );
+
+				if ( $table->count() != count( $keyValuePairs ) - 1 )
 					$value->append( ',' );
 
 				$table->addRow( $isAssociative
-						                ? array( $this->prettyPrint( $k ), $value->prepend( ' => ' ) )
+						                ? array( $this->renderFromID( $key ), $value->prepend( ' => ' ) )
 						                : array( $value ) );
 			}
 
 			$result = $table->render();
 
-			if ( $table->count() != count( $array ) )
+			if ( $table->count() != count( $keyValuePairs ) )
 				$result->addLine( '...' );
 
 			$result->wrap( 'array( ', ' )' );
 
 			return $result;
+
 		}
 
 		function type() { return 'array'; }
@@ -490,7 +516,7 @@ namespace PrettyPrinter\Types
 
 					$properties[ ] = array(
 						'name'   => $property->name,
-						'value'  => $this->memory()->toID( $property->getValue( $this->object ) ),
+						'value'  => $this->toID( $property->getValue( $this->object ) ),
 						'access' => Exception::propertyOrMethodAccess( $property ),
 						'class'  => $property->class,
 					);
@@ -524,7 +550,7 @@ namespace PrettyPrinter\Types
 				$access = $property[ 'access' ];
 
 				$table->addRow( array( $this->prettyPrintVariable( $name )->prepend( "$access " ),
-				                       $this->prettyPrint( $this->memory()->fromID( $value ) )->wrap( ' = ', ';' ) ) );
+				                       $this->renderFromID( $value )->wrap( ' = ', ';' ) ) );
 			}
 
 			$result = $table->render();
