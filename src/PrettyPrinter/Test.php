@@ -31,7 +31,7 @@ namespace PrettyPrinter
 			$pp->assertPrettyIs( array( "foo" ), 'array( "foo" )' );
 			$pp->assertPrettyIs( array( "foo", "foo" ),
 				<<<'s'
-	array( "foo",
+array( "foo",
        "foo" )
 s
 			);
@@ -44,7 +44,7 @@ s
 
 			self::pp()->assertPrettyRefIs( $recursiveArray,
 				<<<'s'
-	#1 array( "recurse" => #1 array(...) )
+#1 array( "recurse" => #1 array(...) )
 s
 			);
 		}
@@ -63,7 +63,7 @@ b
 s
 				,
 				<<<'s'
-	" weaf waef 8we 7f8tweyufgij2k3e wef f\n" .
+" weaf waef 8we 7f8tweyufgij2k3e wef f\n" .
 "sdf wf wef\n" .
 "    wef\n" .
 "\n" .
