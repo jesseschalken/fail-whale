@@ -3,6 +3,9 @@
 namespace ErrorHandler;
 
 use PrettyPrinter\PrettyPrinter;
+use PrettyPrinter\ExceptionExceptionInfo;
+use PrettyPrinter\HasExceptionInfo;
+use PrettyPrinter\Utils\ArrayUtil;
 
 class ErrorHandler
 {
@@ -170,6 +173,109 @@ html;
 	protected function handleException( \Exception $e )
 	{
 		self::out( 'error', self::prettyPrinter()->prettyPrintException( $e ) );
+	}
+}
+
+
+class ErrorException extends \ErrorException implements HasExceptionInfo
+{
+	private $localVariables, $stackTrace;
+
+	function __construct( $severity, $message, $file, $line, array $localVariables = null, array $stackTrace )
+	{
+		parent::__construct( $message, 0, $severity, $file, $line );
+
+		$this->localVariables = $localVariables;
+		$this->stackTrace     = $stackTrace;
+		$this->code           = ArrayUtil::get( array( E_ERROR             => 'E_ERROR',
+		                                               E_WARNING           => 'E_WARNING',
+		                                               E_PARSE             => 'E_PARSE',
+		                                               E_NOTICE            => 'E_NOTICE',
+		                                               E_CORE_ERROR        => 'E_CORE_ERROR',
+		                                               E_CORE_WARNING      => 'E_CORE_WARNING',
+		                                               E_COMPILE_ERROR     => 'E_COMPILE_ERROR',
+		                                               E_COMPILE_WARNING   => 'E_COMPILE_WARNING',
+		                                               E_USER_ERROR        => 'E_USER_ERROR',
+		                                               E_USER_WARNING      => 'E_USER_WARNING',
+		                                               E_USER_NOTICE       => 'E_USER_NOTICE',
+		                                               E_STRICT            => 'E_STRICT',
+		                                               E_RECOVERABLE_ERROR => 'E_RECOVERABLE_ERROR',
+		                                               E_DEPRECATED        => 'E_DEPRECATED',
+		                                               E_USER_DEPRECATED   => 'E_USER_DEPRECATED' ), $severity, 'E_?' );
+	}
+
+	function info()
+	{
+		return new ExceptionExceptionInfo( $this, $this->localVariables, $this->stackTrace );
+	}
+}
+
+class AssertionFailedException extends \Exception implements HasExceptionInfo
+{
+	private $expression, $fullStackTrace;
+
+	/**
+	 * @param string $file
+	 * @param int    $line
+	 * @param string $expression
+	 * @param string $message
+	 * @param array  $fullStackTrace
+	 */
+	function __construct( $file, $line, $expression, $message, array $fullStackTrace )
+	{
+		$this->file           = $file;
+		$this->line           = $line;
+		$this->expression     = $expression;
+		$this->message        = $message;
+		$this->fullStackTrace = $fullStackTrace;
+	}
+
+	function info()
+	{
+		return new ExceptionExceptionInfo( $this, null, $this->fullStackTrace );
+	}
+}
+
+/**
+ * Same as \Exception except it includes a full stack trace
+ *
+ * @package ErrorHandler
+ */
+class Exception extends \Exception implements HasExceptionInfo
+{
+	/**
+	 * @param array  $stackTrace
+	 * @param object $lastObject
+	 *
+	 * @return array
+	 */
+	private static function pruneConstructors( array $stackTrace, $lastObject )
+	{
+		$i = 0;
+
+		foreach ( $stackTrace as $stackFrame )
+		{
+			if ( ArrayUtil::get( $stackFrame, 'object' ) !== $lastObject )
+				break;
+
+			$i++;
+		}
+
+		return array_slice( $stackTrace, $i );
+	}
+
+	private $stackTrace;
+
+	function __construct( $message = "", $code = 0, \Exception $previous = null )
+	{
+		$this->stackTrace = self::pruneConstructors( debug_backtrace(), $this );
+
+		parent::__construct( $message, $code, $previous );
+	}
+
+	function info()
+	{
+		return new ExceptionExceptionInfo( $this, null, $this->stackTrace );
 	}
 }
 
