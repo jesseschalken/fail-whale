@@ -3,7 +3,6 @@
 namespace PrettyPrinter
 {
 	use PrettyPrinter\TypeHandlers\Any;
-	use PrettyPrinter\Utils\Text;
 
 	abstract class TypeHandler
 	{
@@ -14,13 +13,6 @@ namespace PrettyPrinter
 		{
 			$this->anyHandler = $handler;
 		}
-
-		/**
-		 * @param $value
-		 *
-		 * @return \PrettyPrinter\Utils\Text
-		 */
-		abstract function handleValue( &$value );
 
 		protected final function prettyPrintRef( &$value )
 		{
@@ -47,33 +39,10 @@ namespace PrettyPrinter
 			return $this->anyHandler->newId();
 		}
 	}
-
-	abstract class CachingTypeHandler extends TypeHandler
-	{
-		private $cache = array();
-
-		final function handleValue( &$value )
-		{
-			$result =& $this->cache[ "$value" ];
-
-			if ( $result === null )
-				$result = $this->handleCacheMiss( $value );
-
-			return clone $result;
-		}
-
-		/**
-		 * @param $value
-		 *
-		 * @return Text
-		 */
-		protected abstract function handleCacheMiss( $value );
-	}
 }
 
 namespace PrettyPrinter\TypeHandlers
 {
-	use PrettyPrinter\CachingTypeHandler;
 	use PrettyPrinter\PrettyPrinter;
 	use PrettyPrinter\TypeHandler;
 	use PrettyPrinter\Utils\ArrayUtil;
@@ -84,35 +53,63 @@ namespace PrettyPrinter\TypeHandlers
 
 	final class Any extends TypeHandler
 	{
-		/** @var TypeHandler[] */
-		private $typeHandlers = array();
-		private $variableHandler, $nextId = 1, $settings;
+		private $bool, $int, $float, $string, $array, $object, $resource, $null, $unknown;
+		private $variable, $nextId = 1, $settings;
 
 		function __construct( PrettyPrinter $settings )
 		{
-			$this->settings        = $settings;
-			$this->variableHandler = new Variable( $this );
-			$this->typeHandlers    = array( 'boolean'      => new Boolean( $this ),
-			                                'integer'      => new Integer( $this ),
-			                                'double'       => new Float( $this ),
-			                                'string'       => new String( $this ),
-			                                'array'        => new Array1( $this ),
-			                                'object'       => new Object( $this ),
-			                                'resource'     => new Resource( $this ),
-			                                'NULL'         => new Null( $this ),
-			                                'unknown type' => new Unknown( $this ) );
+			$this->settings = $settings;
+			$this->variable = new Variable( $this );
+			$this->bool     = new Boolean( $this );
+			$this->int      = new Integer( $this );
+			$this->float    = new Float( $this );
+			$this->string   = new String( $this );
+			$this->array    = new Array1( $this );
+			$this->object   = new Object( $this );
+			$this->resource = new Resource( $this );
+			$this->null     = new Null( $this );
+			$this->unknown  = new Unknown( $this );
 
 			parent::__construct( $this );
 		}
 
+		/**
+		 * @param $value
+		 *
+		 * @return Text
+		 */
 		function handleValue( &$value )
 		{
-			return $this->typeHandlers[ gettype( $value ) ]->handleValue( $value );
+			if ( is_bool( $value ) )
+				return $this->bool->handleBool( $value );
+
+			if ( is_string( $value ) )
+				return $this->string->handleString( $value );
+
+			if ( is_int( $value ) )
+				return $this->int->handleInteger( $value );
+
+			if ( is_float( $value ) )
+				return $this->float->handleFloat( $value );
+
+			if ( is_object( $value ) )
+				return $this->object->handleObject( $value );
+
+			if ( is_array( $value ) )
+				return $this->array->handleArray( $value );
+
+			if ( is_resource( $value ) )
+				return $this->resource->handleResource( $value );
+
+			if ( is_null( $value ) )
+				return $this->null->handleNull();
+
+			return $this->unknown->handleUnknown();
 		}
 
 		function prettyPrintVariable( $varName )
 		{
-			return $this->variableHandler->handleValue( $varName );
+			return $this->variable->handleVariable( $varName );
 		}
 
 		function newId()
@@ -130,7 +127,12 @@ namespace PrettyPrinter\TypeHandlers
 	{
 		private $arrayStack = array(), $arrayIdsReferenced = array();
 
-		function handleValue( &$array )
+		/**
+		 * @param array $array
+		 *
+		 * @return Text
+		 */
+		function handleArray( &$array )
 		{
 			foreach ( $this->arrayStack as $id => &$c )
 			{
@@ -207,7 +209,12 @@ namespace PrettyPrinter\TypeHandlers
 
 	final class Boolean extends TypeHandler
 	{
-		function handleValue( &$value )
+		/**
+		 * @param bool $value
+		 *
+		 * @return Text
+		 */
+		function handleBool( $value )
 		{
 			return new Text( $value ? 'true' : 'false' );
 		}
@@ -381,9 +388,14 @@ namespace PrettyPrinter\TypeHandlers
 		}
 	}
 
-	final class Float extends CachingTypeHandler
+	final class Float extends TypeHandler
 	{
-		protected function handleCacheMiss( $float )
+		/**
+		 * @param float $float
+		 *
+		 * @return Text
+		 */
+		function handleFloat( $float )
 		{
 			$int = (int) $float;
 
@@ -393,7 +405,12 @@ namespace PrettyPrinter\TypeHandlers
 
 	final class Integer extends TypeHandler
 	{
-		function handleValue( &$int )
+		/**
+		 * @param int $int
+		 *
+		 * @return Text
+		 */
+		function handleInteger( $int )
 		{
 			return new Text( "$int" );
 		}
@@ -401,7 +418,7 @@ namespace PrettyPrinter\TypeHandlers
 
 	final class Null extends TypeHandler
 	{
-		function handleValue( &$null )
+		function handleNull()
 		{
 			return new Text( 'null' );
 		}
@@ -411,7 +428,12 @@ namespace PrettyPrinter\TypeHandlers
 	{
 		private $objectIds = array();
 
-		function handleValue( &$object )
+		/**
+		 * @param object $object
+		 *
+		 * @return Text
+		 */
+		function handleObject( $object )
 		{
 			$id       =& $this->objectIds[ spl_object_hash( $object ) ];
 			$traverse = !isset( $id ) && $this->maxProperties() > 0;
@@ -470,11 +492,16 @@ namespace PrettyPrinter\TypeHandlers
 		}
 	}
 
-	final class Resource extends CachingTypeHandler
+	final class Resource extends TypeHandler
 	{
 		private $resourceIds = array();
 
-		protected function handleCacheMiss( $resource )
+		/**
+		 * @param resource $resource
+		 *
+		 * @return Text
+		 */
+		function handleResource( $resource )
 		{
 			$id =& $this->resourceIds[ "$resource" ];
 
@@ -485,7 +512,7 @@ namespace PrettyPrinter\TypeHandlers
 		}
 	}
 
-	final class String extends CachingTypeHandler
+	final class String extends TypeHandler
 	{
 		private $characterEscapeCache = array( "\\" => '\\\\',
 		                                       "\$" => '\$',
@@ -508,7 +535,12 @@ s
 					: '\n';
 		}
 
-		protected function handleCacheMiss( $string )
+		/**
+		 * @param string $string
+		 *
+		 * @return Text
+		 */
+		function handleString( $string )
 		{
 			$escaped = '';
 			$length  = min( strlen( $string ), $this->settings()->maxStringLength()->get() );
@@ -533,15 +565,15 @@ s
 
 	final class Unknown extends TypeHandler
 	{
-		function handleValue( &$unknown )
+		function handleUnknown()
 		{
 			return new Text( 'unknown type' );
 		}
 	}
 
-	final class Variable extends CachingTypeHandler
+	final class Variable extends TypeHandler
 	{
-		protected function handleCacheMiss( $varName )
+		function handleVariable( $varName )
 		{
 			if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $varName ) )
 				return new Text( "$$varName" );

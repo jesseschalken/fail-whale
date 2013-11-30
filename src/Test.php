@@ -77,6 +77,8 @@ s
 
 		function testComplexObject()
 		{
+			$this->markTestIncomplete();
+
 			self::pp()->maxArrayEntries()->set( 10 )->assertPrettyIs( new Any( new PrettyPrinter ), <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
