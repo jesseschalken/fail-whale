@@ -2,6 +2,139 @@
 
 namespace PrettyPrinter\Utils
 {
+	class ArrayUtil
+	{
+		static function get( $array, $key, $default = null )
+		{
+			return isset( $array[ $key ] ) ? $array[ $key ] : $default;
+		}
+
+		static function isAssoc( array $array )
+		{
+			$i = 0;
+
+			/** @noinspection PhpUnusedLocalVariableInspection */
+			foreach ( $array as $k => &$v )
+				if ( $k !== $i++ )
+					return true;
+
+			return false;
+		}
+
+		static function lastKey( array $array )
+		{
+			/** @noinspection PhpUnusedLocalVariableInspection */
+			foreach ( $array as $k => &$v )
+				;
+
+			return isset( $k ) ? $k : null;
+		}
+	}
+}
+
+namespace PrettyPrinter\Utils
+{
+	class Ref
+	{
+		static function get( &$ref )
+		{
+			return $ref;
+		}
+
+		static function set( &$ref, $value = null )
+		{
+			$ref = $value;
+		}
+
+		static function &create( $value = null )
+		{
+			return $value;
+		}
+
+		static function equal( &$a, &$b )
+		{
+			$aOld   = $a;
+			$a      = new \stdClass;
+			$result = $a === $b;
+			$a      = $aOld;
+
+			return $result;
+		}
+	}
+}
+
+namespace PrettyPrinter\Utils
+{
+	class Table implements \Countable
+	{
+		/** @var (Text[])[] */
+		private $rows = array();
+
+		function __clone()
+		{
+			foreach ( $this->rows as &$row )
+				foreach ( $row as &$cell )
+					$cell = clone $cell;
+		}
+
+		function render()
+		{
+			$columnWidths = array();
+			$result       = new Text;
+
+			/** @var $cell Text */
+			foreach ( $this->rows as $cells )
+			{
+				foreach ( $cells as $column => $cell )
+				{
+					$width =& $columnWidths[ $column ];
+					$width = max( (int) $width, $cell->width() );
+				}
+			}
+
+			foreach ( $this->rows as $cells )
+			{
+				$row        = new Text;
+				$lastColumn = ArrayUtil::lastKey( $cells );
+
+				foreach ( $cells as $column => $cell )
+				{
+					if ( $column !== $lastColumn )
+						$cell->padWidth( $columnWidths[ $column ] );
+
+					$row->appendLines( $cell );
+				}
+
+				$result->addLines( $row );
+			}
+
+			return $result;
+		}
+
+		function count()
+		{
+			return count( $this->rows );
+		}
+
+		/**
+		 * @param Text[] $cells
+		 *
+		 * @return self
+		 */
+		function addRow( array $cells )
+		{
+			foreach ( $cells as &$cell )
+				$cell = clone $cell;
+
+			$this->rows[ ] = $cells;
+
+			return $this;
+		}
+	}
+}
+
+namespace PrettyPrinter\Utils
+{
 	class Text
 	{
 		static function create( $string = "" )
@@ -161,3 +294,4 @@ namespace PrettyPrinter\Utils
 		}
 	}
 }
+
