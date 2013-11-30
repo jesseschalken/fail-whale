@@ -475,14 +475,9 @@ namespace PrettyPrinter\Types
 
 		function render()
 		{
-			$object = $this->object;
-			$class  = get_class( $object );
+			$properties = array();
 
-			$maxProperties = $this->settings()->maxObjectProperties()->get();
-			$numProperties = 0;
-			$table         = new Table;
-
-			for ( $reflection = new \ReflectionObject( $object );
+			for ( $reflection = new \ReflectionObject( $this->object );
 			      $reflection !== false;
 			      $reflection = $reflection->getParentClass() )
 			{
@@ -491,18 +486,45 @@ namespace PrettyPrinter\Types
 					if ( $property->isStatic() || $property->class !== $reflection->name )
 						continue;
 
-					$numProperties++;
-
-					if ( $table->count() >= $maxProperties )
-						continue;
-
 					$property->setAccessible( true );
 
-					$access = Exception::propertyOrMethodAccess( $property );
-
-					$table->addRow( array( $this->prettyPrintVariable( $property->name )->prepend( "$access " ),
-					                       $this->prettyPrint( $property->getValue( $object ) )->wrap( ' = ', ';' ) ) );
+					$properties[ ] = array(
+						'name'   => $property->name,
+						'value'  => $this->memory()->toID( $property->getValue( $this->object ) ),
+						'access' => Exception::propertyOrMethodAccess( $property ),
+						'class'  => $property->class,
+					);
 				}
+			}
+
+			return $this->render2( get_class( $this->object ), $properties );
+		}
+
+		/**
+		 * @param string $class
+		 * @param array  $properties
+		 *
+		 * @return Text
+		 */
+		function render2( $class, array $properties )
+		{
+			$maxProperties = $this->settings()->maxObjectProperties()->get();
+			$numProperties = 0;
+			$table         = new Table;
+
+			foreach ( $properties as $property )
+			{
+				$numProperties++;
+
+				if ( $table->count() >= $maxProperties )
+					continue;
+
+				$value  = $property[ 'value' ];
+				$name   = $property[ 'name' ];
+				$access = $property[ 'access' ];
+
+				$table->addRow( array( $this->prettyPrintVariable( $name )->prepend( "$access " ),
+				                       $this->prettyPrint( $this->memory()->fromID( $value ) )->wrap( ' = ', ';' ) ) );
 			}
 
 			$result = $table->render();
