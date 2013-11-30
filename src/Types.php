@@ -59,11 +59,14 @@ namespace PrettyPrinter
 			return $this->prettyPrintRef( $value );
 		}
 
-		function prettyPrintVariable( $varName )
+		function prettyPrintVariable( $name )
 		{
-			$var = new Types\Variable( $this, $varName );
+			if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name ) )
+				return new Utils\Text( "$$name" );
+				
+			$string = new Types\String( $this, $name );
 
-			return $var->render();
+			return $string->render()->wrap( '${', '}' );
 		}
 	}
 }
@@ -549,30 +552,6 @@ s
 		function render()
 		{
 			return new Text( 'unknown type' );
-		}
-	}
-
-	final class Variable extends Value
-	{
-		private $name;
-
-		function render()
-		{
-			if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $this->name ) )
-				return new Text( "$$this->name" );
-			else
-				return $this->prettyPrint( $this->name )->wrap( '${', '}' );
-		}
-
-		/**
-		 * @param Memory $memory
-		 * @param string $name
-		 */
-		function __construct( Memory $memory, $name )
-		{
-			$this->name = $name;
-
-			parent::__construct( $memory );
 		}
 	}
 }
