@@ -4,7 +4,6 @@ namespace PrettyPrinter
 {
 	use PrettyPrinter\Test\DummyClass2;
 	use PrettyPrinter\Test\MockException;
-	use PrettyPrinter\TypeHandlers\Any;
 
 	class PrettyPrinterTest extends \PHPUnit_Framework_TestCase
 	{
@@ -79,7 +78,7 @@ s
 		{
 			$this->markTestIncomplete();
 
-			self::pp()->maxArrayEntries()->set( 10 )->assertPrettyIs( new Any( new PrettyPrinter ), <<<'s'
+			self::pp()->maxArrayEntries()->set( 10 )->assertPrettyIs( new TypeHandler( new PrettyPrinter ), <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};

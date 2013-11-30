@@ -43,10 +43,6 @@ namespace PrettyPrinter\TypeHandlers
 	use PrettyPrinter\Utils\Text;
 	use PrettyPrinter\ExceptionInfo;
 
-	final class Any extends TypeHandler
-	{
-	}
-
 	abstract class Value
 	{
 		/**

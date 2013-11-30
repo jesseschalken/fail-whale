@@ -4,7 +4,6 @@ namespace PrettyPrinter
 {
 	use PrettyPrinter\Settings\Bool;
 	use PrettyPrinter\Settings\Number;
-	use PrettyPrinter\TypeHandlers\Any;
 	use PrettyPrinter\TypeHandlers\Exception as ExceptionHandler;
 
 	final class PrettyPrinter
@@ -55,14 +54,14 @@ namespace PrettyPrinter
 
 		function prettyPrintRef( &$ref )
 		{
-			$anyHandler = new Any( $this );
+			$anyHandler = new TypeHandler( $this );
 
 			return $anyHandler->prettyPrintRef( $ref )->setHasEndingNewline( false )->__toString();
 		}
 
 		function prettyPrintExceptionInfo( ExceptionInfo $e )
 		{
-			$exceptionHandler = new ExceptionHandler( new Any( $this ), $e );
+			$exceptionHandler = new ExceptionHandler( new TypeHandler( $this ), $e );
 
 			return $exceptionHandler->render()->__toString();
 		}
