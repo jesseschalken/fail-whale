@@ -55,7 +55,7 @@ namespace PrettyPrinter
 					$property->setAccessible( true );
 
 					$globals[ ] = new ClassStaticProperty( $property->class,
-					                                       TypeHandlers\Exception::propertyOrMethodAccess( $property ),
+					                                       Types\Exception::propertyOrMethodAccess( $property ),
 					                                       $property->name, Ref::create( $property->getValue() ) );
 				}
 

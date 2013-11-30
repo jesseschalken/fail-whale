@@ -3,7 +3,7 @@
 namespace PrettyPrinter\Reflection
 {
 	use PrettyPrinter\Utils\Text;
-	use PrettyPrinter\TypeHandler;
+	use PrettyPrinter\Memory;
 
 	class ClassStaticProperty extends Variable
 	{
@@ -103,7 +103,7 @@ namespace PrettyPrinter\Reflection
 			return new Text;
 		}
 
-		function prettyPrint( TypeHandler $any )
+		function prettyPrint( Memory $any )
 		{
 			return $this->prefix()->appendLines( $any->prettyPrintVariable( $this->name ) );
 		}

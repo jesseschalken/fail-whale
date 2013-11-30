@@ -2,10 +2,10 @@
 
 namespace PrettyPrinter
 {
-	use PrettyPrinter\TypeHandlers\Value;
-	use PrettyPrinter\TypeHandlers\Variable;
+	use PrettyPrinter\Types\Value;
+	use PrettyPrinter\Types\Variable;
 
-	class TypeHandler
+	class Memory
 	{
 		private $settings;
 
@@ -35,63 +35,63 @@ namespace PrettyPrinter
 	}
 }
 
-namespace PrettyPrinter\TypeHandlers
+namespace PrettyPrinter\Types
 {
-	use PrettyPrinter\TypeHandler;
+	use PrettyPrinter\ExceptionInfo;
+	use PrettyPrinter\Memory;
 	use PrettyPrinter\Utils\ArrayUtil;
 	use PrettyPrinter\Utils\Table;
 	use PrettyPrinter\Utils\Text;
-	use PrettyPrinter\ExceptionInfo;
 
 	abstract class Value
 	{
 		/**
-		 * @param TypeHandler $settings
-		 * @param mixed         $value
+		 * @param Memory $memory
+		 * @param mixed  $value
 		 *
 		 * @return self
 		 */
-		static function create( TypeHandler $settings, &$value )
+		static function create( Memory $memory, &$value )
 		{
 			if ( is_bool( $value ) )
-				return new Boolean( $settings, $value );
+				return new Boolean( $memory, $value );
 
 			if ( is_string( $value ) )
-				return new String( $settings, $value );
+				return new String( $memory, $value );
 
 			if ( is_int( $value ) )
-				return new Integer( $settings, $value );
+				return new Integer( $memory, $value );
 
 			if ( is_float( $value ) )
-				return new Float( $settings, $value );
+				return new Float( $memory, $value );
 
 			if ( is_object( $value ) )
-				return new Object( $settings, $value );
+				return new Object( $memory, $value );
 
 			if ( is_array( $value ) )
-				return new Array1( $settings, $value );
+				return new Array1( $memory, $value );
 
 			if ( is_resource( $value ) )
-				return new Resource( $settings, $value );
+				return new Resource( $memory, $value );
 
 			if ( is_null( $value ) )
-				return new Null( $settings );
+				return new Null( $memory );
 
-			return new Unknown( $settings );
+			return new Unknown( $memory );
 		}
 
 		private $settings;
 
-		function __construct( TypeHandler $settings )
+		function __construct( Memory $memory )
 		{
-			$this->settings = $settings;
+			$this->settings = $memory;
 		}
 
 		/**
 		 * @return Text
 		 */
 		abstract function render();
-		
+
 		protected function settings() { return $this->settings->settings(); }
 
 		protected final function prettyPrintRef( &$value )
@@ -108,7 +108,7 @@ namespace PrettyPrinter\TypeHandlers
 		{
 			return $this->settings->prettyPrintVariable( $varName );
 		}
-		
+
 		protected function typeHandler() { return $this->settings; }
 	}
 
@@ -163,22 +163,22 @@ namespace PrettyPrinter\TypeHandlers
 
 	final class Boolean extends Value
 	{
-		private $value;
+		private $bool;
 
 		/**
-		 * @param \PrettyPrinter\TypeHandler $settings
-		 * @param bool                         $value
+		 * @param \PrettyPrinter\Memory $memory
+		 * @param bool                  $value
 		 */
-		function __construct( TypeHandler $settings, $value )
+		function __construct( Memory $memory, $value )
 		{
-			$this->value = $value;
-			
-			parent::__construct( $settings );
+			$this->bool = $value;
+
+			parent::__construct( $memory );
 		}
-		
+
 		function render()
 		{
-			return new Text( $this->value ? 'true' : 'false' );
+			return new Text( $this->bool ? 'true' : 'false' );
 		}
 	}
 
@@ -186,11 +186,11 @@ namespace PrettyPrinter\TypeHandlers
 	{
 		private $exception;
 
-		function __construct( TypeHandler $settings, ExceptionInfo $exception )
+		function __construct( Memory $memory, ExceptionInfo $exception )
 		{
 			$this->exception = $exception;
 
-			parent::__construct( $settings );
+			parent::__construct( $memory );
 		}
 
 		/**
@@ -363,22 +363,22 @@ namespace PrettyPrinter\TypeHandlers
 		 * @var float
 		 */
 		private $float;
-		
+
 		function render()
 		{
 			$float = $this->float;
-			$int = (int) $float;
+			$int   = (int) $float;
 
 			return new Text( "$int" === "$float" ? "$float.0" : "$float" );
 		}
 
 		/**
-		 * @param TypeHandler $settings
-		 * @param float              $float
+		 * @param Memory $memory
+		 * @param float  $float
 		 */
-		function __construct( TypeHandler $settings, $float )
+		function __construct( Memory $memory, $float )
 		{
-			parent::__construct( $settings );
+			parent::__construct( $memory );
 			$this->float = $float;
 		}
 	}
@@ -396,12 +396,12 @@ namespace PrettyPrinter\TypeHandlers
 		}
 
 		/**
-		 * @param TypeHandler $settings
-		 * @param int              $int
+		 * @param Memory $memory
+		 * @param int    $int
 		 */
-		function __construct( TypeHandler $settings, $int )
+		function __construct( Memory $memory, $int )
 		{
-			parent::__construct( $settings );
+			parent::__construct( $memory );
 			$this->int = $int;
 		}
 	}
@@ -424,7 +424,7 @@ namespace PrettyPrinter\TypeHandlers
 		function render()
 		{
 			$object = $this->object;
-			$class = get_class( $object );
+			$class  = get_class( $object );
 
 			$maxProperties = $this->settings()->maxObjectProperties()->get();
 			$numProperties = 0;
@@ -462,12 +462,12 @@ namespace PrettyPrinter\TypeHandlers
 		}
 
 		/**
-		 * @param TypeHandler $settings
-		 * @param object              $object
+		 * @param Memory $memory
+		 * @param object $object
 		 */
-		function __construct( TypeHandler $settings, $object )
+		function __construct( Memory $memory, $object )
 		{
-			parent::__construct( $settings );
+			parent::__construct( $memory );
 			$this->object = $object;
 		}
 	}
@@ -482,12 +482,12 @@ namespace PrettyPrinter\TypeHandlers
 		}
 
 		/**
-		 * @param TypeHandler $settings
-		 * @param resource      $resource
+		 * @param Memory   $memory
+		 * @param resource $resource
 		 */
-		function __construct( TypeHandler $settings, $resource )
+		function __construct( Memory $memory, $resource )
 		{
-			parent::__construct( $settings );
+			parent::__construct( $memory );
 			$this->resource = $resource;
 		}
 	}
@@ -498,7 +498,7 @@ namespace PrettyPrinter\TypeHandlers
 
 		function render()
 		{
-			$string = $this->string;
+			$string   = $this->string;
 			$settings = $this->settings();
 
 			$characterEscapeCache = array( "\\" => '\\\\',
@@ -536,13 +536,13 @@ s
 		}
 
 		/**
-		 * @param TypeHandler $settings
-		 * @param string        $string
+		 * @param Memory $memory
+		 * @param string $string
 		 */
-		function __construct( TypeHandler $settings, $string )
+		function __construct( Memory $memory, $string )
 		{
 			$this->string = $string;
-			parent::__construct( $settings );
+			parent::__construct( $memory );
 		}
 	}
 
@@ -567,14 +567,14 @@ s
 		}
 
 		/**
-		 * @param TypeHandler $settings
-		 * @param string        $name
+		 * @param Memory $memory
+		 * @param string $name
 		 */
-		function __construct( TypeHandler $settings, $name )
+		function __construct( Memory $memory, $name )
 		{
 			$this->name = $name;
 
-			parent::__construct( $settings );
+			parent::__construct( $memory );
 		}
 	}
 }
