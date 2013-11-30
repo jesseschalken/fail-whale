@@ -11,30 +11,42 @@ namespace PrettyPrinter
 	{
 		static function create() { return new self; }
 
-		private $escapeTabsInStrings = false;
-		private $splitMultiLineStrings = true;
-		private $maxObjectProperties = INF;
-		private $maxArrayEntries = INF;
-		private $maxStringLength = INF;
-		private $showExceptionLocalVariables = true;
-		private $showExceptionGlobalVariables = true;
-		private $showExceptionStackTrace = true;
+		private $escapeTabsInStrings;
+		private $splitMultiLineStrings;
+		private $maxObjectProperties;
+		private $maxArrayEntries;
+		private $maxStringLength;
+		private $showExceptionLocalVariables;
+		private $showExceptionGlobalVariables;
+		private $showExceptionStackTrace;
 
-		function escapeTabsInStrings() { return new Bool( $this, $this->escapeTabsInStrings ); }
+		function __construct()
+		{
+			$this->escapeTabsInStrings          = new Bool( $this, false );
+			$this->splitMultiLineStrings        = new Bool( $this, true );
+			$this->maxObjectProperties          = new Number( $this, PHP_INT_MAX );
+			$this->maxArrayEntries              = new Number( $this, PHP_INT_MAX );
+			$this->maxStringLength              = new Number( $this, PHP_INT_MAX );
+			$this->showExceptionLocalVariables  = new Bool( $this, true );
+			$this->showExceptionGlobalVariables = new Bool( $this, true );
+			$this->showExceptionStackTrace      = new Bool( $this, true );
+		}
 
-		function splitMultiLineStrings() { return new Bool( $this, $this->splitMultiLineStrings ); }
+		function escapeTabsInStrings() { return $this->escapeTabsInStrings; }
 
-		function maxObjectProperties() { return new Number( $this, $this->maxObjectProperties ); }
+		function splitMultiLineStrings() { return $this->splitMultiLineStrings; }
 
-		function maxArrayEntries() { return new Number( $this, $this->maxArrayEntries ); }
+		function maxObjectProperties() { return $this->maxObjectProperties; }
 
-		function maxStringLength() { return new Number( $this, $this->maxStringLength ); }
+		function maxArrayEntries() { return $this->maxArrayEntries; }
 
-		function showExceptionLocalVariables() { return new Bool( $this, $this->showExceptionLocalVariables ); }
+		function maxStringLength() { return $this->maxStringLength; }
 
-		function showExceptionGlobalVariables() { return new Bool( $this, $this->showExceptionGlobalVariables ); }
+		function showExceptionLocalVariables() { return $this->showExceptionLocalVariables; }
 
-		function showExceptionStackTrace() { return new Bool( $this, $this->showExceptionStackTrace ); }
+		function showExceptionGlobalVariables() { return $this->showExceptionGlobalVariables; }
+
+		function showExceptionStackTrace() { return $this->showExceptionStackTrace ; }
 
 		function prettyPrint( $value )
 		{

@@ -129,14 +129,38 @@ new PrettyPrinter\TypeHandlers\Any #1 {
                                };
     private $nextId          = 1;
     private $settings        = new PrettyPrinter\PrettyPrinter #22 {
-                                   private $escapeTabsInStrings          = false;
-                                   private $splitMultiLineStrings        = true;
-                                   private $maxObjectProperties          = INF;
-                                   private $maxArrayEntries              = INF;
-                                   private $maxStringLength              = INF;
-                                   private $showExceptionLocalVariables  = true;
-                                   private $showExceptionGlobalVariables = true;
-                                   private $showExceptionStackTrace      = true;
+                                   private $escapeTabsInStrings          = new PrettyPrinter\Settings\Bool #23 {
+                                                                               private $value = false;
+                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
+                                                                           };
+                                   private $splitMultiLineStrings        = new PrettyPrinter\Settings\Bool #24 {
+                                                                               private $value = true;
+                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
+                                                                           };
+                                   private $maxObjectProperties          = new PrettyPrinter\Settings\Number #25 {
+                                                                               private $value = 9223372036854775807;
+                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
+                                                                           };
+                                   private $maxArrayEntries              = new PrettyPrinter\Settings\Number #26 {
+                                                                               private $value = 9223372036854775807;
+                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
+                                                                           };
+                                   private $maxStringLength              = new PrettyPrinter\Settings\Number #27 {
+                                                                               private $value = 9223372036854775807;
+                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
+                                                                           };
+                                   private $showExceptionLocalVariables  = new PrettyPrinter\Settings\Bool #28 {
+                                                                               private $value = true;
+                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
+                                                                           };
+                                   private $showExceptionGlobalVariables = new PrettyPrinter\Settings\Bool #29 {
+                                                                               private $value = true;
+                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
+                                                                           };
+                                   private $showExceptionStackTrace      = new PrettyPrinter\Settings\Bool #30 {
+                                                                               private $value = true;
+                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
+                                                                           };
                                };
     private $anyHandler      = new PrettyPrinter\TypeHandlers\Any #1 {...};
 }

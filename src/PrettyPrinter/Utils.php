@@ -9,6 +9,14 @@ namespace PrettyPrinter\Utils
 			return isset( $array[ $key ] ) ? $array[ $key ] : $default;
 		}
 
+		static function get2( $array, $key1, $key2, $default = null )
+		{
+			$array = self::get( $array, $key1 );
+			$value = self::get( $array, $key2, $default );
+
+			return $value;
+		}
+
 		static function isAssoc( array $array )
 		{
 			$i = 0;
@@ -30,26 +38,14 @@ namespace PrettyPrinter\Utils
 			return isset( $k ) ? $k : null;
 		}
 	}
-}
 
-namespace PrettyPrinter\Utils
-{
 	class Ref
 	{
-		static function get( &$ref )
-		{
-			return $ref;
-		}
+		static function get( &$ref ) { return $ref; }
 
-		static function set( &$ref, $value = null )
-		{
-			$ref = $value;
-		}
+		static function set( &$ref, $value = null ) { $ref = $value; }
 
-		static function &create( $value = null )
-		{
-			return $value;
-		}
+		static function &create( $value = null ) { return $value; }
 
 		static function equal( &$a, &$b )
 		{
@@ -61,10 +57,7 @@ namespace PrettyPrinter\Utils
 			return $result;
 		}
 	}
-}
 
-namespace PrettyPrinter\Utils
-{
 	class Table implements \Countable
 	{
 		/** @var (Text[])[] */
@@ -111,10 +104,7 @@ namespace PrettyPrinter\Utils
 			return $result;
 		}
 
-		function count()
-		{
-			return count( $this->rows );
-		}
+		function count() { return count( $this->rows ); }
 
 		/**
 		 * @param Text[] $cells
@@ -131,10 +121,7 @@ namespace PrettyPrinter\Utils
 			return $this;
 		}
 	}
-}
 
-namespace PrettyPrinter\Utils
-{
 	class Text
 	{
 		static function create( $string = "" )
@@ -192,13 +179,12 @@ namespace PrettyPrinter\Utils
 		function appendLines( self $append )
 		{
 			$space = str_repeat( ' ', $this->width() );
-			$lines =& $this->lines;
 
 			foreach ( $append->lines as $k => $line )
-				if ( $k === 0 && !empty( $lines ) )
-					$lines[ count( $lines ) - 1 ] .= $line;
+				if ( $k === 0 && !empty( $this->lines ) )
+					$this->lines[ count( $this->lines ) - 1 ] .= $line;
 				else
-					$lines[ ] = $space . $line;
+					$this->lines[ ] = $space . $line;
 
 			return $this;
 		}
@@ -288,10 +274,7 @@ namespace PrettyPrinter\Utils
 			return $this;
 		}
 
-		function count()
-		{
-			return count( $this->lines );
-		}
+		function count() { return count( $this->lines ); }
 	}
 }
 

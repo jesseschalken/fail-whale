@@ -13,7 +13,10 @@ namespace PrettyPrinter
 	{
 		static function fromException( \Exception $e )
 		{
-			return $e instanceof HasExceptionInfo ? $e->info() : new ExceptionExceptionInfo( $e );
+			$localVariables = $e instanceof HasLocalVariables ? $e->getLocalVariables() : null;
+			$stackTrace     = $e instanceof HasFullTrace ? $e->getFullTrace() : null;
+
+			return new ExceptionExceptionInfo( $e, $localVariables, $stackTrace );
 		}
 
 		abstract function exceptionClassName();
@@ -80,19 +83,21 @@ namespace PrettyPrinter
 		}
 	}
 
-	interface HasExceptionInfo
+	interface HasFullTrace
 	{
-		/**
-		 * @return ExceptionInfo
-		 */
-		function info();
+		function getFullTrace();
+	}
+
+	interface HasLocalVariables
+	{
+		function getLocalVariables();
 	}
 
 	class ExceptionExceptionInfo extends ExceptionInfo
 	{
 		private $e, $localVariables, $stackTrace;
 
-		function __construct( \Exception $e, array $localVariables = null, array $stackTrace = null )
+		function __construct( \Exception $e, array $localVariables = null, array $stackTrace )
 		{
 			$this->e              = $e;
 			$this->localVariables = $localVariables;
@@ -116,11 +121,8 @@ namespace PrettyPrinter
 
 		function localVariables() { return $this->localVariables; }
 
-		function stackTrace() { return isset( $this->stackTrace ) ? $this->stackTrace : $this->e->getTrace(); }
+		function stackTrace() { return $this->stackTrace; }
 
-		function exceptionClassName()
-		{
-			return get_class( $this->e );
-		}
+		function exceptionClassName() { return get_class( $this->e ); }
 	}
 }

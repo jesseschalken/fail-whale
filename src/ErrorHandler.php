@@ -2,27 +2,25 @@
 
 namespace ErrorHandler;
 
+use PrettyPrinter\HasFullTrace;
+use PrettyPrinter\HasLocalVariables;
 use PrettyPrinter\PrettyPrinter;
-use PrettyPrinter\ExceptionExceptionInfo;
-use PrettyPrinter\HasExceptionInfo;
 use PrettyPrinter\Utils\ArrayUtil;
 
 class ErrorHandler
 {
-	static function create()
-	{
-		return new self;
-	}
+	static function create() { return new self; }
 
-	/**
-	 * @return PrettyPrinter
-	 */
-	static function prettyPrinter()
+	static function traceWithoutThis()
 	{
-		return PrettyPrinter::create()
-		       ->maxStringLength()->set( 100 )
-		       ->maxArrayEntries()->set( 10 )
-		       ->maxObjectProperties()->set( 10 );
+		$trace  = debug_backtrace();
+		$object = ArrayUtil::get2( $trace, 1, 'object' );
+		$i      = 2;
+
+		while ( ArrayUtil::get2( $trace, $i, 'object' ) === $object )
+			$i++;
+
+		return array_slice( $trace, $i );
 	}
 
 	protected static function out( $title, $body )
@@ -77,11 +75,6 @@ class ErrorHandler
 html;
 	}
 
-	private static function fullStackTrace()
-	{
-		return array_slice( debug_backtrace(), 2 );
-	}
-
 	private static function toHtml( $text )
 	{
 		return htmlspecialchars( $text, ENT_COMPAT, "UTF-8" );
@@ -89,9 +82,7 @@ html;
 
 	private $lastError;
 
-	protected function __construct()
-	{
-	}
+	protected function __construct() { }
 
 	final function bind()
 	{
@@ -114,14 +105,14 @@ html;
 
 	final function handleFailedAssertion( $file, $line, $expression, $message = 'Assertion failed' )
 	{
-		throw new AssertionFailedException( $file, $line, $expression, $message, self::fullStackTrace() );
+		throw new AssertionFailedException( $file, $line, $expression, $message, self::traceWithoutThis() );
 	}
 
 	final function handleError( $severity, $message, $file = null, $line = null, $localVariables = null )
 	{
 		if ( error_reporting() & $severity )
 		{
-			$e = new ErrorException( $severity, $message, $file, $line, $localVariables, self::fullStackTrace() );
+			$e = new ErrorException( $severity, $message, $file, $line, $localVariables, self::traceWithoutThis() );
 
 			if ( $severity & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
 				throw $e;
@@ -151,33 +142,30 @@ html;
 		if ( $error === null || $error === $this->lastError || !$this->isCurrentErrorHandler() )
 			return;
 
-		$this->handleUncaughtException( new ErrorException( $error[ 'type' ], $error[ 'message' ],
-		                                                    $error[ 'file' ], $error[ 'line' ], null,
-		                                                    self::fullStackTrace() ) );
+		$this->handleUncaughtException( new ErrorException( $error[ 'type' ], $error[ 'message' ], $error[ 'file' ],
+		                                                    $error[ 'line' ], null, self::traceWithoutThis() ) );
 	}
 
 	private function isCurrentErrorHandler()
 	{
-		return self::currentErrorHandler() === array( $this, 'handleError' );
-	}
-
-	private static function currentErrorHandler()
-	{
-		$result = set_error_handler( function () {} );
+		$handler = set_error_handler( function () { } );
 
 		restore_error_handler();
 
-		return $result;
+		return $handler === array( $this, 'handleError' );
 	}
 
 	protected function handleException( \Exception $e )
 	{
-		self::out( 'error', self::prettyPrinter()->prettyPrintException( $e ) );
+		self::out( 'error', PrettyPrinter::create()
+		                                 ->maxStringLength()->set( 100 )
+		                                 ->maxArrayEntries()->set( 10 )
+		                                 ->maxObjectProperties()->set( 10 )
+		                                 ->prettyPrintException( $e ) );
 	}
 }
 
-
-class ErrorException extends \ErrorException implements HasExceptionInfo
+class ErrorException extends \ErrorException implements HasFullTrace, HasLocalVariables
 {
 	private $localVariables, $stackTrace;
 
@@ -204,13 +192,12 @@ class ErrorException extends \ErrorException implements HasExceptionInfo
 		                                               E_USER_DEPRECATED   => 'E_USER_DEPRECATED' ), $severity, 'E_?' );
 	}
 
-	function info()
-	{
-		return new ExceptionExceptionInfo( $this, $this->localVariables, $this->stackTrace );
-	}
+	function getFullTrace() { return $this->stackTrace; }
+	
+	function getLocalVariables() { return $this->localVariables; }
 }
 
-class AssertionFailedException extends \Exception implements HasExceptionInfo
+class AssertionFailedException extends \Exception implements HasFullTrace
 {
 	private $expression, $fullStackTrace;
 
@@ -230,10 +217,7 @@ class AssertionFailedException extends \Exception implements HasExceptionInfo
 		$this->fullStackTrace = $fullStackTrace;
 	}
 
-	function info()
-	{
-		return new ExceptionExceptionInfo( $this, null, $this->fullStackTrace );
-	}
+	function getFullTrace() { return $this->fullStackTrace; }
 }
 
 /**
@@ -241,41 +225,17 @@ class AssertionFailedException extends \Exception implements HasExceptionInfo
  *
  * @package ErrorHandler
  */
-class Exception extends \Exception implements HasExceptionInfo
+class Exception extends \Exception implements HasFullTrace
 {
-	/**
-	 * @param array  $stackTrace
-	 * @param object $lastObject
-	 *
-	 * @return array
-	 */
-	private static function pruneConstructors( array $stackTrace, $lastObject )
-	{
-		$i = 0;
-
-		foreach ( $stackTrace as $stackFrame )
-		{
-			if ( ArrayUtil::get( $stackFrame, 'object' ) !== $lastObject )
-				break;
-
-			$i++;
-		}
-
-		return array_slice( $stackTrace, $i );
-	}
-
 	private $stackTrace;
 
 	function __construct( $message = "", $code = 0, \Exception $previous = null )
 	{
-		$this->stackTrace = self::pruneConstructors( debug_backtrace(), $this );
+		$this->stackTrace = ErrorHandler::traceWithoutThis();
 
 		parent::__construct( $message, $code, $previous );
 	}
 
-	function info()
-	{
-		return new ExceptionExceptionInfo( $this, null, $this->stackTrace );
-	}
+	function getFullTrace() { return $this->stackTrace; }
 }
 
