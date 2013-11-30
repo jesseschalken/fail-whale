@@ -57,14 +57,14 @@ namespace PrettyPrinter
 		{
 			$anyHandler = new Any( $this );
 
-			return $anyHandler->handleValue( $ref )->setHasEndingNewline( false )->__toString();
+			return $anyHandler->prettyPrintRef( $ref )->setHasEndingNewline( false )->__toString();
 		}
 
 		function prettyPrintExceptionInfo( ExceptionInfo $e )
 		{
-			$exceptionHandler = new ExceptionHandler( new Any( $this ) );
+			$exceptionHandler = new ExceptionHandler( new Any( $this ), $e );
 
-			return $exceptionHandler->handleValue( $e )->__toString();
+			return $exceptionHandler->render()->__toString();
 		}
 
 		function prettyPrintException( \Exception $e )

@@ -2,43 +2,41 @@
 
 namespace PrettyPrinter
 {
-	use PrettyPrinter\TypeHandlers\Any;
+	use PrettyPrinter\TypeHandlers\Value;
+	use PrettyPrinter\TypeHandlers\Variable;
 
-	abstract class TypeHandler
+	class TypeHandler
 	{
-		/** @var Any */
-		private $anyHandler;
+		private $settings;
 
-		function __construct( Any $handler )
+		function settings() { return $this->settings; }
+
+		function __construct( PrettyPrinter $settings )
 		{
-			$this->anyHandler = $handler;
+			$this->settings = $settings;
 		}
 
-		protected final function prettyPrintRef( &$value )
+		function prettyPrintRef( &$value )
 		{
-			return $this->anyHandler->handleValue( $value );
+			return Value::create( $this, $value )->render();
 		}
 
-		protected final function prettyPrint( $value )
+		function prettyPrint( $value )
 		{
-			return $this->anyHandler->handleValue( $value );
+			return $this->prettyPrintRef( $value );
 		}
 
 		function prettyPrintVariable( $varName )
 		{
-			return $this->anyHandler->prettyPrintVariable( $varName );
-		}
+			$var = new Variable( $this, $varName );
 
-		protected function settings()
-		{
-			return $this->anyHandler->settings();
+			return $var->render();
 		}
 	}
 }
 
 namespace PrettyPrinter\TypeHandlers
 {
-	use PrettyPrinter\PrettyPrinter;
 	use PrettyPrinter\TypeHandler;
 	use PrettyPrinter\Utils\ArrayUtil;
 	use PrettyPrinter\Utils\Table;
@@ -47,85 +45,93 @@ namespace PrettyPrinter\TypeHandlers
 
 	final class Any extends TypeHandler
 	{
-		private $bool, $int, $float, $string, $array, $object, $resource, $null, $unknown;
-		private $variable, $settings;
+	}
 
-		function __construct( PrettyPrinter $settings )
+	abstract class Value
+	{
+		/**
+		 * @param TypeHandler $settings
+		 * @param mixed         $value
+		 *
+		 * @return self
+		 */
+		static function create( TypeHandler $settings, &$value )
+		{
+			if ( is_bool( $value ) )
+				return new Boolean( $settings, $value );
+
+			if ( is_string( $value ) )
+				return new String( $settings, $value );
+
+			if ( is_int( $value ) )
+				return new Integer( $settings, $value );
+
+			if ( is_float( $value ) )
+				return new Float( $settings, $value );
+
+			if ( is_object( $value ) )
+				return new Object( $settings, $value );
+
+			if ( is_array( $value ) )
+				return new Array1( $settings, $value );
+
+			if ( is_resource( $value ) )
+				return new Resource( $settings, $value );
+
+			if ( is_null( $value ) )
+				return new Null( $settings );
+
+			return new Unknown( $settings );
+		}
+
+		private $settings;
+
+		function __construct( TypeHandler $settings )
 		{
 			$this->settings = $settings;
-			$this->variable = new Variable( $this );
-			$this->bool     = new Boolean( $this );
-			$this->int      = new Integer( $this );
-			$this->float    = new Float( $this );
-			$this->string   = new String( $this );
-			$this->array    = new Array1( $this );
-			$this->object   = new Object( $this );
-			$this->resource = new Resource( $this );
-			$this->null     = new Null( $this );
-			$this->unknown  = new Unknown( $this );
-
-			parent::__construct( $this );
 		}
 
 		/**
-		 * @param $value
-		 *
 		 * @return Text
 		 */
-		function handleValue( &$value )
+		abstract function render();
+		
+		protected function settings() { return $this->settings->settings(); }
+
+		protected final function prettyPrintRef( &$value )
 		{
-			if ( is_bool( $value ) )
-				return $this->bool->handleBool( $value );
-
-			if ( is_string( $value ) )
-				return $this->string->handleString( $value );
-
-			if ( is_int( $value ) )
-				return $this->int->handleInteger( $value );
-
-			if ( is_float( $value ) )
-				return $this->float->handleFloat( $value );
-
-			if ( is_object( $value ) )
-				return $this->object->handleObject( $value );
-
-			if ( is_array( $value ) )
-				return $this->array->handleArray( $value );
-
-			if ( is_resource( $value ) )
-				return $this->resource->handleResource( $value );
-
-			if ( is_null( $value ) )
-				return $this->null->handleNull();
-
-			return $this->unknown->handleUnknown();
+			return $this->settings->prettyPrintRef( $value );
 		}
 
-		function prettyPrintVariable( $varName )
+		protected final function prettyPrint( $value )
 		{
-			return $this->variable->handleVariable( $varName );
+			return $this->settings->prettyPrintRef( $value );
 		}
 
-		function settings() { return $this->settings; }
+		protected final function prettyPrintVariable( $varName )
+		{
+			return $this->settings->prettyPrintVariable( $varName );
+		}
+		
+		protected function typeHandler() { return $this->settings; }
 	}
 
 	/**
 	 * Called "Array1" because "Array" is a reserved word.
 	 */
-	final class Array1 extends TypeHandler
+	final class Array1 extends Value
 	{
-		/**
-		 * @param array $array
-		 *
-		 * @return Text
-		 */
-		function handleArray( &$array )
+		private $array;
+
+		function __construct( array &$array )
 		{
-			return $this->prettyPrintArrayDeep( $array );
+			return $this->array =& $array;
 		}
 
-		private function prettyPrintArrayDeep( array $array )
+		function render()
 		{
+			$array = $this->array;
+
 			if ( empty( $array ) )
 				return new Text( 'array()' );
 
@@ -159,21 +165,38 @@ namespace PrettyPrinter\TypeHandlers
 		}
 	}
 
-	final class Boolean extends TypeHandler
+	final class Boolean extends Value
 	{
+		private $value;
+
 		/**
-		 * @param bool $value
-		 *
-		 * @return Text
+		 * @param \PrettyPrinter\TypeHandler $settings
+		 * @param bool                         $value
 		 */
-		function handleBool( $value )
+		function __construct( TypeHandler $settings, $value )
 		{
-			return new Text( $value ? 'true' : 'false' );
+			$this->value = $value;
+			
+			parent::__construct( $settings );
+		}
+		
+		function render()
+		{
+			return new Text( $this->value ? 'true' : 'false' );
 		}
 	}
 
-	final class Exception extends TypeHandler
+	final class Exception extends Value
 	{
+		private $exception;
+
+		function __construct( TypeHandler $settings, ExceptionInfo $exception )
+		{
+			$this->exception = $exception;
+
+			parent::__construct( $settings );
+		}
+
 		/**
 		 * @param \ReflectionProperty|\ReflectionMethod $property
 		 *
@@ -185,14 +208,12 @@ namespace PrettyPrinter\TypeHandlers
 		}
 
 		/**
-		 * @param ExceptionInfo $exception
-		 *
-		 * @return \PrettyPrinter\Utils\Text
+		 * @return Text
 		 */
-		function handleValue( ExceptionInfo $exception )
+		function render()
 		{
-			return $this->prettyPrintExceptionWithoutGlobals( $exception )
-			            ->addLines( $this->prettyPrintGlobalState( $exception ) );
+			return $this->prettyPrintExceptionWithoutGlobals( $this->exception )
+			            ->addLines( $this->prettyPrintGlobalState( $this->exception ) );
 		}
 
 		private function prettyPrintGlobalState( ExceptionInfo $exception )
@@ -213,7 +234,7 @@ namespace PrettyPrinter\TypeHandlers
 			$table = new Table;
 
 			foreach ( $globals as $global )
-				$table->addRow( array( $global->prettyPrint( $this ),
+				$table->addRow( array( $global->prettyPrint( $this->typeHandler() ),
 				                       $this->prettyPrintRef( $global->value() )->wrap( ' = ', ';' ) ) );
 
 			return $table->render();
@@ -340,59 +361,76 @@ namespace PrettyPrinter\TypeHandlers
 		}
 	}
 
-	final class Float extends TypeHandler
+	final class Float extends Value
 	{
 		/**
-		 * @param float $float
-		 *
-		 * @return Text
+		 * @var float
 		 */
-		function handleFloat( $float )
+		private $float;
+		
+		function render()
 		{
+			$float = $this->float;
 			$int = (int) $float;
 
 			return new Text( "$int" === "$float" ? "$float.0" : "$float" );
 		}
-	}
 
-	final class Integer extends TypeHandler
-	{
 		/**
-		 * @param int $int
-		 *
-		 * @return Text
+		 * @param TypeHandler $settings
+		 * @param float              $float
 		 */
-		function handleInteger( $int )
+		function __construct( TypeHandler $settings, $float )
 		{
-			return new Text( "$int" );
+			parent::__construct( $settings );
+			$this->float = $float;
 		}
 	}
 
-	final class Null extends TypeHandler
+	final class Integer extends Value
 	{
-		function handleNull()
+		/**
+		 * @var int
+		 */
+		private $int;
+
+		function render()
+		{
+			return new Text( "$this->int" );
+		}
+
+		/**
+		 * @param TypeHandler $settings
+		 * @param int              $int
+		 */
+		function __construct( TypeHandler $settings, $int )
+		{
+			parent::__construct( $settings );
+			$this->int = $int;
+		}
+	}
+
+	final class Null extends Value
+	{
+		function render()
 		{
 			return new Text( 'null' );
 		}
 	}
 
-	final class Object extends TypeHandler
+	final class Object extends Value
 	{
 		/**
-		 * @param object $object
-		 *
-		 * @return Text
+		 * @var object
 		 */
-		function handleObject( $object )
-		{
-			return $this->prettyPrintObject( $object );
-		}
+		private $object;
 
-		private function prettyPrintObject( $object )
+		function render()
 		{
+			$object = $this->object;
 			$class = get_class( $object );
 
-			$maxProperties = $this->maxProperties();
+			$maxProperties = $this->settings()->maxObjectProperties()->get();
 			$numProperties = 0;
 			$table         = new Table;
 
@@ -427,34 +465,44 @@ namespace PrettyPrinter\TypeHandlers
 			return $result->indent( 2 )->wrapLines( "new $class {", "}" );
 		}
 
-		private function maxProperties()
+		/**
+		 * @param TypeHandler $settings
+		 * @param object              $object
+		 */
+		function __construct( TypeHandler $settings, $object )
 		{
-			return $this->settings()->maxObjectProperties()->get();
+			parent::__construct( $settings );
+			$this->object = $object;
 		}
 	}
 
-	final class Resource extends TypeHandler
+	final class Resource extends Value
 	{
-		/**
-		 * @param resource $resource
-		 *
-		 * @return Text
-		 */
-		function handleResource( $resource )
+		private $resource;
+
+		function render()
 		{
-			return new Text( get_resource_type( $resource ) );
+			return new Text( get_resource_type( $this->resource ) );
+		}
+
+		/**
+		 * @param TypeHandler $settings
+		 * @param resource      $resource
+		 */
+		function __construct( TypeHandler $settings, $resource )
+		{
+			parent::__construct( $settings );
+			$this->resource = $resource;
 		}
 	}
 
-	final class String extends TypeHandler
+	final class String extends Value
 	{
-		/**
-		 * @param string $string
-		 *
-		 * @return Text
-		 */
-		function handleString( $string )
+		private $string;
+
+		function render()
 		{
+			$string = $this->string;
 			$settings = $this->settings();
 
 			$characterEscapeCache = array( "\\" => '\\\\',
@@ -490,24 +538,47 @@ s
 
 			return new Text( "\"$escaped" . ( $length == strlen( $string ) ? '"' : "..." ) );
 		}
+
+		/**
+		 * @param TypeHandler $settings
+		 * @param string        $string
+		 */
+		function __construct( TypeHandler $settings, $string )
+		{
+			$this->string = $string;
+			parent::__construct( $settings );
+		}
 	}
 
-	final class Unknown extends TypeHandler
+	final class Unknown extends Value
 	{
-		function handleUnknown()
+		function render()
 		{
 			return new Text( 'unknown type' );
 		}
 	}
 
-	final class Variable extends TypeHandler
+	final class Variable extends Value
 	{
-		function handleVariable( $varName )
+		private $name;
+
+		function render()
 		{
-			if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $varName ) )
-				return new Text( "$$varName" );
+			if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $this->name ) )
+				return new Text( "$$this->name" );
 			else
-				return $this->prettyPrint( $varName )->wrap( '${', '}' );
+				return $this->prettyPrint( $this->name )->wrap( '${', '}' );
+		}
+
+		/**
+		 * @param TypeHandler $settings
+		 * @param string        $name
+		 */
+		function __construct( TypeHandler $settings, $name )
+		{
+			$this->name = $name;
+
+			parent::__construct( $settings );
 		}
 	}
 }
