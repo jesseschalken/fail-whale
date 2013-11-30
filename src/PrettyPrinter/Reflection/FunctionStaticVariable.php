@@ -1,22 +1,23 @@
 <?php
 
-namespace PrettyPrinter\Reflection;
-
-use PrettyPrinter\Utils\Text;
-
-class FunctionStaticVariable extends Variable
+namespace PrettyPrinter\Reflection
 {
-	private $function;
+	use PrettyPrinter\Utils\Text;
 
-	function __construct( $function, $name, &$value )
+	class FunctionStaticVariable extends Variable
 	{
-		$this->function = $function;
+		private $function;
 
-		parent::__construct( $name, $value );
-	}
+		function __construct( $function, $name, &$value )
+		{
+			$this->function = $function;
 
-	function prefix()
-	{
-		return new Text( "function $this->function()::static " );
+			parent::__construct( $name, $value );
+		}
+
+		function prefix()
+		{
+			return new Text( "function $this->function()::static " );
+		}
 	}
 }

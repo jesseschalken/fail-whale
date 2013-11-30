@@ -1,11 +1,12 @@
 <?php
 
-namespace PrettyPrinter;
-
-interface HasExceptionInfo
+namespace PrettyPrinter
 {
-	/**
-	 * @return ExceptionInfo
-	 */
-	function info();
+	interface HasExceptionInfo
+	{
+		/**
+		 * @return ExceptionInfo
+		 */
+		function info();
+	}
 }

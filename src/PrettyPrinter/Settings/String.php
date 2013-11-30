@@ -1,13 +1,14 @@
 <?php
 
-namespace PrettyPrinter\Settings;
-
-use PrettyPrinter\Setting;
-
-class String extends Setting
+namespace PrettyPrinter\Settings
 {
-	function set( $v )
+	use PrettyPrinter\Setting;
+
+	class String extends Setting
 	{
-		return parent::set( "$v" );
+		function set( $v )
+		{
+			return parent::set( "$v" );
+		}
 	}
 }

@@ -1,71 +1,71 @@
 <?php
 
-namespace PrettyPrinter\TypeHandlers;
-
-use PrettyPrinter\Utils\Table;
-use PrettyPrinter\Utils\Text;
-use PrettyPrinter\TypeHandler;
-
-final class Object extends TypeHandler
+namespace PrettyPrinter\TypeHandlers
 {
-	private $objectIds = array();
+	use PrettyPrinter\TypeHandler;
+	use PrettyPrinter\Utils\Table;
+	use PrettyPrinter\Utils\Text;
 
-	function handleValue( &$object )
+	final class Object extends TypeHandler
 	{
-		$id       =& $this->objectIds[ spl_object_hash( $object ) ];
-		$traverse = !isset( $id ) && $this->maxProperties() > 0;
+		private $objectIds = array();
 
-		if ( !isset( $id ) )
-			$id = $this->newId();
-
-		return $this->prettyPrintObject( $object, $traverse, $id );
-	}
-
-	private function prettyPrintObject( $object, $traverse, $id )
-	{
-		$class = get_class( $object );
-
-		if ( !$traverse )
-			return new Text( "new $class $id {...}" );
-
-		$maxProperties = $this->maxProperties();
-		$numProperties = 0;
-		$table         = new Table;
-
-		for ( $reflection = new \ReflectionObject( $object );
-		      $reflection !== false;
-		      $reflection = $reflection->getParentClass() )
+		function handleValue( &$object )
 		{
-			foreach ( $reflection->getProperties() as $property )
-			{
-				if ( $property->isStatic() || $property->class !== $reflection->name )
-					continue;
+			$id       =& $this->objectIds[ spl_object_hash( $object ) ];
+			$traverse = !isset( $id ) && $this->maxProperties() > 0;
 
-				$numProperties++;
+			if ( !isset( $id ) )
+				$id = $this->newId();
 
-				if ( $table->count() >= $maxProperties )
-					continue;
-
-				$property->setAccessible( true );
-
-				$access = Exception::propertyOrMethodAccess( $property );
-
-				$table->addRow( array( $this->prettyPrintVariable( $property->name )->prepend( "$access " ),
-				                       $this->prettyPrint( $property->getValue( $object ) )->wrap( ' = ', ';' ) ) );
-			}
+			return $this->prettyPrintObject( $object, $traverse, $id );
 		}
 
-		$result = $table->render();
+		private function prettyPrintObject( $object, $traverse, $id )
+		{
+			$class = get_class( $object );
 
-		if ( $table->count() != $numProperties )
-			$result->addLine( '...' );
+			if ( !$traverse )
+				return new Text( "new $class $id {...}" );
 
-		return $result->indent( 2 )->wrapLines( "new $class $id {", "}" );
-	}
+			$maxProperties = $this->maxProperties();
+			$numProperties = 0;
+			$table         = new Table;
 
-	private function maxProperties()
-	{
-		return $this->settings()->maxObjectProperties()->get();
+			for ( $reflection = new \ReflectionObject( $object );
+			      $reflection !== false;
+			      $reflection = $reflection->getParentClass() )
+			{
+				foreach ( $reflection->getProperties() as $property )
+				{
+					if ( $property->isStatic() || $property->class !== $reflection->name )
+						continue;
+
+					$numProperties++;
+
+					if ( $table->count() >= $maxProperties )
+						continue;
+
+					$property->setAccessible( true );
+
+					$access = Exception::propertyOrMethodAccess( $property );
+
+					$table->addRow( array( $this->prettyPrintVariable( $property->name )->prepend( "$access " ),
+					                       $this->prettyPrint( $property->getValue( $object ) )->wrap( ' = ', ';' ) ) );
+				}
+			}
+
+			$result = $table->render();
+
+			if ( $table->count() != $numProperties )
+				$result->addLine( '...' );
+
+			return $result->indent( 2 )->wrapLines( "new $class $id {", "}" );
+		}
+
+		private function maxProperties()
+		{
+			return $this->settings()->maxObjectProperties()->get();
+		}
 	}
 }
-

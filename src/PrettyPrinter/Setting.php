@@ -1,23 +1,24 @@
 <?php
 
-namespace PrettyPrinter;
-
-class Setting
+namespace PrettyPrinter
 {
-	private $ref, $pp;
-
-	function __construct( PrettyPrinter $pp, &$ref )
+	class Setting
 	{
-		$this->pp  = $pp;
-		$this->ref =& $ref;
-	}
+		private $ref, $pp;
 
-	function get() { return $this->ref; }
+		function __construct( PrettyPrinter $pp, &$ref )
+		{
+			$this->pp  = $pp;
+			$this->ref =& $ref;
+		}
 
-	function set( $v )
-	{
-		$this->ref = $v;
+		function get() { return $this->ref; }
 
-		return $this->pp;
+		function set( $v )
+		{
+			$this->ref = $v;
+
+			return $this->pp;
+		}
 	}
 }

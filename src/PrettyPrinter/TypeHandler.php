@@ -1,49 +1,49 @@
 <?php
 
-namespace PrettyPrinter;
-
-use PrettyPrinter\TypeHandlers\Any;
-
-abstract class TypeHandler
+namespace PrettyPrinter
 {
-	/** @var Any */
-	private $anyHandler;
+	use PrettyPrinter\TypeHandlers\Any;
 
-	function __construct( Any $handler )
+	abstract class TypeHandler
 	{
-		$this->anyHandler = $handler;
-	}
+		/** @var Any */
+		private $anyHandler;
 
-	/**
-	 * @param $value
-	 *
-	 * @return \PrettyPrinter\Utils\Text
-	 */
-	abstract function handleValue( &$value );
+		function __construct( Any $handler )
+		{
+			$this->anyHandler = $handler;
+		}
 
-	protected final function prettyPrintRef( &$value )
-	{
-		return $this->anyHandler->handleValue( $value );
-	}
+		/**
+		 * @param $value
+		 *
+		 * @return \PrettyPrinter\Utils\Text
+		 */
+		abstract function handleValue( &$value );
 
-	protected final function prettyPrint( $value )
-	{
-		return $this->anyHandler->handleValue( $value );
-	}
+		protected final function prettyPrintRef( &$value )
+		{
+			return $this->anyHandler->handleValue( $value );
+		}
 
-	function prettyPrintVariable( $varName )
-	{
-		return $this->anyHandler->prettyPrintVariable( $varName );
-	}
+		protected final function prettyPrint( $value )
+		{
+			return $this->anyHandler->handleValue( $value );
+		}
 
-	protected function settings()
-	{
-		return $this->anyHandler->settings();
-	}
+		function prettyPrintVariable( $varName )
+		{
+			return $this->anyHandler->prettyPrintVariable( $varName );
+		}
 
-	protected function newId()
-	{
-		return $this->anyHandler->newId();
+		protected function settings()
+		{
+			return $this->anyHandler->settings();
+		}
+
+		protected function newId()
+		{
+			return $this->anyHandler->newId();
+		}
 	}
 }
-

@@ -1,162 +1,163 @@
 <?php
 
-namespace PrettyPrinter\Utils;
-
-class Text
+namespace PrettyPrinter\Utils
 {
-	static function create( $string = "" )
+	class Text
 	{
-		return new self( $string );
-	}
+		static function create( $string = "" )
+		{
+			return new self( $string );
+		}
 
-	private $lines, $hasEndingNewLine, $newLineChar;
+		private $lines, $hasEndingNewLine, $newLineChar;
 
-	function __construct( $text = "", $newLineChar = "\n" )
-	{
-		$this->newLineChar = $newLineChar;
-		$this->lines       = explode( $this->newLineChar, $text );
+		function __construct( $text = "", $newLineChar = "\n" )
+		{
+			$this->newLineChar = $newLineChar;
+			$this->lines       = explode( $this->newLineChar, $text );
 
-		if ( $this->hasEndingNewLine = $this->lines[ count( $this->lines ) - 1 ] === "" )
-			array_pop( $this->lines );
-	}
+			if ( $this->hasEndingNewLine = $this->lines[ count( $this->lines ) - 1 ] === "" )
+				array_pop( $this->lines );
+		}
 
-	function __toString()
-	{
-		$text = join( $this->newLineChar, $this->lines );
+		function __toString()
+		{
+			$text = join( $this->newLineChar, $this->lines );
 
-		if ( $this->hasEndingNewLine && !empty( $this->lines ) )
-			$text .= $this->newLineChar;
+			if ( $this->hasEndingNewLine && !empty( $this->lines ) )
+				$text .= $this->newLineChar;
 
-		return $text;
-	}
+			return $text;
+		}
 
-	/**
-	 * @param Text $add
-	 *
-	 * @return self
-	 */
-	function addLines( self $add )
-	{
-		foreach ( $add->lines as $line )
-			$this->lines[ ] = $line;
+		/**
+		 * @param Text $add
+		 *
+		 * @return self
+		 */
+		function addLines( self $add )
+		{
+			foreach ( $add->lines as $line )
+				$this->lines[ ] = $line;
 
-		return $this;
-	}
+			return $this;
+		}
 
-	function swapLines( self $other )
-	{
-		$clone       = clone $this;
-		$this->lines = $other->lines;
+		function swapLines( self $other )
+		{
+			$clone       = clone $this;
+			$this->lines = $other->lines;
 
-		return $clone;
-	}
+			return $clone;
+		}
 
-	/**
-	 * @param Text $append
-	 *
-	 * @return self
-	 */
-	function appendLines( self $append )
-	{
-		$space = str_repeat( ' ', $this->width() );
-		$lines =& $this->lines;
+		/**
+		 * @param Text $append
+		 *
+		 * @return self
+		 */
+		function appendLines( self $append )
+		{
+			$space = str_repeat( ' ', $this->width() );
+			$lines =& $this->lines;
 
-		foreach ( $append->lines as $k => $line )
-			if ( $k === 0 && !empty( $lines ) )
-				$lines[ count( $lines ) - 1 ] .= $line;
-			else
-				$lines[ ] = $space . $line;
+			foreach ( $append->lines as $k => $line )
+				if ( $k === 0 && !empty( $lines ) )
+					$lines[ count( $lines ) - 1 ] .= $line;
+				else
+					$lines[ ] = $space . $line;
 
-		return $this;
-	}
+			return $this;
+		}
 
-	function width()
-	{
-		$lines = $this->lines;
+		function width()
+		{
+			$lines = $this->lines;
 
-		return empty( $lines ) ? 0 : strlen( $lines[ count( $lines ) - 1 ] );
-	}
+			return empty( $lines ) ? 0 : strlen( $lines[ count( $lines ) - 1 ] );
+		}
 
-	/**
-	 * @param int $times
-	 *
-	 * @return self
-	 */
-	function indent( $times = 1 )
-	{
-		$space = str_repeat( '  ', $times );
+		/**
+		 * @param int $times
+		 *
+		 * @return self
+		 */
+		function indent( $times = 1 )
+		{
+			$space = str_repeat( '  ', $times );
 
-		foreach ( $this->lines as $k => $line )
-			if ( $line !== '' )
-				$this->lines[ $k ] = $space . $line;
+			foreach ( $this->lines as $k => $line )
+				if ( $line !== '' )
+					$this->lines[ $k ] = $space . $line;
 
-		return $this;
-	}
+			return $this;
+		}
 
-	function addLinesBefore( self $addBefore )
-	{
-		return $this->addLines( $this->swapLines( $addBefore ) );
-	}
+		function addLinesBefore( self $addBefore )
+		{
+			return $this->addLines( $this->swapLines( $addBefore ) );
+		}
 
-	function wrap( $prepend, $append )
-	{
-		return $this->prepend( $prepend )->append( $append );
-	}
+		function wrap( $prepend, $append )
+		{
+			return $this->prepend( $prepend )->append( $append );
+		}
 
-	function wrapLines( $prepend = '', $append = '' )
-	{
-		return $this->prependLine( $prepend )->addLine( $append );
-	}
+		function wrapLines( $prepend = '', $append = '' )
+		{
+			return $this->prependLine( $prepend )->addLine( $append );
+		}
 
-	/**
-	 * @param string $line
-	 *
-	 * @return self
-	 */
-	function addLine( $line = "" )
-	{
-		return $this->addLines( new self( $line . $this->newLineChar ) );
-	}
+		/**
+		 * @param string $line
+		 *
+		 * @return self
+		 */
+		function addLine( $line = "" )
+		{
+			return $this->addLines( new self( $line . $this->newLineChar ) );
+		}
 
-	function append( $string )
-	{
-		return $this->appendLines( new self( $string ) );
-	}
+		function append( $string )
+		{
+			return $this->appendLines( new self( $string ) );
+		}
 
-	/**
-	 * @param $string
-	 *
-	 * @return self
-	 */
-	function prepend( $string )
-	{
-		return $this->prependLines( new self( $string ) );
-	}
+		/**
+		 * @param $string
+		 *
+		 * @return self
+		 */
+		function prepend( $string )
+		{
+			return $this->prependLines( new self( $string ) );
+		}
 
-	function prependLine( $line = "" )
-	{
-		return $this->addLines( $this->swapLines( new self( $line . $this->newLineChar ) ) );
-	}
+		function prependLine( $line = "" )
+		{
+			return $this->addLines( $this->swapLines( new self( $line . $this->newLineChar ) ) );
+		}
 
-	function prependLines( self $lines )
-	{
-		return $this->appendLines( $this->swapLines( $lines ) );
-	}
+		function prependLines( self $lines )
+		{
+			return $this->appendLines( $this->swapLines( $lines ) );
+		}
 
-	function padWidth( $width )
-	{
-		return $this->append( str_repeat( ' ', $width - $this->width() ) );
-	}
+		function padWidth( $width )
+		{
+			return $this->append( str_repeat( ' ', $width - $this->width() ) );
+		}
 
-	function setHasEndingNewline( $value )
-	{
-		$this->hasEndingNewLine = (bool) $value;
+		function setHasEndingNewline( $value )
+		{
+			$this->hasEndingNewLine = (bool) $value;
 
-		return $this;
-	}
+			return $this;
+		}
 
-	function count()
-	{
-		return count( $this->lines );
+		function count()
+		{
+			return count( $this->lines );
+		}
 	}
 }

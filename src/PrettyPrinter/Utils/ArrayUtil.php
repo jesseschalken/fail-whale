@@ -1,33 +1,33 @@
 <?php
 
-namespace PrettyPrinter\Utils;
-
-class ArrayUtil
+namespace PrettyPrinter\Utils
 {
-	static function get( $array, $key, $default = null )
+	class ArrayUtil
 	{
-		return isset( $array[ $key ] ) ? $array[ $key ] : $default;
-	}
+		static function get( $array, $key, $default = null )
+		{
+			return isset( $array[ $key ] ) ? $array[ $key ] : $default;
+		}
 
-	static function isAssoc( array $array )
-	{
-		$i = 0;
+		static function isAssoc( array $array )
+		{
+			$i = 0;
 
-		/** @noinspection PhpUnusedLocalVariableInspection */
-		foreach ( $array as $k => &$v )
-			if ( $k !== $i++ )
-				return true;
+			/** @noinspection PhpUnusedLocalVariableInspection */
+			foreach ( $array as $k => &$v )
+				if ( $k !== $i++ )
+					return true;
 
-		return false;
-	}
+			return false;
+		}
 
-	static function lastKey( array $array )
-	{
-		/** @noinspection PhpUnusedLocalVariableInspection */
-		foreach ( $array as $k => &$v )
-			;
+		static function lastKey( array $array )
+		{
+			/** @noinspection PhpUnusedLocalVariableInspection */
+			foreach ( $array as $k => &$v )
+				;
 
-		return isset( $k ) ? $k : null;
+			return isset( $k ) ? $k : null;
+		}
 	}
 }
-

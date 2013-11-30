@@ -1,13 +1,15 @@
 <?php
-namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\Utils\Text;
-use PrettyPrinter\TypeHandler;
-
-final class Unknown extends TypeHandler
+namespace PrettyPrinter\TypeHandlers
 {
-	function handleValue( &$unknown )
+	use PrettyPrinter\TypeHandler;
+	use PrettyPrinter\Utils\Text;
+
+	final class Unknown extends TypeHandler
 	{
-		return new Text( 'unknown type' );
+		function handleValue( &$unknown )
+		{
+			return new Text( 'unknown type' );
+		}
 	}
 }

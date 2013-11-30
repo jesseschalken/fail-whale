@@ -1,20 +1,22 @@
 <?php
-namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\CachingTypeHandler;
-use PrettyPrinter\Utils\Text;
-
-final class Resource extends CachingTypeHandler
+namespace PrettyPrinter\TypeHandlers
 {
-	private $resourceIds = array();
+	use PrettyPrinter\CachingTypeHandler;
+	use PrettyPrinter\Utils\Text;
 
-	protected function handleCacheMiss( $resource )
+	final class Resource extends CachingTypeHandler
 	{
-		$id =& $this->resourceIds[ "$resource" ];
+		private $resourceIds = array();
 
-		if ( !isset( $id ) )
-			$id = $this->newId();
+		protected function handleCacheMiss( $resource )
+		{
+			$id =& $this->resourceIds[ "$resource" ];
 
-		return new Text( get_resource_type( $resource ) . " $id" );
+			if ( !isset( $id ) )
+				$id = $this->newId();
+
+			return new Text( get_resource_type( $resource ) . " $id" );
+		}
 	}
 }

@@ -1,31 +1,32 @@
 <?php
 
-namespace PrettyPrinter\Utils;
-
-class Ref
+namespace PrettyPrinter\Utils
 {
-	static function get( &$ref )
+	class Ref
 	{
-		return $ref;
-	}
+		static function get( &$ref )
+		{
+			return $ref;
+		}
 
-	static function set( &$ref, $value = null )
-	{
-		$ref = $value;
-	}
+		static function set( &$ref, $value = null )
+		{
+			$ref = $value;
+		}
 
-	static function &create( $value = null )
-	{
-		return $value;
-	}
+		static function &create( $value = null )
+		{
+			return $value;
+		}
 
-	static function equal( &$a, &$b )
-	{
-		$aOld   = $a;
-		$a      = new \stdClass;
-		$result = $a === $b;
-		$a      = $aOld;
+		static function equal( &$a, &$b )
+		{
+			$aOld   = $a;
+			$a      = new \stdClass;
+			$result = $a === $b;
+			$a      = $aOld;
 
-		return $result;
+			return $result;
+		}
 	}
 }

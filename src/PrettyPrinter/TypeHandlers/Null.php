@@ -1,13 +1,15 @@
 <?php
-namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\TypeHandler;
-use PrettyPrinter\Utils\Text;
-
-final class Null extends TypeHandler
+namespace PrettyPrinter\TypeHandlers
 {
-	function handleValue( &$null )
+	use PrettyPrinter\TypeHandler;
+	use PrettyPrinter\Utils\Text;
+
+	final class Null extends TypeHandler
 	{
-		return new Text( 'null' );
+		function handleValue( &$null )
+		{
+			return new Text( 'null' );
+		}
 	}
 }

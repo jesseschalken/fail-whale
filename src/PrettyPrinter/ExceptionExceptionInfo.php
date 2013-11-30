@@ -1,39 +1,40 @@
 <?php
 
-namespace PrettyPrinter;
-
-class ExceptionExceptionInfo extends ExceptionInfo
+namespace PrettyPrinter
 {
-	private $e, $localVariables, $stackTrace;
-
-	function __construct( \Exception $e, array $localVariables = null, array $stackTrace = null )
+	class ExceptionExceptionInfo extends ExceptionInfo
 	{
-		$this->e              = $e;
-		$this->localVariables = $localVariables;
-		$this->stackTrace     = $stackTrace;
-	}
+		private $e, $localVariables, $stackTrace;
 
-	function message() { return $this->e->getMessage(); }
+		function __construct( \Exception $e, array $localVariables = null, array $stackTrace = null )
+		{
+			$this->e              = $e;
+			$this->localVariables = $localVariables;
+			$this->stackTrace     = $stackTrace;
+		}
 
-	function code() { return $this->e->getCode(); }
+		function message() { return $this->e->getMessage(); }
 
-	function file() { return $this->e->getFile(); }
+		function code() { return $this->e->getCode(); }
 
-	function line() { return $this->e->getLine(); }
+		function file() { return $this->e->getFile(); }
 
-	function previous()
-	{
-		$previous = $this->e->getPrevious();
+		function line() { return $this->e->getLine(); }
 
-		return isset( $previous ) ? ExceptionInfo::fromException( $previous ) : null;
-	}
+		function previous()
+		{
+			$previous = $this->e->getPrevious();
 
-	function localVariables() { return $this->localVariables; }
+			return isset( $previous ) ? ExceptionInfo::fromException( $previous ) : null;
+		}
 
-	function stackTrace() { return isset( $this->stackTrace ) ? $this->stackTrace : $this->e->getTrace(); }
+		function localVariables() { return $this->localVariables; }
 
-	function exceptionClassName()
-	{
-		return get_class( $this->e );
+		function stackTrace() { return isset( $this->stackTrace ) ? $this->stackTrace : $this->e->getTrace(); }
+
+		function exceptionClassName()
+		{
+			return get_class( $this->e );
+		}
 	}
 }

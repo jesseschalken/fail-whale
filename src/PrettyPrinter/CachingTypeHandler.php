@@ -1,26 +1,28 @@
 <?php
-namespace PrettyPrinter;
 
-use PrettyPrinter\Utils\Text;
-
-abstract class CachingTypeHandler extends TypeHandler
+namespace PrettyPrinter
 {
-	private $cache = array();
+	use PrettyPrinter\Utils\Text;
 
-	final function handleValue( &$value )
+	abstract class CachingTypeHandler extends TypeHandler
 	{
-		$result =& $this->cache[ "$value" ];
+		private $cache = array();
 
-		if ( $result === null )
-			$result = $this->handleCacheMiss( $value );
+		final function handleValue( &$value )
+		{
+			$result =& $this->cache[ "$value" ];
 
-		return clone $result;
+			if ( $result === null )
+				$result = $this->handleCacheMiss( $value );
+
+			return clone $result;
+		}
+
+		/**
+		 * @param $value
+		 *
+		 * @return Text
+		 */
+		protected abstract function handleCacheMiss( $value );
 	}
-
-	/**
-	 * @param $value
-	 *
-	 * @return Text
-	 */
-	protected abstract function handleCacheMiss( $value );
 }

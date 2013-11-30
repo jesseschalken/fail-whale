@@ -1,23 +1,24 @@
 <?php
 
-namespace PrettyPrinter\Reflection;
-
-use PrettyPrinter\Utils\Text;
-
-class MethodStaticVariable extends Variable
+namespace PrettyPrinter\Reflection
 {
-	private $class, $method;
+	use PrettyPrinter\Utils\Text;
 
-	function __construct( $class, $method, $name, &$value )
+	class MethodStaticVariable extends Variable
 	{
-		$this->class  = $class;
-		$this->method = $method;
+		private $class, $method;
 
-		parent::__construct( $name, $value );
-	}
+		function __construct( $class, $method, $name, &$value )
+		{
+			$this->class  = $class;
+			$this->method = $method;
 
-	function prefix()
-	{
-		return new Text( "function $this->class::$this->method()::static " );
+			parent::__construct( $name, $value );
+		}
+
+		function prefix()
+		{
+			return new Text( "function $this->class::$this->method()::static " );
+		}
 	}
 }

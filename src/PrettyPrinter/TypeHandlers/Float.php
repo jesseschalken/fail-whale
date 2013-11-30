@@ -1,15 +1,17 @@
 <?php
-namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\CachingTypeHandler;
-use PrettyPrinter\Utils\Text;
-
-final class Float extends CachingTypeHandler
+namespace PrettyPrinter\TypeHandlers
 {
-	protected function handleCacheMiss( $float )
-	{
-		$int = (int) $float;
+	use PrettyPrinter\CachingTypeHandler;
+	use PrettyPrinter\Utils\Text;
 
-		return new Text( "$int" === "$float" ? "$float.0" : "$float" );
+	final class Float extends CachingTypeHandler
+	{
+		protected function handleCacheMiss( $float )
+		{
+			$int = (int) $float;
+
+			return new Text( "$int" === "$float" ? "$float.0" : "$float" );
+		}
 	}
 }

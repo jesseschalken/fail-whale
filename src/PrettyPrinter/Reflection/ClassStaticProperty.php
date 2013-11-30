@@ -1,23 +1,24 @@
 <?php
 
-namespace PrettyPrinter\Reflection;
-
-use PrettyPrinter\Utils\Text;
-
-class ClassStaticProperty extends Variable
+namespace PrettyPrinter\Reflection
 {
-	private $class, $access;
+	use PrettyPrinter\Utils\Text;
 
-	function __construct( $class, $access, $name, &$value )
+	class ClassStaticProperty extends Variable
 	{
-		$this->class  = $class;
-		$this->access = $access;
+		private $class, $access;
 
-		parent::__construct( $name, $value );
-	}
+		function __construct( $class, $access, $name, &$value )
+		{
+			$this->class  = $class;
+			$this->access = $access;
 
-	function prefix()
-	{
-		return new Text( "$this->access static $this->class::" );
+			parent::__construct( $name, $value );
+		}
+
+		function prefix()
+		{
+			return new Text( "$this->access static $this->class::" );
+		}
 	}
 }

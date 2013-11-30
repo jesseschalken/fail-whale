@@ -1,13 +1,15 @@
 <?php
-namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\TypeHandler;
-use PrettyPrinter\Utils\Text;
-
-final class Integer extends TypeHandler
+namespace PrettyPrinter\TypeHandlers
 {
-	function handleValue( &$int )
+	use PrettyPrinter\TypeHandler;
+	use PrettyPrinter\Utils\Text;
+
+	final class Integer extends TypeHandler
 	{
-		return new Text( "$int" );
+		function handleValue( &$int )
+		{
+			return new Text( "$int" );
+		}
 	}
 }

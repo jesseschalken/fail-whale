@@ -1,13 +1,14 @@
 <?php
 
-namespace PrettyPrinter\Settings;
-
-use PrettyPrinter\Setting;
-
-class Number extends Setting
+namespace PrettyPrinter\Settings
 {
-	function set( $v )
+	use PrettyPrinter\Setting;
+
+	class Number extends Setting
 	{
-		return parent::set( $v === INF || $v === -INF ? $v : (int) $v );
+		function set( $v )
+		{
+			return parent::set( $v === INF || $v === -INF ? $v : (int) $v );
+		}
 	}
 }

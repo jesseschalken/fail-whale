@@ -1,13 +1,15 @@
 <?php
-namespace PrettyPrinter\TypeHandlers;
 
-use PrettyPrinter\TypeHandler;
-use PrettyPrinter\Utils\Text;
-
-final class Boolean extends TypeHandler
+namespace PrettyPrinter\TypeHandlers
 {
-	function handleValue( &$value )
+	use PrettyPrinter\TypeHandler;
+	use PrettyPrinter\Utils\Text;
+
+	final class Boolean extends TypeHandler
 	{
-		return new Text( $value ? 'true' : 'false' );
+		function handleValue( &$value )
+		{
+			return new Text( $value ? 'true' : 'false' );
+		}
 	}
 }
