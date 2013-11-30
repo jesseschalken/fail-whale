@@ -33,11 +33,6 @@ namespace PrettyPrinter
 		{
 			return $this->anyHandler->settings();
 		}
-
-		protected function newId()
-		{
-			return $this->anyHandler->newId();
-		}
 	}
 }
 
@@ -53,7 +48,7 @@ namespace PrettyPrinter\TypeHandlers
 	final class Any extends TypeHandler
 	{
 		private $bool, $int, $float, $string, $array, $object, $resource, $null, $unknown;
-		private $variable, $nextId = 1, $settings;
+		private $variable, $settings;
 
 		function __construct( PrettyPrinter $settings )
 		{
@@ -109,11 +104,6 @@ namespace PrettyPrinter\TypeHandlers
 		function prettyPrintVariable( $varName )
 		{
 			return $this->variable->handleVariable( $varName );
-		}
-
-		function newId()
-		{
-			return '#' . $this->nextId++;
 		}
 
 		function settings() { return $this->settings; }
