@@ -24,7 +24,7 @@ namespace PrettyPrinter
 
 		function prettyPrintRef( &$value )
 		{
-			return $this->fromID( $this->toID( $value ) )->render();
+			return $this->toID( $value )->dereference()->render();
 		}
 
 		function toID( &$value )
@@ -41,7 +41,7 @@ namespace PrettyPrinter
 			$this->values[ $id ]             = $value;
 			$this->cache[ $type ][ $string ] = $id;
 
-			return $id;
+			return new MemoryReference( $this, $id );
 		}
 
 		function fromID( $id )
@@ -100,12 +100,33 @@ namespace PrettyPrinter
 			return $string->render()->wrap( '${', '}' );
 		}
 	}
+
+	class MemoryReference
+	{
+		private $memory, $id;
+
+		/**
+		 * @param Memory $memory
+		 * @param int    $id
+		 */
+		function __construct( Memory $memory, $id )
+		{
+			$this->memory = $memory;
+			$this->id     = $id;
+		}
+		
+		function dereference()
+		{
+			return $this->memory->fromID( $this->id );
+		}
+	}
 }
 
 namespace PrettyPrinter\Types
 {
 	use PrettyPrinter\ExceptionInfo;
 	use PrettyPrinter\Memory;
+	use PrettyPrinter\MemoryReference;
 	use PrettyPrinter\Reflection\Variable;
 	use PrettyPrinter\Utils\ArrayUtil;
 	use PrettyPrinter\Utils\Table;
@@ -178,15 +199,18 @@ namespace PrettyPrinter\Types
 
 			foreach ( $this->array as $k => &$v )
 			{
-				$keyValuePairs[ ] = array(
-					'key'   => $this->toID( $k ),
-					'value' => $this->toID( $v ),
-				);
+				$keyValuePairs[ ] = new KeyValuePair( $this->toID( $k ), $this->toID( $v ) );
 			}
 
 			return $this->render2( ArrayUtil::isAssoc( $this->array ), $keyValuePairs );
 		}
 
+		/**
+		 * @param bool           $isAssociative
+		 * @param KeyValuePair[] $keyValuePairs
+		 *
+		 * @return Text
+		 */
 		function render2( $isAssociative, array $keyValuePairs )
 		{
 			if ( empty( $keyValuePairs ) )
@@ -200,17 +224,13 @@ namespace PrettyPrinter\Types
 				if ( $table->count() >= $maxEntries )
 					break;
 
-				$key   = $keyValuePair[ 'key' ];
-				$value = $keyValuePair[ 'value' ];
-
-				$value = $this->renderFromID( $value );
+				$key   = $keyValuePair->key()->dereference()->render();
+				$value = $keyValuePair->value()->dereference()->render();
 
 				if ( $table->count() != count( $keyValuePairs ) - 1 )
 					$value->append( ',' );
 
-				$table->addRow( $isAssociative
-						                ? array( $this->renderFromID( $key ), $value->prepend( ' => ' ) )
-						                : array( $value ) );
+				$table->addRow( $isAssociative ? array( $key, $value->prepend( ' => ' ) ) : array( $value ) );
 			}
 
 			$result = $table->render();
@@ -227,6 +247,21 @@ namespace PrettyPrinter\Types
 		function type() { return 'array'; }
 
 		function toString() { return (string) self::$uniqueStringId++; }
+	}
+
+	final class KeyValuePair
+	{
+		private $key, $value;
+
+		function __construct( MemoryReference $key, MemoryReference $value )
+		{
+			$this->key   = $key;
+			$this->value = $value;
+		}
+		
+		function key() { return $this->key; }
+
+		function value() { return $this->value; }
 	}
 
 	final class Boolean extends Value
@@ -313,15 +348,7 @@ namespace PrettyPrinter\Types
 			                 $globals, $locals, $code, $message, $previous );
 		}
 
-		private $class, $file, $line, $stack, $globals, $locals, $code, $message;
-		/**
-		 * @var \PrettyPrinter\Memory
-		 */
-		private $memory;
-		/**
-		 * @var null|ReflectedException
-		 */
-		private $previous;
+		private $class, $file, $line, $stack, $globals, $locals, $code, $message, $memory, $previous;
 
 		/**
 		 * @param \PrettyPrinter\Memory   $memory
@@ -330,7 +357,7 @@ namespace PrettyPrinter\Types
 		 * @param int                     $line
 		 * @param StackFrame[]            $stack
 		 * @param ReflectedGlobal[]       $globals
-		 * @param int[]|null              $locals
+		 * @param MemoryReference[]|null  $locals
 		 * @param mixed                   $code
 		 * @param string                  $message
 		 * @param ReflectedException|null $previous
@@ -376,7 +403,7 @@ namespace PrettyPrinter\Types
 
 			foreach ( $this->globals as $global )
 				$table->addRow( array( $global->prettyPrint( $this->memory ),
-				                       $this->memory->fromID( $global->value() )->render()->wrap( ' = ', ';' ) ) );
+				                       $global->value()->dereference()->render()->wrap( ' = ', ';' ) ) );
 
 			return $table->render();
 		}
@@ -393,7 +420,7 @@ namespace PrettyPrinter\Types
 
 			foreach ( $this->locals as $name => $value )
 				$table->addRow( array( $this->memory->prettyPrintVariable( $name ),
-				                       $this->memory->fromID( $value )->render()->wrap( ' = ', ';' ) ) );
+				                       $value->dereference()->render()->wrap( ' = ', ';' ) ) );
 
 			return $table->render()->indent()->wrapLines( "local variables:" );
 		}
@@ -472,9 +499,9 @@ namespace PrettyPrinter\Types
 		 * @param \PrettyPrinter\Memory $memory
 		 * @param string|null           $type
 		 * @param string|null           $function
-		 * @param int|null              $object
+		 * @param MemoryReference|null              $object
 		 * @param string|null           $class
-		 * @param int[]|null            $args
+		 * @param MemoryReference[]|null            $args
 		 * @param string|null           $file
 		 * @param int|null              $line
 		 */
@@ -489,7 +516,12 @@ namespace PrettyPrinter\Types
 			$this->line     = $line;
 			$this->memory   = $memory;
 		}
-		
+
+		/**
+		 * @param int $i
+		 *
+		 * @return Text
+		 */
 		function render( $i )
 		{
 			return Text::create()
@@ -512,7 +544,7 @@ namespace PrettyPrinter\Types
 			if ( $this->object === null )
 				return new Text( "$this->class" );
 
-			return $this->memory->fromID( $this->object )->render();
+			return $this->object->dereference()->render();
 		}
 
 		private function prettyPrintFunctionArgs()
@@ -520,16 +552,16 @@ namespace PrettyPrinter\Types
 			if ( $this->args === null )
 				return new Text( '( ? )' );
 
-			if ( empty( $args ) )
+			if ( empty( $this->args ) )
 				return new Text( '()' );
 
 			$pretties    = array();
 			$isMultiLine = false;
 			$result      = new Text;
 
-			foreach ( $args as $arg )
+			foreach ( $this->args as $arg )
 			{
-				$pretty      = $this->memory->fromID( $arg )->render();
+				$pretty      = $arg->dereference()->render();
 				$isMultiLine = $isMultiLine || $pretty->count() > 1;
 				$pretties[ ] = $pretty;
 			}
@@ -565,12 +597,12 @@ namespace PrettyPrinter\Types
 		private $memory, $class, $function, $name, $value, $access;
 
 		/**
-		 * @param Memory      $memory
-		 * @param string|null $class
-		 * @param string|null $function
-		 * @param string      $name
-		 * @param int         $value
-		 * @param string|null $access
+		 * @param Memory          $memory
+		 * @param string|null     $class
+		 * @param string|null     $function
+		 * @param string          $name
+		 * @param MemoryReference $value
+		 * @param string|null     $access
 		 */
 		function __construct( Memory $memory, $class, $function, $name, $value, $access )
 		{
@@ -691,12 +723,10 @@ namespace PrettyPrinter\Types
 
 					$property->setAccessible( true );
 
-					$properties[ ] = array(
-						'name'   => $property->name,
-						'value'  => $this->toID( $property->getValue( $this->object ) ),
-						'access' => Exception::propertyOrMethodAccess( $property ),
-						'class'  => $property->class,
-					);
+					$properties[ ] = new ObjectProperty( $this->toID( $property->getValue( $this->object ) ),
+					                                     $property->name,
+					                                     Exception::propertyOrMethodAccess( $property ),
+					                                     $property->class );
 				}
 			}
 
@@ -704,8 +734,8 @@ namespace PrettyPrinter\Types
 		}
 
 		/**
-		 * @param string $class
-		 * @param array  $properties
+		 * @param string           $class
+		 * @param ObjectProperty[] $properties
 		 *
 		 * @return Text
 		 */
@@ -722,12 +752,12 @@ namespace PrettyPrinter\Types
 				if ( $table->count() >= $maxProperties )
 					continue;
 
-				$value  = $property[ 'value' ];
-				$name   = $property[ 'name' ];
-				$access = $property[ 'access' ];
+				$value  = $property->value();
+				$name   = $property->name();
+				$access = $property->access();
 
 				$table->addRow( array( $this->prettyPrintVariable( $name )->prepend( "$access " ),
-				                       $this->renderFromID( $value )->wrap( ' = ', ';' ) ) );
+				                       $value->dereference()->render()->wrap( ' = ', ';' ) ) );
 			}
 
 			$result = $table->render();
@@ -751,6 +781,33 @@ namespace PrettyPrinter\Types
 		function type() { return 'object'; }
 
 		function toString() { return spl_object_hash( $this->object ); }
+	}
+
+	final class ObjectProperty
+	{
+		private $value, $name, $access, $class;
+
+		/**
+		 * @param MemoryReference $value
+		 * @param string          $name
+		 * @param string          $access
+		 * @param string          $class
+		 */
+		function __construct( MemoryReference $value, $name, $access, $class )
+		{
+			$this->value  = $value;
+			$this->name   = $name;
+			$this->access = $access;
+			$this->class  = $class;
+		}
+		
+		function value() { return $this->value; }
+
+		function name() { return $this->name; }
+
+		function access() { return $this->access; }
+
+		function className() { return $this->class; }
 	}
 
 	final class Resource extends Value
