@@ -33,7 +33,7 @@ namespace PrettyPrinter
 			$type   = $value->type();
 			$string = $value->toString();
 
-			if ( !isset( $this->cache[ $type ][ $string ] ) )
+			if ( isset( $this->cache[ $type ][ $string ] ) )
 				return $this->cache[ $type ][ $string ];
 
 			$id = $this->nextId++;
@@ -276,21 +276,21 @@ namespace PrettyPrinter\Types
 		 */
 		function render()
 		{
-			return $this->prettyPrintExceptionWithoutGlobals( $this->exception )
-			            ->addLines( $this->prettyPrintGlobalState( $this->exception ) );
+			return $this->prettyPrintExceptionWithoutGlobals()
+			            ->addLines( $this->prettyPrintGlobalState() );
 		}
 
-		private function prettyPrintGlobalState( ExceptionInfo $exception )
+		private function prettyPrintGlobalState()
 		{
 			if ( !$this->settings()->showExceptionGlobalVariables()->get() )
 				return new Text;
 
-			return $this->prettyPrintGlobalVariables( $exception )->indent()->wrapLines( 'global variables:' );
+			return $this->prettyPrintGlobalVariables()->indent()->wrapLines( 'global variables:' );
 		}
 
-		private function prettyPrintGlobalVariables( ExceptionInfo $exception )
+		private function prettyPrintGlobalVariables()
 		{
-			$globals = $exception->globalVariables();
+			$globals = $this->exception->globalVariables();
 
 			if ( empty( $globals ) )
 				return new Text( 'none' );
@@ -304,53 +304,58 @@ namespace PrettyPrinter\Types
 			return $table->render();
 		}
 
-		private function prettyPrintLocalVariables( ExceptionInfo $exception )
+		private function prettyPrintLocalVariables()
 		{
 			if ( !$this->settings()->showExceptionLocalVariables()->get() )
 				return new Text;
 
-			if ( $exception->localVariables() === null )
+			if ( $this->exception->localVariables() === null )
 				return new Text;
 
 			$table = new Table;
 
-			foreach ( $exception->localVariables() as $name => $value )
+			foreach ( $this->exception->localVariables() as $name => $value )
 				$table->addRow( array( $this->prettyPrintVariable( $name ),
 				                       $this->prettyPrintRef( $value )->wrap( ' = ', ';' ) ) );
 
 			return $table->render()->indent()->wrapLines( "local variables:" );
 		}
 
-		private function prettyPrintExceptionWithoutGlobals( ExceptionInfo $e )
+		private function prettyPrintExceptionWithoutGlobals()
 		{
 			return Text::create()
-			           ->addLines( $this->prettyPrintExceptionHeader( $e ) )
-			           ->addLines( $this->prettyPrintLocalVariables( $e ) )
-			           ->addLines( $this->prettyPrintStackTrace( $e ) )
-			           ->addLines( $this->prettyPrintPreviousException( $e ) );
+			           ->addLines( $this->prettyPrintExceptionHeader() )
+			           ->addLines( $this->prettyPrintLocalVariables() )
+			           ->addLines( $this->prettyPrintStackTrace() )
+			           ->addLines( $this->prettyPrintPreviousException() );
 		}
 
-		private function prettyPrintExceptionHeader( ExceptionInfo $e )
+		private function prettyPrintExceptionHeader()
 		{
-			$class = $e->exceptionClassName();
-			$code  = $e->code();
-			$file  = $e->file();
-			$line  = $e->line();
+			$class   = $this->exception->exceptionClassName();
+			$code    = $this->exception->code();
+			$file    = $this->exception->file();
+			$line    = $this->exception->line();
+			$message = $this->exception->message();
 
 			return Text::create( "$class $code in $file:$line" )
-			           ->addLines( Text::create( $e->message() )->indent( 2 )->wrapLines() );
+			           ->addLines( Text::create( $message )->indent( 2 )->wrapLines() );
 		}
 
-		private function prettyPrintPreviousException( ExceptionInfo $exception )
+		private function prettyPrintPreviousException()
 		{
-			if ( $exception->previous() === null )
+			$previous = $this->exception->previous();
+
+			if ( $previous === null )
 				return new Text;
 
-			return $this->prettyPrintExceptionWithoutGlobals( $exception->previous() )->indent( 2 )
+			$previous = new self( $this->memory(), $previous );
+
+			return $previous->prettyPrintExceptionWithoutGlobals()->indent( 2 )
 			            ->wrapLines( "previous exception:" );
 		}
 
-		private function prettyPrintStackTrace( ExceptionInfo $exception )
+		private function prettyPrintStackTrace()
 		{
 			if ( !$this->settings()->showExceptionStackTrace()->get() )
 				return new Text;
@@ -358,7 +363,7 @@ namespace PrettyPrinter\Types
 			$result = new Text;
 			$i      = 1;
 
-			foreach ( $exception->stackTrace() as $stackFrame )
+			foreach ( $this->exception->stackTrace() as $stackFrame )
 			{
 				$result->addLine( "#$i $stackFrame[file]:$stackFrame[line]" );
 				$result->addLines( $this->prettyPrintFunctionCall( $stackFrame )->indent( 3 ) );
