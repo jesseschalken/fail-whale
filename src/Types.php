@@ -112,12 +112,13 @@ namespace PrettyPrinter
 
 namespace PrettyPrinter\Types
 {
-	use PrettyPrinter\ExceptionInfo;
+	use PrettyPrinter\HasFullTrace;
+	use PrettyPrinter\HasLocalVariables;
 	use PrettyPrinter\Memory;
 	use PrettyPrinter\MemoryReference;
 	use PrettyPrinter\PrettyPrinter;
-	use PrettyPrinter\Reflection\Variable;
 	use PrettyPrinter\Utils\ArrayUtil;
+	use PrettyPrinter\Utils\Ref;
 	use PrettyPrinter\Utils\Table;
 	use PrettyPrinter\Utils\Text;
 
@@ -265,7 +266,7 @@ namespace PrettyPrinter\Types
 	{
 		private $exception, $memory;
 
-		function __construct( Memory $memory, ExceptionInfo $exception )
+		function __construct( Memory $memory, \Exception $exception )
 		{
 			$this->memory    = $memory;
 			$this->exception = $exception;
@@ -293,35 +294,120 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class ReflectedException
+	class ReflectedException
 	{
-		static function reflect( Memory $memory, ExceptionInfo $exception )
+		static function reflect( Memory $memory, \Exception $exception )
 		{
-			$stackFrames = array();
-			$locals      = array();
-			$globals     = array();
+			$localVariables = $exception instanceof HasLocalVariables ? $exception->getLocalVariables() : null;
+			$trace          = $exception instanceof HasFullTrace ? $exception->getFullTrace() : $exception->getTrace();
 
-			foreach ( $exception->stackTrace() as $frame )
-				$stackFrames[ ] = StackFrame::reflect( $memory, $frame );
+			$locals         = self::reflectLocalVariables( $memory, $localVariables );
+			$globals        = self::reflectGlobalVariables( $memory );
+			$stack          = self::reflectStack( $memory, $trace );
 
-			foreach ( $exception->localVariables() as $name => $value )
-				$locals[ $name ] = $memory->toID( $value );
-
-			foreach ( $exception->globalVariables() as $global )
-				$globals[ ] = ReflectedGlobal::reflect( $memory, $global );
-
-			$previous = $exception->previous();
+			$previous = $exception->getPrevious();
 			$previous = $previous === null ? null : self::reflect( $memory, $previous );
 
-			$class   = $exception->exceptionClassName();
-			$file    = $exception->file();
-			$line    = $exception->line();
-			$code    = $exception->code();
-			$message = $exception->message();
+			$class   = get_class( $exception );
+			$file    = $exception->getFile();
+			$line    = $exception->getLine();
+			$code    = $exception->getCode();
+			$message = $exception->getMessage();
 
-			return new self( $class, $file, $line, $stackFrames, $globals, $locals, $code, $message, $previous );
+			return new self( $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous );
+		}
+		
+		protected static function reflectStack( Memory $memory, array $trace )
+		{
+			$stackFrames = array();
+
+			foreach ( $trace as $frame )
+				$stackFrames[ ] = StackFrame::reflect( $memory, $frame );
+			
+			return $stackFrames;
 		}
 
+		/**
+		 * @param Memory     $memory
+		 * @param array|null $locals
+		 *
+		 * @return MemoryReference[]|null
+		 */
+		protected static function reflectLocalVariables( Memory $memory, array $locals = null )
+		{
+			if ( $locals === null )
+				return null;
+			
+			$reflected = array();
+			
+			foreach ( $locals as $k => &$v )
+				$reflected[ $k ] = $memory->toID( $v );
+			
+			return $reflected;
+		}
+		
+		private static function reflectGlobalVariables( Memory $memory )
+		{
+			$globals = array();
+
+			foreach ( $GLOBALS as $name => &$globalValue )
+			{
+				if ( $name !== 'GLOBALS' )
+				{
+					$value = $memory->toID( $globalValue );
+
+					$globals[ ] = new ReflectedGlobal( null, null, $name, $value, null );
+				}
+			}
+
+			foreach ( get_declared_classes() as $class )
+			{
+				$reflection = new \ReflectionClass( $class );
+
+				foreach ( $reflection->getProperties( \ReflectionProperty::IS_STATIC ) as $property )
+				{
+					$property->setAccessible( true );
+
+					$value  = $memory->toID( Ref::create( $property->getValue() ) );
+					$access = Exception::propertyOrMethodAccess( $property );
+					$class  = $property->class;
+					$name   = $property->name;
+
+					$globals[ ] = new ReflectedGlobal( $class, null, $name, $value, $access );
+				}
+
+				foreach ( $reflection->getMethods() as $method )
+				{
+					foreach ( $method->getStaticVariables() as $name => $value )
+					{
+						$value    = $memory->toID( $value );
+						$class    = $method->class;
+						$function = $method->getName();
+
+						$globals[ ] = new ReflectedGlobal( $class, $function, $name, $value, null );
+					}
+				}
+			}
+
+			foreach ( get_defined_functions() as $section )
+			{
+				foreach ( $section as $function )
+				{
+					$reflection = new \ReflectionFunction( $function );
+
+					foreach ( $reflection->getStaticVariables() as $name => $value )
+					{
+						$value    = $memory->toID( $value );
+						$function = $reflection->name;
+
+						$globals[ ] = new ReflectedGlobal( null, $function, $name, $value, null );
+					}
+				}
+			}
+
+			return $globals;
+		}
+		
 		private $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous;
 
 		/**
@@ -556,30 +642,22 @@ namespace PrettyPrinter\Types
 
 	final class ReflectedGlobal
 	{
-		static function reflect( Memory $memory, Variable $var )
+		static function reflect( Memory $memory, $class, $function, $name, &$value, $access )
 		{
-			$class    = $var->className();
-			$function = $var->functionName();
-			$name     = $var->name();
-			$value    = $memory->toID( $var->value() );
-			$access   = $var->access();
-
-			return new self( $memory, $class, $function, $name, $value, $access );
+			return new self( $class, $function, $name, $memory->toID( $value ), $access );
 		}
 
-		private $memory, $class, $function, $name, $value, $access;
+		private $class, $function, $name, $value, $access;
 
 		/**
-		 * @param Memory          $memory
 		 * @param string|null     $class
 		 * @param string|null     $function
 		 * @param string          $name
 		 * @param MemoryReference $value
 		 * @param string|null     $access
 		 */
-		function __construct( Memory $memory, $class, $function, $name, $value, $access )
+		function __construct( $class, $function, $name, $value, $access )
 		{
-			$this->memory   = $memory;
 			$this->class    = $class;
 			$this->function = $function;
 			$this->name     = $name;

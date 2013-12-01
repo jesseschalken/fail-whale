@@ -317,13 +317,9 @@ s
 
 namespace PrettyPrinter\Test
 {
-	use PrettyPrinter\ExceptionInfo;
-	use PrettyPrinter\Reflection\ClassStaticProperty;
-	use PrettyPrinter\Reflection\FunctionStaticVariable;
-	use PrettyPrinter\Reflection\GlobalVariable;
-	use PrettyPrinter\Reflection\MethodStaticVariable;
-	use PrettyPrinter\Reflection\Variable;
+	use PrettyPrinter\Memory;
 	use PrettyPrinter\Types;
+	use PrettyPrinter\Types\ReflectedGlobal;
 	use PrettyPrinter\Utils\Ref;
 
 	class DummyClass1
@@ -350,48 +346,25 @@ namespace PrettyPrinter\Test
 		protected $protected2;
 	}
 
-	class MockException extends ExceptionInfo
+	class MockException extends Types\ReflectedException
 	{
-		function message()
+		function __construct()
 		{
-			return <<<'s'
+			$class          = 'MuhMockException';
+			$message        = <<<'s'
 This is a dummy exception message.
 
 lololool
 s;
-		}
-
-		function code()
-		{
-			return 'Dummy exception code';
-		}
-
-		function file()
-		{
-			return '/the/path/to/muh/file';
-		}
-
-		function line()
-		{
-			return 9000;
-		}
-
-		function previous()
-		{
-			return null;
-		}
-
-		function localVariables()
-		{
-			return array(
+			$code           = 'Dummy exception code';
+			$file           = '/the/path/to/muh/file';
+			$line           = 9000;
+			$previous       = null;
+			$localVariables = array(
 				'lol' => 8,
 				'foo' => 'bar',
 			);
-		}
-
-		function stackTrace()
-		{
-			return array(
+			$stackTrace     = array(
 				array(
 					'object'   => new DummyClass1,
 					'class'    => 'AClass',
@@ -402,22 +375,21 @@ s;
 					'line'     => 1928,
 				),
 			);
-		}
 
-		function globalVariables()
-		{
-			return array(
-				new ClassStaticProperty( 'BlahClass', 'private', 'blahProperty', Ref::create() ),
-				new FunctionStaticVariable( 'BlahAnotherClass', 'public', Ref::create() ),
-				new GlobalVariable( 'lol global', Ref::create() ),
-				new MethodStaticVariable( 'BlahYetAnotherClass', 'blahMethod', 'lolStatic', Ref::create() ),
-				new Variable( 'blahVariable', Ref::create() ),
+			$memory  = new Memory;
+			$null    = $memory->toID( Ref::create() );
+			$globals = array(
+				new ReflectedGlobal( 'BlahClass', null, 'blahProperty', $null, 'private' ),
+				new ReflectedGlobal( null, 'BlahAnotherClass', 'public', $null, null ),
+				new ReflectedGlobal( null, null, 'lol global', $null, null ),
+				new ReflectedGlobal( 'BlahYetAnotherClass', 'blahMethod', 'lolStatic', $null, null ),
+				new ReflectedGlobal( null, null, 'blahVariable', $null, null ),
 			);
-		}
 
-		function exceptionClassName()
-		{
-			return 'MuhMockException';
+			$stack  = self::reflectStack( $memory, $stackTrace );
+			$locals = self::reflectLocalVariables( $memory, $localVariables );
+
+			parent::__construct( $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous );
 		}
 	}
 }

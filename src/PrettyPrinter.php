@@ -4,7 +4,7 @@ namespace PrettyPrinter
 {
 	use PrettyPrinter\Settings\Bool;
 	use PrettyPrinter\Settings\Number;
-	use PrettyPrinter\Types\Exception as ExceptionHandler;
+	use PrettyPrinter\Types\ReflectedException;
 
 	final class PrettyPrinter
 	{
@@ -59,16 +59,14 @@ namespace PrettyPrinter
 			return $memory->prettyPrintRef( $ref, $this )->setHasEndingNewline( false )->__toString();
 		}
 
-		function prettyPrintExceptionInfo( ExceptionInfo $e )
+		function prettyPrintExceptionInfo( ReflectedException $e )
 		{
-			$exceptionHandler = new ExceptionHandler( new Memory(), $e );
-
-			return $exceptionHandler->render( $this )->__toString();
+			return $e->render( $this )->__toString();
 		}
 
 		function prettyPrintException( \Exception $e )
 		{
-			return $this->prettyPrintExceptionInfo( ExceptionInfo::fromException( $e ) );
+			return $this->prettyPrintExceptionInfo( ReflectedException::reflect( new Memory, $e ) );
 		}
 
 		function assertPrettyIs( $value, $expectedPretty )
