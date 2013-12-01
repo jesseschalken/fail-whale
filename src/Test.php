@@ -78,7 +78,7 @@ s
 		{
 			$this->markTestIncomplete();
 
-			self::pp()->maxArrayEntries()->set( 10 )->assertPrettyIs( new Memory( new PrettyPrinter ), <<<'s'
+			self::pp()->maxArrayEntries()->set( 10 )->assertPrettyIs( new Memory, <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};

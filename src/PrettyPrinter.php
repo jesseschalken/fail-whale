@@ -54,16 +54,16 @@ namespace PrettyPrinter
 
 		function prettyPrintRef( &$ref )
 		{
-			$anyHandler = new Memory( $this );
+			$memory = new Memory;
 
-			return $anyHandler->prettyPrintRef( $ref )->setHasEndingNewline( false )->__toString();
+			return $memory->prettyPrintRef( $ref, $this )->setHasEndingNewline( false )->__toString();
 		}
 
 		function prettyPrintExceptionInfo( ExceptionInfo $e )
 		{
-			$exceptionHandler = new ExceptionHandler( new Memory( $this ), $e );
+			$exceptionHandler = new ExceptionHandler( new Memory(), $e );
 
-			return $exceptionHandler->render()->__toString();
+			return $exceptionHandler->render( $this )->__toString();
 		}
 
 		function prettyPrintException( \Exception $e )

@@ -6,8 +6,6 @@ namespace PrettyPrinter
 
 	class Memory
 	{
-		/** @var PrettyPrinter */
-		private $settings;
 		/** @var Types\Value[] */
 		private $values = array();
 		/** @var int[][] */
@@ -15,16 +13,9 @@ namespace PrettyPrinter
 		/** @var int */
 		private $nextId = 0;
 
-		function settings() { return $this->settings; }
-
-		function __construct( PrettyPrinter $settings )
+		function prettyPrintRef( &$value, PrettyPrinter $settings )
 		{
-			$this->settings = $settings;
-		}
-
-		function prettyPrintRef( &$value )
-		{
-			return $this->toID( $value )->dereference()->render();
+			return $this->toID( $value )->render( $settings );
 		}
 
 		function toID( &$value )
@@ -83,21 +74,18 @@ namespace PrettyPrinter
 			return new Types\Unknown( $this );
 		}
 
-		function prettyPrint( $value ) { return $this->prettyPrintRef( $value ); }
-
 		/**
-		 * @param string $name
+		 * @param PrettyPrinter $settings
+		 * @param string        $name
 		 *
 		 * @return Utils\Text
 		 */
-		function prettyPrintVariable( $name )
+		static function prettyPrintVariable( PrettyPrinter $settings, $name )
 		{
 			if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name ) )
 				return new Utils\Text( "$$name" );
 
-			$string = new Types\String( $this, $name );
-
-			return $string->render()->wrap( '${', '}' );
+			return Types\String::renderString( $settings, $name )->wrap( '${', '}' );
 		}
 	}
 
@@ -114,10 +102,10 @@ namespace PrettyPrinter
 			$this->memory = $memory;
 			$this->id     = $id;
 		}
-		
-		function dereference()
+
+		function render( PrettyPrinter $settings )
 		{
-			return $this->memory->fromID( $this->id );
+			return $this->memory->fromID( $this->id )->render( $settings );
 		}
 	}
 }
@@ -127,6 +115,7 @@ namespace PrettyPrinter\Types
 	use PrettyPrinter\ExceptionInfo;
 	use PrettyPrinter\Memory;
 	use PrettyPrinter\MemoryReference;
+	use PrettyPrinter\PrettyPrinter;
 	use PrettyPrinter\Reflection\Variable;
 	use PrettyPrinter\Utils\ArrayUtil;
 	use PrettyPrinter\Utils\Table;
@@ -141,8 +130,12 @@ namespace PrettyPrinter\Types
 			$this->memory = $memory;
 		}
 
-		/** @return Text */
-		abstract function render();
+		/**
+		 * @param PrettyPrinter $settings
+		 *
+		 * @return Text
+		 */
+		abstract function render( PrettyPrinter $settings );
 
 		/** @return string */
 		abstract function type();
@@ -150,33 +143,14 @@ namespace PrettyPrinter\Types
 		/** @return string */
 		abstract function toString();
 
-		protected function settings() { return $this->memory->settings(); }
-
-		protected final function prettyPrintRef( &$value )
+		protected static function prettyPrintVariable( $varName, PrettyPrinter $settings )
 		{
-			return $this->memory->prettyPrintRef( $value );
+			return Memory::prettyPrintVariable( $settings, $varName );
 		}
 
-		protected final function prettyPrint( $value )
-		{
-			return $this->memory->prettyPrintRef( $value );
-		}
-
-		protected final function prettyPrintVariable( $varName )
-		{
-			return $this->memory->prettyPrintVariable( $varName );
-		}
-
-		protected function memory() { return $this->memory; }
-
-		protected function renderFromID( $value )
-		{
-			return $this->memory()->fromID( $value )->render();
-		}
-		
 		protected function toID( &$value )
 		{
-			return $this->memory()->toID( $value );
+			return $this->memory->toID( $value );
 		}
 	}
 
@@ -193,7 +167,7 @@ namespace PrettyPrinter\Types
 			return $this->array =& $array;
 		}
 
-		function render()
+		function render( PrettyPrinter $settings )
 		{
 			$keyValuePairs = array();
 
@@ -202,30 +176,32 @@ namespace PrettyPrinter\Types
 				$keyValuePairs[ ] = new KeyValuePair( $this->toID( $k ), $this->toID( $v ) );
 			}
 
-			return $this->render2( ArrayUtil::isAssoc( $this->array ), $keyValuePairs );
+			return $this->render2( ArrayUtil::isAssoc( $this->array ), $keyValuePairs, $settings );
 		}
 
 		/**
-		 * @param bool           $isAssociative
-		 * @param KeyValuePair[] $keyValuePairs
+		 * @param bool                         $isAssociative
+		 * @param KeyValuePair[]               $keyValuePairs
+		 *
+		 * @param \PrettyPrinter\PrettyPrinter $settings
 		 *
 		 * @return Text
 		 */
-		function render2( $isAssociative, array $keyValuePairs )
+		function render2( $isAssociative, array $keyValuePairs, PrettyPrinter $settings )
 		{
-			if ( empty( $keyValuePairs ) )
+			if ( $keyValuePairs === array() )
 				return new Text( 'array()' );
 
-			$maxEntries    = $this->settings()->maxArrayEntries()->get();
-			$table         = new Table;
+			$maxEntries = $settings->maxArrayEntries()->get();
+			$table      = new Table;
 
 			foreach ( $keyValuePairs as $keyValuePair )
 			{
 				if ( $table->count() >= $maxEntries )
 					break;
 
-				$key   = $keyValuePair->key()->dereference()->render();
-				$value = $keyValuePair->value()->dereference()->render();
+				$key   = $keyValuePair->key()->render( $settings );
+				$value = $keyValuePair->value()->render( $settings );
 
 				if ( $table->count() != count( $keyValuePairs ) - 1 )
 					$value->append( ',' );
@@ -241,7 +217,6 @@ namespace PrettyPrinter\Types
 			$result->wrap( 'array( ', ' )' );
 
 			return $result;
-
 		}
 
 		function type() { return 'array'; }
@@ -258,7 +233,7 @@ namespace PrettyPrinter\Types
 			$this->key   = $key;
 			$this->value = $value;
 		}
-		
+
 		function key() { return $this->key; }
 
 		function value() { return $this->value; }
@@ -279,7 +254,7 @@ namespace PrettyPrinter\Types
 			parent::__construct( $memory );
 		}
 
-		function render() { return new Text( $this->bool ? 'true' : 'false' ); }
+		function render( PrettyPrinter $settings ) { return new Text( $this->bool ? 'true' : 'false' ); }
 
 		function type() { return 'boolean'; }
 
@@ -288,10 +263,11 @@ namespace PrettyPrinter\Types
 
 	final class Exception extends Value
 	{
-		private $exception;
+		private $exception, $memory;
 
 		function __construct( Memory $memory, ExceptionInfo $exception )
 		{
+			$this->memory    = $memory;
 			$this->exception = $exception;
 
 			parent::__construct( $memory );
@@ -311,10 +287,9 @@ namespace PrettyPrinter\Types
 
 		function toString() { return spl_object_hash( $this->exception ); }
 
-		function render()
+		function render( PrettyPrinter $settings )
 		{
-			$reflected = ReflectedException::reflect( $this->memory(), $this->exception );
-			return $reflected->render();
+			return ReflectedException::reflect( $this->memory, $this->exception )->render( $settings );
 		}
 	}
 
@@ -331,9 +306,9 @@ namespace PrettyPrinter\Types
 
 			foreach ( $exception->localVariables() as $name => $value )
 				$locals[ $name ] = $memory->toID( $value );
-			
+
 			foreach ( $exception->globalVariables() as $global )
-				$globals[] = ReflectedGlobal::reflect( $memory, $global );
+				$globals[ ] = ReflectedGlobal::reflect( $memory, $global );
 
 			$previous = $exception->previous();
 			$previous = $previous === null ? null : self::reflect( $memory, $previous );
@@ -344,14 +319,12 @@ namespace PrettyPrinter\Types
 			$code    = $exception->code();
 			$message = $exception->message();
 
-			return new self( $memory, $class, $file, $line, $stackFrames,
-			                 $globals, $locals, $code, $message, $previous );
+			return new self( $class, $file, $line, $stackFrames, $globals, $locals, $code, $message, $previous );
 		}
 
-		private $class, $file, $line, $stack, $globals, $locals, $code, $message, $memory, $previous;
+		private $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous;
 
 		/**
-		 * @param \PrettyPrinter\Memory   $memory
 		 * @param string                  $class
 		 * @param string                  $file
 		 * @param int                     $line
@@ -362,8 +335,8 @@ namespace PrettyPrinter\Types
 		 * @param string                  $message
 		 * @param ReflectedException|null $previous
 		 */
-		function __construct( Memory $memory, $class, $file, $line, array $stack,
-		                      array $globals, array $locals, $code, $message, self $previous = null )
+		function __construct( $class, $file, $line, array $stack, array $globals, array $locals, $code, $message,
+		                      self $previous = null )
 		{
 			$this->class    = $class;
 			$this->file     = $file;
@@ -373,105 +346,102 @@ namespace PrettyPrinter\Types
 			$this->locals   = $locals;
 			$this->code     = $code;
 			$this->message  = $message;
-			$this->memory   = $memory;
 			$this->previous = $previous;
 		}
 
 		/**
+		 * @param \PrettyPrinter\PrettyPrinter $settings
+		 *
 		 * @return Text
 		 */
-		function render()
+		function render( PrettyPrinter $settings )
 		{
-			return $this->prettyPrintExceptionWithoutGlobals()
-			            ->addLines( $this->prettyPrintGlobalState() );
+			$text = $this->renderWithoutGlobals( $settings );
+			
+			if ( $settings->showExceptionGlobalVariables()->get() )
+			{
+				$text->addLine( "global variables:" );
+				$text->addLines( $this->renderGlobals( $settings )->indent() );
+				$text->addLine();
+			}
+
+			return $text;
 		}
 
-		private function prettyPrintGlobalState()
+		private function renderGlobals( PrettyPrinter $settings )
 		{
-			if ( !$this->settings()->showExceptionGlobalVariables()->get() )
-				return new Text;
-
-			return $this->prettyPrintGlobalVariables()->indent()->wrapLines( 'global variables:' );
-		}
-
-		private function prettyPrintGlobalVariables()
-		{
-			if ( empty( $this->globals ) )
-				return new Text( 'none' );
-
 			$table = new Table;
 
 			foreach ( $this->globals as $global )
-				$table->addRow( array( $global->prettyPrint( $this->memory ),
-				                       $global->value()->dereference()->render()->wrap( ' = ', ';' ) ) );
+				$table->addRow( array( $global->renderVar( $settings ),
+				                       $global->renderValue( $settings )->wrap( ' = ', ';' ) ) );
 
-			return $table->render();
+			return $table->count() > 0 ? $table->render() : new Text( 'none' );
 		}
 
-		private function prettyPrintLocalVariables()
+		private function renderLocals( PrettyPrinter $settings )
 		{
-			if ( !$this->settings()->showExceptionLocalVariables()->get() )
-				return new Text;
-
-			if ( $this->locals === null )
-				return new Text;
-
 			$table = new Table;
 
 			foreach ( $this->locals as $name => $value )
-				$table->addRow( array( $this->memory->prettyPrintVariable( $name ),
-				                       $value->dereference()->render()->wrap( ' = ', ';' ) ) );
+				$table->addRow( array( Memory::prettyPrintVariable( $settings, $name ),
+				                       $value->render( $settings )->wrap( ' = ', ';' ) ) );
 
-			return $table->render()->indent()->wrapLines( "local variables:" );
+			return $table->count() > 0 ? $table->render() : new Text( 'none' );
 		}
 
-		private function prettyPrintExceptionWithoutGlobals()
+		private function renderWithoutGlobals( PrettyPrinter $settings )
 		{
-			return Text::create()
-			           ->addLines( $this->prettyPrintExceptionHeader() )
-			           ->addLines( $this->prettyPrintLocalVariables() )
-			           ->addLines( $this->prettyPrintStackTrace() )
-			           ->addLines( $this->prettyPrintPreviousException() );
-		}
+			$text = new Text;
+			$text->addLine( "$this->class $this->code in $this->file:$this->line" );
+			$text->addLine();
+			$text->addLines( Text::create( $this->message )->indent( 2 ) );
+			$text->addLine();
 
-		private function prettyPrintExceptionHeader()
-		{
-			return Text::create( "$this->class $this->code in $this->file:$this->line" )
-			           ->addLines( Text::create( $this->message )->indent( 2 )->wrapLines() );
-		}
-
-		private function prettyPrintPreviousException()
-		{
-			if ( $this->previous === null )
-				return new Text;
-
-			return $this->previous->prettyPrintExceptionWithoutGlobals()->indent( 2 )
-			                      ->wrapLines( "previous exception:" );
-		}
-
-		private function prettyPrintStackTrace()
-		{
-			if ( !$this->settings()->showExceptionStackTrace()->get() )
-				return new Text;
-
-			$result = new Text;
-			$i      = 1;
-
-			foreach ( $this->stack as $stackFrame )
+			if ( $this->locals !== null && $settings->showExceptionLocalVariables()->get() )
 			{
-				$result->addLines( $stackFrame->render( $i ) );
+				$text->addLine( "local variables:" );
+				$text->addLines( $this->renderLocals( $settings )->indent() );
+				$text->addLine();
+			}
+
+			if ( $settings->showExceptionStackTrace()->get() )
+			{
+				$text->addLine( "stack trace:" );
+				$text->addLines( $this->renderStack( $settings )->indent() );
+				$text->addLine();
+			}
+
+			if ( $this->previous !== null )
+			{
+				$text->addLine( "previous exception:" );
+				$text->addLines( $this->previous->renderWithoutGlobals( $settings )->indent( 2 ) );
+				$text->addLine();
+			}
+
+			return $text;
+		}
+
+		private function renderStack( PrettyPrinter $settings )
+		{
+			$text = new Text;
+			$i    = 1;
+
+			foreach ( $this->stack as $frame )
+			{
+				$text->addLines( $frame->render( $i, $settings ) );
 				$i++;
 			}
 
-			return $result->addLine( "#$i {main}" )->indent()->wrapLines( "stack trace:" );
-		}
+			$text->addLine( "#$i {main}" );
 
-		private function settings() { return $this->memory->settings(); }
+			return $text;
+		}
 	}
 
 	final class StackFrame
 	{
-		private $memory, $type, $function, $object, $class, $args, $file, $line;
+		private $type, $function, $object, $class, $args, $file, $line;
 
 		static function reflect( Memory $memory, array $stackFrame )
 		{
@@ -492,20 +462,19 @@ namespace PrettyPrinter\Types
 			$file     = ArrayUtil::get( $stackFrame, 'file' );
 			$line     = ArrayUtil::get( $stackFrame, 'line' );
 
-			return new self( $memory, $type, $function, $object, $class, $args, $file, $line );
+			return new self( $type, $function, $object, $class, $args, $file, $line );
 		}
 
 		/**
-		 * @param \PrettyPrinter\Memory $memory
-		 * @param string|null           $type
-		 * @param string|null           $function
-		 * @param MemoryReference|null              $object
-		 * @param string|null           $class
-		 * @param MemoryReference[]|null            $args
-		 * @param string|null           $file
-		 * @param int|null              $line
+		 * @param string|null            $type
+		 * @param string|null            $function
+		 * @param MemoryReference|null   $object
+		 * @param string|null            $class
+		 * @param MemoryReference[]|null $args
+		 * @param string|null            $file
+		 * @param int|null               $line
 		 */
-		function __construct( Memory $memory, $type, $function, $object, $class, $args, $file, $line )
+		function __construct( $type, $function, $object, $class, $args, $file, $line )
 		{
 			$this->type     = $type;
 			$this->function = $function;
@@ -514,45 +483,49 @@ namespace PrettyPrinter\Types
 			$this->args     = $args;
 			$this->file     = $file;
 			$this->line     = $line;
-			$this->memory   = $memory;
 		}
 
 		/**
-		 * @param int $i
+		 * @param int           $i
+		 * @param PrettyPrinter $settings
 		 *
 		 * @return Text
 		 */
-		function render( $i )
+		function render( $i, PrettyPrinter $settings )
 		{
-			return Text::create()
-			           ->addLine( "#$i $this->file:$this->line" )
-			           ->addLines( $this->prettyPrintFunctionCall()->indent( 3 ) );
+			$text = new Text;
+			$text->addLine( "#$i $this->file:$this->line" );
+			$text->addLines( $this->renderFunctionCall( $settings )->indent( 3 ) );
+			
+			return $text;
 		}
 
-		private function prettyPrintFunctionCall()
+		private function renderFunctionCall( PrettyPrinter $settings )
 		{
-			return Text::create()
-			           ->appendLines( $this->prettyPrintFunctionObject() )
-			           ->append( "$this->type" )
-			           ->append( "$this->function" )
-			           ->appendLines( $this->prettyPrintFunctionArgs() )
-			           ->append( ';' );
+			$text = new Text;
+			$text->appendLines( $this->renderObject( $settings ) );
+			$text->append( "$this->type" );
+			$text->append( "$this->function" );
+			$text->appendLines( $this->renderArgs( $settings ) );
+			$text->append( ';' );
+
+			return $text;
 		}
 
-		private function prettyPrintFunctionObject()
+		private function renderObject( PrettyPrinter $settings )
 		{
 			if ( $this->object === null )
 				return new Text( "$this->class" );
 
-			return $this->object->dereference()->render();
+			return $this->object->render( $settings );
 		}
 
-		private function prettyPrintFunctionArgs()
+		private function renderArgs( PrettyPrinter $settings )
 		{
 			if ( $this->args === null )
 				return new Text( '( ? )' );
 
-			if ( empty( $this->args ) )
+			if ( $this->args === array() )
 				return new Text( '()' );
 
 			$pretties    = array();
@@ -561,7 +534,7 @@ namespace PrettyPrinter\Types
 
 			foreach ( $this->args as $arg )
 			{
-				$pretty      = $arg->dereference()->render();
+				$pretty      = $arg->render( $settings );
 				$isMultiLine = $isMultiLine || $pretty->count() > 1;
 				$pretties[ ] = $pretty;
 			}
@@ -614,22 +587,25 @@ namespace PrettyPrinter\Types
 			$this->access   = $access;
 		}
 
-		function value() { return $this->value; }
-
-		function prettyPrint( Memory $memory )
+		function renderVar( PrettyPrinter $settings )
 		{
-			return $this->prefix()->appendLines( $memory->prettyPrintVariable( $this->name ) );
+			return $this->prefix()->appendLines( Memory::prettyPrintVariable( $settings, $this->name ) );
+		}
+		
+		function renderValue( PrettyPrinter $settings )
+		{
+			return $this->value->render( $settings );
 		}
 
 		private function prefix()
 		{
-			if ( isset( $this->class ) && isset( $this->function ) )
+			if ( $this->class !== null && $this->function !== null )
 				return new Text( "function $this->class::$this->function()::static " );
-			
-			if ( isset( $this->class ) )
+
+			if ( $this->class !== null )
 				return new Text( "$this->access static $this->class::" );
-			
-			if ( isset( $this->function ) )
+
+			if ( $this->function !== null )
 				return new Text( "function $this->function()::static " );
 
 			$superGlobals = array( '_POST', '_GET', '_SESSION', '_COOKIE', '_FILES', '_REQUEST', '_ENV', '_SERVER' );
@@ -645,7 +621,7 @@ namespace PrettyPrinter\Types
 		 */
 		private $float;
 
-		function render()
+		function render( PrettyPrinter $settings )
 		{
 			$float = $this->float;
 			$int   = (int) $float;
@@ -660,6 +636,7 @@ namespace PrettyPrinter\Types
 		function __construct( Memory $memory, $float )
 		{
 			parent::__construct( $memory );
+
 			$this->float = $float;
 		}
 
@@ -675,7 +652,7 @@ namespace PrettyPrinter\Types
 		 */
 		private $int;
 
-		function render() { return new Text( "$this->int" ); }
+		function render( PrettyPrinter $settings ) { return new Text( "$this->int" ); }
 
 		/**
 		 * @param Memory $memory
@@ -694,7 +671,7 @@ namespace PrettyPrinter\Types
 
 	final class Null extends Value
 	{
-		function render() { return new Text( 'null' ); }
+		function render( PrettyPrinter $settings ) { return new Text( 'null' ); }
 
 		function type() { return 'null'; }
 
@@ -708,7 +685,7 @@ namespace PrettyPrinter\Types
 		 */
 		private $object;
 
-		function render()
+		function render( PrettyPrinter $settings )
 		{
 			$properties = array();
 
@@ -730,18 +707,20 @@ namespace PrettyPrinter\Types
 				}
 			}
 
-			return $this->render2( get_class( $this->object ), $properties );
+			return $this->render2( get_class( $this->object ), $properties, $settings );
 		}
 
 		/**
-		 * @param string           $class
-		 * @param ObjectProperty[] $properties
+		 * @param string                       $class
+		 * @param ObjectProperty[]             $properties
+		 *
+		 * @param \PrettyPrinter\PrettyPrinter $settings
 		 *
 		 * @return Text
 		 */
-		function render2( $class, array $properties )
+		function render2( $class, array $properties, PrettyPrinter $settings )
 		{
-			$maxProperties = $this->settings()->maxObjectProperties()->get();
+			$maxProperties = $settings->maxObjectProperties()->get();
 			$numProperties = 0;
 			$table         = new Table;
 
@@ -756,8 +735,8 @@ namespace PrettyPrinter\Types
 				$name   = $property->name();
 				$access = $property->access();
 
-				$table->addRow( array( $this->prettyPrintVariable( $name )->prepend( "$access " ),
-				                       $value->dereference()->render()->wrap( ' = ', ';' ) ) );
+				$table->addRow( array( self::prettyPrintVariable( $name, $settings )->prepend( "$access " ),
+				                       $value->render( $settings )->wrap( ' = ', ';' ) ) );
 			}
 
 			$result = $table->render();
@@ -800,7 +779,7 @@ namespace PrettyPrinter\Types
 			$this->access = $access;
 			$this->class  = $class;
 		}
-		
+
 		function value() { return $this->value; }
 
 		function name() { return $this->name; }
@@ -814,7 +793,7 @@ namespace PrettyPrinter\Types
 	{
 		private $resource;
 
-		function render()
+		function render( PrettyPrinter $settings )
 		{
 			return new Text( get_resource_type( $this->resource ) );
 		}
@@ -826,6 +805,7 @@ namespace PrettyPrinter\Types
 		function __construct( Memory $memory, $resource )
 		{
 			parent::__construct( $memory );
+
 			$this->resource = $resource;
 		}
 
@@ -838,27 +818,22 @@ namespace PrettyPrinter\Types
 	{
 		private $string;
 
-		function render()
+		static function renderString( PrettyPrinter $settings, $string )
 		{
-			$string   = $this->string;
-			$settings = $this->settings();
+			$escapeTabs    = $settings->escapeTabsInStrings()->get();
+			$splitNewlines = $settings->splitMultiLineStrings()->get();
 
 			$characterEscapeCache = array( "\\" => '\\\\',
 			                               "\$" => '\$',
 			                               "\r" => '\r',
 			                               "\v" => '\v',
 			                               "\f" => '\f',
-			                               "\"" => '\"' );
-
-			$characterEscapeCache[ "\t" ] = $settings->escapeTabsInStrings()->get() ? '\t' : "\t";
-			$characterEscapeCache[ "\n" ] = $settings->splitMultiLineStrings()->get() ? <<<'s'
-\n" .
-"
-s
-					: '\n';
+			                               "\"" => '\"',
+			                               "\t" => $escapeTabs ? '\t' : "\t",
+			                               "\n" => $splitNewlines ? "\\n\" .\n\"" : '\n' );
 
 			$escaped = '';
-			$length  = min( strlen( $string ), $this->settings()->maxStringLength()->get() );
+			$length  = min( strlen( $string ), $settings->maxStringLength()->get() );
 
 			for ( $i = 0; $i < $length; $i++ )
 			{
@@ -877,6 +852,11 @@ s
 			return new Text( "\"$escaped" . ( $length == strlen( $string ) ? '"' : "..." ) );
 		}
 
+		function render( PrettyPrinter $settings )
+		{
+			return self::renderString( $settings, $this->string );
+		}
+
 		/**
 		 * @param Memory $memory
 		 * @param string $string
@@ -884,6 +864,7 @@ s
 		function __construct( Memory $memory, $string )
 		{
 			$this->string = $string;
+
 			parent::__construct( $memory );
 		}
 
@@ -894,7 +875,7 @@ s
 
 	final class Unknown extends Value
 	{
-		function render() { return new Text( 'unknown type' ); }
+		function render( PrettyPrinter $settings ) { return new Text( 'unknown type' ); }
 
 		function type() { return 'unknown'; }
 
