@@ -3,10 +3,11 @@
 namespace PrettyPrinter
 {
 	use PrettyPrinter\Types;
+	use PrettyPrinter\Types\Value;
 
 	class Memory
 	{
-		/** @var Types\Value[] */
+		/** @var Types\ReflectedValue[] */
 		private $values = array();
 		/** @var int[][] */
 		private $cache = array();
@@ -18,19 +19,19 @@ namespace PrettyPrinter
 			return $this->toID( $value )->render( $settings );
 		}
 
-		function toID( &$value )
+		function toID( &$phpValue )
 		{
-			$value  = $this->createValue( $value );
+			$value  = $this->createValue( $phpValue );
 			$type   = $value->type();
 			$string = $value->toString();
 
 			if ( isset( $this->cache[ $type ][ $string ] ) )
-				return $this->cache[ $type ][ $string ];
+				return new MemoryReference( $this, $this->cache[ $type ][ $string ] );
 
 			$id = $this->nextId++;
 
-			$this->values[ $id ]             = $value;
 			$this->cache[ $type ][ $string ] = $id;
+			$this->values[ $id ]             = $value->reflect();
 
 			return new MemoryReference( $this, $id );
 		}
@@ -47,31 +48,7 @@ namespace PrettyPrinter
 		 */
 		function createValue( &$value )
 		{
-			if ( is_bool( $value ) )
-				return new Types\Boolean( $this, $value );
-
-			if ( is_string( $value ) )
-				return new Types\String( $this, $value );
-
-			if ( is_int( $value ) )
-				return new Types\Integer( $this, $value );
-
-			if ( is_float( $value ) )
-				return new Types\Float( $this, $value );
-
-			if ( is_object( $value ) )
-				return new Types\Object( $this, $value );
-
-			if ( is_array( $value ) )
-				return new Types\Array1( $this, $value );
-
-			if ( is_resource( $value ) )
-				return new Types\Resource( $this, $value );
-
-			if ( is_null( $value ) )
-				return new Types\Null( $this );
-
-			return new Types\Unknown( $this );
+			return Value::create( $this, $value );
 		}
 
 		/**
@@ -124,19 +101,47 @@ namespace PrettyPrinter\Types
 
 	abstract class Value
 	{
+		/**
+		 * @param Memory $memory
+		 * @param mixed  $value
+		 *
+		 * @return self
+		 */
+		static function create( Memory $memory, &$value )
+		{
+			if ( is_bool( $value ) )
+				return new Boolean( $memory, $value );
+
+			if ( is_string( $value ) )
+				return new String( $memory, $value );
+
+			if ( is_int( $value ) )
+				return new Integer( $memory, $value );
+
+			if ( is_float( $value ) )
+				return new Float( $memory, $value );
+
+			if ( is_object( $value ) )
+				return new Object( $memory, $value );
+
+			if ( is_array( $value ) )
+				return new Array1( $memory, $value );
+
+			if ( is_resource( $value ) )
+				return new Resource( $memory, $value );
+
+			if ( is_null( $value ) )
+				return new Null( $memory );
+
+			return new Unknown( $memory );
+		}
+
 		private $memory;
 
 		function __construct( Memory $memory )
 		{
 			$this->memory = $memory;
 		}
-
-		/**
-		 * @param PrettyPrinter $settings
-		 *
-		 * @return Text
-		 */
-		abstract function render( PrettyPrinter $settings );
 
 		/** @return string */
 		abstract function type();
@@ -155,6 +160,21 @@ namespace PrettyPrinter\Types
 		{
 			return $this->memory->toID( $value );
 		}
+
+		/**
+		 * @return ReflectedValue
+		 */
+		abstract function reflect();
+	}
+
+	abstract class ReflectedValue
+	{
+		/**
+		 * @param PrettyPrinter $settings
+		 *
+		 * @return Text
+		 */
+		abstract function render( PrettyPrinter $settings );
 	}
 
 	/**
@@ -165,12 +185,14 @@ namespace PrettyPrinter\Types
 		private static $uniqueStringId = 0;
 		private $array;
 
-		function __construct( array &$array )
+		function __construct( Memory $memory, array &$array )
 		{
-			return $this->array =& $array;
+			$this->array =& $array;
+
+			parent::__construct( $memory );
 		}
 
-		function render( PrettyPrinter $settings )
+		function reflect()
 		{
 			$keyValuePairs = array();
 
@@ -179,26 +201,37 @@ namespace PrettyPrinter\Types
 				$keyValuePairs[ ] = new KeyValuePair( $this->toID( $k ), $this->toID( $v ) );
 			}
 
-			return $this->render2( ArrayUtil::isAssoc( $this->array ), $keyValuePairs, $settings );
+			return new ReflectedArray( ArrayUtil::isAssoc( $this->array ), $keyValuePairs );
 		}
 
+		function type() { return 'array'; }
+
+		function toString() { return (string) self::$uniqueStringId++; }
+	}
+
+	class ReflectedArray extends ReflectedValue
+	{
+		private $isAssociative, $keyValuePairs;
+
 		/**
-		 * @param bool                         $isAssociative
-		 * @param KeyValuePair[]               $keyValuePairs
-		 *
-		 * @param \PrettyPrinter\PrettyPrinter $settings
-		 *
-		 * @return Text
+		 * @param bool           $isAssociative
+		 * @param KeyValuePair[] $keyValuePairs
 		 */
-		function render2( $isAssociative, array $keyValuePairs, PrettyPrinter $settings )
+		function __construct( $isAssociative, array $keyValuePairs )
 		{
-			if ( $keyValuePairs === array() )
+			$this->isAssociative = $isAssociative;
+			$this->keyValuePairs = $keyValuePairs;
+		}
+
+		function render( PrettyPrinter $settings )
+		{
+			if ( $this->keyValuePairs === array() )
 				return new Text( 'array()' );
 
 			$maxEntries = $settings->maxArrayEntries()->get();
 			$table      = new Table;
 
-			foreach ( $keyValuePairs as $keyValuePair )
+			foreach ( $this->keyValuePairs as $keyValuePair )
 			{
 				if ( $table->count() >= $maxEntries )
 					break;
@@ -206,25 +239,21 @@ namespace PrettyPrinter\Types
 				$key   = $keyValuePair->key()->render( $settings );
 				$value = $keyValuePair->value()->render( $settings );
 
-				if ( $table->count() != count( $keyValuePairs ) - 1 )
+				if ( $table->count() != count( $this->keyValuePairs ) - 1 )
 					$value->append( ',' );
 
-				$table->addRow( $isAssociative ? array( $key, $value->prepend( ' => ' ) ) : array( $value ) );
+				$table->addRow( $this->isAssociative ? array( $key, $value->prepend( ' => ' ) ) : array( $value ) );
 			}
 
 			$result = $table->render();
 
-			if ( $table->count() != count( $keyValuePairs ) )
+			if ( $table->count() != count( $this->keyValuePairs ) )
 				$result->addLine( '...' );
 
 			$result->wrap( 'array( ', ' )' );
 
 			return $result;
 		}
-
-		function type() { return 'array'; }
-
-		function toString() { return (string) self::$uniqueStringId++; }
 	}
 
 	final class KeyValuePair
@@ -257,11 +286,26 @@ namespace PrettyPrinter\Types
 			parent::__construct( $memory );
 		}
 
-		function render( PrettyPrinter $settings ) { return new Text( $this->bool ? 'true' : 'false' ); }
+		function reflect() { return new ReflectedBoolean( $this->bool ); }
 
 		function type() { return 'boolean'; }
 
 		function toString() { return $this->bool ? '1' : '0'; }
+	}
+
+	class ReflectedBoolean extends ReflectedValue
+	{
+		private $bool;
+
+		/**
+		 * @param bool $bool
+		 */
+		function __construct( $bool )
+		{
+			$this->bool = $bool;
+		}
+
+		function render( PrettyPrinter $settings ) { return new Text( $this->bool ? 'true' : 'false' ); }
 	}
 
 	final class Exception extends Value
@@ -289,22 +333,22 @@ namespace PrettyPrinter\Types
 
 		function toString() { return spl_object_hash( $this->exception ); }
 
-		function render( PrettyPrinter $settings )
+		function reflect()
 		{
-			return ReflectedException::reflect( $this->memory(), $this->exception )->render( $settings );
+			return ReflectedException::reflect( $this->memory(), $this->exception );
 		}
 	}
 
-	class ReflectedException
+	class ReflectedException extends ReflectedValue
 	{
 		static function reflect( Memory $memory, \Exception $exception )
 		{
 			$localVariables = $exception instanceof HasLocalVariables ? $exception->getLocalVariables() : null;
 			$trace          = $exception instanceof HasFullTrace ? $exception->getFullTrace() : $exception->getTrace();
 
-			$locals         = self::reflectLocalVariables( $memory, $localVariables );
-			$globals        = self::reflectGlobalVariables( $memory );
-			$stack          = self::reflectStack( $memory, $trace );
+			$locals  = self::reflectLocalVariables( $memory, $localVariables );
+			$globals = self::reflectGlobalVariables( $memory );
+			$stack   = self::reflectStack( $memory, $trace );
 
 			$previous = $exception->getPrevious();
 			$previous = $previous === null ? null : self::reflect( $memory, $previous );
@@ -317,14 +361,14 @@ namespace PrettyPrinter\Types
 
 			return new self( $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous );
 		}
-		
+
 		protected static function reflectStack( Memory $memory, array $trace )
 		{
 			$stackFrames = array();
 
 			foreach ( $trace as $frame )
 				$stackFrames[ ] = StackFrame::reflect( $memory, $frame );
-			
+
 			return $stackFrames;
 		}
 
@@ -338,15 +382,15 @@ namespace PrettyPrinter\Types
 		{
 			if ( $locals === null )
 				return null;
-			
+
 			$reflected = array();
-			
+
 			foreach ( $locals as $k => &$v )
 				$reflected[ $k ] = $memory->toID( $v );
-			
+
 			return $reflected;
 		}
-		
+
 		private static function reflectGlobalVariables( Memory $memory )
 		{
 			$globals = array();
@@ -408,7 +452,7 @@ namespace PrettyPrinter\Types
 
 			return $globals;
 		}
-		
+
 		private $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous;
 
 		/**
@@ -444,7 +488,7 @@ namespace PrettyPrinter\Types
 		function render( PrettyPrinter $settings )
 		{
 			$text = $this->renderWithoutGlobals( $settings );
-			
+
 			if ( $settings->showExceptionGlobalVariables()->get() )
 			{
 				$text->addLine( "global variables:" );
@@ -517,6 +561,7 @@ namespace PrettyPrinter\Types
 			foreach ( $this->stack as $frame )
 			{
 				$text->addLines( $frame->render( $i, $settings ) );
+				$text->addLine();
 				$i++;
 			}
 
@@ -583,7 +628,7 @@ namespace PrettyPrinter\Types
 			$text = new Text;
 			$text->addLine( "#$i $this->file:$this->line" );
 			$text->addLines( $this->renderFunctionCall( $settings )->indent( 3 ) );
-			
+
 			return $text;
 		}
 
@@ -670,7 +715,7 @@ namespace PrettyPrinter\Types
 		{
 			return $this->prefix()->appendLines( Memory::prettyPrintVariable( $settings, $this->name ) );
 		}
-		
+
 		function renderValue( PrettyPrinter $settings )
 		{
 			return $this->value->render( $settings );
@@ -700,14 +745,6 @@ namespace PrettyPrinter\Types
 		 */
 		private $float;
 
-		function render( PrettyPrinter $settings )
-		{
-			$float = $this->float;
-			$int   = (int) $float;
-
-			return new Text( "$int" === "$float" ? "$float.0" : "$float" );
-		}
-
 		/**
 		 * @param Memory $memory
 		 * @param float  $float
@@ -722,6 +759,28 @@ namespace PrettyPrinter\Types
 		function type() { return 'float'; }
 
 		function toString() { return "$this->float"; }
+
+		function reflect() { return new ReflectedFloat( $this->float ); }
+	}
+
+	class ReflectedFloat extends ReflectedValue
+	{
+		private $float;
+
+		/**
+		 * @param float $float
+		 */
+		function __construct( $float )
+		{
+			$this->float = $float;
+		}
+
+		function render( PrettyPrinter $settings )
+		{
+			$int = (int) $this->float;
+
+			return new Text( "$int" === "$this->float" ? "$this->float.0" : "$this->float" );
+		}
 	}
 
 	final class Integer extends Value
@@ -730,8 +789,6 @@ namespace PrettyPrinter\Types
 		 * @var int
 		 */
 		private $int;
-
-		function render( PrettyPrinter $settings ) { return new Text( "$this->int" ); }
 
 		/**
 		 * @param Memory $memory
@@ -746,15 +803,37 @@ namespace PrettyPrinter\Types
 		function type() { return 'integer'; }
 
 		function toString() { return "$this->int"; }
+
+		function reflect() { return new ReflectedInteger( $this->int ); }
+	}
+
+	class ReflectedInteger extends ReflectedValue
+	{
+		private $int;
+
+		/**
+		 * @param int $int
+		 */
+		function __construct( $int )
+		{
+			$this->int = $int;
+		}
+
+		function render( PrettyPrinter $settings ) { return new Text( "$this->int" ); }
 	}
 
 	final class Null extends Value
 	{
-		function render( PrettyPrinter $settings ) { return new Text( 'null' ); }
+		function reflect() { return new ReflectedNull; }
 
 		function type() { return 'null'; }
 
 		function toString() { return ''; }
+	}
+
+	class ReflectedNull extends ReflectedValue
+	{
+		function render( PrettyPrinter $settings ) { return new Text( 'null' ); }
 	}
 
 	final class Object extends Value
@@ -764,7 +843,7 @@ namespace PrettyPrinter\Types
 		 */
 		private $object;
 
-		function render( PrettyPrinter $settings )
+		function reflect()
 		{
 			$properties = array();
 
@@ -779,14 +858,15 @@ namespace PrettyPrinter\Types
 
 					$property->setAccessible( true );
 
-					$properties[ ] = new ObjectProperty( $this->toID( $property->getValue( $this->object ) ),
-					                                     $property->name,
-					                                     Exception::propertyOrMethodAccess( $property ),
-					                                     $property->class );
+					$properties[ ] =
+							new ObjectProperty( $this->toID( Ref::create( $property->getValue( $this->object ) ) ),
+							                    $property->name,
+							                    Exception::propertyOrMethodAccess( $property ),
+							                    $property->class );
 				}
 			}
 
-			return $this->render2( get_class( $this->object ), $properties, $settings );
+			return new ReflectedObject( get_class( $this->object ), $properties );
 		}
 
 		/**
@@ -799,31 +879,6 @@ namespace PrettyPrinter\Types
 		 */
 		function render2( $class, array $properties, PrettyPrinter $settings )
 		{
-			$maxProperties = $settings->maxObjectProperties()->get();
-			$numProperties = 0;
-			$table         = new Table;
-
-			foreach ( $properties as $property )
-			{
-				$numProperties++;
-
-				if ( $table->count() >= $maxProperties )
-					continue;
-
-				$value  = $property->value();
-				$name   = $property->name();
-				$access = $property->access();
-
-				$table->addRow( array( self::prettyPrintVariable( $name, $settings )->prepend( "$access " ),
-				                       $value->render( $settings )->wrap( ' = ', ';' ) ) );
-			}
-
-			$result = $table->render();
-
-			if ( $table->count() != $numProperties )
-				$result->addLine( '...' );
-
-			return $result->indent( 2 )->wrapLines( "new $class {", "}" );
 		}
 
 		/**
@@ -839,6 +894,50 @@ namespace PrettyPrinter\Types
 		function type() { return 'object'; }
 
 		function toString() { return spl_object_hash( $this->object ); }
+	}
+
+	class ReflectedObject extends ReflectedValue
+	{
+		private $class, $properties;
+
+		/**
+		 * @param string           $class
+		 * @param ObjectProperty[] $properties
+		 */
+		function __construct( $class, array $properties )
+		{
+			$this->class      = $class;
+			$this->properties = $properties;
+		}
+
+		function render( PrettyPrinter $settings )
+		{
+			$maxProperties = $settings->maxObjectProperties()->get();
+			$numProperties = 0;
+			$table         = new Table;
+
+			foreach ( $this->properties as $property )
+			{
+				$numProperties++;
+
+				if ( $table->count() >= $maxProperties )
+					continue;
+
+				$value  = $property->value();
+				$name   = $property->name();
+				$access = $property->access();
+
+				$table->addRow( array( Memory::prettyPrintVariable( $settings, $name )->prepend( "$access " ),
+				                       $value->render( $settings )->wrap( ' = ', ';' ) ) );
+			}
+
+			$result = $table->render();
+
+			if ( $table->count() != $numProperties )
+				$result->addLine( '...' );
+
+			return $result->indent( 2 )->wrapLines( "new $this->class {", "}" );
+		}
 	}
 
 	final class ObjectProperty
@@ -872,11 +971,6 @@ namespace PrettyPrinter\Types
 	{
 		private $resource;
 
-		function render( PrettyPrinter $settings )
-		{
-			return new Text( get_resource_type( $this->resource ) );
-		}
-
 		/**
 		 * @param Memory   $memory
 		 * @param resource $resource
@@ -888,9 +982,32 @@ namespace PrettyPrinter\Types
 			$this->resource = $resource;
 		}
 
+		function reflect()
+		{
+			return new ReflectedResource( get_resource_type( $this->resource ) );
+		}
+
 		function type() { return 'resource'; }
 
 		function toString() { return "$this->resource"; }
+	}
+
+	class ReflectedResource extends ReflectedValue
+	{
+		private $resourceType;
+
+		/**
+		 * @param string $resourceType
+		 */
+		function __construct( $resourceType )
+		{
+			$this->resourceType = $resourceType;
+		}
+
+		function render( PrettyPrinter $settings )
+		{
+			return new Text( $this->resourceType );
+		}
 	}
 
 	final class String extends Value
@@ -931,9 +1048,9 @@ namespace PrettyPrinter\Types
 			return new Text( "\"$escaped" . ( $length == strlen( $string ) ? '"' : "..." ) );
 		}
 
-		function render( PrettyPrinter $settings )
+		function reflect()
 		{
-			return self::renderString( $settings, $this->string );
+			return new ReflectedString( $this->string );
 		}
 
 		/**
@@ -952,13 +1069,36 @@ namespace PrettyPrinter\Types
 		function toString() { return $this->string; }
 	}
 
+	class ReflectedString extends ReflectedValue
+	{
+		private $string;
+
+		/**
+		 * @param string $string
+		 */
+		function __construct( $string )
+		{
+			$this->string = $string;
+		}
+
+		function render( PrettyPrinter $settings )
+		{
+			return String::renderString( $settings, $this->string );
+		}
+	}
+
 	final class Unknown extends Value
 	{
-		function render( PrettyPrinter $settings ) { return new Text( 'unknown type' ); }
-
 		function type() { return 'unknown'; }
 
 		function toString() { return ''; }
+
+		function reflect() { return new ReflectedUnknown; }
+	}
+
+	class ReflectedUnknown extends ReflectedValue
+	{
+		function render( PrettyPrinter $settings ) { return new Text( 'unknown type' ); }
 	}
 }
 
