@@ -2,9 +2,6 @@
 
 namespace PrettyPrinter\Reflection
 {
-	use PrettyPrinter\Utils\Text;
-	use PrettyPrinter\Memory;
-
 	class ClassStaticProperty extends Variable
 	{
 		private $class, $access;
@@ -17,9 +14,14 @@ namespace PrettyPrinter\Reflection
 			parent::__construct( $name, $value );
 		}
 
-		function prefix()
+		function access()
 		{
-			return new Text( "$this->access static $this->class::" );
+			return $this->access;
+		}
+
+		function className()
+		{
+			return $this->class;
 		}
 	}
 
@@ -34,30 +36,14 @@ namespace PrettyPrinter\Reflection
 			parent::__construct( $name, $value );
 		}
 
-		function prefix()
+		function functionName()
 		{
-			return new Text( "function $this->function()::static " );
+			return $this->function;
 		}
 	}
 
 	class GlobalVariable extends Variable
 	{
-		function isSuperGlobal()
-		{
-			return in_array( $this->name(), array( '_POST',
-			                                       '_GET',
-			                                       '_SESSION',
-			                                       '_COOKIE',
-			                                       '_FILES',
-			                                       '_REQUEST',
-			                                       '_ENV',
-			                                       '_SERVER' ), true );
-		}
-
-		function prefix()
-		{
-			return new Text( $this->isSuperGlobal() ? '' : 'global ' );
-		}
 	}
 
 	class MethodStaticVariable extends Variable
@@ -72,9 +58,14 @@ namespace PrettyPrinter\Reflection
 			parent::__construct( $name, $value );
 		}
 
-		function prefix()
+		function functionName()
 		{
-			return new Text( "function $this->class::$this->method()::static " );
+			return $this->method;
+		}
+
+		function className()
+		{
+			return $this->class;
 		}
 	}
 
@@ -98,15 +89,11 @@ namespace PrettyPrinter\Reflection
 			return $this->name;
 		}
 
-		function prefix()
-		{
-			return new Text;
-		}
+		function className() { return null; }
 
-		function prettyPrint( Memory $any )
-		{
-			return $this->prefix()->appendLines( $any->prettyPrintVariable( $this->name ) );
-		}
+		function functionName() { return null; }
+
+		function access() { return null; }
 	}
 }
 

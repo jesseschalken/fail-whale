@@ -106,6 +106,7 @@ namespace PrettyPrinter\Types
 {
 	use PrettyPrinter\ExceptionInfo;
 	use PrettyPrinter\Memory;
+	use PrettyPrinter\Reflection\Variable;
 	use PrettyPrinter\Utils\ArrayUtil;
 	use PrettyPrinter\Utils\Table;
 	use PrettyPrinter\Utils\Text;
@@ -271,6 +272,84 @@ namespace PrettyPrinter\Types
 			return $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
 		}
 
+		function type() { return 'exception'; }
+
+		function toString() { return spl_object_hash( $this->exception ); }
+
+		function render()
+		{
+			$reflected = ReflectedException::reflect( $this->memory(), $this->exception );
+			return $reflected->render();
+		}
+	}
+
+	final class ReflectedException
+	{
+		static function reflect( Memory $memory, ExceptionInfo $exception )
+		{
+			$stackFrames = array();
+			$locals      = array();
+			$globals     = array();
+
+			foreach ( $exception->stackTrace() as $frame )
+				$stackFrames[ ] = StackFrame::reflect( $memory, $frame );
+
+			foreach ( $exception->localVariables() as $name => $value )
+				$locals[ $name ] = $memory->toID( $value );
+			
+			foreach ( $exception->globalVariables() as $global )
+				$globals[] = ReflectedGlobal::reflect( $memory, $global );
+
+			$previous = $exception->previous();
+			$previous = $previous === null ? null : self::reflect( $memory, $previous );
+
+			$class   = $exception->exceptionClassName();
+			$file    = $exception->file();
+			$line    = $exception->line();
+			$code    = $exception->code();
+			$message = $exception->message();
+
+			return new self( $memory, $class, $file, $line, $stackFrames,
+			                 $globals, $locals, $code, $message, $previous );
+		}
+
+		private $class, $file, $line, $stack, $globals, $locals, $code, $message;
+		/**
+		 * @var \PrettyPrinter\Memory
+		 */
+		private $memory;
+		/**
+		 * @var null|ReflectedException
+		 */
+		private $previous;
+
+		/**
+		 * @param \PrettyPrinter\Memory   $memory
+		 * @param string                  $class
+		 * @param string                  $file
+		 * @param int                     $line
+		 * @param StackFrame[]            $stack
+		 * @param ReflectedGlobal[]       $globals
+		 * @param int[]|null              $locals
+		 * @param mixed                   $code
+		 * @param string                  $message
+		 * @param ReflectedException|null $previous
+		 */
+		function __construct( Memory $memory, $class, $file, $line, array $stack,
+		                      array $globals, array $locals, $code, $message, self $previous = null )
+		{
+			$this->class    = $class;
+			$this->file     = $file;
+			$this->line     = $line;
+			$this->stack    = $stack;
+			$this->globals  = $globals;
+			$this->locals   = $locals;
+			$this->code     = $code;
+			$this->message  = $message;
+			$this->memory   = $memory;
+			$this->previous = $previous;
+		}
+
 		/**
 		 * @return Text
 		 */
@@ -290,16 +369,14 @@ namespace PrettyPrinter\Types
 
 		private function prettyPrintGlobalVariables()
 		{
-			$globals = $this->exception->globalVariables();
-
-			if ( empty( $globals ) )
+			if ( empty( $this->globals ) )
 				return new Text( 'none' );
 
 			$table = new Table;
 
-			foreach ( $globals as $global )
-				$table->addRow( array( $global->prettyPrint( $this->memory() ),
-				                       $this->prettyPrintRef( $global->value() )->wrap( ' = ', ';' ) ) );
+			foreach ( $this->globals as $global )
+				$table->addRow( array( $global->prettyPrint( $this->memory ),
+				                       $this->memory->fromID( $global->value() )->render()->wrap( ' = ', ';' ) ) );
 
 			return $table->render();
 		}
@@ -309,14 +386,14 @@ namespace PrettyPrinter\Types
 			if ( !$this->settings()->showExceptionLocalVariables()->get() )
 				return new Text;
 
-			if ( $this->exception->localVariables() === null )
+			if ( $this->locals === null )
 				return new Text;
 
 			$table = new Table;
 
-			foreach ( $this->exception->localVariables() as $name => $value )
-				$table->addRow( array( $this->prettyPrintVariable( $name ),
-				                       $this->prettyPrintRef( $value )->wrap( ' = ', ';' ) ) );
+			foreach ( $this->locals as $name => $value )
+				$table->addRow( array( $this->memory->prettyPrintVariable( $name ),
+				                       $this->memory->fromID( $value )->render()->wrap( ' = ', ';' ) ) );
 
 			return $table->render()->indent()->wrapLines( "local variables:" );
 		}
@@ -332,27 +409,17 @@ namespace PrettyPrinter\Types
 
 		private function prettyPrintExceptionHeader()
 		{
-			$class   = $this->exception->exceptionClassName();
-			$code    = $this->exception->code();
-			$file    = $this->exception->file();
-			$line    = $this->exception->line();
-			$message = $this->exception->message();
-
-			return Text::create( "$class $code in $file:$line" )
-			           ->addLines( Text::create( $message )->indent( 2 )->wrapLines() );
+			return Text::create( "$this->class $this->code in $this->file:$this->line" )
+			           ->addLines( Text::create( $this->message )->indent( 2 )->wrapLines() );
 		}
 
 		private function prettyPrintPreviousException()
 		{
-			$previous = $this->exception->previous();
-
-			if ( $previous === null )
+			if ( $this->previous === null )
 				return new Text;
 
-			$previous = new self( $this->memory(), $previous );
-
-			return $previous->prettyPrintExceptionWithoutGlobals()->indent( 2 )
-			            ->wrapLines( "previous exception:" );
+			return $this->previous->prettyPrintExceptionWithoutGlobals()->indent( 2 )
+			                      ->wrapLines( "previous exception:" );
 		}
 
 		private function prettyPrintStackTrace()
@@ -363,42 +430,94 @@ namespace PrettyPrinter\Types
 			$result = new Text;
 			$i      = 1;
 
-			foreach ( $this->exception->stackTrace() as $stackFrame )
+			foreach ( $this->stack as $stackFrame )
 			{
-				$result->addLine( "#$i $stackFrame[file]:$stackFrame[line]" );
-				$result->addLines( $this->prettyPrintFunctionCall( $stackFrame )->indent( 3 ) );
-				$result->addLine();
+				$result->addLines( $stackFrame->render( $i ) );
 				$i++;
 			}
 
 			return $result->addLine( "#$i {main}" )->indent()->wrapLines( "stack trace:" );
 		}
 
-		private function prettyPrintFunctionCall( array $stackFrame )
+		private function settings() { return $this->memory->settings(); }
+	}
+
+	final class StackFrame
+	{
+		private $memory, $type, $function, $object, $class, $args, $file, $line;
+
+		static function reflect( Memory $memory, array $stackFrame )
+		{
+			$object = array_key_exists( 'object', $stackFrame ) ? $memory->toID( $stackFrame[ 'object' ] ) : null;
+			$args   = null;
+
+			if ( array_key_exists( 'args', $stackFrame ) )
+			{
+				$args = array();
+
+				foreach ( $stackFrame[ 'args' ] as &$arg )
+					$args[ ] = $memory->toID( $arg );
+			}
+
+			$type     = ArrayUtil::get( $stackFrame, 'type' );
+			$function = ArrayUtil::get( $stackFrame, 'function' );
+			$class    = ArrayUtil::get( $stackFrame, 'class' );
+			$file     = ArrayUtil::get( $stackFrame, 'file' );
+			$line     = ArrayUtil::get( $stackFrame, 'line' );
+
+			return new self( $memory, $type, $function, $object, $class, $args, $file, $line );
+		}
+
+		/**
+		 * @param \PrettyPrinter\Memory $memory
+		 * @param string|null           $type
+		 * @param string|null           $function
+		 * @param int|null              $object
+		 * @param string|null           $class
+		 * @param int[]|null            $args
+		 * @param string|null           $file
+		 * @param int|null              $line
+		 */
+		function __construct( Memory $memory, $type, $function, $object, $class, $args, $file, $line )
+		{
+			$this->type     = $type;
+			$this->function = $function;
+			$this->object   = $object;
+			$this->class    = $class;
+			$this->args     = $args;
+			$this->file     = $file;
+			$this->line     = $line;
+			$this->memory   = $memory;
+		}
+		
+		function render( $i )
 		{
 			return Text::create()
-			           ->appendLines( $this->prettyPrintFunctionObject( $stackFrame ) )
-			           ->append( ArrayUtil::get( $stackFrame, 'type', '' ) )
-			           ->append( ArrayUtil::get( $stackFrame, 'function', '' ) )
-			           ->appendLines( $this->prettyPrintFunctionArgs( $stackFrame ) )
+			           ->addLine( "#$i $this->file:$this->line" )
+			           ->addLines( $this->prettyPrintFunctionCall()->indent( 3 ) );
+		}
+
+		private function prettyPrintFunctionCall()
+		{
+			return Text::create()
+			           ->appendLines( $this->prettyPrintFunctionObject() )
+			           ->append( "$this->type" )
+			           ->append( "$this->function" )
+			           ->appendLines( $this->prettyPrintFunctionArgs() )
 			           ->append( ';' );
 		}
 
-		private function prettyPrintFunctionObject( array $stackFrame )
+		private function prettyPrintFunctionObject()
 		{
-			$object = ArrayUtil::get( $stackFrame, 'object' );
+			if ( $this->object === null )
+				return new Text( "$this->class" );
 
-			if ( !isset( $object ) )
-				return new Text( ArrayUtil::get( $stackFrame, 'class', '' ) );
-
-			return $this->prettyPrint( $object );
+			return $this->memory->fromID( $this->object )->render();
 		}
 
-		private function prettyPrintFunctionArgs( array $stackFrame )
+		private function prettyPrintFunctionArgs()
 		{
-			$args = ArrayUtil::get( $stackFrame, 'args' );
-
-			if ( !isset( $args ) )
+			if ( $this->args === null )
 				return new Text( '( ? )' );
 
 			if ( empty( $args ) )
@@ -408,9 +527,9 @@ namespace PrettyPrinter\Types
 			$isMultiLine = false;
 			$result      = new Text;
 
-			foreach ( $args as &$arg )
+			foreach ( $args as $arg )
 			{
-				$pretty      = $this->prettyPrintRef( $arg );
+				$pretty      = $this->memory->fromID( $arg )->render();
 				$isMultiLine = $isMultiLine || $pretty->count() > 1;
 				$pretties[ ] = $pretty;
 			}
@@ -428,10 +547,63 @@ namespace PrettyPrinter\Types
 
 			return $result->wrap( '( ', ' )' );
 		}
+	}
 
-		function type() { return 'exception'; }
+	final class ReflectedGlobal
+	{
+		static function reflect( Memory $memory, Variable $var )
+		{
+			$class    = $var->className();
+			$function = $var->functionName();
+			$name     = $var->name();
+			$value    = $memory->toID( $var->value() );
+			$access   = $var->access();
 
-		function toString() { return spl_object_hash( $this->exception ); }
+			return new self( $memory, $class, $function, $name, $value, $access );
+		}
+
+		private $memory, $class, $function, $name, $value, $access;
+
+		/**
+		 * @param Memory      $memory
+		 * @param string|null $class
+		 * @param string|null $function
+		 * @param string      $name
+		 * @param int         $value
+		 * @param string|null $access
+		 */
+		function __construct( Memory $memory, $class, $function, $name, $value, $access )
+		{
+			$this->memory   = $memory;
+			$this->class    = $class;
+			$this->function = $function;
+			$this->name     = $name;
+			$this->value    = $value;
+			$this->access   = $access;
+		}
+
+		function value() { return $this->value; }
+
+		function prettyPrint( Memory $memory )
+		{
+			return $this->prefix()->appendLines( $memory->prettyPrintVariable( $this->name ) );
+		}
+
+		private function prefix()
+		{
+			if ( isset( $this->class ) && isset( $this->function ) )
+				return new Text( "function $this->class::$this->function()::static " );
+			
+			if ( isset( $this->class ) )
+				return new Text( "$this->access static $this->class::" );
+			
+			if ( isset( $this->function ) )
+				return new Text( "function $this->function()::static " );
+
+			$superGlobals = array( '_POST', '_GET', '_SESSION', '_COOKIE', '_FILES', '_REQUEST', '_ENV', '_SERVER' );
+
+			return new Text( in_array( $this->name, $superGlobals, true ) ? '' : 'global ' );
+		}
 	}
 
 	final class Float extends Value
