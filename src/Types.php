@@ -4,6 +4,7 @@ namespace PrettyPrinter
 {
 	use PrettyPrinter\Types;
 	use PrettyPrinter\Types\Value;
+	use PrettyPrinter\Utils\Ref;
 
 	class Memory
 	{
@@ -13,29 +14,53 @@ namespace PrettyPrinter
 		private $cache = array();
 		/** @var int */
 		private $nextId = 0;
+		/** array[] */
+		private $arrayReferences = array();
 
 		function prettyPrintRef( &$value, PrettyPrinter $settings )
 		{
-			return $this->toID( $value )->render( $settings );
+			return $this->toReference( $value )->render( $settings );
 		}
 
+		function toReference( &$phpValue )
+		{
+			return new MemoryReference( $this, $this->toID( $phpValue ) );
+		}
+		
 		function toID( &$phpValue )
 		{
-			$value  = $this->createValue( $phpValue );
-			$type   = $value->type();
-			$string = $value->toString();
+			if ( is_array( $phpValue ) )
+			{
+				foreach ( $this->arrayReferences as $id => &$array )
+					if ( Ref::equal( $phpValue, $array ) )
+						return $id;
 
-			if ( isset( $this->cache[ $type ][ $string ] ) )
-				return new MemoryReference( $this, $this->cache[ $type ][ $string ] );
+				$id    = $this->nextId++;
+				$value = new Types\Array1( $this, $phpValue );
 
-			$id = $this->nextId++;
+				$this->arrayReferences[ $id ] =& $phpValue;
+				$this->values[ $id ]          = $value->reflect();
 
-			$this->cache[ $type ][ $string ] = $id;
-			$this->values[ $id ]             = $value->reflect();
+				return $id;
+			}
+			else
+			{
+				$value  = $this->createValue( $phpValue );
+				$type   = $value->type();
+				$string = $value->toString();
 
-			return new MemoryReference( $this, $id );
+				if ( isset( $this->cache[ $type ][ $string ] ) )
+					return $this->cache[ $type ][ $string ];
+
+				$id = $this->nextId++;
+
+				$this->cache[ $type ][ $string ] = $id;
+				$this->values[ $id ]             = $value->reflect();
+
+				return $id;
+			}
 		}
-
+		
 		function fromID( $id )
 		{
 			return $this->values[ $id ];
@@ -158,7 +183,7 @@ namespace PrettyPrinter\Types
 
 		protected function toID( &$value )
 		{
-			return $this->memory->toID( $value );
+			return $this->memory->toReference( $value );
 		}
 
 		/**
@@ -182,7 +207,6 @@ namespace PrettyPrinter\Types
 	 */
 	final class Array1 extends Value
 	{
-		private static $uniqueStringId = 0;
 		private $array;
 
 		function __construct( Memory $memory, array &$array )
@@ -206,7 +230,7 @@ namespace PrettyPrinter\Types
 
 		function type() { return 'array'; }
 
-		function toString() { return (string) self::$uniqueStringId++; }
+		function toString() { throw new \Exception( "You cannot get a string version of an array" ); }
 	}
 
 	class ReflectedArray extends ReflectedValue
@@ -386,7 +410,7 @@ namespace PrettyPrinter\Types
 			$reflected = array();
 
 			foreach ( $locals as $k => &$v )
-				$reflected[ $k ] = $memory->toID( $v );
+				$reflected[ $k ] = $memory->toReference( $v );
 
 			return $reflected;
 		}
@@ -399,7 +423,7 @@ namespace PrettyPrinter\Types
 			{
 				if ( $name !== 'GLOBALS' )
 				{
-					$value = $memory->toID( $globalValue );
+					$value = $memory->toReference( $globalValue );
 
 					$globals[ ] = new ReflectedGlobal( null, null, $name, $value, null );
 				}
@@ -413,7 +437,7 @@ namespace PrettyPrinter\Types
 				{
 					$property->setAccessible( true );
 
-					$value  = $memory->toID( Ref::create( $property->getValue() ) );
+					$value  = $memory->toReference( Ref::create( $property->getValue() ) );
 					$access = Exception::propertyOrMethodAccess( $property );
 					$class  = $property->class;
 					$name   = $property->name;
@@ -425,7 +449,7 @@ namespace PrettyPrinter\Types
 				{
 					foreach ( $method->getStaticVariables() as $name => $value )
 					{
-						$value    = $memory->toID( $value );
+						$value    = $memory->toReference( $value );
 						$class    = $method->class;
 						$function = $method->getName();
 
@@ -442,7 +466,7 @@ namespace PrettyPrinter\Types
 
 					foreach ( $reflection->getStaticVariables() as $name => $value )
 					{
-						$value    = $memory->toID( $value );
+						$value    = $memory->toReference( $value );
 						$function = $reflection->name;
 
 						$globals[ ] = new ReflectedGlobal( null, $function, $name, $value, null );
@@ -577,7 +601,7 @@ namespace PrettyPrinter\Types
 
 		static function reflect( Memory $memory, array $stackFrame )
 		{
-			$object = array_key_exists( 'object', $stackFrame ) ? $memory->toID( $stackFrame[ 'object' ] ) : null;
+			$object = array_key_exists( 'object', $stackFrame ) ? $memory->toReference( $stackFrame[ 'object' ] ) : null;
 			$args   = null;
 
 			if ( array_key_exists( 'args', $stackFrame ) )
@@ -585,7 +609,7 @@ namespace PrettyPrinter\Types
 				$args = array();
 
 				foreach ( $stackFrame[ 'args' ] as &$arg )
-					$args[ ] = $memory->toID( $arg );
+					$args[ ] = $memory->toReference( $arg );
 			}
 
 			$type     = ArrayUtil::get( $stackFrame, 'type' );
@@ -690,7 +714,7 @@ namespace PrettyPrinter\Types
 	{
 		static function reflect( Memory $memory, $class, $function, $name, &$value, $access )
 		{
-			return new self( $class, $function, $name, $memory->toID( $value ), $access );
+			return new self( $class, $function, $name, $memory->toReference( $value ), $access );
 		}
 
 		private $class, $function, $name, $value, $access;

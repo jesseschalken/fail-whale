@@ -379,7 +379,7 @@ s;
 			);
 
 			$memory  = new Memory;
-			$null    = $memory->toID( Ref::create() );
+			$null    = $memory->toReference( Ref::create() );
 			$globals = array(
 				new ReflectedGlobal( 'BlahClass', null, 'blahProperty', $null, 'private' ),
 				new ReflectedGlobal( null, 'BlahAnotherClass', 'public', $null, null ),
