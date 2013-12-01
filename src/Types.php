@@ -149,6 +149,8 @@ namespace PrettyPrinter\Types
 			return Memory::prettyPrintVariable( $settings, $varName );
 		}
 
+		function memory() { return $this->memory; }
+
 		protected function toID( &$value )
 		{
 			return $this->memory->toID( $value );
@@ -264,11 +266,10 @@ namespace PrettyPrinter\Types
 
 	final class Exception extends Value
 	{
-		private $exception, $memory;
+		private $exception;
 
 		function __construct( Memory $memory, \Exception $exception )
 		{
-			$this->memory    = $memory;
 			$this->exception = $exception;
 
 			parent::__construct( $memory );
@@ -290,7 +291,7 @@ namespace PrettyPrinter\Types
 
 		function render( PrettyPrinter $settings )
 		{
-			return ReflectedException::reflect( $this->memory, $this->exception )->render( $settings );
+			return ReflectedException::reflect( $this->memory(), $this->exception )->render( $settings );
 		}
 	}
 
