@@ -2,6 +2,7 @@
 
 namespace PrettyPrinter
 {
+	use PrettyPrinter\Introspection\Introspection;
 	use PrettyPrinter\Settings\Bool;
 	use PrettyPrinter\Settings\Number;
 	use PrettyPrinter\Types\ReflectedException;
@@ -54,9 +55,9 @@ namespace PrettyPrinter
 
 		function prettyPrintRef( &$ref )
 		{
-			$memory = new Memory;
+			$memory = new Introspection;
 
-			return $memory->prettyPrintRef( $ref, $this )->setHasEndingNewline( false )->__toString();
+			return $memory->toReference( $ref )->render( $this )->setHasEndingNewline( false )->__toString();
 		}
 
 		function prettyPrintExceptionInfo( ReflectedException $e )

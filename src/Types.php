@@ -2,80 +2,12 @@
 
 namespace PrettyPrinter
 {
+	use PrettyPrinter\Introspection\Introspection;
+	use PrettyPrinter\Introspection\Reference;
 	use PrettyPrinter\Types;
-	use PrettyPrinter\Types\Value;
-	use PrettyPrinter\Utils\Ref;
 
-	class Memory
+	class Memory extends Introspection
 	{
-		/** @var Types\ReflectedValue[] */
-		private $values = array();
-		/** @var int[][] */
-		private $cache = array();
-		/** @var int */
-		private $nextId = 0;
-		/** array[] */
-		private $arrayReferences = array();
-
-		function prettyPrintRef( &$value, PrettyPrinter $settings )
-		{
-			return $this->toReference( $value )->render( $settings );
-		}
-
-		function toReference( &$phpValue )
-		{
-			return new MemoryReference( $this, $this->toID( $phpValue ) );
-		}
-		
-		function toID( &$phpValue )
-		{
-			if ( is_array( $phpValue ) )
-			{
-				foreach ( $this->arrayReferences as $id => &$array )
-					if ( Ref::equal( $phpValue, $array ) )
-						return $id;
-
-				$id    = $this->nextId++;
-				$value = new Types\Array1( $this, $phpValue );
-
-				$this->arrayReferences[ $id ] =& $phpValue;
-				$this->values[ $id ]          = $value->reflect();
-
-				return $id;
-			}
-			else
-			{
-				$value  = $this->createValue( $phpValue );
-				$type   = $value->type();
-				$string = $value->toString();
-
-				if ( isset( $this->cache[ $type ][ $string ] ) )
-					return $this->cache[ $type ][ $string ];
-
-				$id = $this->nextId++;
-
-				$this->cache[ $type ][ $string ] = $id;
-				$this->values[ $id ]             = $value->reflect();
-
-				return $id;
-			}
-		}
-		
-		function fromID( $id )
-		{
-			return $this->values[ $id ];
-		}
-
-		/**
-		 * @param mixed $value
-		 *
-		 * @return Types\Value
-		 */
-		function createValue( &$value )
-		{
-			return Value::create( $this, $value );
-		}
-
 		/**
 		 * @param PrettyPrinter $settings
 		 * @param string        $name
@@ -91,24 +23,253 @@ namespace PrettyPrinter
 		}
 	}
 
-	class MemoryReference
+	class MemoryReference extends Reference
+	{
+	}
+}
+
+namespace PrettyPrinter\Introspection
+{
+	use PrettyPrinter\MemoryReference;
+	use PrettyPrinter\PrettyPrinter;
+	use PrettyPrinter\Types\Exception;
+	use PrettyPrinter\Types\KeyValuePair;
+	use PrettyPrinter\Types\ObjectProperty;
+	use PrettyPrinter\Types\ReflectedArray;
+	use PrettyPrinter\Types\ReflectedBoolean;
+	use PrettyPrinter\Types\ReflectedFloat;
+	use PrettyPrinter\Types\ReflectedInteger;
+	use PrettyPrinter\Types\ReflectedNull;
+	use PrettyPrinter\Types\ReflectedObject;
+	use PrettyPrinter\Types\ReflectedResource;
+	use PrettyPrinter\Types\ReflectedString;
+	use PrettyPrinter\Types\ReflectedUnknown;
+	use PrettyPrinter\Types\ReflectedValue;
+	use PrettyPrinter\Utils\ArrayUtil;
+	use PrettyPrinter\Utils\Ref;
+
+	class Memory
+	{
+		/** @var ReflectedValue[] */
+		private $cells = array();
+		private $nextId = 0;
+
+		function newID() { return new MemoryReference( $this, $this->nextId++ ); }
+
+		function set( $id, ReflectedValue $value )
+		{
+			$this->cells[ $id ] = $value;
+		}
+
+		function get( $id ) { return $this->cells[ $id ]; }
+		
+		function has( $id ) { return array_key_exists( $id, $this->cells ); }
+
+		function reference( $id ) { return new MemoryReference( $this, $id ); }
+	}
+
+	class Introspection
+	{
+		private $memory;
+		/** @var TypeIntrospection[] */
+		private $types;
+
+		function __construct()
+		{
+			$this->memory = new Memory;
+			$this->types  = array( 'boolean'      => new TypeBool( $this ),
+			                       'integer'      => new TypeInt( $this ),
+			                       'double'       => new TypeFloat( $this ),
+			                       'string'       => new TypeString( $this ),
+			                       'array'        => new TypeArray( $this ),
+			                       'object'       => new TypeObject( $this ),
+			                       'resource'     => new TypeResource( $this ),
+			                       'NULL'         => new TypeNull( $this ),
+			                       'unknown type' => new TypeUnknown( $this ) );
+		}
+
+		function newID() { return $this->memory->newID(); }
+
+		function toReference( &$value )
+		{
+			return $this->types[ gettype( $value ) ]->toReference( $value );
+		}
+	}
+
+	abstract class TypeIntrospection
+	{
+		private $introspection;
+
+		function __construct( Introspection $introspection )
+		{
+			$this->introspection = $introspection;
+		}
+		
+		function toReference( &$value )
+		{
+			$id = $this->toID( $value );
+
+			if ( !$id->has() )
+				$id->set( $this->reflect( $value ) );
+
+			return $id;
+		}
+
+		/**
+		 * @param $value
+		 *
+		 * @return MemoryReference
+		 */
+		protected abstract function toID( &$value );
+
+		protected function newID() { return $this->introspection->newID(); }
+
+		/**
+		 * @param mixed $value
+		 *
+		 * @return ReflectedValue
+		 */
+		protected abstract function reflect( $value );
+
+		protected function introspect( &$value ) { return $this->introspection->toReference( $value ); }
+	}
+
+	abstract class TypeCaching extends TypeIntrospection
+	{
+		private $cache = array();
+
+		protected function toString( $value ) { return "$value"; }
+
+		protected function toID( &$value )
+		{
+			$string = $this->toString( $value );
+
+			if ( isset( $this->cache[ $string ] ) )
+				return $this->cache[ $string ];
+
+			$id = $this->newID();
+
+			$this->cache[ $string ] = $id;
+
+			return $id;
+		}
+	}
+
+	class TypeArray extends TypeIntrospection
+	{
+		private $references = array();
+
+		protected function toID( &$value )
+		{
+			foreach ( $this->references as $array )
+				if ( Ref::equal( $value, $array[ 'ref' ] ) )
+					return $array[ 'id' ];
+
+			$id = $this->newID();
+
+			$this->references[ ] = array( 'id' => $id, 'ref' => &$value );
+
+			return $id;
+		}
+
+		protected function reflect( $value )
+		{
+			$keyValuePairs = array();
+
+			foreach ( $value as $k => &$v )
+			{
+				$keyValuePairs[ ] = new KeyValuePair( $this->introspect( $k ), $this->introspect( $v ) );
+			}
+
+			return new ReflectedArray( ArrayUtil::isAssoc( $value ), $keyValuePairs );
+		}
+	}
+
+	class TypeBool extends TypeCaching
+	{
+		protected function reflect( $value ) { return new ReflectedBoolean( $value ); }
+	}
+
+	class TypeString extends TypeCaching
+	{
+		protected function reflect( $value ) { return new ReflectedString( $value ); }
+	}
+
+	class TypeInt extends TypeCaching
+	{
+		protected function reflect( $value ) { return new ReflectedInteger( $value ); }
+	}
+
+	class TypeObject extends TypeCaching
+	{
+		protected function toString( $value ) { return spl_object_hash( $value ); }
+
+		protected function reflect( $value )
+		{
+			$properties = array();
+
+			for ( $reflection = new \ReflectionObject( $value);
+			      $reflection !== false;
+			      $reflection = $reflection->getParentClass() )
+			{
+				foreach ( $reflection->getProperties() as $property )
+				{
+					if ( $property->isStatic() || $property->class !== $reflection->name )
+						continue;
+
+					$property->setAccessible( true );
+
+					$properties[ ] =
+							new ObjectProperty( $this->introspect( Ref::create( $property->getValue( $value ) ) ),
+							                    $property->name,
+							                    Exception::propertyOrMethodAccess( $property ),
+							                    $property->class );
+				}
+			}
+
+			return new ReflectedObject( get_class( $value ), $properties );
+		}
+	}
+
+	class TypeFloat extends TypeCaching
+	{
+		protected function reflect( $value ) { return new ReflectedFloat( $value ); }
+	}
+
+	class TypeResource extends TypeCaching
+	{
+		protected function reflect( $value ) { return new ReflectedResource( get_resource_type( $value ) ); }
+	}
+
+	class TypeNull extends TypeCaching
+	{
+		protected function reflect( $value ) { return new ReflectedNull; }
+	}
+
+	class TypeUnknown extends TypeCaching
+	{
+		protected function toString( $value ) { return ''; }
+
+		protected function reflect( $value ) { return new ReflectedUnknown; }
+	}
+
+	class Reference
 	{
 		private $memory, $id;
 
-		/**
-		 * @param Memory $memory
-		 * @param int    $id
-		 */
 		function __construct( Memory $memory, $id )
 		{
 			$this->memory = $memory;
 			$this->id     = $id;
 		}
+		
+		function get() { return $this->memory->get( $this->id ); }
 
-		function render( PrettyPrinter $settings )
-		{
-			return $this->memory->fromID( $this->id )->render( $settings );
-		}
+		function has() { return $this->memory->has( $this->id ); }
+
+		function set( ReflectedValue $value ) { $this->memory->set( $this->id, $value ); }
+
+		function render( PrettyPrinter $settings ) { return $this->get()->render( $settings ); }
 	}
 }
 
@@ -124,74 +285,6 @@ namespace PrettyPrinter\Types
 	use PrettyPrinter\Utils\Table;
 	use PrettyPrinter\Utils\Text;
 
-	abstract class Value
-	{
-		/**
-		 * @param Memory $memory
-		 * @param mixed  $value
-		 *
-		 * @return self
-		 */
-		static function create( Memory $memory, &$value )
-		{
-			if ( is_bool( $value ) )
-				return new Boolean( $memory, $value );
-
-			if ( is_string( $value ) )
-				return new String( $memory, $value );
-
-			if ( is_int( $value ) )
-				return new Integer( $memory, $value );
-
-			if ( is_float( $value ) )
-				return new Float( $memory, $value );
-
-			if ( is_object( $value ) )
-				return new Object( $memory, $value );
-
-			if ( is_array( $value ) )
-				return new Array1( $memory, $value );
-
-			if ( is_resource( $value ) )
-				return new Resource( $memory, $value );
-
-			if ( is_null( $value ) )
-				return new Null( $memory );
-
-			return new Unknown( $memory );
-		}
-
-		private $memory;
-
-		function __construct( Memory $memory )
-		{
-			$this->memory = $memory;
-		}
-
-		/** @return string */
-		abstract function type();
-
-		/** @return string */
-		abstract function toString();
-
-		protected static function prettyPrintVariable( $varName, PrettyPrinter $settings )
-		{
-			return Memory::prettyPrintVariable( $settings, $varName );
-		}
-
-		function memory() { return $this->memory; }
-
-		protected function toID( &$value )
-		{
-			return $this->memory->toReference( $value );
-		}
-
-		/**
-		 * @return ReflectedValue
-		 */
-		abstract function reflect();
-	}
-
 	abstract class ReflectedValue
 	{
 		/**
@@ -200,37 +293,6 @@ namespace PrettyPrinter\Types
 		 * @return Text
 		 */
 		abstract function render( PrettyPrinter $settings );
-	}
-
-	/**
-	 * Called "Array1" because "Array" is a reserved word.
-	 */
-	final class Array1 extends Value
-	{
-		private $array;
-
-		function __construct( Memory $memory, array &$array )
-		{
-			$this->array =& $array;
-
-			parent::__construct( $memory );
-		}
-
-		function reflect()
-		{
-			$keyValuePairs = array();
-
-			foreach ( $this->array as $k => &$v )
-			{
-				$keyValuePairs[ ] = new KeyValuePair( $this->toID( $k ), $this->toID( $v ) );
-			}
-
-			return new ReflectedArray( ArrayUtil::isAssoc( $this->array ), $keyValuePairs );
-		}
-
-		function type() { return 'array'; }
-
-		function toString() { throw new \Exception( "You cannot get a string version of an array" ); }
 	}
 
 	class ReflectedArray extends ReflectedValue
@@ -295,28 +357,6 @@ namespace PrettyPrinter\Types
 		function value() { return $this->value; }
 	}
 
-	final class Boolean extends Value
-	{
-		private $bool;
-
-		/**
-		 * @param \PrettyPrinter\Memory $memory
-		 * @param bool                  $value
-		 */
-		function __construct( Memory $memory, $value )
-		{
-			$this->bool = $value;
-
-			parent::__construct( $memory );
-		}
-
-		function reflect() { return new ReflectedBoolean( $this->bool ); }
-
-		function type() { return 'boolean'; }
-
-		function toString() { return $this->bool ? '1' : '0'; }
-	}
-
 	class ReflectedBoolean extends ReflectedValue
 	{
 		private $bool;
@@ -332,17 +372,8 @@ namespace PrettyPrinter\Types
 		function render( PrettyPrinter $settings ) { return new Text( $this->bool ? 'true' : 'false' ); }
 	}
 
-	final class Exception extends Value
+	final class Exception
 	{
-		private $exception;
-
-		function __construct( Memory $memory, \Exception $exception )
-		{
-			$this->exception = $exception;
-
-			parent::__construct( $memory );
-		}
-
 		/**
 		 * @param \ReflectionProperty|\ReflectionMethod $property
 		 *
@@ -351,15 +382,6 @@ namespace PrettyPrinter\Types
 		static function propertyOrMethodAccess( $property )
 		{
 			return $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
-		}
-
-		function type() { return 'exception'; }
-
-		function toString() { return spl_object_hash( $this->exception ); }
-
-		function reflect()
-		{
-			return ReflectedException::reflect( $this->memory(), $this->exception );
 		}
 	}
 
@@ -762,31 +784,6 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class Float extends Value
-	{
-		/**
-		 * @var float
-		 */
-		private $float;
-
-		/**
-		 * @param Memory $memory
-		 * @param float  $float
-		 */
-		function __construct( Memory $memory, $float )
-		{
-			parent::__construct( $memory );
-
-			$this->float = $float;
-		}
-
-		function type() { return 'float'; }
-
-		function toString() { return "$this->float"; }
-
-		function reflect() { return new ReflectedFloat( $this->float ); }
-	}
-
 	class ReflectedFloat extends ReflectedValue
 	{
 		private $float;
@@ -807,30 +804,6 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class Integer extends Value
-	{
-		/**
-		 * @var int
-		 */
-		private $int;
-
-		/**
-		 * @param Memory $memory
-		 * @param int    $int
-		 */
-		function __construct( Memory $memory, $int )
-		{
-			parent::__construct( $memory );
-			$this->int = $int;
-		}
-
-		function type() { return 'integer'; }
-
-		function toString() { return "$this->int"; }
-
-		function reflect() { return new ReflectedInteger( $this->int ); }
-	}
-
 	class ReflectedInteger extends ReflectedValue
 	{
 		private $int;
@@ -846,78 +819,9 @@ namespace PrettyPrinter\Types
 		function render( PrettyPrinter $settings ) { return new Text( "$this->int" ); }
 	}
 
-	final class Null extends Value
-	{
-		function reflect() { return new ReflectedNull; }
-
-		function type() { return 'null'; }
-
-		function toString() { return ''; }
-	}
-
 	class ReflectedNull extends ReflectedValue
 	{
 		function render( PrettyPrinter $settings ) { return new Text( 'null' ); }
-	}
-
-	final class Object extends Value
-	{
-		/**
-		 * @var object
-		 */
-		private $object;
-
-		function reflect()
-		{
-			$properties = array();
-
-			for ( $reflection = new \ReflectionObject( $this->object );
-			      $reflection !== false;
-			      $reflection = $reflection->getParentClass() )
-			{
-				foreach ( $reflection->getProperties() as $property )
-				{
-					if ( $property->isStatic() || $property->class !== $reflection->name )
-						continue;
-
-					$property->setAccessible( true );
-
-					$properties[ ] =
-							new ObjectProperty( $this->toID( Ref::create( $property->getValue( $this->object ) ) ),
-							                    $property->name,
-							                    Exception::propertyOrMethodAccess( $property ),
-							                    $property->class );
-				}
-			}
-
-			return new ReflectedObject( get_class( $this->object ), $properties );
-		}
-
-		/**
-		 * @param string                       $class
-		 * @param ObjectProperty[]             $properties
-		 *
-		 * @param \PrettyPrinter\PrettyPrinter $settings
-		 *
-		 * @return Text
-		 */
-		function render2( $class, array $properties, PrettyPrinter $settings )
-		{
-		}
-
-		/**
-		 * @param Memory $memory
-		 * @param object $object
-		 */
-		function __construct( Memory $memory, $object )
-		{
-			parent::__construct( $memory );
-			$this->object = $object;
-		}
-
-		function type() { return 'object'; }
-
-		function toString() { return spl_object_hash( $this->object ); }
 	}
 
 	class ReflectedObject extends ReflectedValue
@@ -991,31 +895,6 @@ namespace PrettyPrinter\Types
 		function className() { return $this->class; }
 	}
 
-	final class Resource extends Value
-	{
-		private $resource;
-
-		/**
-		 * @param Memory   $memory
-		 * @param resource $resource
-		 */
-		function __construct( Memory $memory, $resource )
-		{
-			parent::__construct( $memory );
-
-			$this->resource = $resource;
-		}
-
-		function reflect()
-		{
-			return new ReflectedResource( get_resource_type( $this->resource ) );
-		}
-
-		function type() { return 'resource'; }
-
-		function toString() { return "$this->resource"; }
-	}
-
 	class ReflectedResource extends ReflectedValue
 	{
 		private $resourceType;
@@ -1034,10 +913,8 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class String extends Value
+	final class String
 	{
-		private $string;
-
 		static function renderString( PrettyPrinter $settings, $string )
 		{
 			$escapeTabs    = $settings->escapeTabsInStrings()->get();
@@ -1071,26 +948,6 @@ namespace PrettyPrinter\Types
 
 			return new Text( "\"$escaped" . ( $length == strlen( $string ) ? '"' : "..." ) );
 		}
-
-		function reflect()
-		{
-			return new ReflectedString( $this->string );
-		}
-
-		/**
-		 * @param Memory $memory
-		 * @param string $string
-		 */
-		function __construct( Memory $memory, $string )
-		{
-			$this->string = $string;
-
-			parent::__construct( $memory );
-		}
-
-		function type() { return 'string'; }
-
-		function toString() { return $this->string; }
 	}
 
 	class ReflectedString extends ReflectedValue
@@ -1109,15 +966,6 @@ namespace PrettyPrinter\Types
 		{
 			return String::renderString( $settings, $this->string );
 		}
-	}
-
-	final class Unknown extends Value
-	{
-		function type() { return 'unknown'; }
-
-		function toString() { return ''; }
-
-		function reflect() { return new ReflectedUnknown; }
 	}
 
 	class ReflectedUnknown extends ReflectedValue
