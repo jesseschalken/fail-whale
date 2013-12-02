@@ -2,9 +2,10 @@
 
 namespace PrettyPrinter
 {
-	use PrettyPrinter\Introspection\Introspection;
+	use PrettyPrinter\Introspection\TypeAny;
 	use PrettyPrinter\Test\DummyClass2;
 	use PrettyPrinter\Test\MockException;
+	use PrettyPrinter\Values\ValuePool;
 
 	class PrettyPrinterTest extends \PHPUnit_Framework_TestCase
 	{
@@ -80,7 +81,7 @@ s
 		{
 			$this->markTestIncomplete();
 
-			self::pp()->maxArrayEntries()->set( 10 )->assertPrettyIs( new Introspection, <<<'s'
+			self::pp()->maxArrayEntries()->set( 10 )->assertPrettyIs( new TypeAny( new ValuePool ), <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
@@ -320,9 +321,10 @@ s
 
 namespace PrettyPrinter\Test
 {
-	use PrettyPrinter\Introspection\Introspection;
-	use PrettyPrinter\Types;
-	use PrettyPrinter\Types\ReflectedGlobal;
+	use PrettyPrinter\Introspection\TypeAny;
+	use PrettyPrinter\Introspection\TypeException;
+	use PrettyPrinter\Values;
+	use PrettyPrinter\Values\ValueGlobalState;
 	use PrettyPrinter\Utils\Ref;
 
 	class DummyClass1
@@ -349,7 +351,7 @@ namespace PrettyPrinter\Test
 		protected $protected2;
 	}
 
-	class MockException extends Types\ReflectedException
+	class MockException extends Values\ValueException
 	{
 		function __construct()
 		{
@@ -379,18 +381,21 @@ s;
 				),
 			);
 
-			$memory  = new Introspection;
-			$null    = $memory->toReference( Ref::create() );
+			$pool    = new Values\ValuePool;
+			$any     = new TypeAny( $pool );
+			$null    = $any->addToPool( Ref::create() );
 			$globals = array(
-				new ReflectedGlobal( 'BlahClass', null, 'blahProperty', $null, 'private' ),
-				new ReflectedGlobal( null, 'BlahAnotherClass', 'public', $null, null ),
-				new ReflectedGlobal( null, null, 'lol global', $null, null ),
-				new ReflectedGlobal( 'BlahYetAnotherClass', 'blahMethod', 'lolStatic', $null, null ),
-				new ReflectedGlobal( null, null, 'blahVariable', $null, null ),
+				new ValueGlobalState( 'BlahClass', null, 'blahProperty', $null, 'private' ),
+				new ValueGlobalState( null, 'BlahAnotherClass', 'public', $null, null ),
+				new ValueGlobalState( null, null, 'lol global', $null, null ),
+				new ValueGlobalState( 'BlahYetAnotherClass', 'blahMethod', 'lolStatic', $null, null ),
+				new ValueGlobalState( null, null, 'blahVariable', $null, null ),
 			);
+			
+			$exception = new TypeException( $any, $pool );
 
-			$stack  = self::reflectStack( $memory, $stackTrace );
-			$locals = self::reflectLocalVariables( $memory, $localVariables );
+			$stack  = $exception->introspectStack( $stackTrace );
+			$locals = $exception->introspectLocalVariables( $localVariables );
 
 			parent::__construct( $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous );
 		}

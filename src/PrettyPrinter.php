@@ -2,10 +2,11 @@
 
 namespace PrettyPrinter
 {
-	use PrettyPrinter\Introspection\Introspection;
+	use PrettyPrinter\Introspection\TypeAny;
 	use PrettyPrinter\Settings\Bool;
 	use PrettyPrinter\Settings\Number;
-	use PrettyPrinter\Types\ReflectedException;
+	use PrettyPrinter\Values\ValueException;
+	use PrettyPrinter\Values\ValuePool;
 
 	final class PrettyPrinter
 	{
@@ -55,26 +56,26 @@ namespace PrettyPrinter
 
 		function prettyPrintRef( &$ref )
 		{
-			$memory = new Introspection;
+			$any = new TypeAny( new ValuePool );
 
-			return $memory->toReference( $ref )->render( $this )->setHasEndingNewline( false )->__toString();
+			return $any->addToPool( $ref )->render( $this )->setHasEndingNewline( false )->__toString();
 		}
 
-		function prettyPrintExceptionInfo( ReflectedException $e )
+		function prettyPrintExceptionInfo( ValueException $e )
 		{
 			return $e->render( $this )->__toString();
 		}
 
 		function prettyPrintException( \Exception $e )
 		{
-			return $this->prettyPrintExceptionInfo( ReflectedException::reflect( new Introspection, $e ) );
+			$any = new TypeAny( new ValuePool );
+
+			return $any->addExceptionToPool( $e )->render( $this )->__toString();
 		}
 
 		function assertPrettyIs( $value, $expectedPretty )
 		{
-			\PHPUnit_Framework_TestCase::assertEquals( $expectedPretty, $this->prettyPrint( $value ) );
-
-			return $this;
+			return $this->assertPrettyRefIs( $value, $expectedPretty );
 		}
 
 		function assertPrettyRefIs( &$ref, $expectedPretty )
