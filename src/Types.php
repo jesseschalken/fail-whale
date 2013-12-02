@@ -2,6 +2,8 @@
 
 namespace PrettyPrinter\Introspection
 {
+	use PrettyPrinter\HasFullTrace;
+	use PrettyPrinter\HasLocalVariables;
 	use PrettyPrinter\Types;
 	use PrettyPrinter\Utils\ArrayUtil;
 	use PrettyPrinter\Utils\Ref;
@@ -58,9 +60,7 @@ namespace PrettyPrinter\Introspection
 		 *
 		 * @return Types\MemoryReference
 		 */
-		protected abstract function toID( &$value );
-
-		protected function newID() { return $this->introspection->newID(); }
+		protected function toID( &$value ) { return $this->introspection->newID(); }
 
 		/**
 		 * @param mixed $value
@@ -78,14 +78,14 @@ namespace PrettyPrinter\Introspection
 
 		protected function toString( $value ) { return "$value"; }
 
-		protected function toID( &$value )
+		protected final function toID( &$value )
 		{
 			$string = $this->toString( $value );
 
 			if ( isset( $this->cache[ $string ] ) )
 				return $this->cache[ $string ];
 
-			$id = $this->newID();
+			$id = parent::toID( $value );
 
 			$this->cache[ $string ] = $id;
 
@@ -97,13 +97,13 @@ namespace PrettyPrinter\Introspection
 	{
 		private $references = array();
 
-		protected function toID( &$value )
+		protected final function toID( &$value )
 		{
 			foreach ( $this->references as $array )
 				if ( Ref::equal( $value, $array[ 'ref' ] ) )
 					return $array[ 'id' ];
 
-			$id = $this->newID();
+			$id = parent::toID( $value );
 
 			$this->references[ ] = array( 'id' => $id, 'ref' => &$value );
 
@@ -116,8 +116,8 @@ namespace PrettyPrinter\Introspection
 
 			foreach ( $value as $k => &$v )
 			{
-				$keyValuePairs[ ] =
-						new Types\ReflectedArrayKeyValuePair( $this->introspect( $k ), $this->introspect( $v ) );
+				$keyValuePairs[ ] = new Types\ReflectedArrayKeyValuePair( $this->introspect( $k ),
+				                                                          $this->introspect( $v ) );
 			}
 
 			return new Types\ReflectedArray( ArrayUtil::isAssoc( $value ), $keyValuePairs );
@@ -158,7 +158,7 @@ namespace PrettyPrinter\Introspection
 
 					$property->setAccessible( true );
 
-					$access        = Types\ReflectedException::propertyOrMethodAccess( $property );
+					$access        = TypeException::propertyOrMethodAccess( $property );
 					$value         = $this->introspect( Ref::create( $property->getValue( $object ) ) );
 					$properties[ ] = new Types\ReflectedObjectProperty( $value, $property->name,
 					                                                    $access, $property->class );
@@ -190,16 +190,176 @@ namespace PrettyPrinter\Introspection
 
 		protected function reflect( $value ) { return new Types\ReflectedUnknown; }
 	}
+
+	class TypeException extends TypeIntrospection
+	{
+		/**
+		 * @param \ReflectionProperty|\ReflectionMethod $property
+		 *
+		 * @return string
+		 */
+		static function propertyOrMethodAccess( $property )
+		{
+			return $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
+		}
+
+		/**
+		 * @param \Exception $exception
+		 *
+		 * @return Types\ReflectedValue
+		 */
+		protected function reflect( $exception )
+		{
+			$globals = $this->reflectGlobalVariables();
+			
+			return $this->reflectException( $exception, $globals );
+		}
+
+		private function reflectException( \Exception $exception, array $globals )
+		{
+			$locals   = $exception instanceof HasLocalVariables ? $exception->getLocalVariables() : null;
+			$stack    = $exception instanceof HasFullTrace ? $exception->getFullTrace() : $exception->getTrace();
+
+			$locals   = $this->reflectLocalVariables( $locals );
+			$stack    = $this->reflectStack( $stack );
+			$previous = $exception->getPrevious();
+			$previous = $previous === null ? null : $this->reflectException( $previous, $globals );
+			$class    = get_class( $exception );
+			$file     = $exception->getFile();
+			$line     = $exception->getLine();
+			$code     = $exception->getCode();
+			$message  = $exception->getMessage();
+
+			return new Types\ReflectedException( $class, $file, $line, $stack, $globals,
+			                                     $locals, $code, $message, $previous );
+		}
+
+		/**
+		 * @param array[] $trace
+		 *
+		 * @return Types\ReflectedExceptionStackFrame[]
+		 */
+		private function reflectStack( array $trace )
+		{
+			$stackFrames = array();
+
+			foreach ( $trace as $frame )
+				$stackFrames[ ] = $this->reflectStackFrame( $frame );
+
+			return $stackFrames;
+		}
+		
+		private function reflectStackFrame( array $stackFrame )
+		{
+			$object = array_key_exists( 'object', $stackFrame )
+							? $this->introspect( $stackFrame[ 'object' ] ) : null;
+			$args   = null;
+
+			if ( array_key_exists( 'args', $stackFrame ) )
+			{
+				$args = array();
+
+				foreach ( $stackFrame[ 'args' ] as &$arg )
+					$args[ ] = $this->introspect( $arg );
+			}
+
+			$type     = ArrayUtil::get( $stackFrame, 'type' );
+			$function = ArrayUtil::get( $stackFrame, 'function' );
+			$class    = ArrayUtil::get( $stackFrame, 'class' );
+			$file     = ArrayUtil::get( $stackFrame, 'file' );
+			$line     = ArrayUtil::get( $stackFrame, 'line' );
+
+			return new Types\ReflectedExceptionStackFrame( $type, $function, $object, $class, $args, $file, $line );
+		}
+
+		/**
+		 * @param array|null    $locals
+		 *
+		 * @return Types\MemoryReference[]|null
+		 */
+		private function reflectLocalVariables( array $locals = null )
+		{
+			if ( $locals === null )
+				return null;
+
+			$reflected = array();
+
+			foreach ( $locals as $k => &$v )
+				$reflected[ $k ] = $this->introspect( $v );
+
+			return $reflected;
+		}
+
+		/**
+		 * @return Types\ReflectedGlobal[]
+		 */
+		private function reflectGlobalVariables()
+		{
+			$globals = array();
+
+			foreach ( $GLOBALS as $name => &$globalValue )
+			{
+				if ( $name !== 'GLOBALS' )
+				{
+					$value = $this->introspect( $globalValue );
+
+					$globals[ ] = new Types\ReflectedGlobal( null, null, $name, $value, null );
+				}
+			}
+
+			foreach ( get_declared_classes() as $class )
+			{
+				$reflection = new \ReflectionClass( $class );
+
+				foreach ( $reflection->getProperties( \ReflectionProperty::IS_STATIC ) as $property )
+				{
+					$property->setAccessible( true );
+
+					$value  = $this->introspect( Ref::create( $property->getValue() ) );
+					$access = self::propertyOrMethodAccess( $property );
+					$class  = $property->class;
+					$name   = $property->name;
+
+					$globals[ ] = new Types\ReflectedGlobal( $class, null, $name, $value, $access );
+				}
+
+				foreach ( $reflection->getMethods() as $method )
+				{
+					foreach ( $method->getStaticVariables() as $name => $value )
+					{
+						$value    = $this->introspect( $value );
+						$class    = $method->class;
+						$function = $method->getName();
+
+						$globals[ ] = new Types\ReflectedGlobal( $class, $function, $name, $value, null );
+					}
+				}
+			}
+
+			foreach ( get_defined_functions() as $section )
+			{
+				foreach ( $section as $function )
+				{
+					$reflection = new \ReflectionFunction( $function );
+
+					foreach ( $reflection->getStaticVariables() as $name => $value )
+					{
+						$value    = $this->introspect( $value );
+						$function = $reflection->name;
+
+						$globals[ ] = new Types\ReflectedGlobal( null, $function, $name, $value, null );
+					}
+				}
+			}
+
+			return $globals;
+		}
+	}
 }
 
 namespace PrettyPrinter\Types
 {
-	use PrettyPrinter\HasFullTrace;
-	use PrettyPrinter\HasLocalVariables;
-	use PrettyPrinter\Introspection\Introspection;
 	use PrettyPrinter\PrettyPrinter;
-	use PrettyPrinter\Utils\ArrayUtil;
-	use PrettyPrinter\Utils\Ref;
 	use PrettyPrinter\Utils\Table;
 	use PrettyPrinter\Utils\Text;
 
@@ -299,7 +459,7 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class ReflectedArrayKeyValuePair
+	class ReflectedArrayKeyValuePair
 	{
 		private $key, $value;
 
@@ -331,128 +491,6 @@ namespace PrettyPrinter\Types
 
 	class ReflectedException extends ReflectedValue
 	{
-		/**
-		 * @param \ReflectionProperty|\ReflectionMethod $property
-		 *
-		 * @return string
-		 */
-		static function propertyOrMethodAccess( $property )
-		{
-			return $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
-		}
-
-		static function reflect( Introspection $memory, \Exception $exception )
-		{
-			$localVariables = $exception instanceof HasLocalVariables ? $exception->getLocalVariables() : null;
-			$trace          = $exception instanceof HasFullTrace ? $exception->getFullTrace() : $exception->getTrace();
-
-			$locals  = self::reflectLocalVariables( $memory, $localVariables );
-			$globals = self::reflectGlobalVariables( $memory );
-			$stack   = self::reflectStack( $memory, $trace );
-
-			$previous = $exception->getPrevious();
-			$previous = $previous === null ? null : self::reflect( $memory, $previous );
-
-			$class   = get_class( $exception );
-			$file    = $exception->getFile();
-			$line    = $exception->getLine();
-			$code    = $exception->getCode();
-			$message = $exception->getMessage();
-
-			return new self( $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous );
-		}
-
-		protected static function reflectStack( Introspection $memory, array $trace )
-		{
-			$stackFrames = array();
-
-			foreach ( $trace as $frame )
-				$stackFrames[ ] = ReflectedExceptionStackFrame::reflect( $memory, $frame );
-
-			return $stackFrames;
-		}
-
-		/**
-		 * @param Introspection $memory
-		 * @param array|null    $locals
-		 *
-		 * @return MemoryReference[]|null
-		 */
-		protected static function reflectLocalVariables( Introspection $memory, array $locals = null )
-		{
-			if ( $locals === null )
-				return null;
-
-			$reflected = array();
-
-			foreach ( $locals as $k => &$v )
-				$reflected[ $k ] = $memory->toReference( $v );
-
-			return $reflected;
-		}
-
-		private static function reflectGlobalVariables( Introspection $memory )
-		{
-			$globals = array();
-
-			foreach ( $GLOBALS as $name => &$globalValue )
-			{
-				if ( $name !== 'GLOBALS' )
-				{
-					$value = $memory->toReference( $globalValue );
-
-					$globals[ ] = new ReflectedGlobal( null, null, $name, $value, null );
-				}
-			}
-
-			foreach ( get_declared_classes() as $class )
-			{
-				$reflection = new \ReflectionClass( $class );
-
-				foreach ( $reflection->getProperties( \ReflectionProperty::IS_STATIC ) as $property )
-				{
-					$property->setAccessible( true );
-
-					$value  = $memory->toReference( Ref::create( $property->getValue() ) );
-					$access = self::propertyOrMethodAccess( $property );
-					$class  = $property->class;
-					$name   = $property->name;
-
-					$globals[ ] = new ReflectedGlobal( $class, null, $name, $value, $access );
-				}
-
-				foreach ( $reflection->getMethods() as $method )
-				{
-					foreach ( $method->getStaticVariables() as $name => $value )
-					{
-						$value    = $memory->toReference( $value );
-						$class    = $method->class;
-						$function = $method->getName();
-
-						$globals[ ] = new ReflectedGlobal( $class, $function, $name, $value, null );
-					}
-				}
-			}
-
-			foreach ( get_defined_functions() as $section )
-			{
-				foreach ( $section as $function )
-				{
-					$reflection = new \ReflectionFunction( $function );
-
-					foreach ( $reflection->getStaticVariables() as $name => $value )
-					{
-						$value    = $memory->toReference( $value );
-						$function = $reflection->name;
-
-						$globals[ ] = new ReflectedGlobal( null, $function, $name, $value, null );
-					}
-				}
-			}
-
-			return $globals;
-		}
-
 		private $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous;
 
 		/**
@@ -571,32 +609,9 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class ReflectedExceptionStackFrame
+	class ReflectedExceptionStackFrame
 	{
 		private $type, $function, $object, $class, $args, $file, $line;
-
-		static function reflect( Introspection $memory, array $stackFrame )
-		{
-			$object =
-					array_key_exists( 'object', $stackFrame ) ? $memory->toReference( $stackFrame[ 'object' ] ) : null;
-			$args   = null;
-
-			if ( array_key_exists( 'args', $stackFrame ) )
-			{
-				$args = array();
-
-				foreach ( $stackFrame[ 'args' ] as &$arg )
-					$args[ ] = $memory->toReference( $arg );
-			}
-
-			$type     = ArrayUtil::get( $stackFrame, 'type' );
-			$function = ArrayUtil::get( $stackFrame, 'function' );
-			$class    = ArrayUtil::get( $stackFrame, 'class' );
-			$file     = ArrayUtil::get( $stackFrame, 'file' );
-			$line     = ArrayUtil::get( $stackFrame, 'line' );
-
-			return new self( $type, $function, $object, $class, $args, $file, $line );
-		}
 
 		/**
 		 * @param string|null            $type
@@ -687,13 +702,8 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class ReflectedGlobal
+	class ReflectedGlobal
 	{
-		static function reflect( Introspection $memory, $class, $function, $name, &$value, $access )
-		{
-			return new self( $class, $function, $name, $memory->toReference( $value ), $access );
-		}
-
 		private $class, $function, $name, $value, $access;
 
 		/**
@@ -823,7 +833,7 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class ReflectedObjectProperty
+	class ReflectedObjectProperty
 	{
 		private $value, $name, $access, $class;
 
