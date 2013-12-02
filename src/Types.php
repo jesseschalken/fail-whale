@@ -32,11 +32,11 @@ namespace PrettyPrinter\Introspection
 {
 	use PrettyPrinter\MemoryReference;
 	use PrettyPrinter\PrettyPrinter;
-	use PrettyPrinter\Types\Exception;
 	use PrettyPrinter\Types\KeyValuePair;
 	use PrettyPrinter\Types\ObjectProperty;
 	use PrettyPrinter\Types\ReflectedArray;
 	use PrettyPrinter\Types\ReflectedBoolean;
+	use PrettyPrinter\Types\ReflectedException;
 	use PrettyPrinter\Types\ReflectedFloat;
 	use PrettyPrinter\Types\ReflectedInteger;
 	use PrettyPrinter\Types\ReflectedNull;
@@ -222,7 +222,7 @@ namespace PrettyPrinter\Introspection
 					$properties[ ] =
 							new ObjectProperty( $this->introspect( Ref::create( $property->getValue( $value ) ) ),
 							                    $property->name,
-							                    Exception::propertyOrMethodAccess( $property ),
+							                    ReflectedException::propertyOrMethodAccess( $property ),
 							                    $property->class );
 				}
 			}
@@ -372,7 +372,7 @@ namespace PrettyPrinter\Types
 		function render( PrettyPrinter $settings ) { return new Text( $this->bool ? 'true' : 'false' ); }
 	}
 
-	final class Exception
+	class ReflectedException extends ReflectedValue
 	{
 		/**
 		 * @param \ReflectionProperty|\ReflectionMethod $property
@@ -383,10 +383,7 @@ namespace PrettyPrinter\Types
 		{
 			return $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
 		}
-	}
 
-	class ReflectedException extends ReflectedValue
-	{
 		static function reflect( Memory $memory, \Exception $exception )
 		{
 			$localVariables = $exception instanceof HasLocalVariables ? $exception->getLocalVariables() : null;
@@ -460,7 +457,7 @@ namespace PrettyPrinter\Types
 					$property->setAccessible( true );
 
 					$value  = $memory->toReference( Ref::create( $property->getValue() ) );
-					$access = Exception::propertyOrMethodAccess( $property );
+					$access = self::propertyOrMethodAccess( $property );
 					$class  = $property->class;
 					$name   = $property->name;
 
