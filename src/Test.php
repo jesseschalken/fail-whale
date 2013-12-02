@@ -2,6 +2,7 @@
 
 namespace PrettyPrinter
 {
+	use PrettyPrinter\Introspection\Introspection;
 	use PrettyPrinter\Test\DummyClass2;
 	use PrettyPrinter\Test\MockException;
 
@@ -79,7 +80,7 @@ s
 		{
 			$this->markTestIncomplete();
 
-			self::pp()->maxArrayEntries()->set( 10 )->assertPrettyIs( new Memory, <<<'s'
+			self::pp()->maxArrayEntries()->set( 10 )->assertPrettyIs( new Introspection, <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
@@ -319,7 +320,7 @@ s
 
 namespace PrettyPrinter\Test
 {
-	use PrettyPrinter\Memory;
+	use PrettyPrinter\Introspection\Introspection;
 	use PrettyPrinter\Types;
 	use PrettyPrinter\Types\ReflectedGlobal;
 	use PrettyPrinter\Utils\Ref;
@@ -378,7 +379,7 @@ s;
 				),
 			);
 
-			$memory  = new Memory;
+			$memory  = new Introspection;
 			$null    = $memory->toReference( Ref::create() );
 			$globals = array(
 				new ReflectedGlobal( 'BlahClass', null, 'blahProperty', $null, 'private' ),

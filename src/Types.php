@@ -1,46 +1,17 @@
 <?php
 
-namespace PrettyPrinter
-{
-	use PrettyPrinter\Introspection\Introspection;
-	use PrettyPrinter\Introspection\Reference;
-	use PrettyPrinter\Types;
-
-	class Memory extends Introspection
-	{
-		/**
-		 * @param PrettyPrinter $settings
-		 * @param string        $name
-		 *
-		 * @return Utils\Text
-		 */
-		static function prettyPrintVariable( PrettyPrinter $settings, $name )
-		{
-			if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name ) )
-				return new Utils\Text( "$$name" );
-
-			return Types\String::renderString( $settings, $name )->wrap( '${', '}' );
-		}
-	}
-
-	class MemoryReference extends Reference
-	{
-	}
-}
-
 namespace PrettyPrinter\Introspection
 {
-	use PrettyPrinter\MemoryReference;
 	use PrettyPrinter\PrettyPrinter;
-	use PrettyPrinter\Types\KeyValuePair;
-	use PrettyPrinter\Types\ObjectProperty;
 	use PrettyPrinter\Types\ReflectedArray;
+	use PrettyPrinter\Types\ReflectedArrayKeyValuePair;
 	use PrettyPrinter\Types\ReflectedBoolean;
 	use PrettyPrinter\Types\ReflectedException;
 	use PrettyPrinter\Types\ReflectedFloat;
 	use PrettyPrinter\Types\ReflectedInteger;
 	use PrettyPrinter\Types\ReflectedNull;
 	use PrettyPrinter\Types\ReflectedObject;
+	use PrettyPrinter\Types\ReflectedObjectProperty;
 	use PrettyPrinter\Types\ReflectedResource;
 	use PrettyPrinter\Types\ReflectedString;
 	use PrettyPrinter\Types\ReflectedUnknown;
@@ -62,7 +33,7 @@ namespace PrettyPrinter\Introspection
 		}
 
 		function get( $id ) { return $this->cells[ $id ]; }
-		
+
 		function has( $id ) { return array_key_exists( $id, $this->cells ); }
 
 		function reference( $id ) { return new MemoryReference( $this, $id ); }
@@ -104,7 +75,7 @@ namespace PrettyPrinter\Introspection
 		{
 			$this->introspection = $introspection;
 		}
-		
+
 		function toReference( &$value )
 		{
 			$id = $this->toID( $value );
@@ -178,7 +149,7 @@ namespace PrettyPrinter\Introspection
 
 			foreach ( $value as $k => &$v )
 			{
-				$keyValuePairs[ ] = new KeyValuePair( $this->introspect( $k ), $this->introspect( $v ) );
+				$keyValuePairs[ ] = new ReflectedArrayKeyValuePair( $this->introspect( $k ), $this->introspect( $v ) );
 			}
 
 			return new ReflectedArray( ArrayUtil::isAssoc( $value ), $keyValuePairs );
@@ -208,7 +179,7 @@ namespace PrettyPrinter\Introspection
 		{
 			$properties = array();
 
-			for ( $reflection = new \ReflectionObject( $value);
+			for ( $reflection = new \ReflectionObject( $value );
 			      $reflection !== false;
 			      $reflection = $reflection->getParentClass() )
 			{
@@ -220,10 +191,10 @@ namespace PrettyPrinter\Introspection
 					$property->setAccessible( true );
 
 					$properties[ ] =
-							new ObjectProperty( $this->introspect( Ref::create( $property->getValue( $value ) ) ),
-							                    $property->name,
-							                    ReflectedException::propertyOrMethodAccess( $property ),
-							                    $property->class );
+							new ReflectedObjectProperty( $this->introspect( Ref::create( $property->getValue( $value ) ) ),
+							                             $property->name,
+							                             ReflectedException::propertyOrMethodAccess( $property ),
+							                             $property->class );
 				}
 			}
 
@@ -253,7 +224,7 @@ namespace PrettyPrinter\Introspection
 		protected function reflect( $value ) { return new ReflectedUnknown; }
 	}
 
-	class Reference
+	class MemoryReference
 	{
 		private $memory, $id;
 
@@ -262,7 +233,7 @@ namespace PrettyPrinter\Introspection
 			$this->memory = $memory;
 			$this->id     = $id;
 		}
-		
+
 		function get() { return $this->memory->get( $this->id ); }
 
 		function has() { return $this->memory->has( $this->id ); }
@@ -277,8 +248,8 @@ namespace PrettyPrinter\Types
 {
 	use PrettyPrinter\HasFullTrace;
 	use PrettyPrinter\HasLocalVariables;
-	use PrettyPrinter\Memory;
-	use PrettyPrinter\MemoryReference;
+	use PrettyPrinter\Introspection\Introspection;
+	use PrettyPrinter\Introspection\MemoryReference;
 	use PrettyPrinter\PrettyPrinter;
 	use PrettyPrinter\Utils\ArrayUtil;
 	use PrettyPrinter\Utils\Ref;
@@ -300,8 +271,8 @@ namespace PrettyPrinter\Types
 		private $isAssociative, $keyValuePairs;
 
 		/**
-		 * @param bool           $isAssociative
-		 * @param KeyValuePair[] $keyValuePairs
+		 * @param bool                         $isAssociative
+		 * @param ReflectedArrayKeyValuePair[] $keyValuePairs
 		 */
 		function __construct( $isAssociative, array $keyValuePairs )
 		{
@@ -342,7 +313,7 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class KeyValuePair
+	final class ReflectedArrayKeyValuePair
 	{
 		private $key, $value;
 
@@ -384,7 +355,7 @@ namespace PrettyPrinter\Types
 			return $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
 		}
 
-		static function reflect( Memory $memory, \Exception $exception )
+		static function reflect( Introspection $memory, \Exception $exception )
 		{
 			$localVariables = $exception instanceof HasLocalVariables ? $exception->getLocalVariables() : null;
 			$trace          = $exception instanceof HasFullTrace ? $exception->getFullTrace() : $exception->getTrace();
@@ -405,23 +376,23 @@ namespace PrettyPrinter\Types
 			return new self( $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous );
 		}
 
-		protected static function reflectStack( Memory $memory, array $trace )
+		protected static function reflectStack( Introspection $memory, array $trace )
 		{
 			$stackFrames = array();
 
 			foreach ( $trace as $frame )
-				$stackFrames[ ] = StackFrame::reflect( $memory, $frame );
+				$stackFrames[ ] = ReflectedExceptionStackFrame::reflect( $memory, $frame );
 
 			return $stackFrames;
 		}
 
 		/**
-		 * @param Memory     $memory
+		 * @param Introspection     $memory
 		 * @param array|null $locals
 		 *
 		 * @return MemoryReference[]|null
 		 */
-		protected static function reflectLocalVariables( Memory $memory, array $locals = null )
+		protected static function reflectLocalVariables( Introspection $memory, array $locals = null )
 		{
 			if ( $locals === null )
 				return null;
@@ -434,7 +405,7 @@ namespace PrettyPrinter\Types
 			return $reflected;
 		}
 
-		private static function reflectGlobalVariables( Memory $memory )
+		private static function reflectGlobalVariables( Introspection $memory )
 		{
 			$globals = array();
 
@@ -499,15 +470,15 @@ namespace PrettyPrinter\Types
 		private $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous;
 
 		/**
-		 * @param string                  $class
-		 * @param string                  $file
-		 * @param int                     $line
-		 * @param StackFrame[]            $stack
-		 * @param ReflectedGlobal[]       $globals
-		 * @param MemoryReference[]|null  $locals
-		 * @param mixed                   $code
-		 * @param string                  $message
-		 * @param ReflectedException|null $previous
+		 * @param string                         $class
+		 * @param string                         $file
+		 * @param int                            $line
+		 * @param ReflectedExceptionStackFrame[] $stack
+		 * @param ReflectedGlobal[]              $globals
+		 * @param MemoryReference[]|null         $locals
+		 * @param mixed                          $code
+		 * @param string                         $message
+		 * @param ReflectedException|null        $previous
 		 */
 		function __construct( $class, $file, $line, array $stack, array $globals, array $locals, $code, $message,
 		                      self $previous = null )
@@ -558,7 +529,7 @@ namespace PrettyPrinter\Types
 			$table = new Table;
 
 			foreach ( $this->locals as $name => $value )
-				$table->addRow( array( Memory::prettyPrintVariable( $settings, $name ),
+				$table->addRow( array( ReflectedString::renderVariable( $settings, $name ),
 				                       $value->render( $settings )->wrap( ' = ', ';' ) ) );
 
 			return $table->count() > 0 ? $table->render() : new Text( 'none' );
@@ -614,13 +585,14 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class StackFrame
+	final class ReflectedExceptionStackFrame
 	{
 		private $type, $function, $object, $class, $args, $file, $line;
 
-		static function reflect( Memory $memory, array $stackFrame )
+		static function reflect( Introspection $memory, array $stackFrame )
 		{
-			$object = array_key_exists( 'object', $stackFrame ) ? $memory->toReference( $stackFrame[ 'object' ] ) : null;
+			$object =
+					array_key_exists( 'object', $stackFrame ) ? $memory->toReference( $stackFrame[ 'object' ] ) : null;
 			$args   = null;
 
 			if ( array_key_exists( 'args', $stackFrame ) )
@@ -731,7 +703,7 @@ namespace PrettyPrinter\Types
 
 	final class ReflectedGlobal
 	{
-		static function reflect( Memory $memory, $class, $function, $name, &$value, $access )
+		static function reflect( Introspection $memory, $class, $function, $name, &$value, $access )
 		{
 			return new self( $class, $function, $name, $memory->toReference( $value ), $access );
 		}
@@ -756,7 +728,7 @@ namespace PrettyPrinter\Types
 
 		function renderVar( PrettyPrinter $settings )
 		{
-			return $this->prefix()->appendLines( Memory::prettyPrintVariable( $settings, $this->name ) );
+			return $this->prefix()->appendLines( ReflectedString::renderVariable( $settings, $this->name ) );
 		}
 
 		function renderValue( PrettyPrinter $settings )
@@ -826,8 +798,8 @@ namespace PrettyPrinter\Types
 		private $class, $properties;
 
 		/**
-		 * @param string           $class
-		 * @param ObjectProperty[] $properties
+		 * @param string                    $class
+		 * @param ReflectedObjectProperty[] $properties
 		 */
 		function __construct( $class, array $properties )
 		{
@@ -852,7 +824,7 @@ namespace PrettyPrinter\Types
 				$name   = $property->name();
 				$access = $property->access();
 
-				$table->addRow( array( Memory::prettyPrintVariable( $settings, $name )->prepend( "$access " ),
+				$table->addRow( array( ReflectedString::renderVariable( $settings, $name )->prepend( "$access " ),
 				                       $value->render( $settings )->wrap( ' = ', ';' ) ) );
 			}
 
@@ -865,7 +837,7 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class ObjectProperty
+	final class ReflectedObjectProperty
 	{
 		private $value, $name, $access, $class;
 
@@ -910,8 +882,22 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	final class String
+	class ReflectedString extends ReflectedValue
 	{
+		/**
+		 * @param PrettyPrinter $settings
+		 * @param string        $name
+		 *
+		 * @return Text
+		 */
+		static function renderVariable( PrettyPrinter $settings, $name )
+		{
+			if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name ) )
+				return new Text( "$$name" );
+
+			return self::renderString( $settings, $name )->wrap( '${', '}' );
+		}
+
 		static function renderString( PrettyPrinter $settings, $string )
 		{
 			$escapeTabs    = $settings->escapeTabsInStrings()->get();
@@ -945,10 +931,7 @@ namespace PrettyPrinter\Types
 
 			return new Text( "\"$escaped" . ( $length == strlen( $string ) ? '"' : "..." ) );
 		}
-	}
 
-	class ReflectedString extends ReflectedValue
-	{
 		private $string;
 
 		/**
@@ -961,7 +944,7 @@ namespace PrettyPrinter\Types
 
 		function render( PrettyPrinter $settings )
 		{
-			return String::renderString( $settings, $this->string );
+			return self::renderString( $settings, $this->string );
 		}
 	}
 

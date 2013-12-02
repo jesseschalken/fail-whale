@@ -67,7 +67,7 @@ namespace PrettyPrinter
 
 		function prettyPrintException( \Exception $e )
 		{
-			return $this->prettyPrintExceptionInfo( ReflectedException::reflect( new Memory, $e ) );
+			return $this->prettyPrintExceptionInfo( ReflectedException::reflect( new Introspection, $e ) );
 		}
 
 		function assertPrettyIs( $value, $expectedPretty )
