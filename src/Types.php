@@ -2,42 +2,9 @@
 
 namespace PrettyPrinter\Introspection
 {
-	use PrettyPrinter\PrettyPrinter;
-	use PrettyPrinter\Types\ReflectedArray;
-	use PrettyPrinter\Types\ReflectedArrayKeyValuePair;
-	use PrettyPrinter\Types\ReflectedBoolean;
-	use PrettyPrinter\Types\ReflectedException;
-	use PrettyPrinter\Types\ReflectedFloat;
-	use PrettyPrinter\Types\ReflectedInteger;
-	use PrettyPrinter\Types\ReflectedNull;
-	use PrettyPrinter\Types\ReflectedObject;
-	use PrettyPrinter\Types\ReflectedObjectProperty;
-	use PrettyPrinter\Types\ReflectedResource;
-	use PrettyPrinter\Types\ReflectedString;
-	use PrettyPrinter\Types\ReflectedUnknown;
-	use PrettyPrinter\Types\ReflectedValue;
+	use PrettyPrinter\Types;
 	use PrettyPrinter\Utils\ArrayUtil;
 	use PrettyPrinter\Utils\Ref;
-
-	class Memory
-	{
-		/** @var ReflectedValue[] */
-		private $cells = array();
-		private $nextId = 0;
-
-		function newID() { return new MemoryReference( $this, $this->nextId++ ); }
-
-		function set( $id, ReflectedValue $value )
-		{
-			$this->cells[ $id ] = $value;
-		}
-
-		function get( $id ) { return $this->cells[ $id ]; }
-
-		function has( $id ) { return array_key_exists( $id, $this->cells ); }
-
-		function reference( $id ) { return new MemoryReference( $this, $id ); }
-	}
 
 	class Introspection
 	{
@@ -47,7 +14,7 @@ namespace PrettyPrinter\Introspection
 
 		function __construct()
 		{
-			$this->memory = new Memory;
+			$this->memory = new Types\Memory;
 			$this->types  = array( 'boolean'      => new TypeBool( $this ),
 			                       'integer'      => new TypeInt( $this ),
 			                       'double'       => new TypeFloat( $this ),
@@ -89,7 +56,7 @@ namespace PrettyPrinter\Introspection
 		/**
 		 * @param $value
 		 *
-		 * @return MemoryReference
+		 * @return Types\MemoryReference
 		 */
 		protected abstract function toID( &$value );
 
@@ -98,7 +65,7 @@ namespace PrettyPrinter\Introspection
 		/**
 		 * @param mixed $value
 		 *
-		 * @return ReflectedValue
+		 * @return Types\ReflectedValue
 		 */
 		protected abstract function reflect( $value );
 
@@ -149,37 +116,38 @@ namespace PrettyPrinter\Introspection
 
 			foreach ( $value as $k => &$v )
 			{
-				$keyValuePairs[ ] = new ReflectedArrayKeyValuePair( $this->introspect( $k ), $this->introspect( $v ) );
+				$keyValuePairs[ ] =
+						new Types\ReflectedArrayKeyValuePair( $this->introspect( $k ), $this->introspect( $v ) );
 			}
 
-			return new ReflectedArray( ArrayUtil::isAssoc( $value ), $keyValuePairs );
+			return new Types\ReflectedArray( ArrayUtil::isAssoc( $value ), $keyValuePairs );
 		}
 	}
 
 	class TypeBool extends TypeCaching
 	{
-		protected function reflect( $value ) { return new ReflectedBoolean( $value ); }
+		protected function reflect( $value ) { return new Types\ReflectedBool( $value ); }
 	}
 
 	class TypeString extends TypeCaching
 	{
-		protected function reflect( $value ) { return new ReflectedString( $value ); }
+		protected function reflect( $value ) { return new Types\ReflectedString( $value ); }
 	}
 
 	class TypeInt extends TypeCaching
 	{
-		protected function reflect( $value ) { return new ReflectedInteger( $value ); }
+		protected function reflect( $value ) { return new Types\ReflectedInt( $value ); }
 	}
 
 	class TypeObject extends TypeCaching
 	{
 		protected function toString( $value ) { return spl_object_hash( $value ); }
 
-		protected function reflect( $value )
+		protected function reflect( $object )
 		{
 			$properties = array();
 
-			for ( $reflection = new \ReflectionObject( $value );
+			for ( $reflection = new \ReflectionObject( $object );
 			      $reflection !== false;
 			      $reflection = $reflection->getParentClass() )
 			{
@@ -190,38 +158,69 @@ namespace PrettyPrinter\Introspection
 
 					$property->setAccessible( true );
 
-					$properties[ ] =
-							new ReflectedObjectProperty( $this->introspect( Ref::create( $property->getValue( $value ) ) ),
-							                             $property->name,
-							                             ReflectedException::propertyOrMethodAccess( $property ),
-							                             $property->class );
+					$access        = Types\ReflectedException::propertyOrMethodAccess( $property );
+					$value         = $this->introspect( Ref::create( $property->getValue( $object ) ) );
+					$properties[ ] = new Types\ReflectedObjectProperty( $value, $property->name,
+					                                                    $access, $property->class );
 				}
 			}
 
-			return new ReflectedObject( get_class( $value ), $properties );
+			return new Types\ReflectedObject( get_class( $object ), $properties );
 		}
 	}
 
 	class TypeFloat extends TypeCaching
 	{
-		protected function reflect( $value ) { return new ReflectedFloat( $value ); }
+		protected function reflect( $value ) { return new Types\ReflectedFloat( $value ); }
 	}
 
 	class TypeResource extends TypeCaching
 	{
-		protected function reflect( $value ) { return new ReflectedResource( get_resource_type( $value ) ); }
+		protected function reflect( $value ) { return new Types\ReflectedResource( get_resource_type( $value ) ); }
 	}
 
 	class TypeNull extends TypeCaching
 	{
-		protected function reflect( $value ) { return new ReflectedNull; }
+		protected function reflect( $value ) { return new Types\ReflectedNull; }
 	}
 
 	class TypeUnknown extends TypeCaching
 	{
 		protected function toString( $value ) { return ''; }
 
-		protected function reflect( $value ) { return new ReflectedUnknown; }
+		protected function reflect( $value ) { return new Types\ReflectedUnknown; }
+	}
+}
+
+namespace PrettyPrinter\Types
+{
+	use PrettyPrinter\HasFullTrace;
+	use PrettyPrinter\HasLocalVariables;
+	use PrettyPrinter\Introspection\Introspection;
+	use PrettyPrinter\PrettyPrinter;
+	use PrettyPrinter\Utils\ArrayUtil;
+	use PrettyPrinter\Utils\Ref;
+	use PrettyPrinter\Utils\Table;
+	use PrettyPrinter\Utils\Text;
+
+	class Memory
+	{
+		/** @var ReflectedValue[] */
+		private $cells = array();
+		private $nextId = 0;
+
+		function newID() { return new MemoryReference( $this, $this->nextId++ ); }
+
+		function set( $id, ReflectedValue $value )
+		{
+			$this->cells[ $id ] = $value;
+		}
+
+		function get( $id ) { return $this->cells[ $id ]; }
+
+		function has( $id ) { return array_key_exists( $id, $this->cells ); }
+
+		function reference( $id ) { return new MemoryReference( $this, $id ); }
 	}
 
 	class MemoryReference
@@ -242,19 +241,6 @@ namespace PrettyPrinter\Introspection
 
 		function render( PrettyPrinter $settings ) { return $this->get()->render( $settings ); }
 	}
-}
-
-namespace PrettyPrinter\Types
-{
-	use PrettyPrinter\HasFullTrace;
-	use PrettyPrinter\HasLocalVariables;
-	use PrettyPrinter\Introspection\Introspection;
-	use PrettyPrinter\Introspection\MemoryReference;
-	use PrettyPrinter\PrettyPrinter;
-	use PrettyPrinter\Utils\ArrayUtil;
-	use PrettyPrinter\Utils\Ref;
-	use PrettyPrinter\Utils\Table;
-	use PrettyPrinter\Utils\Text;
 
 	abstract class ReflectedValue
 	{
@@ -328,7 +314,7 @@ namespace PrettyPrinter\Types
 		function value() { return $this->value; }
 	}
 
-	class ReflectedBoolean extends ReflectedValue
+	class ReflectedBool extends ReflectedValue
 	{
 		private $bool;
 
@@ -387,8 +373,8 @@ namespace PrettyPrinter\Types
 		}
 
 		/**
-		 * @param Introspection     $memory
-		 * @param array|null $locals
+		 * @param Introspection $memory
+		 * @param array|null    $locals
 		 *
 		 * @return MemoryReference[]|null
 		 */
@@ -773,7 +759,7 @@ namespace PrettyPrinter\Types
 		}
 	}
 
-	class ReflectedInteger extends ReflectedValue
+	class ReflectedInt extends ReflectedValue
 	{
 		private $int;
 
