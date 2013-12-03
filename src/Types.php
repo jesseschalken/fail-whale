@@ -8,17 +8,7 @@ namespace PrettyPrinter\Introspection
     use PrettyPrinter\Utils\Ref;
     use PrettyPrinter\Values;
 
-    abstract class Type
-    {
-        /**
-         * @param mixed $value
-         *
-         * @return Values\ValuePoolReference
-         */
-        abstract function addToPool( &$value );
-    }
-
-    class TypeAny extends Type
+    class TypeAny
     {
         /** @var TypeSpecific[] */
         private $types;
@@ -50,7 +40,7 @@ namespace PrettyPrinter\Introspection
         }
     }
 
-    abstract class TypeSpecific extends Type
+    abstract class TypeSpecific
     {
         private $any, $pool;
 
