@@ -81,7 +81,7 @@ s
         {
             $this->markTestIncomplete();
 
-            self::pp()->maxArrayEntries()->set( 10 )->assertPrettyIs( new TypeAny( new ValuePool ), <<<'s'
+            self::pp()->setMaxArrayEntries( 10 )->assertPrettyIs( new TypeAny( new ValuePool ), <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
@@ -226,7 +226,7 @@ s
 
         function testMaxObjectProperties()
         {
-            self::pp()->maxObjectProperties()->set( 5 )->assertPrettyIs( new DummyClass2, <<<'s'
+            self::pp()->setMaxObjectProperties( 5 )->assertPrettyIs( new DummyClass2, <<<'s'
 new PrettyPrinter\Test\DummyClass2 #1 {
     public $public2       = null;
     private $private2     = null;
@@ -241,7 +241,7 @@ s
 
         function testMaxArrayEntries()
         {
-            self::pp()->maxArrayEntries()->set( 3 )
+            self::pp()->setMaxArrayEntries( 3 )
                 ->assertPrettyIs( range( 1, 10 ), <<<'s'
 array( 1,
        2,
@@ -271,7 +271,7 @@ s
 
         function testMaxStringLength()
         {
-            self::pp()->maxStringLength()->set( 10 )
+            self::pp()->setMaxStringLength( 10 )
                 ->assertPrettyIs( "wafkjawejf bawjehfb awjhefb j,awhebf ", '"wafkjawejf...' );
         }
 

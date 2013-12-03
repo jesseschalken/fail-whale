@@ -3,8 +3,6 @@
 namespace PrettyPrinter
 {
     use PrettyPrinter\Introspection\TypeAny;
-    use PrettyPrinter\Settings\Bool;
-    use PrettyPrinter\Settings\Number;
     use PrettyPrinter\Values\ValueException;
     use PrettyPrinter\Values\ValuePool;
 
@@ -12,42 +10,90 @@ namespace PrettyPrinter
     {
         static function create() { return new self; }
 
-        private $escapeTabsInStrings;
-        private $splitMultiLineStrings;
-        private $maxObjectProperties;
-        private $maxArrayEntries;
-        private $maxStringLength;
-        private $showExceptionLocalVariables;
-        private $showExceptionGlobalVariables;
-        private $showExceptionStackTrace;
+        private $escapeTabsInStrings = false;
+        private $splitMultiLineStrings = true;
+        private $maxObjectProperties = INF;
+        private $maxArrayEntries = INF;
+        private $maxStringLength = INF;
+        private $showExceptionLocalVariables = true;
+        private $showExceptionGlobalVariables = true;
+        private $showExceptionStackTrace = true;
 
         function __construct()
         {
-            $this->escapeTabsInStrings          = new Bool( $this, false );
-            $this->splitMultiLineStrings        = new Bool( $this, true );
-            $this->maxObjectProperties          = new Number( $this, PHP_INT_MAX );
-            $this->maxArrayEntries              = new Number( $this, PHP_INT_MAX );
-            $this->maxStringLength              = new Number( $this, PHP_INT_MAX );
-            $this->showExceptionLocalVariables  = new Bool( $this, true );
-            $this->showExceptionGlobalVariables = new Bool( $this, true );
-            $this->showExceptionStackTrace      = new Bool( $this, true );
         }
 
-        function escapeTabsInStrings() { return $this->escapeTabsInStrings; }
+        function getEscapeTabsInStrings() { return $this->escapeTabsInStrings; }
 
-        function splitMultiLineStrings() { return $this->splitMultiLineStrings; }
+        function getSplitMultiLineStrings() { return $this->splitMultiLineStrings; }
 
-        function maxObjectProperties() { return $this->maxObjectProperties; }
+        function getMaxObjectProperties() { return $this->maxObjectProperties; }
 
-        function maxArrayEntries() { return $this->maxArrayEntries; }
+        function getMaxArrayEntries() { return $this->maxArrayEntries; }
 
-        function maxStringLength() { return $this->maxStringLength; }
+        function getMaxStringLength() { return $this->maxStringLength; }
 
-        function showExceptionLocalVariables() { return $this->showExceptionLocalVariables; }
+        function getShowExceptionLocalVariables() { return $this->showExceptionLocalVariables; }
 
-        function showExceptionGlobalVariables() { return $this->showExceptionGlobalVariables; }
+        function getShowExceptionGlobalVariables() { return $this->showExceptionGlobalVariables; }
 
-        function showExceptionStackTrace() { return $this->showExceptionStackTrace; }
+        function getShowExceptionStackTrace() { return $this->showExceptionStackTrace; }
+
+        function setEscapeTabsInStrings( $escapeTabsInStrings )
+        {
+            $this->escapeTabsInStrings = (bool) $escapeTabsInStrings;
+
+            return $this;
+        }
+
+        function setMaxArrayEntries( $maxArrayEntries )
+        {
+            $this->maxArrayEntries = (float) $maxArrayEntries;
+
+            return $this;
+        }
+
+        function setMaxObjectProperties( $maxObjectProperties )
+        {
+            $this->maxObjectProperties = (float) $maxObjectProperties;
+
+            return $this;
+        }
+
+        function setMaxStringLength( $maxStringLength )
+        {
+            $this->maxStringLength = (float) $maxStringLength;
+
+            return $this;
+        }
+
+        function setShowExceptionGlobalVariables( $showExceptionGlobalVariables )
+        {
+            $this->showExceptionGlobalVariables = (bool) $showExceptionGlobalVariables;
+
+            return $this;
+        }
+
+        function setShowExceptionLocalVariables( $showExceptionLocalVariables )
+        {
+            $this->showExceptionLocalVariables = (bool) $showExceptionLocalVariables;
+
+            return $this;
+        }
+
+        function setShowExceptionStackTrace( $showExceptionStackTrace )
+        {
+            $this->showExceptionStackTrace = (bool) $showExceptionStackTrace;
+
+            return $this;
+        }
+
+        function setSplitMultiLineStrings( $splitMultiLineStrings )
+        {
+            $this->splitMultiLineStrings = (bool) $splitMultiLineStrings;
+
+            return $this;
+        }
 
         function prettyPrint( $value )
         {

@@ -451,12 +451,11 @@ namespace PrettyPrinter\Values
             if ( $this->keyValuePairs === array() )
                 return new Text( 'array()' );
 
-            $maxEntries = $settings->maxArrayEntries()->get();
             $table      = new Table;
 
             foreach ( $this->keyValuePairs as $keyValuePair )
             {
-                if ( $table->count() >= $maxEntries )
+                if ( ( $table->count() + 1 ) > $settings->getMaxArrayEntries() )
                     break;
 
                 $key   = $keyValuePair->key()->render( $settings );
@@ -470,7 +469,7 @@ namespace PrettyPrinter\Values
 
             $result = $table->render();
 
-            if ( $table->count() != count( $this->keyValuePairs ) )
+            if ( $table->count() < count( $this->keyValuePairs ) )
                 $result->addLine( '...' );
 
             $result->wrap( 'array( ', ' )' );
@@ -547,7 +546,7 @@ namespace PrettyPrinter\Values
         {
             $text = $this->renderWithoutGlobals( $settings );
 
-            if ( $settings->showExceptionGlobalVariables()->get() )
+            if ( $settings->getShowExceptionGlobalVariables() )
             {
                 $text->addLine( "global variables:" );
                 $text->addLines( $this->renderGlobals( $settings )->indent() );
@@ -587,14 +586,14 @@ namespace PrettyPrinter\Values
             $text->addLines( Text::create( $this->message )->indent( 2 ) );
             $text->addLine();
 
-            if ( $this->locals !== null && $settings->showExceptionLocalVariables()->get() )
+            if ( $this->locals !== null && $settings->getShowExceptionLocalVariables() )
             {
                 $text->addLine( "local variables:" );
                 $text->addLines( $this->renderLocals( $settings )->indent() );
                 $text->addLine();
             }
 
-            if ( $settings->showExceptionStackTrace()->get() )
+            if ( $settings->getShowExceptionStackTrace() )
             {
                 $text->addLine( "stack trace:" );
                 $text->addLines( $this->renderStack( $settings )->indent() );
@@ -825,16 +824,12 @@ namespace PrettyPrinter\Values
 
         function render( PrettyPrinter $settings )
         {
-            $maxProperties = $settings->maxObjectProperties()->get();
-            $numProperties = 0;
-            $table         = new Table;
+            $table = new Table;
 
             foreach ( $this->properties as $property )
             {
-                $numProperties++;
-
-                if ( $table->count() >= $maxProperties )
-                    continue;
+                if ( ( $table->count() + 1) > $settings->getMaxObjectProperties() )
+                    break;
 
                 $value  = $property->value();
                 $name   = $property->name();
@@ -846,7 +841,7 @@ namespace PrettyPrinter\Values
 
             $result = $table->render();
 
-            if ( $table->count() != $numProperties )
+            if ( $table->count() < count( $this->properties ) )
                 $result->addLine( '...' );
 
             return $result->indent( 2 )->wrapLines( "new $this->class {", "}" );
@@ -916,8 +911,8 @@ namespace PrettyPrinter\Values
 
         static function renderString( PrettyPrinter $settings, $string )
         {
-            $escapeTabs    = $settings->escapeTabsInStrings()->get();
-            $splitNewlines = $settings->splitMultiLineStrings()->get();
+            $escapeTabs    = $settings->getEscapeTabsInStrings();
+            $splitNewlines = $settings->getSplitMultiLineStrings();
 
             $characterEscapeCache = array( "\\" => '\\\\',
                                            "\$" => '\$',
@@ -929,7 +924,7 @@ namespace PrettyPrinter\Values
                                            "\n" => $splitNewlines ? "\\n\" .\n\"" : '\n' );
 
             $escaped = '';
-            $length  = min( strlen( $string ), $settings->maxStringLength()->get() );
+            $length  = min( strlen( $string ), $settings->getMaxStringLength() );
 
             for ( $i = 0; $i < $length; $i++ )
             {
@@ -945,7 +940,7 @@ namespace PrettyPrinter\Values
                 $escaped .= $charEscaped;
             }
 
-            return new Text( "\"$escaped" . ( $length == strlen( $string ) ? '"' : "..." ) );
+            return new Text( "\"$escaped" . ( strlen( $string ) >= $length ? '...' : '"' ) );
         }
 
         private $string;
