@@ -325,7 +325,7 @@ namespace PrettyPrinter\Test
     use PrettyPrinter\Introspection\TypeException;
     use PrettyPrinter\Utils\Ref;
     use PrettyPrinter\Values;
-    use PrettyPrinter\Values\ValueGlobalState;
+    use PrettyPrinter\Values\ValueExceptionGlobalState;
 
     class DummyClass1
     {
@@ -385,11 +385,11 @@ s;
             $any     = new TypeAny( $pool );
             $null    = $any->addToPool( Ref::create() );
             $globals = array(
-                new ValueGlobalState( 'BlahClass', null, 'blahProperty', $null, 'private' ),
-                new ValueGlobalState( null, 'BlahAnotherClass', 'public', $null, null ),
-                new ValueGlobalState( null, null, 'lol global', $null, null ),
-                new ValueGlobalState( 'BlahYetAnotherClass', 'blahMethod', 'lolStatic', $null, null ),
-                new ValueGlobalState( null, null, 'blahVariable', $null, null ),
+                new ValueExceptionGlobalState( 'BlahClass', null, 'blahProperty', $null, 'private' ),
+                new ValueExceptionGlobalState( null, 'BlahAnotherClass', 'public', $null, null ),
+                new ValueExceptionGlobalState( null, null, 'lol global', $null, null ),
+                new ValueExceptionGlobalState( 'BlahYetAnotherClass', 'blahMethod', 'lolStatic', $null, null ),
+                new ValueExceptionGlobalState( null, null, 'blahVariable', $null, null ),
             );
 
             $exception = new TypeException( $any, $pool );

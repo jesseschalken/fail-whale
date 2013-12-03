@@ -312,7 +312,7 @@ namespace PrettyPrinter\Introspection
         }
 
         /**
-         * @return Values\ValueGlobalState[]
+         * @return Values\ValueExceptionGlobalState[]
          */
         private function introspectGlobalVariables()
         {
@@ -324,7 +324,7 @@ namespace PrettyPrinter\Introspection
                 {
                     $value = $this->reference( $globalValue );
 
-                    $globals[ ] = new Values\ValueGlobalState( null, null, $name, $value, null );
+                    $globals[ ] = new Values\ValueExceptionGlobalState( null, null, $name, $value, null );
                 }
             }
 
@@ -341,7 +341,7 @@ namespace PrettyPrinter\Introspection
                     $class  = $property->class;
                     $name   = $property->name;
 
-                    $globals[ ] = new Values\ValueGlobalState( $class, null, $name, $value, $access );
+                    $globals[ ] = new Values\ValueExceptionGlobalState( $class, null, $name, $value, $access );
                 }
 
                 foreach ( $reflection->getMethods() as $method )
@@ -352,7 +352,7 @@ namespace PrettyPrinter\Introspection
                         $class    = $method->class;
                         $function = $method->getName();
 
-                        $globals[ ] = new Values\ValueGlobalState( $class, $function, $name, $value, null );
+                        $globals[ ] = new Values\ValueExceptionGlobalState( $class, $function, $name, $value, null );
                     }
                 }
             }
@@ -368,7 +368,7 @@ namespace PrettyPrinter\Introspection
                         $value    = $this->reference( $value );
                         $function = $reflection->name;
 
-                        $globals[ ] = new Values\ValueGlobalState( null, $function, $name, $value, null );
+                        $globals[ ] = new Values\ValueExceptionGlobalState( null, $function, $name, $value, null );
                     }
                 }
             }
@@ -514,15 +514,15 @@ namespace PrettyPrinter\Values
         private $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous;
 
         /**
-         * @param string                     $class
-         * @param string                     $file
-         * @param int                        $line
-         * @param ValueExceptionStackFrame[] $stack
-         * @param ValueGlobalState[]         $globals
-         * @param ValuePoolReference[]|null  $locals
-         * @param mixed                      $code
-         * @param string                     $message
-         * @param ValueException|null        $previous
+         * @param string                      $class
+         * @param string                      $file
+         * @param int                         $line
+         * @param ValueExceptionStackFrame[]  $stack
+         * @param ValueExceptionGlobalState[] $globals
+         * @param ValuePoolReference[]|null   $locals
+         * @param mixed                       $code
+         * @param string                      $message
+         * @param ValueException|null         $previous
          */
         function __construct( $class, $file, $line, array $stack, array $globals, array $locals, $code, $message,
                               self $previous = null )
@@ -722,7 +722,7 @@ namespace PrettyPrinter\Values
         }
     }
 
-    class ValueGlobalState
+    class ValueExceptionGlobalState
     {
         private $class, $function, $name, $value, $access;
 
