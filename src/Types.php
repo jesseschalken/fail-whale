@@ -8,9 +8,9 @@ namespace PrettyPrinter\Introspection
     use PrettyPrinter\Utils\Ref;
     use PrettyPrinter\Values;
 
-    class TypeAny
+    class Introspection
     {
-        /** @var TypeSpecific[] */
+        /** @var Type[] */
         private $types;
         private $exception;
 
@@ -40,11 +40,11 @@ namespace PrettyPrinter\Introspection
         }
     }
 
-    abstract class TypeSpecific
+    abstract class Type
     {
         private $any, $pool;
 
-        function __construct( TypeAny $any, Values\ValuePool $pool )
+        function __construct( Introspection $any, Values\ValuePool $pool )
         {
             $this->any  = $any;
             $this->pool = $pool;
@@ -77,7 +77,7 @@ namespace PrettyPrinter\Introspection
         abstract protected function introspect( $value );
     }
 
-    abstract class TypeCaching extends TypeSpecific
+    abstract class TypeCaching extends Type
     {
         private $cache = array();
 
@@ -140,7 +140,7 @@ namespace PrettyPrinter\Introspection
         protected function introspect( $value ) { return new Values\ValueNull; }
     }
 
-    class TypeArray extends TypeSpecific
+    class TypeArray extends Type
     {
         private $references = array();
 

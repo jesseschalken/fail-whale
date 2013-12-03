@@ -2,7 +2,7 @@
 
 namespace PrettyPrinter
 {
-    use PrettyPrinter\Introspection\TypeAny;
+    use PrettyPrinter\Introspection\Introspection;
     use PrettyPrinter\Values\ValueException;
     use PrettyPrinter\Values\ValuePool;
 
@@ -102,7 +102,7 @@ namespace PrettyPrinter
 
         function prettyPrintRef( &$ref )
         {
-            $any = new TypeAny( new ValuePool );
+            $any = new Introspection( new ValuePool );
 
             return $any->addToPool( $ref )->render( $this )->setHasEndingNewline( false )->__toString();
         }
@@ -114,7 +114,7 @@ namespace PrettyPrinter
 
         function prettyPrintException( \Exception $e )
         {
-            $any = new TypeAny( new ValuePool );
+            $any = new Introspection( new ValuePool );
 
             return $any->addExceptionToPool( $e )->render( $this )->__toString();
         }

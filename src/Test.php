@@ -2,7 +2,7 @@
 
 namespace PrettyPrinter
 {
-    use PrettyPrinter\Introspection\TypeAny;
+    use PrettyPrinter\Introspection\Introspection;
     use PrettyPrinter\Test\DummyClass2;
     use PrettyPrinter\Test\MockException;
     use PrettyPrinter\Values\ValuePool;
@@ -81,7 +81,7 @@ s
         {
             $this->markTestIncomplete();
 
-            self::pp()->setMaxArrayEntries( 10 )->assertPrettyIs( new TypeAny( new ValuePool ), <<<'s'
+            self::pp()->setMaxArrayEntries( 10 )->assertPrettyIs( new Introspection( new ValuePool ), <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
@@ -321,7 +321,7 @@ s
 
 namespace PrettyPrinter\Test
 {
-    use PrettyPrinter\Introspection\TypeAny;
+    use PrettyPrinter\Introspection\Introspection;
     use PrettyPrinter\Introspection\TypeException;
     use PrettyPrinter\Utils\Ref;
     use PrettyPrinter\Values;
@@ -382,7 +382,7 @@ s;
             );
 
             $pool    = new Values\ValuePool;
-            $any     = new TypeAny( $pool );
+            $any     = new Introspection( $pool );
             $null    = $any->addToPool( Ref::create() );
             $globals = array(
                 new ValueExceptionGlobalState( 'BlahClass', null, 'blahProperty', $null, 'private' ),
