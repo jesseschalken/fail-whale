@@ -104,7 +104,7 @@ namespace PrettyPrinter
         {
             $any = new Introspection( new ValuePool );
 
-            return $any->addToPool( $ref )->render( $this )->setHasEndingNewline( false )->__toString();
+            return $any->wrapRef( $ref )->introspect()->render( $this )->setHasEndingNewline( false )->__toString();
         }
 
         function prettyPrintExceptionInfo( ValueException $e )
@@ -116,7 +116,7 @@ namespace PrettyPrinter
         {
             $any = new Introspection( new ValuePool );
 
-            return $any->addExceptionToPool( $e )->render( $this )->__toString();
+            return $any->wrapException( $e )->introspect()->render( $this )->__toString();
         }
 
         function assertPrettyIs( $value, $expectedPretty )
