@@ -59,6 +59,10 @@
           <option name="FOR_STATEMENT_WRAP" value="1" />
           <option name="ARRAY_INITIALIZER_WRAP" value="1" />
           <option name="ASSIGNMENT_WRAP" value="1" />
+          <option name="IF_BRACE_FORCE" value="3" />
+          <option name="DOWHILE_BRACE_FORCE" value="3" />
+          <option name="WHILE_BRACE_FORCE" value="3" />
+          <option name="FOR_BRACE_FORCE" value="3" />
           <indentOptions>
             <option name="CONTINUATION_INDENT_SIZE" value="8" />
             <option name="SMART_TABS" value="true" />
@@ -66,12 +70,8 @@
           <arrangement>
             <groups>
               <group>
-                <type>GETTERS_AND_SETTERS</type>
-                <order>KEEP</order>
-              </group>
-              <group>
                 <type>DEPENDENT_METHODS</type>
-                <order>DEPTH_FIRST</order>
+                <order>BREADTH_FIRST</order>
               </group>
             </groups>
             <rules>
@@ -79,128 +79,61 @@
                 <match>
                   <CONST />
                 </match>
+                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
                   <AND>
                     <FIELD />
-                    <PUBLIC />
                     <STATIC />
                   </AND>
                 </match>
+                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
                   <AND>
-                    <FIELD />
-                    <PROTECTED />
+                    <METHOD />
                     <STATIC />
                   </AND>
                 </match>
+                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
-                  <AND>
-                    <FIELD />
-                    <PRIVATE />
-                    <STATIC />
-                  </AND>
+                  <FIELD />
                 </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <FIELD />
-                    <PUBLIC />
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <FIELD />
-                    <PROTECTED />
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <FIELD />
-                    <PRIVATE />
-                  </AND>
-                </match>
+                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
                   <CONSTRUCTOR />
                 </match>
+                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
-                  <AND>
-                    <METHOD />
-                    <PUBLIC />
-                    <STATIC />
-                  </AND>
+                  <METHOD />
                 </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <METHOD />
-                    <PROTECTED />
-                    <STATIC />
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <METHOD />
-                    <PRIVATE />
-                    <STATIC />
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <METHOD />
-                    <PUBLIC />
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <METHOD />
-                    <PROTECTED />
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <METHOD />
-                    <PRIVATE />
-                  </AND>
-                </match>
+                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
                   <TRAIT />
                 </match>
+                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
                   <INTERFACE />
                 </match>
+                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
                   <CLASS />
                 </match>
+                <order>BY_NAME</order>
               </rule>
             </rules>
           </arrangement>
