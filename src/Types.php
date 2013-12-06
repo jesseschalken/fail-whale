@@ -10,34 +10,74 @@ namespace PrettyPrinter\Introspection
 
     class Introspection
     {
-        private $array;
-        private $bool;
-        private $dummyObject;
-        private $exception;
-        private $float;
-        private $int;
-        private $null;
-        private $object;
-        private $resource;
-        private $string;
-        private $unknown;
+        private $cacheArrayRef = array();
+        private $cacheByString = array();
+        private $pool;
 
         function __construct( Values\ValuePool $pool )
         {
-            $this->array       = new IntrospectionCache( $this, $pool );
-            $this->bool        = new IntrospectionCache( $this, $pool );
-            $this->dummyObject = new IntrospectionCache( $this, $pool );
-            $this->exception   = new IntrospectionCache( $this, $pool );
-            $this->float       = new IntrospectionCache( $this, $pool );
-            $this->int         = new IntrospectionCache( $this, $pool );
-            $this->null        = new IntrospectionCache( $this, $pool );
-            $this->object      = new IntrospectionCache( $this, $pool );
-            $this->resource    = new IntrospectionCache( $this, $pool );
-            $this->string      = new IntrospectionCache( $this, $pool );
-            $this->unknown     = new IntrospectionCache( $this, $pool );
+            $this->pool = $pool;
         }
 
-        final function wrap( $value ) { return $this->wrapRef( $value ); }
+        function introspectCacheArrayRef( IntrospectionValueArray $array )
+        {
+            $reference =& $array->reference();
+
+            foreach ( $this->cacheArrayRef as $ref )
+            {
+                if ( Ref::equal( $reference, $ref[ 1 ] ) )
+                {
+                    return $ref[ 0 ];
+                }
+            }
+
+            $id = $this->pool->newEmpty();
+
+            array_unshift( $this->cacheArrayRef, array( $id, &$reference ) );
+
+            $id->fill( $array );
+
+            array_shift( $this->cacheArrayRef );
+
+            return $id;
+        }
+
+        function introspectCacheByString( IntrospectionValueCacheByString $value )
+        {
+            $string = $value->toString();
+            $type   = $value->type();
+
+            if ( isset( $this->cacheByString[ $type ][ $string ] ) )
+            {
+                return $this->cacheByString[ $type ][ $string ];
+            }
+
+            $ref = $this->pool->newEmpty();
+
+            $this->cacheByString[ $type ][ $string ] = $ref;
+
+            $ref->fill( $value );
+
+            return $ref;
+        }
+
+        function introspectNoCache( IntrospectionValue $value )
+        {
+            $id = $this->pool->newEmpty();
+            $id->fill( $value );
+
+            return $id;
+        }
+
+        /**
+         * @param mixed $value
+         *
+         * @return IntrospectionValue
+         */
+        final function wrap( $value )
+        {
+            return $this->wrapRef( $value );
+        }
 
         /**
          * @param mixed $value
@@ -48,125 +88,60 @@ namespace PrettyPrinter\Introspection
         {
             if ( is_string( $value ) )
             {
-                return new IntrospectionValueString( $this->string, $value );
+                return new IntrospectionValueString( $this, $value );
             }
             else if ( is_int( $value ) )
             {
-                return new IntrospectionValueInt( $this->int, $value );
+                return new IntrospectionValueInt( $this, $value );
             }
             else if ( is_bool( $value ) )
             {
-                return new IntrospectionValueBool( $this->bool, $value );
+                return new IntrospectionValueBool( $this, $value );
             }
             else if ( is_null( $value ) )
             {
-                return new IntrospectionValueNull( $this->null );
+                return new IntrospectionValueNull( $this );
             }
             else if ( is_float( $value ) )
             {
-                return new IntrospectionValueFloat( $this->float, $value );
+                return new IntrospectionValueFloat( $this, $value );
             }
             else if ( is_array( $value ) )
             {
-                return new IntrospectionValueArray( $this->array, $value );
+                return new IntrospectionValueArray( $this, $value );
             }
             else if ( is_object( $value ) )
             {
-                return new IntrospectionValueObject( $this->object, $value );
+                return new IntrospectionValueObject( $this, $value );
             }
             else if ( is_resource( $value ) )
             {
-                return new IntrospectionValueResource( $this->resource, $value );
+                return new IntrospectionValueResource( $this, $value );
             }
             else
             {
-                return new IntrospectionValueUnknown( $this->unknown );
+                return new IntrospectionValueUnknown( $this );
             }
         }
 
+        /**
+         * @param string $class
+         *
+         * @return IntrospectionValue
+         */
         final function wrapDummyObject( $class )
         {
-            return new IntrospectionValueDummyObject( $this->dummyObject, $class );
+            return new IntrospectionValueDummyObject( $this, $class );
         }
 
+        /**
+         * @param \Exception $e
+         *
+         * @return IntrospectionValue
+         */
         final function wrapException( \Exception $e )
         {
-            return new IntrospectionValueException( $this->exception, $e );
-        }
-    }
-
-    class IntrospectionCache
-    {
-        /**
-         * @var Introspection
-         */
-        private $any;
-        private $cacheByReference = array();
-        private $cacheByString = array();
-        /**
-         * @var \PrettyPrinter\Values\ValuePool
-         */
-        private $pool;
-
-        function __construct( Introspection $any, Values\ValuePool $pool )
-        {
-            $this->any  = $any;
-            $this->pool = $pool;
-        }
-
-        function introspect( IntrospectionValue $value )
-        {
-            $id = $this->pool->newEmpty();
-            $id->fill( $value );
-
-            return $id;
-        }
-
-        function introspectCacheByReference( IntrospectionValue $array, &$ref )
-        {
-            foreach ( $this->cacheByReference as $ref )
-            {
-                if ( Ref::equal( $ref, $ref[ 1 ] ) )
-                {
-                    return $ref[ 0 ];
-                }
-            }
-
-            $id = $this->pool->newEmpty();
-
-            array_unshift( $this->cacheByReference, array( $id, &$ref ) );
-
-            $id->fill( $array );
-
-            array_shift( $this->cacheByReference );
-
-            return $id;
-        }
-
-        function introspectCacheByString( IntrospectionValue $value, $string )
-        {
-            if ( array_key_exists( $string, $this->cacheByString ) )
-            {
-                return $this->cacheByString[ $string ];
-            }
-
-            $ref = $this->pool->newEmpty();
-
-            $this->cacheByString[ $string ] = $ref;
-
-            $ref->fill( $value );
-
-            return $ref;
-        }
-
-        function wrapDummyObject( $class )
-        {
-            return $this->any->wrapDummyObject( $class );
-        }
-
-        function wrapRef( &$value )
-        {
-            return $this->any->wrapRef( $value );
+            return new IntrospectionValueException( $this, $e );
         }
     }
 
@@ -182,21 +157,16 @@ namespace PrettyPrinter\Introspection
             return $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
         }
 
-        private $cache;
+        private $introspection;
 
-        function __construct( IntrospectionCache $cache )
+        function __construct( Introspection $introspection )
         {
-            $this->cache = $cache;
-        }
-
-        protected function cache()
-        {
-            return $this->cache;
+            $this->introspection = $introspection;
         }
 
         function introspect()
         {
-            return $this->cache->introspect( $this );
+            return $this->introspection->introspectNoCache( $this );
         }
 
         /**
@@ -204,16 +174,24 @@ namespace PrettyPrinter\Introspection
          */
         abstract function introspectImpl();
 
-        protected function wrap( $value ) { return $this->wrapRef( $value ); }
-
-        protected function wrapRef( &$value )
+        protected function introspection()
         {
-            return $this->cache->wrapRef( $value );
+            return $this->introspection;
+        }
+
+        protected function wrap( $value )
+        {
+            return $this->introspection->wrapRef( $value );
         }
 
         protected function wrapDummyObject( $class )
         {
-            return $this->cache->wrapDummyObject( $class );
+            return $this->introspection->wrapDummyObject( $class );
+        }
+
+        protected function wrapRef( &$value )
+        {
+            return $this->introspection->wrapRef( $value );
         }
     }
 
@@ -222,16 +200,16 @@ namespace PrettyPrinter\Introspection
         /** @var array */
         private $array;
 
-        function __construct( IntrospectionCache $cache, array &$array )
+        function __construct( Introspection $introspection, array &$array )
         {
-            parent::__construct( $cache );
+            parent::__construct( $introspection );
 
             $this->array =& $array;
         }
 
         function introspect()
         {
-            return $this->cache()->introspectCacheByReference( $this, $this->array );
+            return $this->introspection()->introspectCacheArrayRef( $this, $this->array );
         }
 
         function introspectImpl()
@@ -246,6 +224,11 @@ namespace PrettyPrinter\Introspection
 
             return new Values\ValueArray( ArrayUtil::isAssoc( $this->array ), $keyValuePairs );
         }
+
+        function &reference()
+        {
+            return $this->array;
+        }
     }
 
     class IntrospectionValueBool extends IntrospectionValueCacheByString
@@ -253,29 +236,42 @@ namespace PrettyPrinter\Introspection
         private $bool;
 
         /**
-         * @param IntrospectionCache $cache
-         * @param bool               $bool
+         * @param Introspection $introspection
+         * @param bool          $bool
          */
-        function __construct( IntrospectionCache $cache, $bool )
+        function __construct( Introspection $introspection, $bool )
         {
             $this->bool = $bool;
 
-            parent::__construct( $cache );
+            parent::__construct( $introspection );
         }
 
-        function introspectImpl() { return new Values\ValueBool( $this->bool ); }
+        function introspectImpl()
+        {
+            return new Values\ValueBool( $this->bool );
+        }
 
-        function toString() { return "$this->bool"; }
+        function toString()
+        {
+            return "$this->bool";
+        }
+
+        function type()
+        {
+            return 'bool';
+        }
     }
 
     abstract class IntrospectionValueCacheByString extends IntrospectionValue
     {
         function introspect()
         {
-            return $this->cache()->introspectCacheByString( $this, $this->toString() );
+            return $this->introspection()->introspectCacheByString( $this );
         }
 
         abstract function toString();
+
+        abstract function type();
     }
 
     class IntrospectionValueDummyObject extends IntrospectionValueCacheByString
@@ -285,9 +281,9 @@ namespace PrettyPrinter\Introspection
          */
         private $class;
 
-        function __construct( IntrospectionCache $cache, $class )
+        function __construct( Introspection $introspection, $class )
         {
-            parent::__construct( $cache );
+            parent::__construct( $introspection );
 
             $this->class = $class;
         }
@@ -301,6 +297,11 @@ namespace PrettyPrinter\Introspection
         {
             return $this->class;
         }
+
+        function type()
+        {
+            return 'dummy object';
+        }
     }
 
     class IntrospectionValueException extends IntrospectionValueCacheByString
@@ -310,9 +311,9 @@ namespace PrettyPrinter\Introspection
          */
         private $e;
 
-        function __construct( IntrospectionCache $cache, \Exception $e )
+        function __construct( Introspection $introspection, \Exception $e )
         {
-            parent::__construct( $cache );
+            parent::__construct( $introspection );
 
             $this->e = $e;
         }
@@ -455,8 +456,6 @@ namespace PrettyPrinter\Introspection
                     $object = null;
                 }
 
-                $args = null;
-
                 if ( array_key_exists( 'args', $frame ) )
                 {
                     $args = array();
@@ -465,6 +464,10 @@ namespace PrettyPrinter\Introspection
                     {
                         $args[ ] = $this->wrapRef( $arg )->introspect();
                     }
+                }
+                else
+                {
+                    $args = null;
                 }
 
                 $type     = ArrayUtil::get( $frame, 'type' );
@@ -478,7 +481,15 @@ namespace PrettyPrinter\Introspection
             return $stackFrames;
         }
 
-        function toString() { return spl_object_hash( $this->e ); }
+        function toString()
+        {
+            return spl_object_hash( $this->e );
+        }
+
+        function type()
+        {
+            return 'exception';
+        }
     }
 
     class IntrospectionValueFloat extends IntrospectionValueCacheByString
@@ -486,19 +497,30 @@ namespace PrettyPrinter\Introspection
         private $float;
 
         /**
-         * @param IntrospectionCache $cache
-         * @param float              $float
+         * @param Introspection $introspection
+         * @param float         $float
          */
-        function __construct( IntrospectionCache $cache, $float )
+        function __construct( Introspection $introspection, $float )
         {
-            parent::__construct( $cache );
+            parent::__construct( $introspection );
 
             $this->float = $float;
         }
 
-        function introspectImpl() { return new Values\ValueFloat( $this->float ); }
+        function introspectImpl()
+        {
+            return new Values\ValueFloat( $this->float );
+        }
 
-        function toString() { return "$this->float"; }
+        function toString()
+        {
+            return "$this->float";
+        }
+
+        function type()
+        {
+            return 'float';
+        }
     }
 
     class IntrospectionValueInt extends IntrospectionValueCacheByString
@@ -506,26 +528,48 @@ namespace PrettyPrinter\Introspection
         private $int;
 
         /**
-         * @param IntrospectionCache $cache
-         * @param int                $int
+         * @param Introspection $introspection
+         * @param int           $int
          */
-        function __construct( IntrospectionCache $cache, $int )
+        function __construct( Introspection $introspection, $int )
         {
             $this->int = $int;
 
-            parent::__construct( $cache );
+            parent::__construct( $introspection );
         }
 
-        function introspectImpl() { return new Values\ValueInt( $this->int ); }
+        function introspectImpl()
+        {
+            return new Values\ValueInt( $this->int );
+        }
 
-        function toString() { return "$this->int"; }
+        function toString()
+        {
+            return "$this->int";
+        }
+
+        function type()
+        {
+            return 'int';
+        }
     }
 
     class IntrospectionValueNull extends IntrospectionValueCacheByString
     {
-        function introspectImpl() { return new Values\ValueNull; }
+        function introspectImpl()
+        {
+            return new Values\ValueNull;
+        }
 
-        function toString() { return ""; }
+        function toString()
+        {
+            return "";
+        }
+
+        function type()
+        {
+            return 'null';
+        }
     }
 
     class IntrospectionValueObject extends IntrospectionValueCacheByString
@@ -533,14 +577,14 @@ namespace PrettyPrinter\Introspection
         private $object;
 
         /**
-         * @param IntrospectionCache $cache
-         * @param object             $object
+         * @param Introspection $introspection
+         * @param object        $object
          */
-        function __construct( IntrospectionCache $cache, $object )
+        function __construct( Introspection $introspection, $object )
         {
             $this->object = $object;
 
-            parent::__construct( $cache );
+            parent::__construct( $introspection );
         }
 
         function introspectImpl()
@@ -570,7 +614,15 @@ namespace PrettyPrinter\Introspection
             return new Values\ValueObject( get_class( $this->object ), $properties );
         }
 
-        function toString() { return spl_object_hash( $this->object ); }
+        function toString()
+        {
+            return spl_object_hash( $this->object );
+        }
+
+        function type()
+        {
+            return 'object';
+        }
     }
 
     class IntrospectionValueResource extends IntrospectionValueCacheByString
@@ -578,19 +630,30 @@ namespace PrettyPrinter\Introspection
         private $resource;
 
         /**
-         * @param IntrospectionCache $cache
-         * @param resource           $resource
+         * @param Introspection $introspection
+         * @param resource      $resource
          */
-        function __construct( IntrospectionCache $cache, $resource )
+        function __construct( Introspection $introspection, $resource )
         {
-            parent::__construct( $cache );
+            parent::__construct( $introspection );
 
             $this->resource = $resource;
         }
 
-        function introspectImpl() { return new Values\ValueResource( get_resource_type( $this->resource ) ); }
+        function introspectImpl()
+        {
+            return new Values\ValueResource( get_resource_type( $this->resource ) );
+        }
 
-        function toString() { return "$this->resource"; }
+        function toString()
+        {
+            return "$this->resource";
+        }
+
+        function type()
+        {
+            return 'resource';
+        }
     }
 
     class IntrospectionValueString extends IntrospectionValueCacheByString
@@ -598,26 +661,48 @@ namespace PrettyPrinter\Introspection
         private $string;
 
         /**
-         * @param IntrospectionCache $cache
-         * @param string             $string
+         * @param Introspection $introspection
+         * @param string        $string
          */
-        function __construct( IntrospectionCache $cache, $string )
+        function __construct( Introspection $introspection, $string )
         {
             $this->string = $string;
 
-            parent::__construct( $cache );
+            parent::__construct( $introspection );
         }
 
-        function introspectImpl() { return new Values\ValueString( $this->string ); }
+        function introspectImpl()
+        {
+            return new Values\ValueString( $this->string );
+        }
 
-        function toString() { return $this->string; }
+        function toString()
+        {
+            return $this->string;
+        }
+
+        function type()
+        {
+            return 'string';
+        }
     }
 
     class IntrospectionValueUnknown extends IntrospectionValueCacheByString
     {
-        function introspectImpl() { return new Values\ValueUnknown; }
+        function introspectImpl()
+        {
+            return new Values\ValueUnknown;
+        }
 
-        function toString() { return ''; }
+        function toString()
+        {
+            return '';
+        }
+
+        function type()
+        {
+            return 'unknown';
+        }
     }
 }
 
@@ -702,9 +787,15 @@ namespace PrettyPrinter\Values
             $this->value = $value;
         }
 
-        function key() { return $this->key; }
+        function key()
+        {
+            return $this->key;
+        }
 
-        function value() { return $this->value; }
+        function value()
+        {
+            return $this->value;
+        }
     }
 
     class ValueBool extends Value
@@ -719,7 +810,10 @@ namespace PrettyPrinter\Values
             $this->bool = $bool;
         }
 
-        function render( PrettyPrinter $settings ) { return new Text( $this->bool ? 'true' : 'false' ); }
+        function render( PrettyPrinter $settings )
+        {
+            return new Text( $this->bool ? 'true' : 'false' );
+        }
     }
 
     class ValueException extends Value
@@ -1036,12 +1130,18 @@ namespace PrettyPrinter\Values
             $this->int = $int;
         }
 
-        function render( PrettyPrinter $settings ) { return new Text( "$this->int" ); }
+        function render( PrettyPrinter $settings )
+        {
+            return new Text( "$this->int" );
+        }
     }
 
     class ValueNull extends Value
     {
-        function render( PrettyPrinter $settings ) { return new Text( 'null' ); }
+        function render( PrettyPrinter $settings )
+        {
+            return new Text( 'null' );
+        }
     }
 
     class ValueObject extends Value
@@ -1111,13 +1211,25 @@ namespace PrettyPrinter\Values
             $this->class  = $class;
         }
 
-        function access() { return $this->access; }
+        function access()
+        {
+            return $this->access;
+        }
 
-        function className() { return $this->class; }
+        function className()
+        {
+            return $this->class;
+        }
 
-        function name() { return $this->name; }
+        function name()
+        {
+            return $this->name;
+        }
 
-        function value() { return $this->value; }
+        function value()
+        {
+            return $this->value;
+        }
     }
 
     class ValuePool
@@ -1134,9 +1246,15 @@ namespace PrettyPrinter\Values
             }
         }
 
-        function get( $id ) { return $this->cells[ $id ]; }
+        function get( $id )
+        {
+            return $this->cells[ $id ];
+        }
 
-        function newEmpty() { return new ValuePoolReference( $this, $this->nextId++ ); }
+        function newEmpty()
+        {
+            return new ValuePoolReference( $this, $this->nextId++ );
+        }
     }
 
     class ValuePoolReference
@@ -1157,7 +1275,10 @@ namespace PrettyPrinter\Values
             $this->memory->fill( $this->id, $wrapped );
         }
 
-        function id() { return $this->id; }
+        function id()
+        {
+            return $this->id;
+        }
 
         function render( PrettyPrinter $settings )
         {
@@ -1258,7 +1379,10 @@ namespace PrettyPrinter\Values
 
     class ValueUnknown extends Value
     {
-        function render( PrettyPrinter $settings ) { return new Text( 'unknown type' ); }
+        function render( PrettyPrinter $settings )
+        {
+            return new Text( 'unknown type' );
+        }
     }
 }
 
