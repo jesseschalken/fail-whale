@@ -120,7 +120,9 @@ s
 
         function testException()
         {
-            self::assertEquals( self::pp()->prettyPrintExceptionInfo( new MockException ), <<<'s'
+            $exception = new MockException;
+
+            self::assertEquals( $exception->render( self::pp() )->__toString(), <<<'s'
 MuhMockException Dummy exception code in /the/path/to/muh/file:9000
 
     This is a dummy exception message.

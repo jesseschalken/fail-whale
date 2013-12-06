@@ -74,55 +74,7 @@ namespace PrettyPrinter\Introspection
          *
          * @return IntrospectionValue
          */
-        final function wrap( $value )
-        {
-            return $this->wrapRef( $value );
-        }
-
-        /**
-         * @param mixed $value
-         *
-         * @return IntrospectionValue
-         */
-        final function wrapRef( &$value )
-        {
-            if ( is_string( $value ) )
-            {
-                return new IntrospectionValueString( $this, $value );
-            }
-            else if ( is_int( $value ) )
-            {
-                return new IntrospectionValueInt( $this, $value );
-            }
-            else if ( is_bool( $value ) )
-            {
-                return new IntrospectionValueBool( $this, $value );
-            }
-            else if ( is_null( $value ) )
-            {
-                return new IntrospectionValueNull( $this );
-            }
-            else if ( is_float( $value ) )
-            {
-                return new IntrospectionValueFloat( $this, $value );
-            }
-            else if ( is_array( $value ) )
-            {
-                return new IntrospectionValueArray( $this, $value );
-            }
-            else if ( is_object( $value ) )
-            {
-                return new IntrospectionValueObject( $this, $value );
-            }
-            else if ( is_resource( $value ) )
-            {
-                return new IntrospectionValueResource( $this, $value );
-            }
-            else
-            {
-                return new IntrospectionValueUnknown( $this );
-            }
-        }
+        final function wrap( $value ) { return $this->wrapRef( $value ); }
 
         /**
          * @param string $class
@@ -142,6 +94,40 @@ namespace PrettyPrinter\Introspection
         final function wrapException( \Exception $e )
         {
             return new IntrospectionValueException( $this, $e );
+        }
+
+        /**
+         * @param mixed $value
+         *
+         * @return IntrospectionValue
+         */
+        final function wrapRef( &$value )
+        {
+            if ( is_string( $value ) )
+                return new IntrospectionValueString( $this, $value );
+
+            if ( is_int( $value ) )
+                return new IntrospectionValueInt( $this, $value );
+
+            if ( is_bool( $value ) )
+                return new IntrospectionValueBool( $this, $value );
+
+            if ( is_null( $value ) )
+                return new IntrospectionValueNull( $this );
+
+            if ( is_float( $value ) )
+                return new IntrospectionValueFloat( $this, $value );
+
+            if ( is_array( $value ) )
+                return new IntrospectionValueArray( $this, $value );
+
+            if ( is_object( $value ) )
+                return new IntrospectionValueObject( $this, $value );
+
+            if ( is_resource( $value ) )
+                return new IntrospectionValueResource( $this, $value );
+
+            return new IntrospectionValueUnknown( $this );
         }
     }
 
@@ -174,10 +160,7 @@ namespace PrettyPrinter\Introspection
          */
         abstract function introspectImpl();
 
-        protected function introspection()
-        {
-            return $this->introspection;
-        }
+        protected function introspection() { return $this->introspection; }
 
         protected function wrap( $value )
         {
@@ -225,10 +208,7 @@ namespace PrettyPrinter\Introspection
             return new Values\ValueArray( ArrayUtil::isAssoc( $this->array ), $keyValuePairs );
         }
 
-        function &reference()
-        {
-            return $this->array;
-        }
+        function &reference() { return $this->array; }
     }
 
     class IntrospectionValueBool extends IntrospectionValueCacheByString
@@ -246,28 +226,16 @@ namespace PrettyPrinter\Introspection
             parent::__construct( $introspection );
         }
 
-        function introspectImpl()
-        {
-            return new Values\ValueBool( $this->bool );
-        }
+        function introspectImpl() { return new Values\ValueBool( $this->bool ); }
 
-        function toString()
-        {
-            return "$this->bool";
-        }
+        function toString() { return "$this->bool"; }
 
-        function type()
-        {
-            return 'bool';
-        }
+        function type() { return 'bool'; }
     }
 
     abstract class IntrospectionValueCacheByString extends IntrospectionValue
     {
-        function introspect()
-        {
-            return $this->introspection()->introspectCacheByString( $this );
-        }
+        function introspect() { return $this->introspection()->introspectCacheByString( $this ); }
 
         abstract function toString();
 
@@ -276,9 +244,7 @@ namespace PrettyPrinter\Introspection
 
     class IntrospectionValueDummyObject extends IntrospectionValueCacheByString
     {
-        /**
-         * @var string
-         */
+        /** @var string */
         private $class;
 
         function __construct( Introspection $introspection, $class )
@@ -288,20 +254,11 @@ namespace PrettyPrinter\Introspection
             $this->class = $class;
         }
 
-        function introspectImpl()
-        {
-            return new Values\ValueObject( $this->class, null );
-        }
+        function introspectImpl() { return new Values\ValueObject( $this->class, null ); }
 
-        function toString()
-        {
-            return $this->class;
-        }
+        function toString() { return $this->class; }
 
-        function type()
-        {
-            return 'dummy object';
-        }
+        function type() { return 'dummy object'; }
     }
 
     class IntrospectionValueException extends IntrospectionValueCacheByString
@@ -318,11 +275,6 @@ namespace PrettyPrinter\Introspection
             $this->e = $e;
         }
 
-        function introspectImpl()
-        {
-            return $this->introspectException( $this->e, $this->introspectGlobalVariables() );
-        }
-
         private function introspectException( \Exception $exception, array $globals )
         {
             $locals = $exception instanceof HasLocalVariables ? $exception->getLocalVariables() : null;
@@ -335,7 +287,7 @@ namespace PrettyPrinter\Introspection
             $class    = get_class( $exception );
             $file     = $exception->getFile();
             $line     = $exception->getLine();
-            $code     = $exception->getCode();
+            $code     = "{$exception->getCode()}";
             $message  = $exception->getMessage();
 
             return new Values\ValueException( $class, $file, $line, $stack, $globals,
@@ -410,6 +362,11 @@ namespace PrettyPrinter\Introspection
             return $globals;
         }
 
+        function introspectImpl()
+        {
+            return $this->introspectException( $this->e, $this->introspectGlobalVariables() );
+        }
+
         /**
          * @param array|null $locals
          *
@@ -418,9 +375,7 @@ namespace PrettyPrinter\Introspection
         private function introspectLocalVariables( array $locals = null )
         {
             if ( $locals === null )
-            {
                 return null;
-            }
 
             $reflected = array();
 
@@ -443,6 +398,13 @@ namespace PrettyPrinter\Introspection
 
             foreach ( $trace as $frame )
             {
+                $object   = null;
+                $args     = null;
+                $type     = ArrayUtil::get( $frame, 'type' );
+                $function = ArrayUtil::get( $frame, 'function' );
+                $file     = ArrayUtil::get( $frame, 'file' );
+                $line     = ArrayUtil::get( $frame, 'line' );
+
                 if ( array_key_exists( 'object', $frame ) )
                 {
                     $object = $this->wrapRef( $frame[ 'object' ] )->introspect();
@@ -450,10 +412,6 @@ namespace PrettyPrinter\Introspection
                 else if ( array_key_exists( 'class', $frame ) )
                 {
                     $object = $this->wrapDummyObject( $frame[ 'class' ] )->introspect();
-                }
-                else
-                {
-                    $object = null;
                 }
 
                 if ( array_key_exists( 'args', $frame ) )
@@ -465,15 +423,6 @@ namespace PrettyPrinter\Introspection
                         $args[ ] = $this->wrapRef( $arg )->introspect();
                     }
                 }
-                else
-                {
-                    $args = null;
-                }
-
-                $type     = ArrayUtil::get( $frame, 'type' );
-                $function = ArrayUtil::get( $frame, 'function' );
-                $file     = ArrayUtil::get( $frame, 'file' );
-                $line     = ArrayUtil::get( $frame, 'line' );
 
                 $stackFrames[ ] = new Values\ValueExceptionStackFrame( $type, $function, $object, $args, $file, $line );
             }
@@ -481,15 +430,9 @@ namespace PrettyPrinter\Introspection
             return $stackFrames;
         }
 
-        function toString()
-        {
-            return spl_object_hash( $this->e );
-        }
+        function toString() { return spl_object_hash( $this->e ); }
 
-        function type()
-        {
-            return 'exception';
-        }
+        function type() { return 'exception'; }
     }
 
     class IntrospectionValueFloat extends IntrospectionValueCacheByString
@@ -507,20 +450,11 @@ namespace PrettyPrinter\Introspection
             $this->float = $float;
         }
 
-        function introspectImpl()
-        {
-            return new Values\ValueFloat( $this->float );
-        }
+        function introspectImpl() { return new Values\ValueFloat( $this->float ); }
 
-        function toString()
-        {
-            return "$this->float";
-        }
+        function toString() { return "$this->float"; }
 
-        function type()
-        {
-            return 'float';
-        }
+        function type() { return 'float'; }
     }
 
     class IntrospectionValueInt extends IntrospectionValueCacheByString
@@ -538,38 +472,20 @@ namespace PrettyPrinter\Introspection
             parent::__construct( $introspection );
         }
 
-        function introspectImpl()
-        {
-            return new Values\ValueInt( $this->int );
-        }
+        function introspectImpl() { return new Values\ValueInt( $this->int ); }
 
-        function toString()
-        {
-            return "$this->int";
-        }
+        function toString() { return "$this->int"; }
 
-        function type()
-        {
-            return 'int';
-        }
+        function type() { return 'int'; }
     }
 
     class IntrospectionValueNull extends IntrospectionValueCacheByString
     {
-        function introspectImpl()
-        {
-            return new Values\ValueNull;
-        }
+        function introspectImpl() { return new Values\ValueNull; }
 
-        function toString()
-        {
-            return "";
-        }
+        function toString() { return ""; }
 
-        function type()
-        {
-            return 'null';
-        }
+        function type() { return 'null'; }
     }
 
     class IntrospectionValueObject extends IntrospectionValueCacheByString
@@ -598,9 +514,7 @@ namespace PrettyPrinter\Introspection
                 foreach ( $reflection->getProperties() as $property )
                 {
                     if ( $property->isStatic() || $property->class !== $reflection->name )
-                    {
                         continue;
-                    }
 
                     $property->setAccessible( true );
 
@@ -614,15 +528,9 @@ namespace PrettyPrinter\Introspection
             return new Values\ValueObject( get_class( $this->object ), $properties );
         }
 
-        function toString()
-        {
-            return spl_object_hash( $this->object );
-        }
+        function toString() { return spl_object_hash( $this->object ); }
 
-        function type()
-        {
-            return 'object';
-        }
+        function type() { return 'object'; }
     }
 
     class IntrospectionValueResource extends IntrospectionValueCacheByString
@@ -640,20 +548,11 @@ namespace PrettyPrinter\Introspection
             $this->resource = $resource;
         }
 
-        function introspectImpl()
-        {
-            return new Values\ValueResource( get_resource_type( $this->resource ) );
-        }
+        function introspectImpl() { return new Values\ValueResource( get_resource_type( $this->resource ) ); }
 
-        function toString()
-        {
-            return "$this->resource";
-        }
+        function toString() { return "$this->resource"; }
 
-        function type()
-        {
-            return 'resource';
-        }
+        function type() { return 'resource'; }
     }
 
     class IntrospectionValueString extends IntrospectionValueCacheByString
@@ -671,38 +570,20 @@ namespace PrettyPrinter\Introspection
             parent::__construct( $introspection );
         }
 
-        function introspectImpl()
-        {
-            return new Values\ValueString( $this->string );
-        }
+        function introspectImpl() { return new Values\ValueString( $this->string ); }
 
-        function toString()
-        {
-            return $this->string;
-        }
+        function toString() { return $this->string; }
 
-        function type()
-        {
-            return 'string';
-        }
+        function type() { return 'string'; }
     }
 
     class IntrospectionValueUnknown extends IntrospectionValueCacheByString
     {
-        function introspectImpl()
-        {
-            return new Values\ValueUnknown;
-        }
+        function introspectImpl() { return new Values\ValueUnknown; }
 
-        function toString()
-        {
-            return '';
-        }
+        function toString() { return ''; }
 
-        function type()
-        {
-            return 'unknown';
-        }
+        function type() { return 'unknown'; }
     }
 }
 
@@ -710,7 +591,6 @@ namespace PrettyPrinter\Values
 {
     use PrettyPrinter\Introspection\IntrospectionValue;
     use PrettyPrinter\PrettyPrinter;
-    use PrettyPrinter\Utils\Table;
     use PrettyPrinter\Utils\Text;
 
     abstract class Value
@@ -737,44 +617,11 @@ namespace PrettyPrinter\Values
             $this->keyValuePairs = $keyValuePairs;
         }
 
-        function render( PrettyPrinter $settings )
-        {
-            if ( $this->keyValuePairs === array() )
-            {
-                return new Text( 'array()' );
-            }
+        function isAssociative() { return $this->isAssociative; }
 
-            $table = new Table;
+        function keyValuePairs() { return $this->keyValuePairs; }
 
-            foreach ( $this->keyValuePairs as $keyValuePair )
-            {
-                if ( ( $table->count() + 1 ) > $settings->getMaxArrayEntries() )
-                {
-                    break;
-                }
-
-                $key   = $keyValuePair->key()->render( $settings );
-                $value = $keyValuePair->value()->render( $settings );
-
-                if ( $table->count() != count( $this->keyValuePairs ) - 1 )
-                {
-                    $value->append( ',' );
-                }
-
-                $table->addRow( $this->isAssociative ? array( $key, $value->prepend( ' => ' ) ) : array( $value ) );
-            }
-
-            $result = $table->render();
-
-            if ( $table->count() < count( $this->keyValuePairs ) )
-            {
-                $result->addLine( '...' );
-            }
-
-            $result->wrap( 'array( ', ' )' );
-
-            return $result;
-        }
+        function render( PrettyPrinter $settings ) { return $settings->renderArray( $this ); }
     }
 
     class ValueArrayKeyValuePair
@@ -787,15 +634,9 @@ namespace PrettyPrinter\Values
             $this->value = $value;
         }
 
-        function key()
-        {
-            return $this->key;
-        }
+        function key() { return $this->key; }
 
-        function value()
-        {
-            return $this->value;
-        }
+        function value() { return $this->value; }
     }
 
     class ValueBool extends Value
@@ -810,10 +651,7 @@ namespace PrettyPrinter\Values
             $this->bool = $bool;
         }
 
-        function render( PrettyPrinter $settings )
-        {
-            return new Text( $this->bool ? 'true' : 'false' );
-        }
+        function render( PrettyPrinter $settings ) { return $settings->renderBool( $this->bool ); }
     }
 
     class ValueException extends Value
@@ -827,12 +665,12 @@ namespace PrettyPrinter\Values
          * @param ValueExceptionStackFrame[]  $stack
          * @param ValueExceptionGlobalState[] $globals
          * @param ValuePoolReference[]|null   $locals
-         * @param mixed                       $code
+         * @param string                      $code
          * @param string                      $message
          * @param ValueException|null         $previous
          */
-        function __construct( $class, $file, $line, array $stack, array $globals, array $locals, $code, $message,
-                              self $previous = null )
+        function __construct( $class, $file, $line, array $stack, array $globals,
+                              array $locals, $code, $message, self $previous = null )
         {
             $this->class    = $class;
             $this->file     = $file;
@@ -845,99 +683,25 @@ namespace PrettyPrinter\Values
             $this->previous = $previous;
         }
 
-        /**
-         * @param \PrettyPrinter\PrettyPrinter $settings
-         *
-         * @return Text
-         */
-        function render( PrettyPrinter $settings )
-        {
-            $text = $this->renderWithoutGlobals( $settings );
+        function className() { return $this->class; }
 
-            if ( $settings->getShowExceptionGlobalVariables() )
-            {
-                $text->addLine( "global variables:" );
-                $text->addLines( $this->renderGlobals( $settings )->indent() );
-                $text->addLine();
-            }
+        function code() { return $this->code; }
 
-            return $text;
-        }
+        function file() { return $this->file; }
 
-        private function renderWithoutGlobals( PrettyPrinter $settings )
-        {
-            $text = new Text;
-            $text->addLine( "$this->class $this->code in $this->file:$this->line" );
-            $text->addLine();
-            $text->addLines( Text::create( $this->message )->indent( 2 ) );
-            $text->addLine();
+        function globals() { return $this->globals; }
 
-            if ( $this->locals !== null && $settings->getShowExceptionLocalVariables() )
-            {
-                $text->addLine( "local variables:" );
-                $text->addLines( $this->renderLocals( $settings )->indent() );
-                $text->addLine();
-            }
+        function line() { return $this->line; }
 
-            if ( $settings->getShowExceptionStackTrace() )
-            {
-                $text->addLine( "stack trace:" );
-                $text->addLines( $this->renderStack( $settings )->indent() );
-                $text->addLine();
-            }
+        function locals() { return $this->locals; }
 
-            if ( $this->previous !== null )
-            {
-                $text->addLine( "previous exception:" );
-                $text->addLines( $this->previous->renderWithoutGlobals( $settings )->indent( 2 ) );
-                $text->addLine();
-            }
+        function message() { return $this->message; }
 
-            return $text;
-        }
+        function previous() { return $this->previous; }
 
-        private function renderGlobals( PrettyPrinter $settings )
-        {
-            $table = new Table;
+        function render( PrettyPrinter $settings ) { return $settings->renderException( $this ); }
 
-            foreach ( $this->globals as $global )
-            {
-                $table->addRow( array( $global->renderVar( $settings ),
-                                       $global->renderValue( $settings )->wrap( ' = ', ';' ) ) );
-            }
-
-            return $table->count() > 0 ? $table->render() : new Text( 'none' );
-        }
-
-        private function renderLocals( PrettyPrinter $settings )
-        {
-            $table = new Table;
-
-            foreach ( $this->locals as $name => $value )
-            {
-                $table->addRow( array( ValueString::renderVariable( $settings, $name ),
-                                       $value->render( $settings )->wrap( ' = ', ';' ) ) );
-            }
-
-            return $table->count() > 0 ? $table->render() : new Text( 'none' );
-        }
-
-        private function renderStack( PrettyPrinter $settings )
-        {
-            $text = new Text;
-            $i    = 1;
-
-            foreach ( $this->stack as $frame )
-            {
-                $text->addLines( $frame->render( $i, $settings ) );
-                $text->addLine();
-                $i++;
-            }
-
-            $text->addLine( "#$i {main}" );
-
-            return $text;
-        }
+        function stack() { return $this->stack; }
     }
 
     class ValueExceptionGlobalState
@@ -960,37 +724,15 @@ namespace PrettyPrinter\Values
             $this->access   = $access;
         }
 
-        function renderValue( PrettyPrinter $settings )
-        {
-            return $this->value->render( $settings );
-        }
+        function access() { return $this->access; }
 
-        function renderVar( PrettyPrinter $settings )
-        {
-            return $this->prefix()->appendLines( ValueString::renderVariable( $settings, $this->name ) );
-        }
+        function className() { return $this->class; }
 
-        private function prefix()
-        {
-            if ( $this->class !== null && $this->function !== null )
-            {
-                return new Text( "function $this->class::$this->function()::static " );
-            }
+        function functionName() { return $this->function; }
 
-            if ( $this->class !== null )
-            {
-                return new Text( "$this->access static $this->class::" );
-            }
+        function value() { return $this->value; }
 
-            if ( $this->function !== null )
-            {
-                return new Text( "function $this->function()::static " );
-            }
-
-            $superGlobals = array( '_POST', '_GET', '_SESSION', '_COOKIE', '_FILES', '_REQUEST', '_ENV', '_SERVER' );
-
-            return new Text( in_array( $this->name, $superGlobals, true ) ? '' : 'global ' );
-        }
+        function variableName() { return $this->name; }
     }
 
     class ValueExceptionStackFrame
@@ -1017,85 +759,17 @@ namespace PrettyPrinter\Values
             $this->line     = $line;
         }
 
-        /**
-         * @param int           $i
-         * @param PrettyPrinter $settings
-         *
-         * @return Text
-         */
-        function render( $i, PrettyPrinter $settings )
-        {
-            $text = new Text;
-            $text->addLine( "#$i $this->file:$this->line" );
-            $text->addLines( $this->renderFunctionCall( $settings )->indent( 3 ) );
+        function args() { return $this->args; }
 
-            return $text;
-        }
+        function file() { return $this->file; }
 
-        private function renderFunctionCall( PrettyPrinter $settings )
-        {
-            $text = new Text;
-            $text->appendLines( $this->renderObject( $settings ) );
-            $text->append( "$this->type" );
-            $text->append( "$this->function" );
-            $text->appendLines( $this->renderArgs( $settings ) );
-            $text->append( ';' );
+        function functionName() { return $this->function; }
 
-            return $text;
-        }
+        function line() { return $this->line; }
 
-        private function renderObject( PrettyPrinter $settings )
-        {
-            if ( $this->object === null )
-            {
-                return new Text();
-            }
+        function object() { return $this->object; }
 
-            return $this->object->render( $settings );
-        }
-
-        private function renderArgs( PrettyPrinter $settings )
-        {
-            if ( $this->args === null )
-            {
-                return new Text( '( ? )' );
-            }
-
-            if ( $this->args === array() )
-            {
-                return new Text( '()' );
-            }
-
-            $pretties    = array();
-            $isMultiLine = false;
-            $result      = new Text;
-
-            foreach ( $this->args as $arg )
-            {
-                $pretty      = $arg->render( $settings );
-                $isMultiLine = $isMultiLine || $pretty->count() > 1;
-                $pretties[ ] = $pretty;
-            }
-
-            foreach ( $pretties as $k => $pretty )
-            {
-                if ( $k !== 0 )
-                {
-                    $result->append( ', ' );
-                }
-
-                if ( $isMultiLine )
-                {
-                    $result->addLines( $pretty );
-                }
-                else
-                {
-                    $result->appendLines( $pretty );
-                }
-            }
-
-            return $result->wrap( '( ', ' )' );
-        }
+        function type() { return $this->type; }
     }
 
     class ValueFloat extends Value
@@ -1110,12 +784,7 @@ namespace PrettyPrinter\Values
             $this->float = $float;
         }
 
-        function render( PrettyPrinter $settings )
-        {
-            $int = (int) $this->float;
-
-            return new Text( "$int" === "$this->float" ? "$this->float.0" : "$this->float" );
-        }
+        function render( PrettyPrinter $settings ) { return $settings->renderFloat( $this->float ); }
     }
 
     class ValueInt extends Value
@@ -1130,18 +799,12 @@ namespace PrettyPrinter\Values
             $this->int = $int;
         }
 
-        function render( PrettyPrinter $settings )
-        {
-            return new Text( "$this->int" );
-        }
+        function render( PrettyPrinter $settings ) { return $settings->renderInt( $this->int ); }
     }
 
     class ValueNull extends Value
     {
-        function render( PrettyPrinter $settings )
-        {
-            return new Text( 'null' );
-        }
+        function render( PrettyPrinter $settings ) { return $settings->renderNull(); }
     }
 
     class ValueObject extends Value
@@ -1158,39 +821,11 @@ namespace PrettyPrinter\Values
             $this->properties = $properties;
         }
 
-        function render( PrettyPrinter $settings )
-        {
-            if ( $this->properties === null )
-            {
-                return new Text( "new $this->class { ? }" );
-            }
+        function getClass() { return $this->class; }
 
-            $table = new Table;
+        function getProperties() { return $this->properties; }
 
-            foreach ( $this->properties as $property )
-            {
-                if ( ( $table->count() + 1 ) > $settings->getMaxObjectProperties() )
-                {
-                    break;
-                }
-
-                $value  = $property->value();
-                $name   = $property->name();
-                $access = $property->access();
-
-                $table->addRow( array( ValueString::renderVariable( $settings, $name )->prepend( "$access " ),
-                                       $value->render( $settings )->wrap( ' = ', ';' ) ) );
-            }
-
-            $result = $table->render();
-
-            if ( $table->count() < count( $this->properties ) )
-            {
-                $result->addLine( '...' );
-            }
-
-            return $result->indent( 2 )->wrapLines( "new $this->class {", "}" );
-        }
+        function render( PrettyPrinter $settings ) { return $settings->renderObject( $this ); }
     }
 
     class ValueObjectProperty
@@ -1211,25 +846,13 @@ namespace PrettyPrinter\Values
             $this->class  = $class;
         }
 
-        function access()
-        {
-            return $this->access;
-        }
+        function access() { return $this->access; }
 
-        function className()
-        {
-            return $this->class;
-        }
+        function className() { return $this->class; }
 
-        function name()
-        {
-            return $this->name;
-        }
+        function name() { return $this->name; }
 
-        function value()
-        {
-            return $this->value;
-        }
+        function value() { return $this->value; }
     }
 
     class ValuePool
@@ -1240,20 +863,18 @@ namespace PrettyPrinter\Values
 
         function fill( $id, IntrospectionValue $wrapped )
         {
-            if ( !array_key_exists( $id, $this->cells ) )
-            {
+            if ( $this->cells[ $id ] === null )
                 $this->cells[ $id ] = $wrapped->introspectImpl();
-            }
         }
 
-        function get( $id )
-        {
-            return $this->cells[ $id ];
-        }
+        function get( $id ) { return $this->cells[ $id ]; }
 
         function newEmpty()
         {
-            return new ValuePoolReference( $this, $this->nextId++ );
+            $id                 = $this->nextId++;
+            $this->cells[ $id ] = null;
+
+            return new ValuePoolReference( $this, $id );
         }
     }
 
@@ -1275,19 +896,13 @@ namespace PrettyPrinter\Values
             $this->memory->fill( $this->id, $wrapped );
         }
 
-        function id()
-        {
-            return $this->id;
-        }
+        function get() { return $this->memory->get( $this->id ); }
+
+        function id() { return $this->id; }
 
         function render( PrettyPrinter $settings )
         {
             return $this->get()->render( $settings );
-        }
-
-        function get()
-        {
-            return $this->memory->get( $this->id );
         }
     }
 
@@ -1303,86 +918,24 @@ namespace PrettyPrinter\Values
             $this->resourceType = $resourceType;
         }
 
-        function render( PrettyPrinter $settings )
-        {
-            return new Text( $this->resourceType );
-        }
+        function render( PrettyPrinter $settings ) { return new Text( $this->resourceType ); }
     }
 
     class ValueString extends Value
     {
-        /**
-         * @param PrettyPrinter $settings
-         * @param string        $name
-         *
-         * @return Text
-         */
-        static function renderVariable( PrettyPrinter $settings, $name )
-        {
-            if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name ) )
-            {
-                return new Text( "$$name" );
-            }
-
-            return self::renderString( $settings, $name )->wrap( '${', '}' );
-        }
-
-        static function renderString( PrettyPrinter $settings, $string )
-        {
-            $escapeTabs    = $settings->getEscapeTabsInStrings();
-            $splitNewlines = $settings->getSplitMultiLineStrings();
-
-            $characterEscapeCache = array( "\\" => '\\\\',
-                                           "\$" => '\$',
-                                           "\r" => '\r',
-                                           "\v" => '\v',
-                                           "\f" => '\f',
-                                           "\"" => '\"',
-                                           "\t" => $escapeTabs ? '\t' : "\t",
-                                           "\n" => $splitNewlines ? "\\n\" .\n\"" : '\n' );
-
-            $escaped = '';
-            $length  = min( strlen( $string ), $settings->getMaxStringLength() );
-
-            for ( $i = 0; $i < $length; $i++ )
-            {
-                $char        = $string[ $i ];
-                $charEscaped =& $characterEscapeCache[ $char ];
-
-                if ( !isset( $charEscaped ) )
-                {
-                    $ord         = ord( $char );
-                    $charEscaped = $ord >= 32 && $ord <= 126 ? $char : '\x' . substr( '00' . dechex( $ord ), -2 );
-                }
-
-                $escaped .= $charEscaped;
-            }
-
-            return new Text( "\"$escaped" . ( strlen( $string ) > $length ? '...' : '"' ) );
-        }
-
         private $string;
 
         /**
          * @param string $string
          */
-        function __construct( $string )
-        {
-            $this->string = $string;
-        }
+        function __construct( $string ) { $this->string = $string; }
 
-        function render( PrettyPrinter $settings )
-        {
-            return self::renderString( $settings, $this->string );
-        }
+        function render( PrettyPrinter $settings ) { return $settings->renderString( $this->string ); }
     }
 
     class ValueUnknown extends Value
     {
-        function render( PrettyPrinter $settings )
-        {
-            return new Text( 'unknown type' );
-        }
+        function render( PrettyPrinter $settings ) { return $settings->renderUnknown(); }
     }
 }
 

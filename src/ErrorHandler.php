@@ -27,10 +27,7 @@ namespace ErrorHandler
             $this->fullStackTrace = $fullStackTrace;
         }
 
-        function getFullTrace()
-        {
-            return $this->fullStackTrace;
-        }
+        function getFullTrace() { return $this->fullStackTrace; }
     }
 
     class ErrorException extends \ErrorException implements HasFullTrace, HasLocalVariables
@@ -57,33 +54,23 @@ namespace ErrorHandler
                                                            E_STRICT            => 'E_STRICT',
                                                            E_RECOVERABLE_ERROR => 'E_RECOVERABLE_ERROR',
                                                            E_DEPRECATED        => 'E_DEPRECATED',
-                                                           E_USER_DEPRECATED   => 'E_USER_DEPRECATED' ), $severity,
+                                                           E_USER_DEPRECATED   => 'E_USER_DEPRECATED' ),
+                                                    $severity,
                                                     'E_?' );
         }
 
-        function getFullTrace()
-        {
-            return $this->stackTrace;
-        }
+        function getFullTrace() { return $this->stackTrace; }
 
-        function getLocalVariables()
-        {
-            return $this->localVariables;
-        }
+        function getLocalVariables() { return $this->localVariables; }
     }
 
     class ErrorHandler
     {
-        static function create()
-        {
-            return new self;
-        }
+        static function create() { return new self; }
 
         private $lastError;
 
-        protected function __construct()
-        {
-        }
+        protected function __construct() { }
 
         final function bind()
         {
@@ -111,9 +98,7 @@ namespace ErrorHandler
                 $e = new ErrorException( $severity, $message, $file, $line, $localVariables, self::traceWithoutThis() );
 
                 if ( $severity & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
-                {
                     throw $e;
-                }
 
                 $this->handleUncaughtException( $e );
             }
@@ -143,9 +128,7 @@ namespace ErrorHandler
         protected static function out( $title, $body )
         {
             while ( ob_get_level() > 0 && ob_end_clean() )
-            {
                 ;
-            }
 
             if ( PHP_SAPI === 'cli' )
             {
@@ -211,9 +194,7 @@ html;
             $i      = 2;
 
             while ( ArrayUtil::get2( $trace, $i, 'object' ) === $object )
-            {
                 $i++;
-            }
 
             return array_slice( $trace, $i );
         }
@@ -225,9 +206,7 @@ html;
             $error = error_get_last();
 
             if ( $error === null || $error === $this->lastError || !$this->isCurrentErrorHandler() )
-            {
                 return;
-            }
 
             $this->handleUncaughtException( new ErrorException( $error[ 'type' ], $error[ 'message' ], $error[ 'file' ],
                                                                 $error[ 'line' ], null, self::traceWithoutThis() ) );
@@ -235,9 +214,7 @@ html;
 
         private function isCurrentErrorHandler()
         {
-            $handler = set_error_handler( function ()
-            {
-            } );
+            $handler = set_error_handler( function () { } );
 
             restore_error_handler();
 
@@ -261,9 +238,6 @@ html;
             parent::__construct( $message, $code, $previous );
         }
 
-        function getFullTrace()
-        {
-            return $this->stackTrace;
-        }
+        function getFullTrace() { return $this->stackTrace; }
     }
 }
