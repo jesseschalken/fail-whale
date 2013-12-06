@@ -7,26 +7,145 @@ namespace ErrorHandler
     use PrettyPrinter\PrettyPrinter;
     use PrettyPrinter\Utils\ArrayUtil;
 
+    class AssertionFailedException extends \Exception implements HasFullTrace
+    {
+        private $expression, $fullStackTrace;
+
+        /**
+         * @param string $file
+         * @param int    $line
+         * @param string $expression
+         * @param string $message
+         * @param array  $fullStackTrace
+         */
+        function __construct( $file, $line, $expression, $message, array $fullStackTrace )
+        {
+            $this->file           = $file;
+            $this->line           = $line;
+            $this->expression     = $expression;
+            $this->message        = $message;
+            $this->fullStackTrace = $fullStackTrace;
+        }
+
+        function getFullTrace()
+        {
+            return $this->fullStackTrace;
+        }
+    }
+
+    class ErrorException extends \ErrorException implements HasFullTrace, HasLocalVariables
+    {
+        private $localVariables, $stackTrace;
+
+        function __construct( $severity, $message, $file, $line, array $localVariables = null, array $stackTrace )
+        {
+            parent::__construct( $message, 0, $severity, $file, $line );
+
+            $this->localVariables = $localVariables;
+            $this->stackTrace     = $stackTrace;
+            $this->code           = ArrayUtil::get( array( E_ERROR             => 'E_ERROR',
+                                                           E_WARNING           => 'E_WARNING',
+                                                           E_PARSE             => 'E_PARSE',
+                                                           E_NOTICE            => 'E_NOTICE',
+                                                           E_CORE_ERROR        => 'E_CORE_ERROR',
+                                                           E_CORE_WARNING      => 'E_CORE_WARNING',
+                                                           E_COMPILE_ERROR     => 'E_COMPILE_ERROR',
+                                                           E_COMPILE_WARNING   => 'E_COMPILE_WARNING',
+                                                           E_USER_ERROR        => 'E_USER_ERROR',
+                                                           E_USER_WARNING      => 'E_USER_WARNING',
+                                                           E_USER_NOTICE       => 'E_USER_NOTICE',
+                                                           E_STRICT            => 'E_STRICT',
+                                                           E_RECOVERABLE_ERROR => 'E_RECOVERABLE_ERROR',
+                                                           E_DEPRECATED        => 'E_DEPRECATED',
+                                                           E_USER_DEPRECATED   => 'E_USER_DEPRECATED' ), $severity,
+                                                    'E_?' );
+        }
+
+        function getFullTrace()
+        {
+            return $this->stackTrace;
+        }
+
+        function getLocalVariables()
+        {
+            return $this->localVariables;
+        }
+    }
+
     class ErrorHandler
     {
-        static function create() { return new self; }
-
-        static function traceWithoutThis()
+        static function create()
         {
-            $trace  = debug_backtrace();
-            $object = ArrayUtil::get2( $trace, 1, 'object' );
-            $i      = 2;
+            return new self;
+        }
 
-            while ( ArrayUtil::get2( $trace, $i, 'object' ) === $object )
-                $i++;
+        private $lastError;
 
-            return array_slice( $trace, $i );
+        protected function __construct()
+        {
+        }
+
+        final function bind()
+        {
+            ini_set( 'display_errors', false );
+            ini_set( 'log_errors', false );
+            ini_set( 'html_errors', false );
+
+            assert_options( ASSERT_ACTIVE, true );
+            assert_options( ASSERT_WARNING, true );
+            assert_options( ASSERT_BAIL, false );
+            assert_options( ASSERT_QUIET_EVAL, false );
+            assert_options( ASSERT_CALLBACK, array( $this, 'handleFailedAssertion' ) );
+
+            set_error_handler( array( $this, 'handleError' ) );
+            set_exception_handler( array( $this, 'handleUncaughtException' ) );
+            register_shutdown_function( array( $this, 'handleShutdown' ) );
+
+            $this->lastError = error_get_last();
+        }
+
+        final function handleError( $severity, $message, $file = null, $line = null, $localVariables = null )
+        {
+            if ( error_reporting() & $severity )
+            {
+                $e = new ErrorException( $severity, $message, $file, $line, $localVariables, self::traceWithoutThis() );
+
+                if ( $severity & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
+                {
+                    throw $e;
+                }
+
+                $this->handleUncaughtException( $e );
+            }
+
+            $this->lastError = error_get_last();
+
+            return true;
+        }
+
+        final function handleUncaughtException( \Exception $e )
+        {
+            $this->handleException( $e );
+
+            $this->lastError = error_get_last();
+            exit( 1 );
+        }
+
+        protected function handleException( \Exception $e )
+        {
+            self::out( 'error', PrettyPrinter::create()
+                                             ->setMaxStringLength( 100 )
+                                             ->setMaxArrayEntries( 10 )
+                                             ->setMaxObjectProperties( 10 )
+                                             ->prettyPrintException( $e ) );
         }
 
         protected static function out( $title, $body )
         {
             while ( ob_get_level() > 0 && ob_end_clean() )
+            {
                 ;
+            }
 
             if ( PHP_SAPI === 'cli' )
             {
@@ -80,57 +199,23 @@ html;
             return htmlspecialchars( $text, ENT_COMPAT, "UTF-8" );
         }
 
-        private $lastError;
-
-        protected function __construct() { }
-
-        final function bind()
-        {
-            ini_set( 'display_errors', false );
-            ini_set( 'log_errors', false );
-            ini_set( 'html_errors', false );
-
-            assert_options( ASSERT_ACTIVE, true );
-            assert_options( ASSERT_WARNING, true );
-            assert_options( ASSERT_BAIL, false );
-            assert_options( ASSERT_QUIET_EVAL, false );
-            assert_options( ASSERT_CALLBACK, array( $this, 'handleFailedAssertion' ) );
-
-            set_error_handler( array( $this, 'handleError' ) );
-            set_exception_handler( array( $this, 'handleUncaughtException' ) );
-            register_shutdown_function( array( $this, 'handleShutdown' ) );
-
-            $this->lastError = error_get_last();
-        }
-
         final function handleFailedAssertion( $file, $line, $expression, $message = 'Assertion failed' )
         {
             throw new AssertionFailedException( $file, $line, $expression, $message, self::traceWithoutThis() );
         }
 
-        final function handleError( $severity, $message, $file = null, $line = null, $localVariables = null )
+        static function traceWithoutThis()
         {
-            if ( error_reporting() & $severity )
+            $trace  = debug_backtrace();
+            $object = ArrayUtil::get2( $trace, 1, 'object' );
+            $i      = 2;
+
+            while ( ArrayUtil::get2( $trace, $i, 'object' ) === $object )
             {
-                $e = new ErrorException( $severity, $message, $file, $line, $localVariables, self::traceWithoutThis() );
-
-                if ( $severity & ( E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED ) )
-                    throw $e;
-
-                $this->handleUncaughtException( $e );
+                $i++;
             }
 
-            $this->lastError = error_get_last();
-
-            return true;
-        }
-
-        final function handleUncaughtException( \Exception $e )
-        {
-            $this->handleException( $e );
-
-            $this->lastError = error_get_last();
-            exit( 1 );
+            return array_slice( $trace, $i );
         }
 
         final function handleShutdown()
@@ -140,7 +225,9 @@ html;
             $error = error_get_last();
 
             if ( $error === null || $error === $this->lastError || !$this->isCurrentErrorHandler() )
+            {
                 return;
+            }
 
             $this->handleUncaughtException( new ErrorException( $error[ 'type' ], $error[ 'message' ], $error[ 'file' ],
                                                                 $error[ 'line' ], null, self::traceWithoutThis() ) );
@@ -148,77 +235,14 @@ html;
 
         private function isCurrentErrorHandler()
         {
-            $handler = set_error_handler( function () { } );
+            $handler = set_error_handler( function ()
+            {
+            } );
 
             restore_error_handler();
 
             return $handler === array( $this, 'handleError' );
         }
-
-        protected function handleException( \Exception $e )
-        {
-            self::out( 'error', PrettyPrinter::create()
-                                             ->setMaxStringLength( 100 )
-                                             ->setMaxArrayEntries( 10 )
-                                             ->setMaxObjectProperties( 10 )
-                                             ->prettyPrintException( $e ) );
-        }
-    }
-
-    class ErrorException extends \ErrorException implements HasFullTrace, HasLocalVariables
-    {
-        private $localVariables, $stackTrace;
-
-        function __construct( $severity, $message, $file, $line, array $localVariables = null, array $stackTrace )
-        {
-            parent::__construct( $message, 0, $severity, $file, $line );
-
-            $this->localVariables = $localVariables;
-            $this->stackTrace     = $stackTrace;
-            $this->code           = ArrayUtil::get( array( E_ERROR             => 'E_ERROR',
-                                                           E_WARNING           => 'E_WARNING',
-                                                           E_PARSE             => 'E_PARSE',
-                                                           E_NOTICE            => 'E_NOTICE',
-                                                           E_CORE_ERROR        => 'E_CORE_ERROR',
-                                                           E_CORE_WARNING      => 'E_CORE_WARNING',
-                                                           E_COMPILE_ERROR     => 'E_COMPILE_ERROR',
-                                                           E_COMPILE_WARNING   => 'E_COMPILE_WARNING',
-                                                           E_USER_ERROR        => 'E_USER_ERROR',
-                                                           E_USER_WARNING      => 'E_USER_WARNING',
-                                                           E_USER_NOTICE       => 'E_USER_NOTICE',
-                                                           E_STRICT            => 'E_STRICT',
-                                                           E_RECOVERABLE_ERROR => 'E_RECOVERABLE_ERROR',
-                                                           E_DEPRECATED        => 'E_DEPRECATED',
-                                                           E_USER_DEPRECATED   => 'E_USER_DEPRECATED' ), $severity,
-                                                    'E_?' );
-        }
-
-        function getFullTrace() { return $this->stackTrace; }
-
-        function getLocalVariables() { return $this->localVariables; }
-    }
-
-    class AssertionFailedException extends \Exception implements HasFullTrace
-    {
-        private $expression, $fullStackTrace;
-
-        /**
-         * @param string $file
-         * @param int    $line
-         * @param string $expression
-         * @param string $message
-         * @param array  $fullStackTrace
-         */
-        function __construct( $file, $line, $expression, $message, array $fullStackTrace )
-        {
-            $this->file           = $file;
-            $this->line           = $line;
-            $this->expression     = $expression;
-            $this->message        = $message;
-            $this->fullStackTrace = $fullStackTrace;
-        }
-
-        function getFullTrace() { return $this->fullStackTrace; }
     }
 
     /**
@@ -237,6 +261,9 @@ html;
             parent::__construct( $message, $code, $previous );
         }
 
-        function getFullTrace() { return $this->stackTrace; }
+        function getFullTrace()
+        {
+            return $this->stackTrace;
+        }
     }
 }

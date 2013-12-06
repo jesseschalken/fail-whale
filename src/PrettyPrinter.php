@@ -8,36 +8,99 @@ namespace PrettyPrinter
 
     final class PrettyPrinter
     {
-        static function create() { return new self; }
+        static function create()
+        {
+            return new self;
+        }
 
         private $escapeTabsInStrings = false;
-        private $splitMultiLineStrings = true;
-        private $maxObjectProperties = INF;
         private $maxArrayEntries = INF;
+        private $maxObjectProperties = INF;
         private $maxStringLength = INF;
-        private $showExceptionLocalVariables = true;
         private $showExceptionGlobalVariables = true;
+        private $showExceptionLocalVariables = true;
         private $showExceptionStackTrace = true;
+        private $splitMultiLineStrings = true;
 
         function __construct()
         {
         }
 
-        function getEscapeTabsInStrings() { return $this->escapeTabsInStrings; }
+        function assertPrettyIs( $value, $expectedPretty )
+        {
+            return $this->assertPrettyRefIs( $value, $expectedPretty );
+        }
 
-        function getSplitMultiLineStrings() { return $this->splitMultiLineStrings; }
+        function assertPrettyRefIs( &$ref, $expectedPretty )
+        {
+            \PHPUnit_Framework_TestCase::assertEquals( $expectedPretty, $this->prettyPrintRef( $ref ) );
 
-        function getMaxObjectProperties() { return $this->maxObjectProperties; }
+            return $this;
+        }
 
-        function getMaxArrayEntries() { return $this->maxArrayEntries; }
+        function getEscapeTabsInStrings()
+        {
+            return $this->escapeTabsInStrings;
+        }
 
-        function getMaxStringLength() { return $this->maxStringLength; }
+        function getMaxArrayEntries()
+        {
+            return $this->maxArrayEntries;
+        }
 
-        function getShowExceptionLocalVariables() { return $this->showExceptionLocalVariables; }
+        function getMaxObjectProperties()
+        {
+            return $this->maxObjectProperties;
+        }
 
-        function getShowExceptionGlobalVariables() { return $this->showExceptionGlobalVariables; }
+        function getMaxStringLength()
+        {
+            return $this->maxStringLength;
+        }
 
-        function getShowExceptionStackTrace() { return $this->showExceptionStackTrace; }
+        function getShowExceptionGlobalVariables()
+        {
+            return $this->showExceptionGlobalVariables;
+        }
+
+        function getShowExceptionLocalVariables()
+        {
+            return $this->showExceptionLocalVariables;
+        }
+
+        function getShowExceptionStackTrace()
+        {
+            return $this->showExceptionStackTrace;
+        }
+
+        function getSplitMultiLineStrings()
+        {
+            return $this->splitMultiLineStrings;
+        }
+
+        function prettyPrint( $value )
+        {
+            return $this->prettyPrintRef( $value );
+        }
+
+        function prettyPrintRef( &$ref )
+        {
+            $any = new Introspection( new ValuePool );
+
+            return $any->wrapRef( $ref )->introspect()->render( $this )->setHasEndingNewline( false )->__toString();
+        }
+
+        function prettyPrintException( \Exception $e )
+        {
+            $any = new Introspection( new ValuePool );
+
+            return $any->wrapException( $e )->introspect()->render( $this )->__toString();
+        }
+
+        function prettyPrintExceptionInfo( ValueException $e )
+        {
+            return $e->render( $this )->__toString();
+        }
 
         function setEscapeTabsInStrings( $escapeTabsInStrings )
         {
@@ -91,42 +154,6 @@ namespace PrettyPrinter
         function setSplitMultiLineStrings( $splitMultiLineStrings )
         {
             $this->splitMultiLineStrings = (bool) $splitMultiLineStrings;
-
-            return $this;
-        }
-
-        function prettyPrint( $value )
-        {
-            return $this->prettyPrintRef( $value );
-        }
-
-        function prettyPrintRef( &$ref )
-        {
-            $any = new Introspection( new ValuePool );
-
-            return $any->wrapRef( $ref )->introspect()->render( $this )->setHasEndingNewline( false )->__toString();
-        }
-
-        function prettyPrintExceptionInfo( ValueException $e )
-        {
-            return $e->render( $this )->__toString();
-        }
-
-        function prettyPrintException( \Exception $e )
-        {
-            $any = new Introspection( new ValuePool );
-
-            return $any->wrapException( $e )->introspect()->render( $this )->__toString();
-        }
-
-        function assertPrettyIs( $value, $expectedPretty )
-        {
-            return $this->assertPrettyRefIs( $value, $expectedPretty );
-        }
-
-        function assertPrettyRefIs( &$ref, $expectedPretty )
-        {
-            \PHPUnit_Framework_TestCase::assertEquals( $expectedPretty, $this->prettyPrintRef( $ref ) );
 
             return $this;
         }
