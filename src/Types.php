@@ -821,9 +821,9 @@ namespace PrettyPrinter\Values
             $this->properties = $properties;
         }
 
-        function getClass() { return $this->class; }
+        function className() { return $this->class; }
 
-        function getProperties() { return $this->properties; }
+        function properties() { return $this->properties; }
 
         function render( PrettyPrinter $settings ) { return $settings->renderObject( $this ); }
     }

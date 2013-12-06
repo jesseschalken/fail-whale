@@ -302,12 +302,12 @@ namespace PrettyPrinter
 
         function renderObject( Values\ValueObject $object )
         {
-            if ( $object->getProperties() === null )
-                return new Text( "new {$object->getClass()} { ? }" );
+            if ( $object->properties() === null )
+                return new Text( "new {$object->className()} { ? }" );
 
             $table = new Table;
 
-            foreach ( $object->getProperties() as $property )
+            foreach ( $object->properties() as $property )
             {
                 if ( ( $table->count() + 1 ) > $this->maxObjectProperties )
                     break;
@@ -322,10 +322,10 @@ namespace PrettyPrinter
 
             $result = $table->render();
 
-            if ( $table->count() < count( $object->getProperties() ) )
+            if ( $table->count() < count( $object->properties() ) )
                 $result->addLine( '...' );
 
-            return $result->indent( 2 )->wrapLines( "new {$object->getClass()} {", "}" );
+            return $result->indent( 2 )->wrapLines( "new {$object->className()} {", "}" );
         }
 
         /**
