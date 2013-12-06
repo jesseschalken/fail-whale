@@ -52,6 +52,11 @@ namespace PrettyPrinter
 
             return $introspection->wrapRef( $ref )->introspect()->render( $this )->__toString();
         }
+        
+        function renderReference( Values\ValuePoolReference $reference )
+        {
+            return $reference->get()->render( $this );
+        }
 
         function renderArray( Values\ValueArray $object )
         {
@@ -71,7 +76,8 @@ namespace PrettyPrinter
                 if ( $table->count() != count( $object->keyValuePairs() ) - 1 )
                     $value->append( ',' );
 
-                $table->addRow( $object->isAssociative() ? array( $key, $value->prepend( ' => ' ) )
+                $table->addRow( $object->isAssociative()
+                                        ? array( $key, $value->prepend( ' => ' ) )
                                         : array( $value ) );
             }
 

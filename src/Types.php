@@ -900,10 +900,7 @@ namespace PrettyPrinter\Values
 
         function id() { return $this->id; }
 
-        function render( PrettyPrinter $settings )
-        {
-            return $this->get()->render( $settings );
-        }
+        function render( PrettyPrinter $settings ) { return $settings->renderReference( $this ); }
     }
 
     class ValueResource extends Value
