@@ -7,7 +7,7 @@
             "email": "me@jesseschalken.com"
         }
     ],
-    "require-dev": {
+    "require": {
         "phpunit/phpunit": "3.7.*"
     },
     "autoload": {

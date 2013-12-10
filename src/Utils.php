@@ -6,7 +6,7 @@ namespace PrettyPrinter\Utils
     {
         static function get( $array, $key, $default = null )
         {
-            return isset( $array[ $key ] ) ? $array[ $key ] : $default;
+            return array_key_exists( $key, $array ) ? $array[ $key ] : $default;
         }
 
         static function get2( $array, $key1, $key2, $default = null )
@@ -41,10 +41,7 @@ namespace PrettyPrinter\Utils
 
     class Ref
     {
-        static function &create( $value = null )
-        {
-            return $value;
-        }
+        static function &create( $value = null ) { return $value; }
 
         static function equal( &$a, &$b )
         {
@@ -56,15 +53,9 @@ namespace PrettyPrinter\Utils
             return $result;
         }
 
-        static function get( &$ref )
-        {
-            return $ref;
-        }
+        static function get( &$ref ) { return $ref; }
 
-        static function set( &$ref, $value = null )
-        {
-            $ref = $value;
-        }
+        static function set( &$ref, $value = null ) { $ref = $value; }
     }
 
     class Table implements \Countable
@@ -133,11 +124,6 @@ namespace PrettyPrinter\Utils
 
     class Text
     {
-        static function create( $string = "" )
-        {
-            return new self( $string );
-        }
-
         private $lines, $hasEndingNewLine, $newLineChar;
 
         function __construct( $text = "", $newLineChar = "\n" )
@@ -149,11 +135,11 @@ namespace PrettyPrinter\Utils
                 array_pop( $this->lines );
         }
 
-        function __toString()
+        function toString()
         {
             $text = join( $this->newLineChar, $this->lines );
 
-            if ( $this->hasEndingNewLine && !empty( $this->lines ) )
+            if ( $this->hasEndingNewLine && $this->lines )
                 $text .= $this->newLineChar;
 
             return $text;
@@ -202,7 +188,7 @@ namespace PrettyPrinter\Utils
             $space = str_repeat( ' ', $this->width() );
 
             foreach ( $append->lines as $k => $line )
-                if ( $k === 0 && !empty( $this->lines ) )
+                if ( $k === 0 && $this->lines )
                     $this->lines[ count( $this->lines ) - 1 ] .= $line;
                 else
                     $this->lines[ ] = $space . $line;
@@ -270,9 +256,7 @@ namespace PrettyPrinter\Utils
 
         function width()
         {
-            $lines = $this->lines;
-
-            return empty( $lines ) ? 0 : strlen( $lines[ count( $lines ) - 1 ] );
+            return $this->lines ? strlen( $this->lines[ count( $this->lines ) - 1 ] ) : 0;
         }
 
         function wrap( $prepend, $append )

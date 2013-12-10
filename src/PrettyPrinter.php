@@ -6,10 +6,13 @@ namespace PrettyPrinter
     use PrettyPrinter\Utils\Table;
     use PrettyPrinter\Utils\Text;
     use PrettyPrinter\Values\ValuePool;
+    use PrettyPrinter\Values\Variable;
 
     final class PrettyPrinter
     {
         static function create() { return new self; }
+
+        function text( $text = '' ) { return new Text( $text ); }
 
         private $escapeTabsInStrings = false;
         private $maxArrayEntries = INF;
@@ -43,25 +46,21 @@ namespace PrettyPrinter
         {
             $introspection = new Introspection( new ValuePool );
 
-            return $introspection->wrapException( $e )->introspect()->render( $this )->__toString();
+            return $introspection->introspectException( $e )->render( $this )->toString();
         }
 
         function prettyPrintRef( &$ref )
         {
             $introspection = new Introspection( new ValuePool );
 
-            return $introspection->wrapRef( $ref )->introspect()->render( $this )->__toString();
-        }
-        
-        function renderReference( Values\ValuePoolReference $reference )
-        {
-            return $reference->get()->render( $this );
+            return $introspection->introspectRef( $ref )->render( $this )
+                                 ->setHasEndingNewline( false )->toString();
         }
 
         function renderArray( Values\ValueArray $object )
         {
             if ( $object->keyValuePairs() === array() )
-                return new Text( 'array()' );
+                return $this->text( 'array()' );
 
             $table = new Table;
 
@@ -86,193 +85,39 @@ namespace PrettyPrinter
             if ( $table->count() < count( $object->keyValuePairs() ) )
                 $result->addLine( '...' );
 
-            $result->wrap( 'array( ', ' )' );
-
-            return $result;
+            return $result->wrap( 'array( ', ' )' );
         }
 
         /**
-         * @param bool $bool
+         * @param Values\ValueException $e
          *
          * @return Text
          */
-        function renderBool( $bool ) { return new Text( $bool ? 'true' : 'false' ); }
-
-        /**
-         * @param Values\ValueException $exception
-         *
-         * @return Text
-         */
-        function renderException( Values\ValueException $exception )
+        function renderException( Values\ValueException $e )
         {
-            $text = $this->renderExceptionWithoutGlobals( $exception );
-
-            if ( $this->showExceptionGlobalVariables )
-            {
-                $text->addLine( "global variables:" );
-                $text->addLines( $this->renderExceptionGlobals( $exception )->indent() );
-                $text->addLine();
-            }
-
-            return $text;
-        }
-
-        private function renderExceptionGlobals( Values\ValueException $exception )
-        {
-            $superGlobals = array( '_POST', '_GET', '_SESSION', '_COOKIE', '_FILES', '_REQUEST', '_ENV', '_SERVER' );
-
-            $table = new Table;
-
-            foreach ( $exception->globals() as $global )
-            {
-                if ( $global->className() !== null && $global->functionName() !== null )
-                {
-                    $prefix = new Text( "function {$global->className()}::{$global->functionName()}()::static " );
-                }
-                else if ( $global->className() !== null )
-                {
-                    $prefix = new Text( "{$global->access()} static {$global->className()}::" );
-                }
-                else if ( $global->functionName() !== null )
-                {
-                    $prefix = new Text( "function {$global->functionName()}()::static " );
-                }
-                else
-                {
-                    $prefix = new Text( in_array( $global->variableName(), $superGlobals, true ) ? '' : 'global ' );
-                }
-
-                $table->addRow( array( $prefix->appendLines( $this->renderVariable( $global->variableName() ) ),
-                                       $global->value()->render( $this )->wrap( ' = ', ';' ) ) );
-            }
-
-            return $table->count() > 0 ? $table->render() : new Text( 'none' );
-        }
-
-        private function renderExceptionLocals( Values\ValueException $exception )
-        {
-            $table = new Table;
-
-            foreach ( $exception->locals() as $name => $value )
-            {
-                $table->addRow( array( $this->renderVariable( $name ),
-                                       $value->render( $this )->wrap( ' = ', ';' ) ) );
-            }
-
-            return $table->count() > 0 ? $table->render() : new Text( 'none' );
-        }
-
-        private function renderExceptionStack( Values\ValueException $exception )
-        {
-            $text = new Text;
-            $i    = 1;
-
-            foreach ( $exception->stack() as $frame )
-            {
-                $text->addLines( $this->renderExceptionStackFrame( $i, $frame ) );
-                $text->addLine();
-                $i++;
-            }
-
-            $text->addLine( "#$i {main}" );
-
-            return $text;
-        }
-
-        private function renderExceptionStackFrame( $i, Values\ValueExceptionStackFrame $frame )
-        {
-            $text = new Text;
-            $text->addLine( "#$i {$frame->file()}:{$frame->line()}" );
-            $text->addLines( $this->renderExceptionStackFrameFunctionCall( $frame )->indent( 3 ) );
-
-            return $text;
-        }
-
-        private function renderExceptionStackFrameArgs( Values\ValueExceptionStackFrame $frame )
-        {
-            if ( $frame->args() === null )
-                return new Text( '( ? )' );
-
-            if ( $frame->args() === array() )
-                return new Text( '()' );
-
-            $pretties    = array();
-            $isMultiLine = false;
-            $result      = new Text;
-
-            foreach ( $frame->args() as $arg )
-            {
-                $pretty      = $arg->render( $this );
-                $isMultiLine = $isMultiLine || $pretty->count() > 1;
-                $pretties[ ] = $pretty;
-            }
-
-            foreach ( $pretties as $k => $pretty )
-            {
-                if ( $k !== 0 )
-                    $result->append( ', ' );
-
-                if ( $isMultiLine )
-                    $result->addLines( $pretty );
-                else
-                    $result->appendLines( $pretty );
-            }
-
-            return $result->wrap( '( ', ' )' );
-        }
-
-        private function renderExceptionStackFrameFunctionCall( Values\ValueExceptionStackFrame $frame )
-        {
-            $text = new Text;
-            $text->appendLines( $this->renderExceptionStackFrameObject( $frame ) );
-            $text->append( $frame->type() );
-            $text->append( $frame->functionName() );
-            $text->appendLines( $this->renderExceptionStackFrameArgs( $frame ) );
-            $text->append( ';' );
-
-            return $text;
-        }
-
-        private function renderExceptionStackFrameObject( Values\ValueExceptionStackFrame $frame )
-        {
-            if ( $frame->object() === null )
-                return new Text;
-
-            return $frame->object()->render( $this );
-        }
-
-        private function renderExceptionWithoutGlobals( Values\ValueException $exception )
-        {
-            $class   = $exception->className();
-            $code    = $exception->code();
-            $file    = $exception->file();
-            $line    = $exception->line();
-            $message = $exception->message();
-
-            $text = new Text;
-            $text->addLine( "$class $code in $file:$line" );
+            $text = $this->text( "{$e->className()} {$e->code()} in {$e->file()}:{$e->line()}" );
             $text->addLine();
-            $text->addLines( Text::create( $message )->indent( 2 ) );
+            $text->addLines( $this->text( $e->message() )->indent( 2 ) );
             $text->addLine();
 
-            if ( $exception->locals() !== null && $this->showExceptionLocalVariables )
+            if ( $this->showExceptionLocalVariables && $e->locals() !== null )
             {
                 $text->addLine( "local variables:" );
-                $text->addLines( $this->renderExceptionLocals( $exception )->indent() );
+                $text->addLines( $this->renderVariables( $e->locals(), 'none', INF )->indent() );
                 $text->addLine();
             }
 
             if ( $this->showExceptionStackTrace )
             {
                 $text->addLine( "stack trace:" );
-                $text->addLines( $this->renderExceptionStack( $exception )->indent() );
+                $text->addLines( $this->renderExceptionStack( $e )->indent() );
                 $text->addLine();
             }
 
-            if ( $exception->previous() !== null )
+            if ( $e->previous() !== null )
             {
                 $text->addLine( "previous exception:" );
-                $text->addLines( $this->renderExceptionWithoutGlobals( $exception->previous() )->indent( 2 ) );
+                $text->addLines( $this->renderException( $e->previous() )->indent( 2 ) );
                 $text->addLine();
             }
 
@@ -280,52 +125,71 @@ namespace PrettyPrinter
         }
 
         /**
-         * @param float $float
+         * @param Variable[] $variables
+         * @param string     $noneText
+         * @param float      $max
          *
          * @return Text
          */
-        function renderFloat( $float )
+        function renderVariables( array $variables, $noneText, $max )
         {
-            $int = (int) $float;
-
-            return new Text( "$int" === "$float" ? "$float.0" : "$float" );
-        }
-
-        /**
-         * @param int $int
-         *
-         * @return Text
-         */
-        function renderInt( $int ) { return new Text( "$int" ); }
-
-        function renderNull() { return new Text( 'null' ); }
-
-        function renderObject( Values\ValueObject $object )
-        {
-            if ( $object->properties() === null )
-                return new Text( "new {$object->className()} { ? }" );
-
             $table = new Table;
 
-            foreach ( $object->properties() as $property )
+            foreach ( $variables as $variable )
             {
-                if ( ( $table->count() + 1 ) > $this->maxObjectProperties )
+                if ( ( $table->count() + 1 ) > $max )
                     break;
 
-                $value  = $property->value();
-                $name   = $property->name();
-                $access = $property->access();
-
-                $table->addRow( array( $this->renderVariable( $name )->prepend( "$access " ),
-                                       $value->render( $this )->wrap( ' = ', ';' ) ) );
+                $table->addRow( array( $variable->render( $this ),
+                                       $variable->value()->render( $this )->wrap( ' = ', ';' ) ) );
             }
+
+            if ( $table->count() == 0 )
+                return $this->text( $noneText );
 
             $result = $table->render();
 
-            if ( $table->count() < count( $object->properties() ) )
+            if ( $table->count() < count( $variables ) )
                 $result->addLine( '...' );
 
-            return $result->indent( 2 )->wrapLines( "new {$object->className()} {", "}" );
+            return $result;
+        }
+
+        function renderExceptionStack( Values\ValueException $exception )
+        {
+            $text = $this->text();
+            $i    = 1;
+
+            foreach ( $exception->stack() as $frame )
+            {
+                $text->addLine( "#$i {$frame->location()}" );
+                $text->addLines( $frame->render( $this )->append( ';' )->indent( 3 ) );
+                $text->addLine();
+                $i++;
+            }
+
+            return $text->addLine( "#$i {main}" );
+        }
+
+        function renderExceptionWithGlobals( Values\ValueException $exception )
+        {
+            $text = $this->renderException( $exception );
+
+            if ( $this->showExceptionGlobalVariables && $exception->globals() !== null )
+            {
+                $text->addLine( "global variables:" );
+                $text->addLines( $this->renderVariables( $exception->globals(), 'none', INF )->indent() );
+                $text->addLine();
+            }
+
+            return $text;
+        }
+
+        function renderObject( Values\ValueObject $object )
+        {
+            return $this->renderVariables( $object->properties(), '', $this->maxObjectProperties )
+                        ->indent( 2 )
+                        ->wrapLines( "new {$object->className()} {", "}" );
         }
 
         /**
@@ -361,20 +225,18 @@ namespace PrettyPrinter
                 $escaped .= $charEscaped;
             }
 
-            return new Text( "\"$escaped" . ( strlen( $string ) > $length ? '...' : '"' ) );
+            return $this->text( "\"$escaped" . ( strlen( $string ) > $length ? '...' : '"' ) );
         }
-
-        function renderUnknown() { return new Text( 'unknown type' ); }
 
         /**
          * @param string $name
          *
          * @return Text
          */
-        private function renderVariable( $name )
+        function renderVariable( $name )
         {
             if ( preg_match( "/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name ) )
-                return new Text( "$$name" );
+                return $this->text( "$$name" );
 
             return $this->renderString( $name )->wrap( '${', '}' );
         }

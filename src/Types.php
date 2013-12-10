@@ -2,11 +2,24 @@
 
 namespace PrettyPrinter\Introspection
 {
-    use PrettyPrinter\HasFullTrace;
-    use PrettyPrinter\HasLocalVariables;
-    use PrettyPrinter\Utils\ArrayUtil;
     use PrettyPrinter\Utils\Ref;
     use PrettyPrinter\Values;
+
+    interface ExceptionHasFullTrace
+    {
+        /**
+         * @return array
+         */
+        function getFullTrace();
+    }
+
+    interface ExceptionHasLocalVariables
+    {
+        /**
+         * @return array|null
+         */
+        function getLocalVariables();
+    }
 
     class Introspection
     {
@@ -19,578 +32,137 @@ namespace PrettyPrinter\Introspection
             $this->pool = $pool;
         }
 
-        function introspectCacheArrayRef( IntrospectionValueArray $array )
+        private function introspectCacheArrayRef( \Closure $wrapped, &$reference )
         {
-            $reference =& $array->reference();
-
             foreach ( $this->cacheArrayRef as $ref )
-            {
                 if ( Ref::equal( $reference, $ref[ 1 ] ) )
-                {
                     return $ref[ 0 ];
-                }
-            }
 
             $id = $this->pool->newEmpty();
 
             array_unshift( $this->cacheArrayRef, array( $id, &$reference ) );
 
-            $id->fill( $array );
+            $id->fill( $wrapped );
 
             array_shift( $this->cacheArrayRef );
 
             return $id;
         }
 
-        function introspectCacheByString( IntrospectionValueCacheByString $value )
+        private function introspectCacheByString( \Closure $wrapped, $type, $string )
         {
-            $string = $value->toString();
-            $type   = $value->type();
-
             if ( isset( $this->cacheByString[ $type ][ $string ] ) )
-            {
                 return $this->cacheByString[ $type ][ $string ];
-            }
 
             $ref = $this->pool->newEmpty();
 
             $this->cacheByString[ $type ][ $string ] = $ref;
 
-            $ref->fill( $value );
+            $ref->fill( $wrapped );
 
             return $ref;
         }
 
-        function introspectNoCache( IntrospectionValue $value )
-        {
-            $id = $this->pool->newEmpty();
-            $id->fill( $value );
-
-            return $id;
-        }
-
-        /**
-         * @param mixed $value
-         *
-         * @return IntrospectionValue
-         */
-        final function wrap( $value ) { return $this->wrapRef( $value ); }
-
-        /**
-         * @param string $class
-         *
-         * @return IntrospectionValue
-         */
-        final function wrapDummyObject( $class )
-        {
-            return new IntrospectionValueDummyObject( $this, $class );
-        }
-
-        /**
-         * @param \Exception $e
-         *
-         * @return IntrospectionValue
-         */
-        final function wrapException( \Exception $e )
-        {
-            return new IntrospectionValueException( $this, $e );
-        }
-
-        /**
-         * @param mixed $value
-         *
-         * @return IntrospectionValue
-         */
-        final function wrapRef( &$value )
-        {
-            if ( is_string( $value ) )
-                return new IntrospectionValueString( $this, $value );
-
-            if ( is_int( $value ) )
-                return new IntrospectionValueInt( $this, $value );
-
-            if ( is_bool( $value ) )
-                return new IntrospectionValueBool( $this, $value );
-
-            if ( is_null( $value ) )
-                return new IntrospectionValueNull( $this );
-
-            if ( is_float( $value ) )
-                return new IntrospectionValueFloat( $this, $value );
-
-            if ( is_array( $value ) )
-                return new IntrospectionValueArray( $this, $value );
-
-            if ( is_object( $value ) )
-                return new IntrospectionValueObject( $this, $value );
-
-            if ( is_resource( $value ) )
-                return new IntrospectionValueResource( $this, $value );
-
-            return new IntrospectionValueUnknown( $this );
-        }
-    }
-
-    abstract class IntrospectionValue
-    {
         /**
          * @param \ReflectionProperty|\ReflectionMethod $property
          *
          * @return string
          */
-        protected static function propertyOrMethodAccess( $property )
+        function propertyOrMethodAccess( $property )
         {
             return $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
         }
 
-        private $introspection;
-
-        function __construct( Introspection $introspection )
-        {
-            $this->introspection = $introspection;
-        }
-
-        function introspect()
-        {
-            return $this->introspection->introspectNoCache( $this );
-        }
-
         /**
-         * @return Values\Value
-         */
-        abstract function introspectImpl();
-
-        protected function introspection() { return $this->introspection; }
-
-        protected function wrap( $value )
-        {
-            return $this->introspection->wrapRef( $value );
-        }
-
-        protected function wrapDummyObject( $class )
-        {
-            return $this->introspection->wrapDummyObject( $class );
-        }
-
-        protected function wrapRef( &$value )
-        {
-            return $this->introspection->wrapRef( $value );
-        }
-    }
-
-    class IntrospectionValueArray extends IntrospectionValue
-    {
-        /** @var array */
-        private $array;
-
-        function __construct( Introspection $introspection, array &$array )
-        {
-            parent::__construct( $introspection );
-
-            $this->array =& $array;
-        }
-
-        function introspect()
-        {
-            return $this->introspection()->introspectCacheArrayRef( $this, $this->array );
-        }
-
-        function introspectImpl()
-        {
-            $keyValuePairs = array();
-
-            foreach ( $this->array as $k => &$v )
-            {
-                $keyValuePairs[ ] = new Values\ValueArrayKeyValuePair( $this->wrapRef( $k )->introspect(),
-                                                                       $this->wrapRef( $v )->introspect() );
-            }
-
-            return new Values\ValueArray( ArrayUtil::isAssoc( $this->array ), $keyValuePairs );
-        }
-
-        function &reference() { return $this->array; }
-    }
-
-    class IntrospectionValueBool extends IntrospectionValueCacheByString
-    {
-        private $bool;
-
-        /**
-         * @param Introspection $introspection
-         * @param bool          $bool
-         */
-        function __construct( Introspection $introspection, $bool )
-        {
-            $this->bool = $bool;
-
-            parent::__construct( $introspection );
-        }
-
-        function introspectImpl() { return new Values\ValueBool( $this->bool ); }
-
-        function toString() { return "$this->bool"; }
-
-        function type() { return 'bool'; }
-    }
-
-    abstract class IntrospectionValueCacheByString extends IntrospectionValue
-    {
-        function introspect() { return $this->introspection()->introspectCacheByString( $this ); }
-
-        abstract function toString();
-
-        abstract function type();
-    }
-
-    class IntrospectionValueDummyObject extends IntrospectionValueCacheByString
-    {
-        /** @var string */
-        private $class;
-
-        function __construct( Introspection $introspection, $class )
-        {
-            parent::__construct( $introspection );
-
-            $this->class = $class;
-        }
-
-        function introspectImpl() { return new Values\ValueObject( $this->class, null ); }
-
-        function toString() { return $this->class; }
-
-        function type() { return 'dummy object'; }
-    }
-
-    class IntrospectionValueException extends IntrospectionValueCacheByString
-    {
-        /**
-         * @var \Exception
-         */
-        private $e;
-
-        function __construct( Introspection $introspection, \Exception $e )
-        {
-            parent::__construct( $introspection );
-
-            $this->e = $e;
-        }
-
-        private function introspectException( \Exception $exception, array $globals )
-        {
-            $locals = $exception instanceof HasLocalVariables ? $exception->getLocalVariables() : null;
-            $stack  = $exception instanceof HasFullTrace ? $exception->getFullTrace() : $exception->getTrace();
-
-            $locals   = $this->introspectLocalVariables( $locals );
-            $stack    = $this->introspectStack( $stack );
-            $previous = $exception->getPrevious();
-            $previous = $previous === null ? null : $this->introspectException( $previous, $globals );
-            $class    = get_class( $exception );
-            $file     = $exception->getFile();
-            $line     = $exception->getLine();
-            $code     = "{$exception->getCode()}";
-            $message  = $exception->getMessage();
-
-            return new Values\ValueException( $class, $file, $line, $stack, $globals,
-                                              $locals, $code, $message, $previous );
-        }
-
-        /**
-         * @return Values\ValueExceptionGlobalState[]
-         */
-        private function introspectGlobalVariables()
-        {
-            $globals = array();
-
-            foreach ( $GLOBALS as $name => &$globalValue )
-            {
-                if ( $name !== 'GLOBALS' )
-                {
-                    $value = $this->wrapRef( $globalValue )->introspect();
-
-                    $globals[ ] = new Values\ValueExceptionGlobalState( null, null, $name, $value, null );
-                }
-            }
-
-            foreach ( get_declared_classes() as $class )
-            {
-                $reflection = new \ReflectionClass( $class );
-
-                foreach ( $reflection->getProperties( \ReflectionProperty::IS_STATIC ) as $property )
-                {
-                    $property->setAccessible( true );
-
-                    $value  = $this->wrap( $property->getValue() )->introspect();
-                    $access = self::propertyOrMethodAccess( $property );
-                    $class  = $property->class;
-                    $name   = $property->name;
-
-                    $globals[ ] = new Values\ValueExceptionGlobalState( $class, null, $name, $value, $access );
-                }
-
-                foreach ( $reflection->getMethods() as $method )
-                {
-                    $staticVariables = $method->getStaticVariables();
-
-                    foreach ( $staticVariables as $name => &$varValue )
-                    {
-                        $value    = $this->wrapRef( $varValue )->introspect();
-                        $class    = $method->class;
-                        $function = $method->getName();
-
-                        $globals[ ] = new Values\ValueExceptionGlobalState( $class, $function, $name, $value, null );
-                    }
-                }
-            }
-
-            foreach ( get_defined_functions() as $section )
-            {
-                foreach ( $section as $function )
-                {
-                    $reflection      = new \ReflectionFunction( $function );
-                    $staticVariables = $reflection->getStaticVariables();
-
-                    foreach ( $staticVariables as $name => &$varValue )
-                    {
-                        $value    = $this->wrapRef( $varValue )->introspect();
-                        $function = $reflection->name;
-
-                        $globals[ ] = new Values\ValueExceptionGlobalState( null, $function, $name, $value, null );
-                    }
-                }
-            }
-
-            return $globals;
-        }
-
-        function introspectImpl()
-        {
-            return $this->introspectException( $this->e, $this->introspectGlobalVariables() );
-        }
-
-        /**
-         * @param array|null $locals
+         * @param $value
          *
-         * @return Values\ValuePoolReference[]|null
+         * @return Values\ValuePoolReference
          */
-        private function introspectLocalVariables( array $locals = null )
+        function introspectRef( &$value )
         {
-            if ( $locals === null )
-                return null;
+            $that = $this;
 
-            $reflected = array();
-
-            foreach ( $locals as $k => &$v )
+            if ( is_string( $value ) )
             {
-                $reflected[ $k ] = $this->wrapRef( $v )->introspect();
+                $f = function () use ( $value ) { return new Values\ValueString( $value ); };
+
+                return $this->introspectCacheByString( $f, 'string', "$value" );
             }
-
-            return $reflected;
-        }
-
-        /**
-         * @param array[] $trace
-         *
-         * @return Values\ValueExceptionStackFrame[]
-         */
-        private function introspectStack( array $trace )
-        {
-            $stackFrames = array();
-
-            foreach ( $trace as $frame )
+            else if ( is_int( $value ) )
             {
-                $object   = null;
-                $args     = null;
-                $type     = ArrayUtil::get( $frame, 'type' );
-                $function = ArrayUtil::get( $frame, 'function' );
-                $file     = ArrayUtil::get( $frame, 'file' );
-                $line     = ArrayUtil::get( $frame, 'line' );
+                $f = function () use ( $value ) { return new Values\ValueInt( $value ); };
 
-                if ( array_key_exists( 'object', $frame ) )
-                {
-                    $object = $this->wrapRef( $frame[ 'object' ] )->introspect();
-                }
-                else if ( array_key_exists( 'class', $frame ) )
-                {
-                    $object = $this->wrapDummyObject( $frame[ 'class' ] )->introspect();
-                }
-
-                if ( array_key_exists( 'args', $frame ) )
-                {
-                    $args = array();
-
-                    foreach ( $frame[ 'args' ] as &$arg )
-                    {
-                        $args[ ] = $this->wrapRef( $arg )->introspect();
-                    }
-                }
-
-                $stackFrames[ ] = new Values\ValueExceptionStackFrame( $type, $function, $object, $args, $file, $line );
+                return $this->introspectCacheByString( $f, 'int', "$value" );
             }
-
-            return $stackFrames;
-        }
-
-        function toString() { return spl_object_hash( $this->e ); }
-
-        function type() { return 'exception'; }
-    }
-
-    class IntrospectionValueFloat extends IntrospectionValueCacheByString
-    {
-        private $float;
-
-        /**
-         * @param Introspection $introspection
-         * @param float         $float
-         */
-        function __construct( Introspection $introspection, $float )
-        {
-            parent::__construct( $introspection );
-
-            $this->float = $float;
-        }
-
-        function introspectImpl() { return new Values\ValueFloat( $this->float ); }
-
-        function toString() { return "$this->float"; }
-
-        function type() { return 'float'; }
-    }
-
-    class IntrospectionValueInt extends IntrospectionValueCacheByString
-    {
-        private $int;
-
-        /**
-         * @param Introspection $introspection
-         * @param int           $int
-         */
-        function __construct( Introspection $introspection, $int )
-        {
-            $this->int = $int;
-
-            parent::__construct( $introspection );
-        }
-
-        function introspectImpl() { return new Values\ValueInt( $this->int ); }
-
-        function toString() { return "$this->int"; }
-
-        function type() { return 'int'; }
-    }
-
-    class IntrospectionValueNull extends IntrospectionValueCacheByString
-    {
-        function introspectImpl() { return new Values\ValueNull; }
-
-        function toString() { return ""; }
-
-        function type() { return 'null'; }
-    }
-
-    class IntrospectionValueObject extends IntrospectionValueCacheByString
-    {
-        private $object;
-
-        /**
-         * @param Introspection $introspection
-         * @param object        $object
-         */
-        function __construct( Introspection $introspection, $object )
-        {
-            $this->object = $object;
-
-            parent::__construct( $introspection );
-        }
-
-        function introspectImpl()
-        {
-            $properties = array();
-
-            for ( $reflection = new \ReflectionObject( $this->object );
-                  $reflection !== false;
-                  $reflection = $reflection->getParentClass() )
+            else if ( is_bool( $value ) )
             {
-                foreach ( $reflection->getProperties() as $property )
-                {
-                    if ( $property->isStatic() || $property->class !== $reflection->name )
-                        continue;
+                $f = function () use ( $value ) { return new Values\ValueBool( $value ); };
 
-                    $property->setAccessible( true );
-
-                    $access        = self::propertyOrMethodAccess( $property );
-                    $value         = $this->wrap( $property->getValue( $this->object ) )->introspect();
-                    $properties[ ] = new Values\ValueObjectProperty( $value, $property->name,
-                                                                     $access, $property->class );
-                }
+                return $this->introspectCacheByString( $f, 'bool', "$value" );
             }
+            else if ( is_null( $value ) )
+            {
+                $f = function () use ( $value ) { return new Values\ValueNull( $value ); };
 
-            return new Values\ValueObject( get_class( $this->object ), $properties );
+                return $this->introspectCacheByString( $f, 'null', "$value" );
+            }
+            else if ( is_float( $value ) )
+            {
+                $f = function () use ( $value ) { return new Values\ValueFloat( $value ); };
+
+                return $this->introspectCacheByString( $f, 'float', "$value" );
+            }
+            else if ( is_array( $value ) )
+            {
+                $f = function () use ( $that, $value ) { return Values\ValueArray::introspect( $that, $value ); };
+
+                return $this->introspectCacheArrayRef( $f, $value );
+            }
+            else if ( is_object( $value ) )
+            {
+                $f = function () use ( $that, $value ) { return Values\ValueObject::introspect( $that, $value ); };
+
+                return $this->introspectCacheByString( $f, 'object', spl_object_hash( $value ) );
+            }
+            else if ( is_resource( $value ) )
+            {
+                $f = function () use ( $value ) { return Values\ValueResource::introspect( $value ); };
+
+                return $this->introspectCacheByString( $f, 'resource', "$value" );
+            }
+            else
+            {
+                $f = function () use ( $value ) { return new Values\ValueUnknown; };
+
+                return $this->introspectCacheByString( $f, 'unknown', '' );
+            }
         }
 
-        function toString() { return spl_object_hash( $this->object ); }
-
-        function type() { return 'object'; }
-    }
-
-    class IntrospectionValueResource extends IntrospectionValueCacheByString
-    {
-        private $resource;
-
-        /**
-         * @param Introspection $introspection
-         * @param resource      $resource
-         */
-        function __construct( Introspection $introspection, $resource )
+        function introspectValue( $value )
         {
-            parent::__construct( $introspection );
-
-            $this->resource = $resource;
+            return $this->introspectRef( $value );
         }
 
-        function introspectImpl() { return new Values\ValueResource( get_resource_type( $this->resource ) ); }
-
-        function toString() { return "$this->resource"; }
-
-        function type() { return 'resource'; }
-    }
-
-    class IntrospectionValueString extends IntrospectionValueCacheByString
-    {
-        private $string;
-
-        /**
-         * @param Introspection $introspection
-         * @param string        $string
-         */
-        function __construct( Introspection $introspection, $string )
+        function introspectException( \Exception $e )
         {
-            $this->string = $string;
+            $that = $this;
+            $f    = function () use ( $that, $e ) { return Values\ValueException::introspect( $that, $e ); };
 
-            parent::__construct( $introspection );
+            return $this->introspectCacheByString( $f, 'exception', spl_object_hash( $e ) );
         }
-
-        function introspectImpl() { return new Values\ValueString( $this->string ); }
-
-        function toString() { return $this->string; }
-
-        function type() { return 'string'; }
-    }
-
-    class IntrospectionValueUnknown extends IntrospectionValueCacheByString
-    {
-        function introspectImpl() { return new Values\ValueUnknown; }
-
-        function toString() { return ''; }
-
-        function type() { return 'unknown'; }
     }
 }
 
 namespace PrettyPrinter\Values
 {
-    use PrettyPrinter\Introspection\IntrospectionValue;
+    use PrettyPrinter\Introspection\ExceptionHasFullTrace;
+    use PrettyPrinter\Introspection\ExceptionHasLocalVariables;
+    use PrettyPrinter\Introspection\Introspection;
     use PrettyPrinter\PrettyPrinter;
+    use PrettyPrinter\Test\DummyClass1;
+    use PrettyPrinter\Test\DummyClass2;
+    use PrettyPrinter\Utils\ArrayUtil;
+    use PrettyPrinter\Utils\Ref;
     use PrettyPrinter\Utils\Text;
 
     abstract class Value
@@ -605,17 +177,24 @@ namespace PrettyPrinter\Values
 
     class ValueArray extends Value
     {
-        private $isAssociative, $keyValuePairs;
-
-        /**
-         * @param bool                     $isAssociative
-         * @param ValueArrayKeyValuePair[] $keyValuePairs
-         */
-        function __construct( $isAssociative, array $keyValuePairs )
+        static function introspect( Introspection $introspection, array $array )
         {
-            $this->isAssociative = $isAssociative;
-            $this->keyValuePairs = $keyValuePairs;
+            $self                = new self;
+            $self->isAssociative = ArrayUtil::isAssoc( $array );
+
+            foreach ( $array as $k => &$v )
+                $self->keyValuePairs[ ] = ArrayEntry::introspect( $introspection, $k, $v );
+
+            return $self;
         }
+
+        private $isAssociative = false;
+        /**
+         * @var ArrayEntry[]
+         */
+        private $keyValuePairs = array();
+
+        private function __construct() { }
 
         function isAssociative() { return $this->isAssociative; }
 
@@ -624,15 +203,23 @@ namespace PrettyPrinter\Values
         function render( PrettyPrinter $settings ) { return $settings->renderArray( $this ); }
     }
 
-    class ValueArrayKeyValuePair
+    class ArrayEntry
     {
-        private $key, $value;
-
-        function __construct( ValuePoolReference $key, ValuePoolReference $value )
+        static function introspect( Introspection $introspection, &$k, &$v )
         {
-            $this->key   = $key;
-            $this->value = $value;
+            $self        = new self;
+            $self->key   = $introspection->introspectRef( $k );
+            $self->value = $introspection->introspectRef( $v );
+
+            return $self;
         }
+
+        /** @var ValuePoolReference */
+        private $key;
+        /** @var ValuePoolReference */
+        private $value;
+
+        private function __construct() { }
 
         function key() { return $this->key; }
 
@@ -651,37 +238,84 @@ namespace PrettyPrinter\Values
             $this->bool = $bool;
         }
 
-        function render( PrettyPrinter $settings ) { return $settings->renderBool( $this->bool ); }
+        function render( PrettyPrinter $settings ) { return $settings->text( $this->bool ? 'true' : 'false' ); }
     }
 
     class ValueException extends Value
     {
-        private $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous;
-
-        /**
-         * @param string                      $class
-         * @param string                      $file
-         * @param int                         $line
-         * @param ValueExceptionStackFrame[]  $stack
-         * @param ValueExceptionGlobalState[] $globals
-         * @param ValuePoolReference[]|null   $locals
-         * @param string                      $code
-         * @param string                      $message
-         * @param ValueException|null         $previous
-         */
-        function __construct( $class, $file, $line, array $stack, array $globals,
-                              array $locals, $code, $message, self $previous = null )
+        static function introspect( Introspection $i, \Exception $e )
         {
-            $this->class    = $class;
-            $this->file     = $file;
-            $this->line     = $line;
-            $this->stack    = $stack;
-            $this->globals  = $globals;
-            $this->locals   = $locals;
-            $this->code     = $code;
-            $this->message  = $message;
-            $this->previous = $previous;
+            $self          = self::introspectException( $i, $e );
+            $self->globals = Variable::introspectGlobals( $i );
+
+            return $self;
         }
+
+        private static function introspectException( Introspection $i, \Exception $e )
+        {
+            $self          = new self;
+            $self->class   = get_class( $e );
+            $self->code    = $e->getCode();
+            $self->message = $e->getMessage();
+            $self->line    = $e->getLine();
+            $self->file    = $e->getFile();
+
+            if ( $e->getPrevious() !== null )
+                $self->previous = self::introspectException( $i, $e->getPrevious() );
+
+            if ( $e instanceof ExceptionHasLocalVariables && $e->getLocalVariables() !== null )
+            {
+                $self->locals = array();
+
+                $locals = $e->getLocalVariables();
+                foreach ( $locals as $name => &$value )
+                    $self->locals[ ] = Variable::introspect( $i, $name, $value );
+            }
+
+            foreach ( $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace() as $frame )
+                $self->stack[ ] = FunctionCall::introspect( $i, $frame );
+
+            return $self;
+        }
+
+        private static function introspectGlobals( Introspection $i )
+        {
+        }
+
+        static function mock( $param )
+        {
+            $self          = new self;
+            $self->class   = 'MuhMockException';
+            $self->message = <<<'s'
+This is a dummy exception message.
+
+lololool
+s;
+            $self->code    = 'Dummy exception code';
+            $self->file    = '/the/path/to/muh/file';
+            $self->line    = 9000;
+            $self->locals  = array( Variable::introspect( $param, 'lol', Ref::create( 8 ) ),
+                                    Variable::introspect( $param, 'foo', Ref::create( 'bar' ) ) );
+
+            $self->stack   = FunctionCall::mock( $param );
+            $self->globals = Variable::mockGlobals( $param );
+
+            return $self;
+        }
+
+        private $class;
+        /** @var FunctionCall[] */
+        private $stack = array();
+        private $locals;
+        private $code;
+        private $message;
+        private $previous;
+        private $file;
+        private $line;
+        /** @var Variable[]|null */
+        private $globals;
+
+        private function __construct() { }
 
         function className() { return $this->class; }
 
@@ -699,77 +333,354 @@ namespace PrettyPrinter\Values
 
         function previous() { return $this->previous; }
 
-        function render( PrettyPrinter $settings ) { return $settings->renderException( $this ); }
+        function render( PrettyPrinter $settings ) { return $settings->renderExceptionWithGlobals( $this ); }
 
         function stack() { return $this->stack; }
     }
 
-    class ValueExceptionGlobalState
+    class Variable
     {
-        private $class, $function, $name, $value, $access;
+        /**
+         * @param Introspection $i
+         *
+         * @return self[]
+         */
+        static function introspectGlobals( Introspection $i )
+        {
+            $globals = array();
+
+            foreach ( $GLOBALS as $variableName => &$globalValue )
+            {
+                if ( $variableName !== 'GLOBALS' )
+                {
+                    $self           = self::introspect( $i, $variableName, $globalValue );
+                    $self->isGlobal = true;
+
+                    $globals [ ] = $self;
+                }
+            }
+
+            foreach ( get_declared_classes() as $class )
+            {
+                $reflection = new \ReflectionClass( $class );
+
+                foreach ( $reflection->getProperties( \ReflectionProperty::IS_STATIC ) as $property )
+                {
+                    $property->setAccessible( true );
+
+                    $self           = new self( $property->name, $i->introspectValue( $property->getValue() ) );
+                    $self->class    = $property->class;
+                    $self->access   = $i->propertyOrMethodAccess( $property );
+                    $self->isStatic = true;
+
+                    $globals[ ] = $self;
+                }
+
+                foreach ( $reflection->getMethods() as $method )
+                {
+                    $staticVariables = $method->getStaticVariables();
+
+                    foreach ( $staticVariables as $variableName => &$varValue )
+                    {
+                        $self           = self::introspect( $i, $variableName, $varValue );
+                        $self->class    = $method->class;
+                        $self->access   = $i->propertyOrMethodAccess( $method );
+                        $self->function = $method->getName();
+                        $self->isStatic = $method->isStatic();
+
+                        $globals[ ] = $self;
+                    }
+                }
+            }
+
+            foreach ( get_defined_functions() as $section )
+            {
+                foreach ( $section as $function )
+                {
+                    $reflection      = new \ReflectionFunction( $function );
+                    $staticVariables = $reflection->getStaticVariables();
+
+                    foreach ( $staticVariables as $propertyName => &$varValue )
+                    {
+                        $self           = self::introspect( $i, $propertyName, $varValue );
+                        $self->function = $function;
+
+                        $globals[ ] = $self;
+                    }
+                }
+            }
+
+            return $globals;
+        }
+
+        static function introspect( Introspection $i, $name, &$value )
+        {
+            return new self( $name, $i->introspectRef( $value ) );
+        }
+
+        static function introspectObjectProperties( Introspection $i, $object )
+        {
+            $properties = array();
+
+            for ( $reflection = new \ReflectionObject( $object );
+                  $reflection !== false;
+                  $reflection = $reflection->getParentClass() )
+            {
+                foreach ( $reflection->getProperties() as $property )
+                {
+                    if ( $property->isStatic() || $property->class !== $reflection->name )
+                        continue;
+
+                    $property->setAccessible( true );
+
+                    $value          = $property->getValue( $object );
+                    $self           = self::introspect( $i, $property->name, $value );
+                    $self->class    = $property->class;
+                    $self->access   = $i->propertyOrMethodAccess( $property );
+                    $self->isStatic = false;
+
+                    $properties[ ] = $self;
+                }
+            }
+
+            return $properties;
+        }
+
+        static function mockGlobals( Introspection $param )
+        {
+            //  private static BlahClass::$blahProperty                       = null;
+            //  function BlahAnotherClass()::static $public                   = null;
+            //  global ${"lol global"}                                        = null;
+            //  function BlahYetAnotherClass::blahMethod()::static $lolStatic = null;
+            //  global $blahVariable                                          = null;
+
+            $null = $param->introspectValue( null );
+
+            $globals = array();
+
+            $self           = new self( 'blahProperty', $null );
+            $self->class    = 'BlahClass';
+            $self->access   = 'private';
+            $self->isStatic = true;
+
+            $globals[ ] = $self;
+
+            $self           = new self( 'public', $null );
+            $self->function = 'BlahAnotherClass';
+
+            $globals[ ] = $self;
+
+            $self           = new self( 'lol global', $null );
+            $self->isGlobal = true;
+
+            $globals[ ] = $self;
+
+            $self           = new self( 'lolStatic', $null );
+            $self->function = 'blahMethod';
+            $self->class    = 'BlahYetAnotherClass';
+            $self->isStatic = true;
+
+            $globals[ ] = $self;
+
+            $self           = new self( 'blahVariable', $null );
+            $self->isGlobal = true;
+
+            $globals[ ] = $self;
+
+            return $globals;
+        }
+
+        private $name;
+        private $value;
+        private $class;
+        private $function;
+        private $access;
+        private $isGlobal = false;
+        private $isStatic = false;
 
         /**
-         * @param string|null        $class
-         * @param string|null        $function
          * @param string             $name
          * @param ValuePoolReference $value
-         * @param string|null        $access
          */
-        function __construct( $class, $function, $name, $value, $access )
+        private function __construct( $name, ValuePoolReference $value )
         {
-            $this->class    = $class;
-            $this->function = $function;
-            $this->name     = $name;
-            $this->value    = $value;
-            $this->access   = $access;
+            $this->value = $value;
+            $this->name  = $name;
         }
 
-        function access() { return $this->access; }
+        function render( PrettyPrinter $settings )
+        {
+            if ( $this->class !== null )
+            {
+                if ( $this->function !== null )
+                {
+                    $prefix = $settings->text( "function $this->class::$this->function()::static " );
+                }
+                else if ( $this->isStatic )
+                {
+                    $prefix = $settings->text( "$this->access static $this->class::" );
+                }
+                else
+                {
+                    $prefix = $settings->text( "$this->access " );
+                }
+            }
+            else if ( $this->function !== null )
+            {
+                $prefix = $settings->text( "function $this->function()::static " );
+            }
+            else if ( $this->isGlobal )
+            {
+                $prefix = $settings->text( in_array( $this->name, array( '_POST', '_GET', '_SESSION',
+                                                                         '_COOKIE', '_FILES',
+                                                                         '_REQUEST', '_ENV',
+                                                                         '_SERVER' ), true ) ? '' : 'global ' );
+            }
+            else
+            {
+                $prefix = $settings->text();
+            }
 
-        function className() { return $this->class; }
-
-        function functionName() { return $this->function; }
+            return $prefix->appendLines( $settings->renderVariable( $this->name ) );
+        }
 
         function value() { return $this->value; }
-
-        function variableName() { return $this->name; }
     }
 
-    class ValueExceptionStackFrame
+    class FunctionCall
     {
-        private $type, $function, $object, $args, $file, $line;
-
-        /**
-         * @param string|null               $type
-         * @param string|null               $function
-         * @param ValuePoolReference|null   $object
-         * @param ValuePoolReference[]|null $args
-         * @param string|null               $file
-         * @param int|null                  $line
-         *
-         * @internal param null|string $class
-         */
-        function __construct( $type, $function, $object, $args, $file, $line )
+        static function introspect( Introspection $i, array $frame )
         {
-            $this->type     = $type;
-            $this->function = $function;
-            $this->object   = $object;
-            $this->args     = $args;
-            $this->file     = $file;
-            $this->line     = $line;
+            $self = new self( $frame[ 'function' ] );
+
+            if ( array_key_exists( 'file', $frame ) )
+                $self->file = $frame[ 'file' ];
+
+            if ( array_key_exists( 'line', $frame ) )
+                $self->line = $frame[ 'line' ];
+
+            if ( array_key_exists( 'class', $frame ) )
+                $self->class = $frame[ 'class' ];
+
+            if ( array_key_exists( 'args', $frame ) )
+            {
+                $self->args = array();
+
+                foreach ( $frame[ 'args' ] as &$arg )
+                    $self->args[ ] = $i->introspectRef( $arg );
+            }
+
+            if ( array_key_exists( 'object', $frame ) )
+                $self->object = $i->introspectRef( $frame[ 'object' ] );
+
+            if ( array_key_exists( 'type', $frame ) )
+                $self->isStatic = $frame[ 'type' ] === '::';
+
+            return $self;
         }
 
-        function args() { return $this->args; }
+        /**
+         * @param Introspection $param
+         *
+         * @return self[]
+         */
+        static function mock( Introspection $param )
+        {
+            $stack = array();
 
-        function file() { return $this->file; }
+            $self         = new self( 'aFunction' );
+            $self->args   = array( $param->introspectValue( new DummyClass2 ) );
+            $self->file   = '/path/to/muh/file';
+            $self->line   = 1928;
+            $self->object = $param->introspectValue( new DummyClass1 );
+            $self->class  = 'DummyClass1';
 
-        function functionName() { return $this->function; }
+            $stack[ ] = $self;
 
-        function line() { return $this->line; }
+            $self       = new self( 'aFunction' );
+            $self->args = array( $param->introspectValue( new DummyClass2 ) );
+            $self->file = '/path/to/muh/file';
+            $self->line = 1928;
 
-        function object() { return $this->object; }
+            $stack[ ] = $self;
 
-        function type() { return $this->type; }
+            return $stack;
+        }
+
+        private $class;
+        private $function;
+        /** @var ValuePoolReference[]|null */
+        private $args;
+        /** @var ValuePoolReference|null */
+        private $object;
+        private $isStatic;
+        private $file;
+        private $line;
+
+        /**
+         * @param string $function
+         */
+        private function __construct( $function )
+        {
+            $this->function = $function;
+        }
+
+        function location()
+        {
+            return $this->file === null ? '[internal function]' : "$this->file:$this->line";
+        }
+
+        function renderArgs( PrettyPrinter $settings )
+        {
+            if ( $this->args === null )
+                return $settings->text( "( ? )" );
+
+            if ( $this->args === array() )
+                return $settings->text( "()" );
+
+            $pretties    = array();
+            $isMultiLine = false;
+
+            foreach ( $this->args as $arg )
+            {
+                $pretty      = $arg->render( $settings );
+                $isMultiLine = $isMultiLine || $pretty->count() > 1;
+                $pretties[ ] = $pretty;
+            }
+
+            $result = $settings->text();
+
+            foreach ( $pretties as $k => $pretty )
+            {
+                if ( $k !== 0 )
+                    $result->append( ', ' );
+
+                if ( $isMultiLine )
+                    $result->addLines( $pretty );
+                else
+                    $result->appendLines( $pretty );
+            }
+
+            return $result->wrap( "( ", " )" );
+        }
+
+        function render( PrettyPrinter $settings )
+        {
+            return $this->prefix( $settings )
+                        ->append( $this->function )
+                        ->appendLines( $this->renderArgs( $settings ) );
+        }
+
+        function prefix( PrettyPrinter $settings )
+        {
+            if ( $this->object !== null )
+                return $this->object->render( $settings )->append( '->' );
+
+            if ( $this->class !== null )
+                return $settings->text( $this->isStatic ? "$this->class::" : "$this->class->" );
+
+            return $settings->text();
+        }
     }
 
     class ValueFloat extends Value
@@ -784,7 +695,17 @@ namespace PrettyPrinter\Values
             $this->float = $float;
         }
 
-        function render( PrettyPrinter $settings ) { return $settings->renderFloat( $this->float ); }
+        function render( PrettyPrinter $settings )
+        {
+            $int = (int) $this->float;
+
+            return $settings->text( "$int" === "$this->float" ? "$this->float.0" : "$this->float" );
+        }
+
+        function serialize()
+        {
+            return is_nan( $this->float ) || is_infinite( $this->float ) ? "$this->float" : $this->float;
+        }
     }
 
     class ValueInt extends Value
@@ -799,27 +720,29 @@ namespace PrettyPrinter\Values
             $this->int = $int;
         }
 
-        function render( PrettyPrinter $settings ) { return $settings->renderInt( $this->int ); }
+        function render( PrettyPrinter $settings ) { return $settings->text( "$this->int" ); }
     }
 
     class ValueNull extends Value
     {
-        function render( PrettyPrinter $settings ) { return $settings->renderNull(); }
+        function render( PrettyPrinter $settings ) { return $settings->text( 'null' ); }
     }
 
     class ValueObject extends Value
     {
-        private $class, $properties;
-
-        /**
-         * @param string                     $class
-         * @param ValueObjectProperty[]|null $properties
-         */
-        function __construct( $class, array $properties = null )
+        static function introspect( Introspection $i, $object )
         {
-            $this->class      = $class;
-            $this->properties = $properties;
+            $self             = new self;
+            $self->class      = get_class( $object );
+            $self->properties = Variable::introspectObjectProperties( $i, $object );
+
+            return $self;
         }
+
+        private $class;
+        private $properties = array();
+
+        private function __construct() { }
 
         function className() { return $this->class; }
 
@@ -828,46 +751,21 @@ namespace PrettyPrinter\Values
         function render( PrettyPrinter $settings ) { return $settings->renderObject( $this ); }
     }
 
-    class ValueObjectProperty
-    {
-        private $value, $name, $access, $class;
-
-        /**
-         * @param ValuePoolReference $value
-         * @param string             $name
-         * @param string             $access
-         * @param string             $class
-         */
-        function __construct( ValuePoolReference $value, $name, $access, $class )
-        {
-            $this->value  = $value;
-            $this->name   = $name;
-            $this->access = $access;
-            $this->class  = $class;
-        }
-
-        function access() { return $this->access; }
-
-        function className() { return $this->class; }
-
-        function name() { return $this->name; }
-
-        function value() { return $this->value; }
-    }
-
     class ValuePool
     {
         /** @var Value[] */
         private $cells = array();
         private $nextId = 0;
 
-        function fill( $id, IntrospectionValue $wrapped )
+        function fill( $id, \Closure $wrapped )
         {
             if ( $this->cells[ $id ] === null )
-                $this->cells[ $id ] = $wrapped->introspectImpl();
+                $this->cells[ $id ] = $wrapped();
         }
 
         function get( $id ) { return $this->cells[ $id ]; }
+
+        function map() { return $this->cells; }
 
         function newEmpty()
         {
@@ -880,7 +778,14 @@ namespace PrettyPrinter\Values
 
     class ValuePoolReference
     {
-        private $memory, $id;
+        static function deserialize( ValuePool $self, $value )
+        {
+            return new self( $self, $value );
+        }
+
+        private $id;
+        /** @var ValuePool */
+        private $memory;
 
         function __construct( ValuePool $memory, $id )
         {
@@ -888,10 +793,7 @@ namespace PrettyPrinter\Values
             $this->id     = $id;
         }
 
-        /**
-         * @param IntrospectionValue $wrapped
-         */
-        function fill( IntrospectionValue $wrapped )
+        function fill( \Closure $wrapped )
         {
             $this->memory->fill( $this->id, $wrapped );
         }
@@ -900,22 +802,36 @@ namespace PrettyPrinter\Values
 
         function id() { return $this->id; }
 
-        function render( PrettyPrinter $settings ) { return $settings->renderReference( $this ); }
+        function pool() { return $this->memory; }
+
+        function render( PrettyPrinter $settings ) { return $this->get()->render( $settings ); }
     }
 
     class ValueResource extends Value
     {
+        /**
+         * @param resource $value
+         *
+         * @return \PrettyPrinter\Values\ValueResource
+         */
+        static function introspect( $value )
+        {
+            return new self( get_resource_type( $value ) );
+        }
+
         private $resourceType;
 
         /**
          * @param string $resourceType
          */
-        function __construct( $resourceType )
+        private function __construct( $resourceType )
         {
             $this->resourceType = $resourceType;
         }
 
-        function render( PrettyPrinter $settings ) { return new Text( $this->resourceType ); }
+        function render( PrettyPrinter $settings ) { return $settings->text( $this->resourceType ); }
+
+        function resourceType() { return $this->resourceType; }
     }
 
     class ValueString extends Value
@@ -932,7 +848,6 @@ namespace PrettyPrinter\Values
 
     class ValueUnknown extends Value
     {
-        function render( PrettyPrinter $settings ) { return $settings->renderUnknown(); }
+        function render( PrettyPrinter $settings ) { return $settings->text( 'unknown type' ); }
     }
 }
-

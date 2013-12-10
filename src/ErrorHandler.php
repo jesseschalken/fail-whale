@@ -2,12 +2,12 @@
 
 namespace ErrorHandler
 {
-    use PrettyPrinter\HasFullTrace;
-    use PrettyPrinter\HasLocalVariables;
+    use PrettyPrinter\Introspection\ExceptionHasFullTrace;
+    use PrettyPrinter\Introspection\ExceptionHasLocalVariables;
     use PrettyPrinter\PrettyPrinter;
     use PrettyPrinter\Utils\ArrayUtil;
 
-    class AssertionFailedException extends \Exception implements HasFullTrace
+    class AssertionFailedException extends \Exception implements ExceptionHasFullTrace
     {
         private $expression, $fullStackTrace;
 
@@ -20,17 +20,20 @@ namespace ErrorHandler
          */
         function __construct( $file, $line, $expression, $message, array $fullStackTrace )
         {
+            parent::__construct( $message );
+
             $this->file           = $file;
             $this->line           = $line;
             $this->expression     = $expression;
-            $this->message        = $message;
             $this->fullStackTrace = $fullStackTrace;
         }
+
+        function getExpression() { return $this->expression; }
 
         function getFullTrace() { return $this->fullStackTrace; }
     }
 
-    class ErrorException extends \ErrorException implements HasFullTrace, HasLocalVariables
+    class ErrorException extends \ErrorException implements ExceptionHasFullTrace, ExceptionHasLocalVariables
     {
         private $localVariables, $stackTrace;
 
@@ -227,7 +230,7 @@ html;
      *
      * @package ErrorHandler
      */
-    class Exception extends \Exception implements HasFullTrace
+    class Exception extends \Exception implements ExceptionHasFullTrace
     {
         private $stackTrace;
 

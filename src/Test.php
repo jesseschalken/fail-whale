@@ -1,14 +1,43 @@
 <?php
 
-namespace PrettyPrinter
+namespace PrettyPrinter\Test
 {
     use PrettyPrinter\Introspection\Introspection;
-    use PrettyPrinter\Test\DummyClass2;
-    use PrettyPrinter\Test\MockException;
+    use PrettyPrinter\PrettyPrinter;
+    use PrettyPrinter\Values;
     use PrettyPrinter\Values\ValuePool;
+
+    class DummyClass1
+    {
+        private static /** @noinspection PhpUnusedPrivateFieldInspection */
+                $privateStatic1;
+        protected static $protectedStatic1;
+        public static $publicStatic1;
+        private /** @noinspection PhpUnusedPrivateFieldInspection */
+                $private1;
+        protected $protected1;
+        public $public1;
+    }
+
+    class DummyClass2 extends DummyClass1
+    {
+        private static /** @noinspection PhpUnusedPrivateFieldInspection */
+                $privateStatic2;
+        protected static $protectedStatic2;
+        public static $publicStatic2;
+        private /** @noinspection PhpUnusedPrivateFieldInspection */
+                $private2;
+        protected $protected2;
+        public $public2;
+    }
 
     class PrettyPrinterTest extends \PHPUnit_Framework_TestCase
     {
+        private static function pp()
+        {
+            return new PrettyPrinter;
+        }
+
         function testClosure()
         {
             self::pp()->assertPrettyIs( function () { }, <<<'s'
@@ -16,11 +45,6 @@ new Closure #1 {
 }
 s
             );
-        }
-
-        private static function pp()
-        {
-            return new PrettyPrinter;
         }
 
         function testComplexObject()
@@ -120,9 +144,9 @@ s
 
         function testException()
         {
-            $exception = new MockException;
+            $exception = Values\ValueException::mock( new Introspection( new Values\ValuePool ) );
 
-            self::assertEquals( $exception->render( self::pp() )->__toString(), <<<'s'
+            self::assertEquals( $exception->render( self::pp() )->toString(), <<<'s'
 MuhMockException Dummy exception code in /the/path/to/muh/file:9000
 
     This is a dummy exception message.
@@ -320,84 +344,4 @@ s
         }
     }
 }
-
-namespace PrettyPrinter\Test
-{
-    use PrettyPrinter\Introspection\Introspection;
-    use PrettyPrinter\Values;
-    use PrettyPrinter\Values\ValueExceptionGlobalState;
-
-    class DummyClass1
-    {
-        private static /** @noinspection PhpUnusedPrivateFieldInspection */
-                $privateStatic1;
-        protected static $protectedStatic1;
-        public static $publicStatic1;
-        private /** @noinspection PhpUnusedPrivateFieldInspection */
-                $private1;
-        protected $protected1;
-        public $public1;
-    }
-
-    class DummyClass2 extends DummyClass1
-    {
-        private static /** @noinspection PhpUnusedPrivateFieldInspection */
-                $privateStatic2;
-        protected static $protectedStatic2;
-        public static $publicStatic2;
-        private /** @noinspection PhpUnusedPrivateFieldInspection */
-                $private2;
-        protected $protected2;
-        public $public2;
-    }
-
-    class MockException extends Values\ValueException
-    {
-        function __construct()
-        {
-            $any = new Introspection( new Values\ValuePool );
-
-            $class    = 'MuhMockException';
-            $message  = <<<'s'
-This is a dummy exception message.
-
-lololool
-s;
-            $code     = 'Dummy exception code';
-            $file     = '/the/path/to/muh/file';
-            $line = 9000;
-            $previous = null;
-            $locals = array(
-                'lol' => $any->wrap( 8 )->introspect(),
-                'foo' => $any->wrap( 'bar' )->introspect(),
-            );
-            $stack = array(
-                new Values\ValueExceptionStackFrame( '->',
-                                                     'aFunction',
-                                                     $any->wrap( new DummyClass1 )->introspect(),
-                                                     array( $any->wrap( new DummyClass2 )->introspect() ),
-                                                     '/path/to/muh/file',
-                                                     1928 ),
-                new Values\ValueExceptionStackFrame( '->',
-                                                     'aFunction',
-                                                     $any->wrapDummyObject( 'objectWithoutProperties' )->introspect(),
-                                                     array( $any->wrap( new DummyClass2 )->introspect() ),
-                                                     '/path/to/muh/file',
-                                                     1928 )
-            );
-
-            $null    = $any->wrap( null )->introspect();
-            $globals = array(
-                new ValueExceptionGlobalState( 'BlahClass', null, 'blahProperty', $null, 'private' ),
-                new ValueExceptionGlobalState( null, 'BlahAnotherClass', 'public', $null, null ),
-                new ValueExceptionGlobalState( null, null, 'lol global', $null, null ),
-                new ValueExceptionGlobalState( 'BlahYetAnotherClass', 'blahMethod', 'lolStatic', $null, null ),
-                new ValueExceptionGlobalState( null, null, 'blahVariable', $null, null ),
-            );
-
-            parent::__construct( $class, $file, $line, $stack, $globals, $locals, $code, $message, $previous );
-        }
-    }
-}
-
 
