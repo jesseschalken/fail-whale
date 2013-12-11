@@ -53,18 +53,18 @@ namespace PrettyPrinter
         {
             $introspection = new Introspection( new ValuePool );
 
-            return $introspection->introspectRef( $ref )->render( $this )
+            return $introspection->introspectRef( $ref )->serialuzeUnserialize()->render( $this )
                                  ->setHasEndingNewline( false )->toString();
         }
 
         function renderArray( Values\ValueArray $object )
         {
-            if ( $object->keyValuePairs() === array() )
+            if ( $object->entries() === array() )
                 return $this->text( 'array()' );
 
             $table = new Table;
 
-            foreach ( $object->keyValuePairs() as $keyValuePair )
+            foreach ( $object->entries() as $keyValuePair )
             {
                 if ( ( $table->count() + 1 ) > $this->maxArrayEntries )
                     break;
@@ -72,7 +72,7 @@ namespace PrettyPrinter
                 $key   = $keyValuePair->key()->render( $this );
                 $value = $keyValuePair->value()->render( $this );
 
-                if ( $table->count() != count( $object->keyValuePairs() ) - 1 )
+                if ( $table->count() != count( $object->entries() ) - 1 )
                     $value->append( ',' );
 
                 $table->addRow( $object->isAssociative()
@@ -82,7 +82,7 @@ namespace PrettyPrinter
 
             $result = $table->render();
 
-            if ( $table->count() < count( $object->keyValuePairs() ) )
+            if ( $table->count() < count( $object->entries() ) )
                 $result->addLine( '...' );
 
             return $result->wrap( 'array( ', ' )' );

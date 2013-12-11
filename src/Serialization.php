@@ -2,7 +2,4 @@
 
 namespace PrettyPrinter\Serialization
 {
-    class Serialization
-    {
-    }
 }

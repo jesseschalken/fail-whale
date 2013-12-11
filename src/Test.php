@@ -144,8 +144,9 @@ s
 
         function testException()
         {
-            $exception = Values\ValueException::mock( new Introspection( new Values\ValuePool ) );
-
+            $i = new Introspection( new Values\ValuePool );
+            $exception = $i->introspectMockException()->serialuzeUnserialize();
+            
             self::assertEquals( $exception->render( self::pp() )->toString(), <<<'s'
 MuhMockException Dummy exception code in /the/path/to/muh/file:9000
 
@@ -314,6 +315,7 @@ s
             $pp->assertPrettyIs( true, "true" );
             $pp->assertPrettyIs( INF, "INF" );
             $pp->assertPrettyIs( -INF, "-INF" );
+            $pp->assertPrettyIs( NAN, "NAN" );
             $pp->assertPrettyIs( (float) 0, "0.0" );
             $pp->assertPrettyIs( 0, "0" );
             $pp->assertPrettyIs( 0.0, "0.0" );
