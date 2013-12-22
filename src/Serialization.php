@@ -1,5 +1,4 @@
 <?php
 
-namespace PrettyPrinter\Serialization
-{
+namespace PrettyPrinter\Serialization {
 }

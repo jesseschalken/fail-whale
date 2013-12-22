@@ -18,110 +18,153 @@
           <option name="XML_LEGACY_SETTINGS_IMPORTED" value="true" />
         </XML>
         <codeStyleSettings language="PHP">
-          <option name="KEEP_FIRST_COLUMN_COMMENT" value="false" />
-          <option name="KEEP_BLANK_LINES_IN_DECLARATIONS" value="1" />
-          <option name="KEEP_BLANK_LINES_IN_CODE" value="1" />
-          <option name="KEEP_BLANK_LINES_BEFORE_RBRACE" value="0" />
-          <option name="BLANK_LINES_AFTER_PACKAGE" value="1" />
-          <option name="BRACE_STYLE" value="2" />
-          <option name="ELSE_ON_NEW_LINE" value="true" />
-          <option name="WHILE_ON_NEW_LINE" value="true" />
-          <option name="CATCH_ON_NEW_LINE" value="true" />
-          <option name="FINALLY_ON_NEW_LINE" value="true" />
-          <option name="SPECIAL_ELSE_IF_TREATMENT" value="true" />
+          <option name="CLASS_BRACE_STYLE" value="1" />
+          <option name="METHOD_BRACE_STYLE" value="1" />
           <option name="ALIGN_MULTILINE_CHAINED_METHODS" value="true" />
           <option name="ALIGN_MULTILINE_PARAMETERS_IN_CALLS" value="true" />
           <option name="ALIGN_MULTILINE_BINARY_OPERATION" value="true" />
           <option name="ALIGN_MULTILINE_TERNARY_OPERATION" value="true" />
           <option name="ALIGN_MULTILINE_EXTENDS_LIST" value="true" />
           <option name="ALIGN_MULTILINE_ARRAY_INITIALIZER_EXPRESSION" value="true" />
-          <option name="SPACE_WITHIN_PARENTHESES" value="true" />
-          <option name="SPACE_WITHIN_METHOD_CALL_PARENTHESES" value="true" />
-          <option name="SPACE_WITHIN_METHOD_PARENTHESES" value="true" />
-          <option name="SPACE_WITHIN_IF_PARENTHESES" value="true" />
-          <option name="SPACE_WITHIN_WHILE_PARENTHESES" value="true" />
-          <option name="SPACE_WITHIN_FOR_PARENTHESES" value="true" />
-          <option name="SPACE_WITHIN_CATCH_PARENTHESES" value="true" />
-          <option name="SPACE_WITHIN_SWITCH_PARENTHESES" value="true" />
-          <option name="SPACE_WITHIN_BRACKETS" value="true" />
-          <option name="SPACE_WITHIN_ARRAY_INITIALIZER_BRACES" value="true" />
-          <option name="SPACE_AFTER_TYPE_CAST" value="true" />
-          <option name="CALL_PARAMETERS_WRAP" value="1" />
-          <option name="METHOD_PARAMETERS_WRAP" value="1" />
-          <option name="EXTENDS_LIST_WRAP" value="1" />
-          <option name="EXTENDS_KEYWORD_WRAP" value="1" />
-          <option name="METHOD_CALL_CHAIN_WRAP" value="1" />
-          <option name="BINARY_OPERATION_WRAP" value="1" />
-          <option name="TERNARY_OPERATION_WRAP" value="1" />
-          <option name="TERNARY_OPERATION_SIGNS_ON_NEXT_LINE" value="true" />
           <option name="KEEP_SIMPLE_METHODS_IN_ONE_LINE" value="true" />
-          <option name="FOR_STATEMENT_WRAP" value="1" />
-          <option name="ARRAY_INITIALIZER_WRAP" value="1" />
-          <indentOptions>
-            <option name="CONTINUATION_INDENT_SIZE" value="8" />
-            <option name="SMART_TABS" value="true" />
-          </indentOptions>
           <arrangement>
+            <groups>
+              <group>
+                <type>GETTERS_AND_SETTERS</type>
+                <order>KEEP</order>
+              </group>
+              <group>
+                <type>DEPENDENT_METHODS</type>
+                <order>DEPTH_FIRST</order>
+              </group>
+            </groups>
             <rules>
               <rule>
                 <match>
                   <CONST />
                 </match>
-                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
                   <AND>
                     <FIELD />
+                    <PUBLIC />
                     <STATIC />
                   </AND>
                 </match>
-                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
                   <AND>
-                    <METHOD />
+                    <FIELD />
+                    <PROTECTED />
                     <STATIC />
                   </AND>
                 </match>
-                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
-                  <FIELD />
+                  <AND>
+                    <FIELD />
+                    <PRIVATE />
+                    <STATIC />
+                  </AND>
                 </match>
-                <order>BY_NAME</order>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <FIELD />
+                    <PUBLIC />
+                  </AND>
+                </match>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <FIELD />
+                    <PROTECTED />
+                  </AND>
+                </match>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <FIELD />
+                    <PRIVATE />
+                  </AND>
+                </match>
               </rule>
               <rule>
                 <match>
                   <CONSTRUCTOR />
                 </match>
-                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
-                  <METHOD />
+                  <AND>
+                    <METHOD />
+                    <PUBLIC />
+                    <STATIC />
+                  </AND>
                 </match>
-                <order>BY_NAME</order>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <METHOD />
+                    <PROTECTED />
+                    <STATIC />
+                  </AND>
+                </match>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <METHOD />
+                    <PRIVATE />
+                    <STATIC />
+                  </AND>
+                </match>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <METHOD />
+                    <PUBLIC />
+                  </AND>
+                </match>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <METHOD />
+                    <PROTECTED />
+                  </AND>
+                </match>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <METHOD />
+                    <PRIVATE />
+                  </AND>
+                </match>
               </rule>
               <rule>
                 <match>
                   <TRAIT />
                 </match>
-                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
                   <INTERFACE />
                 </match>
-                <order>BY_NAME</order>
               </rule>
               <rule>
                 <match>
                   <CLASS />
                 </match>
-                <order>BY_NAME</order>
               </rule>
             </rules>
           </arrangement>

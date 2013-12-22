@@ -1,72 +1,64 @@
 <?php
 
-namespace PrettyPrinter\Introspection
-{
+namespace PrettyPrinter\Introspection {
     use PrettyPrinter\Utils\Ref;
     use PrettyPrinter\Values;
 
-    interface ExceptionHasFullTrace
-    {
+    interface ExceptionHasFullTrace {
         /**
          * @return array
          */
         function getFullTrace();
     }
 
-    interface ExceptionHasLocalVariables
-    {
+    interface ExceptionHasLocalVariables {
         /**
          * @return array|null
          */
         function getLocalVariables();
     }
 
-    class Introspection
-    {
+    class Introspection {
         private $cacheArrayRef = array();
         private $cacheByString = array();
         private $pool;
 
-        function __construct( Values\ValuePool $pool )
-        {
+        function __construct(Values\ValuePool $pool) {
             $this->pool = $pool;
         }
 
-        private function introspectCacheArrayRef( \Closure $wrapped, &$reference )
-        {
-            foreach ( $this->cacheArrayRef as $ref )
-                if ( Ref::equal( $reference, $ref[ 1 ] ) )
-                    return $ref[ 0 ];
+        private function introspectCacheArrayRef(\Closure $wrapped, &$reference) {
+            foreach ($this->cacheArrayRef as $ref)
+                if (Ref::equal($reference, $ref[1]))
+                    return $ref[0];
 
             $id = $this->pool->newEmpty();
 
-            array_unshift( $this->cacheArrayRef, array( $id, &$reference ) );
+            array_unshift($this->cacheArrayRef, array($id, &$reference));
 
-            $id->fill( $wrapped );
+            $id->fill($wrapped);
 
-            array_shift( $this->cacheArrayRef );
+            array_shift($this->cacheArrayRef);
 
             return $id;
         }
 
-        private function introspectCacheByString( \Closure $wrapped, $type, $string )
-        {
-            if ( isset( $this->cacheByString[ $type ][ $string ] ) )
-                return $this->cacheByString[ $type ][ $string ];
+        private function introspectCacheByString(\Closure $wrapped, $type, $string) {
+            if (isset($this->cacheByString[$type][$string]))
+                return $this->cacheByString[$type][$string];
 
             $ref = $this->pool->newEmpty();
 
-            $this->cacheByString[ $type ][ $string ] = $ref;
+            $this->cacheByString[$type][$string] = $ref;
 
-            $ref->fill( $wrapped );
+            $ref->fill($wrapped);
 
             return $ref;
         }
 
-        private function introspectNoCache( \Closure $wrapped )
-        {
+        private function introspectNoCache(\Closure $wrapped) {
             $ref = $this->pool->newEmpty();
-            $ref->fill( $wrapped );
+            $ref->fill($wrapped);
 
             return $ref;
         }
@@ -76,9 +68,8 @@ namespace PrettyPrinter\Introspection
          *
          * @return string
          */
-        function propertyOrMethodAccess( $property )
-        {
-            return $property->isPrivate() ? 'private' : ( $property->isPublic() ? 'public' : 'protected' );
+        function propertyOrMethodAccess($property) {
+            return $property->isPrivate() ? 'private' : ($property->isPublic() ? 'public' : 'protected');
         }
 
         /**
@@ -86,91 +77,69 @@ namespace PrettyPrinter\Introspection
          *
          * @return Values\ValuePoolReference
          */
-        function introspectRef( &$value )
-        {
+        function introspectRef(&$value) {
             $that = $this;
 
-            if ( is_string( $value ) )
-            {
-                $f = function () use ( $value ) { return new Values\ValueString( $value ); };
+            if (is_string($value)) {
+                $f = function () use ($value) { return new Values\ValueString($value); };
 
-                return $this->introspectCacheByString( $f, 'string', "$value" );
-            }
-            else if ( is_int( $value ) )
-            {
-                $f = function () use ( $value ) { return new Values\ValueInt( $value ); };
+                return $this->introspectCacheByString($f, 'string', "$value");
+            } else if (is_int($value)) {
+                $f = function () use ($value) { return new Values\ValueInt($value); };
 
-                return $this->introspectCacheByString( $f, 'int', "$value" );
-            }
-            else if ( is_bool( $value ) )
-            {
-                $f = function () use ( $value ) { return new Values\ValueBool( $value ); };
+                return $this->introspectCacheByString($f, 'int', "$value");
+            } else if (is_bool($value)) {
+                $f = function () use ($value) { return new Values\ValueBool($value); };
 
-                return $this->introspectCacheByString( $f, 'bool', "$value" );
-            }
-            else if ( is_null( $value ) )
-            {
-                $f = function () use ( $value ) { return new Values\ValueNull( $value ); };
+                return $this->introspectCacheByString($f, 'bool', "$value");
+            } else if (is_null($value)) {
+                $f = function () use ($value) { return new Values\ValueNull($value); };
 
-                return $this->introspectCacheByString( $f, 'null', "$value" );
-            }
-            else if ( is_float( $value ) )
-            {
-                $f = function () use ( $value ) { return new Values\ValueFloat( $value ); };
+                return $this->introspectCacheByString($f, 'null', "$value");
+            } else if (is_float($value)) {
+                $f = function () use ($value) { return new Values\ValueFloat($value); };
 
-                return $this->introspectCacheByString( $f, 'float', "$value" );
-            }
-            else if ( is_array( $value ) )
-            {
-                $f = function () use ( $that, $value ) { return Values\ValueArray::introspect( $that, $value ); };
+                return $this->introspectCacheByString($f, 'float', "$value");
+            } else if (is_array($value)) {
+                $f = function () use ($that, $value) { return Values\ValueArray::introspect($that, $value); };
 
-                return $this->introspectCacheArrayRef( $f, $value );
-            }
-            else if ( is_object( $value ) )
-            {
-                $f = function () use ( $that, $value ) { return Values\ValueObject::introspect( $that, $value ); };
+                return $this->introspectCacheArrayRef($f, $value);
+            } else if (is_object($value)) {
+                $f = function () use ($that, $value) { return Values\ValueObject::introspect($that, $value); };
 
-                return $this->introspectCacheByString( $f, 'object', spl_object_hash( $value ) );
-            }
-            else if ( is_resource( $value ) )
-            {
-                $f = function () use ( $value ) { return Values\ValueResource::introspect( $value ); };
+                return $this->introspectCacheByString($f, 'object', spl_object_hash($value));
+            } else if (is_resource($value)) {
+                $f = function () use ($value) { return Values\ValueResource::introspect($value); };
 
-                return $this->introspectCacheByString( $f, 'resource', "$value" );
-            }
-            else
-            {
-                $f = function () use ( $value ) { return new Values\ValueUnknown; };
+                return $this->introspectCacheByString($f, 'resource', "$value");
+            } else {
+                $f = function () use ($value) { return new Values\ValueUnknown; };
 
-                return $this->introspectCacheByString( $f, 'unknown', '' );
+                return $this->introspectCacheByString($f, 'unknown', '');
             }
         }
 
-        function introspectValue( $value )
-        {
-            return $this->introspectRef( $value );
+        function introspectValue($value) {
+            return $this->introspectRef($value);
         }
 
-        function introspectException( \Exception $e )
-        {
+        function introspectException(\Exception $e) {
             $that = $this;
-            $f    = function () use ( $that, $e ) { return Values\ValueException::introspect( $that, $e ); };
+            $f    = function () use ($that, $e) { return Values\ValueException::introspect($that, $e); };
 
-            return $this->introspectCacheByString( $f, 'exception', spl_object_hash( $e ) );
+            return $this->introspectCacheByString($f, 'exception', spl_object_hash($e));
         }
 
-        function introspectMockException()
-        {
+        function introspectMockException() {
             $that = $this;
-            $f    = function () use ( $that ) { return Values\ValueException::mock( $that ); };
+            $f    = function () use ($that) { return Values\ValueException::mock($that); };
 
-            return $this->introspectNoCache( $f );
+            return $this->introspectNoCache($f);
         }
     }
 }
 
-namespace PrettyPrinter\Values
-{
+namespace PrettyPrinter\Values {
     use ErrorHandler\Exception;
     use PrettyPrinter\Introspection\ExceptionHasFullTrace;
     use PrettyPrinter\Introspection\ExceptionHasLocalVariables;
@@ -182,45 +151,41 @@ namespace PrettyPrinter\Values
     use PrettyPrinter\Utils\Ref;
     use PrettyPrinter\Utils\Text;
 
-    abstract class Value
-    {
-        static function deserialize( ValuePool $pool, $v )
-        {
-            if ( is_bool( $v ) )
-                return new ValueBool( $v );
+    abstract class Value {
+        static function deserialize(ValuePool $pool, $v) {
+            if (is_bool($v))
+                return new ValueBool($v);
 
-            if ( is_string( $v ) )
-                return new ValueString( $v );
+            if (is_string($v))
+                return new ValueString($v);
 
-            if ( is_null( $v ) )
+            if (is_null($v))
                 return new ValueNull;
 
-            if ( is_float( $v ) )
-                return new ValueFloat( $v );
+            if (is_float($v))
+                return new ValueFloat($v);
 
-            if ( is_int( $v ) )
-                return new ValueInt( $v );
+            if (is_int($v))
+                return new ValueInt($v);
 
-            if ( is_array( $v ) )
-            {
-                switch ( $v[ 'type' ] )
-                {
+            if (is_array($v)) {
+                switch ($v['type']) {
                     case 'object':
-                        return ValueObject::deserialize( $pool, $v );
+                        return ValueObject::deserialize($pool, $v);
                     case 'float':
-                        return ValueFloat::deserialize( $pool, $v );
+                        return ValueFloat::deserialize($pool, $v);
                     case 'array':
-                        return ValueArray::deserialize( $pool, $v );
+                        return ValueArray::deserialize($pool, $v);
                     case 'exception':
-                        return ValueException::deserialize( $pool, $v );
+                        return ValueException::deserialize($pool, $v);
                     case 'resource':
-                        return ValueResource::deserialize( $pool, $v );
+                        return ValueResource::deserialize($pool, $v);
                     case 'unknown':
                         return new ValueUnknown;
                 }
             }
 
-            throw new Exception( "Invalid JSON value" );
+            throw new Exception("Invalid JSON value");
         }
 
         /**
@@ -228,20 +193,18 @@ namespace PrettyPrinter\Values
          *
          * @return Text
          */
-        abstract function render( PrettyPrinter $settings );
+        abstract function render(PrettyPrinter $settings);
 
         abstract function serialize();
     }
 
-    class ValueArray extends Value
-    {
-        static function introspect( Introspection $introspection, array $array )
-        {
+    class ValueArray extends Value {
+        static function introspect(Introspection $introspection, array $array) {
             $self                = new self;
-            $self->isAssociative = ArrayUtil::isAssoc( $array );
+            $self->isAssociative = ArrayUtil::isAssoc($array);
 
-            foreach ( $array as $k => &$v )
-                $self->entries[ ] = ArrayEntry::introspect( $introspection, $k, $v );
+            foreach ($array as $k => &$v)
+                $self->entries[] = ArrayEntry::introspect($introspection, $k, $v);
 
             return $self;
         }
@@ -256,48 +219,43 @@ namespace PrettyPrinter\Values
 
         function entries() { return $this->entries; }
 
-        function render( PrettyPrinter $settings ) { return $settings->renderArray( $this ); }
+        function render(PrettyPrinter $settings) { return $settings->renderArray($this); }
 
-        function serialize()
-        {
+        function serialize() {
             $entries = array();
 
-            foreach ( $this->entries as $entry )
-                $entries[ ] = $entry->serialize();
+            foreach ($this->entries as $entry)
+                $entries[] = $entry->serialize();
 
-            return array( 'type'          => 'array',
-                          'isAssociative' => $this->isAssociative,
-                          'entries'       => $entries );
+            return array('type'          => 'array',
+                         'isAssociative' => $this->isAssociative,
+                         'entries'       => $entries);
         }
 
-        static function deserialize( ValuePool $pool, $v )
-        {
+        static function deserialize(ValuePool $pool, $v) {
             $self                = new self;
-            $self->isAssociative = $v[ 'isAssociative' ];
+            $self->isAssociative = $v['isAssociative'];
 
-            foreach ( $v[ 'entries' ] as $entry )
-                $self->entries[ ] = ArrayEntry::deserialize( $pool, $entry );
+            foreach ($v['entries'] as $entry)
+                $self->entries[] = ArrayEntry::deserialize($pool, $entry);
 
             return $self;
         }
     }
 
-    class ArrayEntry
-    {
-        static function introspect( Introspection $introspection, &$k, &$v )
-        {
+    class ArrayEntry {
+        static function introspect(Introspection $introspection, &$k, &$v) {
             $self        = new self;
-            $self->key   = $introspection->introspectRef( $k );
-            $self->value = $introspection->introspectRef( $v );
+            $self->key   = $introspection->introspectRef($k);
+            $self->value = $introspection->introspectRef($v);
 
             return $self;
         }
 
-        static function deserialize( ValuePool $pool, $value )
-        {
+        static function deserialize(ValuePool $pool, $value) {
             $self        = new self;
-            $self->key   = $pool->deserializeRef( $value[ 'key' ] );
-            $self->value = $pool->deserializeRef( $value[ 'value' ] );
+            $self->key   = $pool->deserializeRef($value['key']);
+            $self->value = $pool->deserializeRef($value['value']);
 
             return $self;
         }
@@ -313,76 +271,66 @@ namespace PrettyPrinter\Values
 
         function value() { return $this->value; }
 
-        function serialize()
-        {
-            return array( 'key'   => $this->key->serialize(),
-                          'value' => $this->value->serialize() );
+        function serialize() {
+            return array('key'   => $this->key->serialize(),
+                         'value' => $this->value->serialize());
         }
     }
 
-    class ValueBool extends Value
-    {
+    class ValueBool extends Value {
         private $bool;
 
         /**
          * @param bool $bool
          */
-        function __construct( $bool )
-        {
+        function __construct($bool) {
             $this->bool = $bool;
         }
 
-        function render( PrettyPrinter $settings ) { return $settings->text( $this->bool ? 'true' : 'false' ); }
+        function render(PrettyPrinter $settings) { return $settings->text($this->bool ? 'true' : 'false'); }
 
-        function serialize()
-        {
+        function serialize() {
             return $this->bool;
         }
     }
 
-    class ValueException extends Value
-    {
-        static function introspect( Introspection $i, \Exception $e )
-        {
-            $self          = self::introspectException( $i, $e );
-            $self->globals = Variable::introspectGlobals( $i );
+    class ValueException extends Value {
+        static function introspect(Introspection $i, \Exception $e) {
+            $self          = self::introspectException($i, $e);
+            $self->globals = Variable::introspectGlobals($i);
 
             return $self;
         }
 
-        private static function introspectException( Introspection $i, \Exception $e )
-        {
+        private static function introspectException(Introspection $i, \Exception $e) {
             $self            = new self;
-            $self->className = get_class( $e );
+            $self->className = get_class($e);
             $self->code      = $e->getCode();
             $self->message   = $e->getMessage();
             $self->line      = $e->getLine();
             $self->file      = $e->getFile();
 
-            if ( $e->getPrevious() !== null )
-                $self->previous = self::introspectException( $i, $e->getPrevious() );
+            if ($e->getPrevious() !== null)
+                $self->previous = self::introspectException($i, $e->getPrevious());
 
-            if ( $e instanceof ExceptionHasLocalVariables && $e->getLocalVariables() !== null )
-            {
+            if ($e instanceof ExceptionHasLocalVariables && $e->getLocalVariables() !== null) {
                 $self->locals = array();
 
                 $locals = $e->getLocalVariables();
-                foreach ( $locals as $name => &$value )
-                    $self->locals[ ] = Variable::introspect( $i, $name, $value );
+                foreach ($locals as $name => &$value)
+                    $self->locals[] = Variable::introspect($i, $name, $value);
             }
 
-            foreach ( $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace() as $frame )
-                $self->stack[ ] = FunctionCall::introspect( $i, $frame );
+            foreach ($e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace() as $frame)
+                $self->stack[] = FunctionCall::introspect($i, $frame);
 
             return $self;
         }
 
-        private static function introspectGlobals( Introspection $i )
-        {
+        private static function introspectGlobals(Introspection $i) {
         }
 
-        static function mock( Introspection $param )
-        {
+        static function mock(Introspection $param) {
             $self            = new self;
             $self->className = 'MuhMockException';
             $self->message   = <<<'s'
@@ -393,11 +341,11 @@ s;
             $self->code      = 'Dummy exception code';
             $self->file      = '/the/path/to/muh/file';
             $self->line      = 9000;
-            $self->locals    = array( Variable::introspect( $param, 'lol', Ref::create( 8 ) ),
-                                      Variable::introspect( $param, 'foo', Ref::create( 'bar' ) ) );
+            $self->locals    = array(Variable::introspect($param, 'lol', Ref::create(8)),
+                                     Variable::introspect($param, 'foo', Ref::create('bar')));
 
-            $self->stack   = FunctionCall::mock( $param );
-            $self->globals = Variable::mockGlobals( $param );
+            $self->stack   = FunctionCall::mock($param);
+            $self->globals = Variable::mockGlobals($param);
 
             return $self;
         }
@@ -434,92 +382,86 @@ s;
 
         function previous() { return $this->previous; }
 
-        function render( PrettyPrinter $settings ) { return $settings->renderExceptionWithGlobals( $this ); }
+        function render(PrettyPrinter $settings) { return $settings->renderExceptionWithGlobals($this); }
 
         function stack() { return $this->stack; }
 
-        function serialize()
-        {
+        function serialize() {
             $stack    = array();
             $locals   = null;
             $previous = $this->previous === null ? null : $this->previous->serialize();
             $globals  = null;
 
-            foreach ( $this->stack as $frame )
-                $stack[ ] = $frame->serialize();
+            foreach ($this->stack as $frame)
+                $stack[] = $frame->serialize();
 
-            if ( $this->locals !== null )
-            {
+            if ($this->locals !== null) {
                 $locals = array();
 
-                foreach ( $this->locals as $local )
-                    $locals[ ] = $local->serialize();
+                foreach ($this->locals as $local)
+                    $locals[] = $local->serialize();
             }
 
-            if ( $this->globals !== null )
-            {
+            if ($this->globals !== null) {
                 $globals = array();
 
-                foreach ( $this->globals as $global )
-                    $globals[ ] = $global->serialize();
+                foreach ($this->globals as $global)
+                    $globals[] = $global->serialize();
             }
 
-            return array( 'type'      => 'exception',
-                          'className' => $this->className,
-                          'stack'     => $stack,
-                          'locals'    => $locals,
-                          'code'      => $this->code,
-                          'message'   => $this->message,
-                          'previous'  => $previous,
-                          'file'      => $this->file,
-                          'line'      => $this->line,
-                          'globals'   => $globals );
+            return array(
+                'type'      => 'exception',
+                'className' => $this->className,
+                'stack'     => $stack,
+                'locals'    => $locals,
+                'code'      => $this->code,
+                'message'   => $this->message,
+                'previous'  => $previous,
+                'file'      => $this->file,
+                'line'      => $this->line,
+                'globals'   => $globals,
+            );
         }
 
-        static function deserialize( ValuePool $pool, $v )
-        {
+        static function deserialize(ValuePool $pool, $v) {
             $self            = new self;
-            $self->className = $v[ 'className' ];
-            $self->code      = $v[ 'code' ];
-            $self->message   = $v[ 'message' ];
-            $self->file      = $v[ 'file' ];
-            $self->line      = $v[ 'line' ];
+            $self->className = $v['className'];
+            $self->code      = $v['code'];
+            $self->message   = $v['message'];
+            $self->file      = $v['file'];
+            $self->line      = $v['line'];
 
-            foreach ( $v[ 'stack' ] as $frame )
-                $self->stack[ ] = FunctionCall::deserialize( $pool, $frame );
+            foreach ($v['stack'] as $frame)
+                $self->stack[] = FunctionCall::deserialize($pool, $frame);
 
-            $self->previous = $v[ 'previous' ] === null ? null : self::deserialize( $pool, $v[ 'previous' ] );
+            $self->previous = $v['previous'] === null ? null : self::deserialize($pool, $v['previous']);
 
-            if ( $v[ 'locals' ] !== null )
-            {
+            if ($v['locals'] !== null) {
                 $self->locals = array();
 
-                foreach ( $v[ 'locals' ] as $local )
-                    $self->locals[ ] = Variable::deserialize( $pool, $local );
+                foreach ($v['locals'] as $local)
+                    $self->locals[] = Variable::deserialize($pool, $local);
             }
 
-            if ( $v[ 'globals' ] !== null )
-            {
+            if ($v['globals'] !== null) {
                 $self->globals = array();
 
-                foreach ( $v[ 'globals' ] as $global )
-                    $self->globals[ ] = Variable::deserialize( $pool, $global );
+                foreach ($v['globals'] as $global)
+                    $self->globals[] = Variable::deserialize($pool, $global);
             }
 
             return $self;
         }
     }
 
-    class Variable
-    {
-        static function deserialize( ValuePool $pool, $prop )
-        {
-            $self               = new self( $prop[ 'name' ], $pool->deserializeRef( $prop[ 'value' ] ) );
-            $self->functionName = $prop[ 'functionName' ];
-            $self->access       = $prop[ 'access' ];
-            $self->isGlobal     = $prop[ 'isGlobal' ];
-            $self->isStatic     = $prop[ 'isStatic' ];
-            $self->className    = $prop[ 'className' ];
+    class Variable {
+        static function deserialize(ValuePool $pool, $prop) {
+            $self               = new self($prop['name'], $pool->deserializeRef($prop['value']));
+            $self->functionName = $prop['functionName'];
+            $self->access       = $prop['access'];
+            $self->isGlobal     = $prop['isGlobal'];
+            $self->isStatic     = $prop['isStatic'];
+            $self->className    = $prop['className'];
 
             return $self;
         }
@@ -529,67 +471,57 @@ s;
          *
          * @return self[]
          */
-        static function introspectGlobals( Introspection $i )
-        {
+        static function introspectGlobals(Introspection $i) {
             $globals = array();
 
-            foreach ( $GLOBALS as $variableName => &$globalValue )
-            {
-                if ( $variableName !== 'GLOBALS' )
-                {
-                    $self           = self::introspect( $i, $variableName, $globalValue );
+            foreach ($GLOBALS as $variableName => &$globalValue) {
+                if ($variableName !== 'GLOBALS') {
+                    $self           = self::introspect($i, $variableName, $globalValue);
                     $self->isGlobal = true;
 
-                    $globals [ ] = $self;
+                    $globals [] = $self;
                 }
             }
 
-            foreach ( get_declared_classes() as $class )
-            {
-                $reflection = new \ReflectionClass( $class );
+            foreach (get_declared_classes() as $class) {
+                $reflection = new \ReflectionClass($class);
 
-                foreach ( $reflection->getProperties( \ReflectionProperty::IS_STATIC ) as $property )
-                {
-                    $property->setAccessible( true );
+                foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
+                    $property->setAccessible(true);
 
-                    $self            = new self( $property->name, $i->introspectValue( $property->getValue() ) );
+                    $self            = new self($property->name, $i->introspectValue($property->getValue()));
                     $self->className = $property->class;
-                    $self->access    = $i->propertyOrMethodAccess( $property );
+                    $self->access    = $i->propertyOrMethodAccess($property);
                     $self->isStatic  = true;
 
-                    $globals[ ] = $self;
+                    $globals[] = $self;
                 }
 
-                foreach ( $reflection->getMethods() as $method )
-                {
+                foreach ($reflection->getMethods() as $method) {
                     $staticVariables = $method->getStaticVariables();
 
-                    foreach ( $staticVariables as $variableName => &$varValue )
-                    {
-                        $self               = self::introspect( $i, $variableName, $varValue );
+                    foreach ($staticVariables as $variableName => &$varValue) {
+                        $self               = self::introspect($i, $variableName, $varValue);
                         $self->className    = $method->class;
-                        $self->access       = $i->propertyOrMethodAccess( $method );
+                        $self->access       = $i->propertyOrMethodAccess($method);
                         $self->functionName = $method->getName();
                         $self->isStatic     = $method->isStatic();
 
-                        $globals[ ] = $self;
+                        $globals[] = $self;
                     }
                 }
             }
 
-            foreach ( get_defined_functions() as $section )
-            {
-                foreach ( $section as $function )
-                {
-                    $reflection      = new \ReflectionFunction( $function );
+            foreach (get_defined_functions() as $section) {
+                foreach ($section as $function) {
+                    $reflection      = new \ReflectionFunction($function);
                     $staticVariables = $reflection->getStaticVariables();
 
-                    foreach ( $staticVariables as $propertyName => &$varValue )
-                    {
-                        $self               = self::introspect( $i, $propertyName, $varValue );
+                    foreach ($staticVariables as $propertyName => &$varValue) {
+                        $self               = self::introspect($i, $propertyName, $varValue);
                         $self->functionName = $function;
 
-                        $globals[ ] = $self;
+                        $globals[] = $self;
                     }
                 }
             }
@@ -597,79 +529,74 @@ s;
             return $globals;
         }
 
-        static function introspect( Introspection $i, $name, &$value )
-        {
-            return new self( $name, $i->introspectRef( $value ) );
+        static function introspect(Introspection $i, $name, &$value) {
+            return new self($name, $i->introspectRef($value));
         }
 
-        static function introspectObjectProperties( Introspection $i, $object )
-        {
+        static function introspectObjectProperties(Introspection $i, $object) {
             $properties = array();
 
-            for ( $reflection = new \ReflectionObject( $object );
-                  $reflection !== false;
-                  $reflection = $reflection->getParentClass() )
-            {
-                foreach ( $reflection->getProperties() as $property )
-                {
-                    if ( $property->isStatic() || $property->class !== $reflection->name )
+            for ($reflection = new \ReflectionObject($object);
+                 $reflection !== false;
+                 $reflection = $reflection->getParentClass()) {
+                foreach ($reflection->getProperties() as $property) {
+                    if ($property->isStatic() || $property->class !== $reflection->name)
                         continue;
 
-                    $property->setAccessible( true );
+                    $property->setAccessible(true);
 
-                    $value           = $property->getValue( $object );
-                    $self            = self::introspect( $i, $property->name, $value );
+                    $value           = $property->getValue($object);
+                    $self            = self::introspect($i, $property->name, $value);
                     $self->className = $property->class;
-                    $self->access    = $i->propertyOrMethodAccess( $property );
+                    $self->access    = $i->propertyOrMethodAccess($property);
                     $self->isStatic  = false;
 
-                    $properties[ ] = $self;
+                    $properties[] = $self;
                 }
             }
 
             return $properties;
         }
 
-        static function mockGlobals( Introspection $param )
-        {
+        static function mockGlobals(Introspection $param) {
             //  private static BlahClass::$blahProperty                       = null;
             //  function BlahAnotherClass()::static $public                   = null;
             //  global ${"lol global"}                                        = null;
             //  function BlahYetAnotherClass::blahMethod()::static $lolStatic = null;
             //  global $blahVariable                                          = null;
 
-            $null = $param->introspectValue( null );
+            $null = $param->introspectValue(null);
 
             $globals = array();
 
-            $self            = new self( 'blahProperty', $null );
+            $self            = new self('blahProperty', $null);
             $self->className = 'BlahClass';
             $self->access    = 'private';
             $self->isStatic  = true;
 
-            $globals[ ] = $self;
+            $globals[] = $self;
 
-            $self               = new self( 'public', $null );
+            $self               = new self('public', $null);
             $self->functionName = 'BlahAnotherClass';
 
-            $globals[ ] = $self;
+            $globals[] = $self;
 
-            $self           = new self( 'lol global', $null );
+            $self           = new self('lol global', $null);
             $self->isGlobal = true;
 
-            $globals[ ] = $self;
+            $globals[] = $self;
 
-            $self               = new self( 'lolStatic', $null );
+            $self               = new self('lolStatic', $null);
             $self->functionName = 'blahMethod';
             $self->className    = 'BlahYetAnotherClass';
             $self->isStatic     = true;
 
-            $globals[ ] = $self;
+            $globals[] = $self;
 
-            $self           = new self( 'blahVariable', $null );
+            $self           = new self('blahVariable', $null);
             $self->isGlobal = true;
 
-            $globals[ ] = $self;
+            $globals[] = $self;
 
             return $globals;
         }
@@ -686,110 +613,92 @@ s;
          * @param string             $name
          * @param ValuePoolReference $value
          */
-        private function __construct( $name, ValuePoolReference $value )
-        {
+        private function __construct($name, ValuePoolReference $value) {
             $this->value = $value;
             $this->name  = $name;
         }
 
-        function render( PrettyPrinter $settings )
-        {
-            if ( $this->className !== null )
-            {
-                if ( $this->functionName !== null )
-                {
-                    $prefix = $settings->text( "function $this->className::$this->functionName()::static " );
+        function render(PrettyPrinter $settings) {
+            if ($this->className !== null) {
+                if ($this->functionName !== null) {
+                    $prefix = $settings->text("function $this->className::$this->functionName()::static ");
+                } else if ($this->isStatic) {
+                    $prefix = $settings->text("$this->access static $this->className::");
+                } else {
+                    $prefix = $settings->text("$this->access ");
                 }
-                else if ( $this->isStatic )
-                {
-                    $prefix = $settings->text( "$this->access static $this->className::" );
-                }
-                else
-                {
-                    $prefix = $settings->text( "$this->access " );
-                }
-            }
-            else if ( $this->functionName !== null )
-            {
-                $prefix = $settings->text( "function $this->functionName()::static " );
-            }
-            else if ( $this->isGlobal )
-            {
-                $prefix = $settings->text( in_array( $this->name, array( '_POST', '_GET', '_SESSION',
-                                                                         '_COOKIE', '_FILES',
-                                                                         '_REQUEST', '_ENV',
-                                                                         '_SERVER' ), true ) ? '' : 'global ' );
-            }
-            else
-            {
+            } else if ($this->functionName !== null) {
+                $prefix = $settings->text("function $this->functionName()::static ");
+            } else if ($this->isGlobal) {
+                $prefix = $settings->text(in_array($this->name, array('_POST', '_GET', '_SESSION',
+                                                                      '_COOKIE', '_FILES',
+                                                                      '_REQUEST', '_ENV',
+                                                                      '_SERVER'), true) ? '' : 'global ');
+            } else {
                 $prefix = $settings->text();
             }
 
-            return $prefix->appendLines( $settings->renderVariable( $this->name ) );
+            return $prefix->appendLines($settings->renderVariable($this->name));
         }
 
-        function serialize()
-        {
-            return array( 'name'         => $this->name,
-                          'value'        => $this->value->serialize(),
-                          'className'    => $this->className,
-                          'functionName' => $this->functionName,
-                          'access'       => $this->access,
-                          'isGlobal'     => $this->isGlobal,
-                          'isStatic'     => $this->isStatic );
+        function serialize() {
+            return array(
+                'name'         => $this->name,
+                'value'        => $this->value->serialize(),
+                'className'    => $this->className,
+                'functionName' => $this->functionName,
+                'access'       => $this->access,
+                'isGlobal'     => $this->isGlobal,
+                'isStatic'     => $this->isStatic,
+            );
         }
 
         function value() { return $this->value; }
     }
 
-    class FunctionCall
-    {
-        static function deserialize( ValuePool $pool, $frame )
-        {
-            $self            = new self( $frame[ 'functionName' ] );
-            $self->isStatic  = $frame[ 'isStatic' ];
-            $self->file      = $frame[ 'file' ];
-            $self->line      = $frame[ 'line' ];
-            $self->className = $frame[ 'className' ];
-            $self->object    = $frame[ 'object' ] === null ? null : $pool->deserializeRef( $frame[ 'object' ] );
+    class FunctionCall {
+        static function deserialize(ValuePool $pool, $frame) {
+            $self            = new self($frame['functionName']);
+            $self->isStatic  = $frame['isStatic'];
+            $self->file      = $frame['file'];
+            $self->line      = $frame['line'];
+            $self->className = $frame['className'];
+            $self->object    = $frame['object'] === null ? null : $pool->deserializeRef($frame['object']);
 
-            if ( $frame[ 'args' ] !== null )
-            {
+            if ($frame['args'] !== null) {
                 $self->args = array();
 
-                foreach ( $frame[ 'args' ] as $arg )
-                    $self->args [ ] = $pool->deserializeRef( $arg );
+                foreach ($frame['args'] as $arg)
+                    $self->args [] = $pool->deserializeRef($arg);
             }
 
             return $self;
         }
 
-        static function introspect( Introspection $i, array $frame )
-        {
-            $self = new self( $frame[ 'function' ] );
+        static function introspect(Introspection $i, array $frame) {
+            $self = new self($frame['function']);
 
-            if ( array_key_exists( 'file', $frame ) )
-                $self->file = $frame[ 'file' ];
+            if (array_key_exists('file', $frame))
+                $self->file = $frame['file'];
 
-            if ( array_key_exists( 'line', $frame ) )
-                $self->line = $frame[ 'line' ];
+            if (array_key_exists('line', $frame))
+                $self->line = $frame['line'];
 
-            if ( array_key_exists( 'class', $frame ) )
-                $self->className = $frame[ 'class' ];
+            if (array_key_exists('class', $frame))
+                $self->className = $frame['class'];
 
-            if ( array_key_exists( 'args', $frame ) )
-            {
+            if (array_key_exists('args', $frame)) {
                 $self->args = array();
 
-                foreach ( $frame[ 'args' ] as &$arg )
-                    $self->args[ ] = $i->introspectRef( $arg );
+                foreach ($frame['args'] as &$arg)
+                    $self->args[] = $i->introspectRef($arg);
             }
 
-            if ( array_key_exists( 'object', $frame ) )
-                $self->object = $i->introspectRef( $frame[ 'object' ] );
+            if (array_key_exists('object', $frame))
+                $self->object = $i->introspectRef($frame['object']);
 
-            if ( array_key_exists( 'type', $frame ) )
-                $self->isStatic = $frame[ 'type' ] === '::';
+            if (array_key_exists('type', $frame))
+                $self->isStatic = $frame['type'] === '::';
 
             return $self;
         }
@@ -799,25 +708,24 @@ s;
          *
          * @return self[]
          */
-        static function mock( Introspection $param )
-        {
+        static function mock(Introspection $param) {
             $stack = array();
 
-            $self            = new self( 'aFunction' );
-            $self->args      = array( $param->introspectValue( new DummyClass2 ) );
+            $self            = new self('aFunction');
+            $self->args      = array($param->introspectValue(new DummyClass2));
             $self->file      = '/path/to/muh/file';
             $self->line      = 1928;
-            $self->object    = $param->introspectValue( new DummyClass1 );
+            $self->object    = $param->introspectValue(new DummyClass1);
             $self->className = 'DummyClass1';
 
-            $stack[ ] = $self;
+            $stack[] = $self;
 
-            $self       = new self( 'aFunction' );
-            $self->args = array( $param->introspectValue( new DummyClass2 ) );
+            $self       = new self('aFunction');
+            $self->args = array($param->introspectValue(new DummyClass2));
             $self->file = '/path/to/muh/file';
             $self->line = 1928;
 
-            $stack[ ] = $self;
+            $stack[] = $self;
 
             return $stack;
         }
@@ -835,178 +743,157 @@ s;
         /**
          * @param string $functionName
          */
-        private function __construct( $functionName )
-        {
+        private function __construct($functionName) {
             $this->functionName = $functionName;
         }
 
-        function location()
-        {
+        function location() {
             return $this->file === null ? '[internal function]' : "$this->file:$this->line";
         }
 
-        function renderArgs( PrettyPrinter $settings )
-        {
-            if ( $this->args === null )
-                return $settings->text( "( ? )" );
+        function renderArgs(PrettyPrinter $settings) {
+            if ($this->args === null)
+                return $settings->text("( ? )");
 
-            if ( $this->args === array() )
-                return $settings->text( "()" );
+            if ($this->args === array())
+                return $settings->text("()");
 
             $pretties    = array();
             $isMultiLine = false;
 
-            foreach ( $this->args as $arg )
-            {
-                $pretty      = $arg->render( $settings );
+            foreach ($this->args as $arg) {
+                $pretty      = $arg->render($settings);
                 $isMultiLine = $isMultiLine || $pretty->count() > 1;
-                $pretties[ ] = $pretty;
+                $pretties[]  = $pretty;
             }
 
             $result = $settings->text();
 
-            foreach ( $pretties as $k => $pretty )
-            {
-                if ( $k !== 0 )
-                    $result->append( ', ' );
+            foreach ($pretties as $k => $pretty) {
+                if ($k !== 0)
+                    $result->append(', ');
 
-                if ( $isMultiLine )
-                    $result->addLines( $pretty );
+                if ($isMultiLine)
+                    $result->addLines($pretty);
                 else
-                    $result->appendLines( $pretty );
+                    $result->appendLines($pretty);
             }
 
-            return $result->wrap( "( ", " )" );
+            return $result->wrap("( ", " )");
         }
 
-        function render( PrettyPrinter $settings )
-        {
-            return $this->prefix( $settings )
-                        ->append( $this->functionName )
-                        ->appendLines( $this->renderArgs( $settings ) );
+        function render(PrettyPrinter $settings) {
+            return $this->prefix($settings)
+                        ->append($this->functionName)
+                        ->appendLines($this->renderArgs($settings));
         }
 
-        function prefix( PrettyPrinter $settings )
-        {
-            if ( $this->object !== null )
-                return $this->object->render( $settings )->append( '->' );
+        function prefix(PrettyPrinter $settings) {
+            if ($this->object !== null)
+                return $this->object->render($settings)->append('->');
 
-            if ( $this->className !== null )
-                return $settings->text( $this->isStatic ? "$this->className::" : "$this->className->" );
+            if ($this->className !== null)
+                return $settings->text($this->isStatic ? "$this->className::" : "$this->className->");
 
             return $settings->text();
         }
 
-        function serialize()
-        {
+        function serialize() {
             $args   = null;
             $object = $this->object === null ? null : $this->object->serialize();
 
-            if ( $this->args !== null )
-            {
+            if ($this->args !== null) {
                 $args = array();
 
-                foreach ( $this->args as $arg )
-                    $args[ ] = $arg->serialize();
+                foreach ($this->args as $arg)
+                    $args[] = $arg->serialize();
             }
 
-            return array( 'className' => $this->className,
-                          'functionName'  => $this->functionName,
-                          'args'      => $args,
-                          'object'    => $object,
-                          'isStatic'  => $this->isStatic,
-                          'file'      => $this->file,
-                          'line'      => $this->line );
+            return array(
+                'className'    => $this->className,
+                'functionName' => $this->functionName,
+                'args'         => $args,
+                'object'       => $object,
+                'isStatic'     => $this->isStatic,
+                'file'         => $this->file,
+                'line'         => $this->line,
+            );
         }
     }
 
-    class ValueFloat extends Value
-    {
+    class ValueFloat extends Value {
         private $float;
 
         /**
          * @param float $float
          */
-        function __construct( $float )
-        {
+        function __construct($float) {
             $this->float = $float;
         }
 
-        function render( PrettyPrinter $settings )
-        {
-            $int = (int) $this->float;
+        function render(PrettyPrinter $settings) {
+            $int = (int)$this->float;
 
-            return $settings->text( "$int" === "$this->float" ? "$this->float.0" : "$this->float" );
+            return $settings->text("$int" === "$this->float" ? "$this->float.0" : "$this->float");
         }
 
-        function serialize()
-        {
-            if ( is_nan( $this->float ) )
+        function serialize() {
+            if (is_nan($this->float))
                 $float = 'nan';
-            else if ( $this->float === INF )
+            else if ($this->float === INF)
                 $float = 'inf';
-            else if ( $this->float === -INF )
+            else if ($this->float === -INF)
                 $float = '-inf';
             else
                 $float = $this->float;
 
-            return array( 'type' => 'float', 'value' => $float );
+            return array('type' => 'float', 'value' => $float);
         }
 
-        static function deserialize( ValuePool $pool, $v )
-        {
-            $float = $v[ 'value' ];
+        static function deserialize(ValuePool $pool, $v) {
+            $float = $v['value'];
 
-            if ( $float === 'nan' )
-                return new self( NAN );
-
-            if ( $float === 'inf' )
-                return new self( INF );
-
-            if ( $float === '-inf' )
-                return new self( -INF );
-
-            return new self( (float) $float );
+            if ($float === 'nan')
+                return new self(NAN);
+            else if ($float === 'inf')
+                return new self(INF);
+            else if ($float === '-inf')
+                return new self(-INF);
+            else
+                return new self((float)$float);
         }
     }
 
-    class ValueInt extends Value
-    {
+    class ValueInt extends Value {
         private $int;
 
         /**
          * @param int $int
          */
-        function __construct( $int )
-        {
+        function __construct($int) {
             $this->int = $int;
         }
 
-        function render( PrettyPrinter $settings ) { return $settings->text( "$this->int" ); }
+        function render(PrettyPrinter $settings) { return $settings->text("$this->int"); }
 
-        function serialize()
-        {
+        function serialize() {
             return $this->int;
         }
     }
 
-    class ValueNull extends Value
-    {
-        function render( PrettyPrinter $settings ) { return $settings->text( 'null' ); }
+    class ValueNull extends Value {
+        function render(PrettyPrinter $settings) { return $settings->text('null'); }
 
-        function serialize()
-        {
+        function serialize() {
             return null;
         }
     }
 
-    class ValueObject extends Value
-    {
-        static function introspect( Introspection $i, $object )
-        {
+    class ValueObject extends Value {
+        static function introspect(Introspection $i, $object) {
             $self             = new self;
-            $self->className  = get_class( $object );
-            $self->properties = Variable::introspectObjectProperties( $i, $object );
+            $self->className  = get_class($object);
+            $self->properties = Variable::introspectObjectProperties($i, $object);
 
             return $self;
         }
@@ -1021,40 +908,36 @@ s;
 
         function properties() { return $this->properties; }
 
-        function render( PrettyPrinter $settings ) { return $settings->renderObject( $this ); }
+        function render(PrettyPrinter $settings) { return $settings->renderObject($this); }
 
-        function serialize()
-        {
+        function serialize() {
             $properties = array();
 
-            foreach ( $this->properties as $prop )
-                $properties[ ] = $prop->serialize();
+            foreach ($this->properties as $prop)
+                $properties[] = $prop->serialize();
 
-            return array( 'type'       => 'object',
-                          'className'  => $this->className,
-                          'properties' => $properties );
+            return array('type'       => 'object',
+                         'className'  => $this->className,
+                         'properties' => $properties);
         }
 
-        static function deserialize( ValuePool $pool, $v )
-        {
+        static function deserialize(ValuePool $pool, $v) {
             $self            = new self;
-            $self->className = $v[ 'className' ];
+            $self->className = $v['className'];
 
-            foreach ( $v[ 'properties' ] as $prop )
-                $self->properties[ ] = Variable::deserialize( $pool, $prop );
+            foreach ($v['properties'] as $prop)
+                $self->properties[] = Variable::deserialize($pool, $prop);
 
             return $self;
         }
     }
 
-    class ValuePool
-    {
-        static function deserialize( $value )
-        {
+    class ValuePool {
+        static function deserialize($value) {
             $self = new self;
 
-            foreach ( $value as $id => $cell )
-                $self->cells[ $id ] = Value::deserialize( $self, $cell );
+            foreach ($value as $id => $cell)
+                $self->cells[$id] = Value::deserialize($self, $cell);
 
             return $self;
         }
@@ -1062,102 +945,88 @@ s;
         /** @var Value[] */
         private $cells = array();
 
-        function fill( $id, \Closure $wrapped )
-        {
-            if ( $this->cells[ $id ] === null )
-                $this->cells[ $id ] = $wrapped();
+        function fill($id, \Closure $wrapped) {
+            if ($this->cells[$id] === null)
+                $this->cells[$id] = $wrapped();
         }
 
-        function get( $id ) { return $this->cells[ $id ]; }
+        function get($id) { return $this->cells[$id]; }
 
         function map() { return $this->cells; }
 
-        function newEmpty()
-        {
-            $this->cells[ ] = null;
+        function newEmpty() {
+            $this->cells[] = null;
 
-            return new ValuePoolReference( $this, count( $this->cells ) - 1 );
+            return new ValuePoolReference($this, count($this->cells) - 1);
         }
 
-        function deserializeRef( $key )
-        {
-            return ValuePoolReference::deserialize2( $this, $key );
+        function deserializeRef($key) {
+            return ValuePoolReference::deserialize2($this, $key);
         }
 
-        function serialize()
-        {
+        function serialize() {
             $cells = array();
 
-            foreach ( $this->cells as $id => $value )
-                $cells[ $id ] = $value->serialize();
+            foreach ($this->cells as $id => $value)
+                $cells[$id] = $value->serialize();
 
             return $cells;
         }
     }
 
-    class ValuePoolReference extends Value
-    {
-        static function deserialize2( ValuePool $self, $value )
-        {
-            return new self( $self, $value );
+    class ValuePoolReference extends Value {
+        static function deserialize2(ValuePool $self, $value) {
+            return new self($self, $value);
         }
 
-        static function deserializeWhole( $whole )
-        {
-            $pool = ValuePool::deserialize( $whole[ 'pool' ] );
+        static function deserializeWhole($whole) {
+            $pool = ValuePool::deserialize($whole['pool']);
 
-            return self::deserialize2( $pool, $whole[ 'root' ] );
+            return self::deserialize2($pool, $whole['root']);
         }
 
         private $id;
         /** @var ValuePool */
         private $memory;
 
-        function __construct( ValuePool $memory, $id )
-        {
+        function __construct(ValuePool $memory, $id) {
             $this->memory = $memory;
             $this->id     = $id;
         }
 
-        function fill( \Closure $wrapped )
-        {
-            $this->memory->fill( $this->id, $wrapped );
+        function fill(\Closure $wrapped) {
+            $this->memory->fill($this->id, $wrapped);
         }
 
-        function get() { return $this->memory->get( $this->id ); }
+        function get() { return $this->memory->get($this->id); }
 
         function id() { return $this->id; }
 
         function pool() { return $this->memory; }
 
-        function render( PrettyPrinter $settings ) { return $this->get()->render( $settings ); }
+        function render(PrettyPrinter $settings) { return $this->get()->render($settings); }
 
-        function serialize()
-        {
+        function serialize() {
             return $this->id;
         }
 
-        function serializeWhole()
-        {
-            return array( 'root' => $this->serialize(), 'pool' => $this->memory->serialize() );
+        function serializeWhole() {
+            return array('root' => $this->serialize(), 'pool' => $this->memory->serialize());
         }
 
-        function serialuzeUnserialize()
-        {
-            return self::deserializeWhole( $this->serializeWhole() );
+        function serialuzeUnserialize() {
+            return self::deserializeWhole($this->serializeWhole());
         }
     }
 
-    class ValueResource extends Value
-    {
+    class ValueResource extends Value {
         /**
          * @param resource $value
          *
          * @return \PrettyPrinter\Values\ValueResource
          */
-        static function introspect( $value )
-        {
-            return new self( get_resource_type( $value ) );
+        static function introspect($value) {
+            return new self(get_resource_type($value));
         }
 
         private $resourceType;
@@ -1165,51 +1034,44 @@ s;
         /**
          * @param string $resourceType
          */
-        private function __construct( $resourceType )
-        {
+        private function __construct($resourceType) {
             $this->resourceType = $resourceType;
         }
 
-        function render( PrettyPrinter $settings ) { return $settings->text( $this->resourceType ); }
+        function render(PrettyPrinter $settings) { return $settings->text($this->resourceType); }
 
         function resourceType() { return $this->resourceType; }
 
-        function serialize()
-        {
-            return array( 'type'         => 'resource',
-                          'resourceType' => $this->resourceType );
+        function serialize() {
+            return array('type'         => 'resource',
+                         'resourceType' => $this->resourceType);
         }
 
-        static function deserialize( ValuePool $pool, $v )
-        {
-            return new self( $v[ 'resourceType' ] );
+        static function deserialize(ValuePool $pool, $v) {
+            return new self($v['resourceType']);
         }
     }
 
-    class ValueString extends Value
-    {
+    class ValueString extends Value {
         private $string;
 
         /**
          * @param string $string
          */
-        function __construct( $string ) { $this->string = $string; }
+        function __construct($string) { $this->string = $string; }
 
-        function render( PrettyPrinter $settings ) { return $settings->renderString( $this->string ); }
+        function render(PrettyPrinter $settings) { return $settings->renderString($this->string); }
 
-        function serialize()
-        {
+        function serialize() {
             return $this->string;
         }
     }
 
-    class ValueUnknown extends Value
-    {
-        function render( PrettyPrinter $settings ) { return $settings->text( 'unknown type' ); }
+    class ValueUnknown extends Value {
+        function render(PrettyPrinter $settings) { return $settings->text('unknown type'); }
 
-        function serialize()
-        {
-            return array( 'type' => 'unknown' );
+        function serialize() {
+            return array('type' => 'unknown');
         }
     }
 }
