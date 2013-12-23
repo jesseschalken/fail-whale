@@ -11,6 +11,7 @@
         "phpunit/phpunit": "3.7.*"
     },
     "autoload": {
-        "classmap": [ "src/" ]
+        "classmap": [ "src/" ],
+        "files": ["src/ErrorHandler.php"]
     }
 }
