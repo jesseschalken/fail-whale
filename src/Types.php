@@ -1,7 +1,6 @@
 <?php
 
 namespace PrettyPrinter\Introspection {
-    use PrettyPrinter\Utils\Ref;
     use PrettyPrinter\Values;
 
     interface ExceptionHasFullTrace {
@@ -18,50 +17,25 @@ namespace PrettyPrinter\Introspection {
         function getLocalVariables();
     }
 
+    class ArrayCacheEntry {
+        /** @var array */
+        var $array;
+        /** @var Values\ValueArray */
+        var $result;
+    }
+
+    class ObjectCacheEntry {
+        /** @var object */
+        var $object;
+        /** @var Values\ValueObject */
+        var $result;
+    }
+
     class Introspection {
-        private $cacheArrayRef = array();
-        private $cacheByString = array();
-        private $pool;
-
-        function __construct(Values\ValuePool $pool) {
-            $this->pool = $pool;
-        }
-
-        private function introspectCacheArrayRef(\Closure $wrapped, &$reference) {
-            foreach ($this->cacheArrayRef as $ref)
-                if (Ref::equal($reference, $ref[1]))
-                    return $ref[0];
-
-            $id = $this->pool->newEmpty();
-
-            array_unshift($this->cacheArrayRef, array($id, &$reference));
-
-            $id->fill($wrapped);
-
-            array_shift($this->cacheArrayRef);
-
-            return $id;
-        }
-
-        private function introspectCacheByString(\Closure $wrapped, $type, $string) {
-            if (isset($this->cacheByString[$type][$string]))
-                return $this->cacheByString[$type][$string];
-
-            $ref = $this->pool->newEmpty();
-
-            $this->cacheByString[$type][$string] = $ref;
-
-            $ref->fill($wrapped);
-
-            return $ref;
-        }
-
-        private function introspectNoCache(\Closure $wrapped) {
-            $ref = $this->pool->newEmpty();
-            $ref->fill($wrapped);
-
-            return $ref;
-        }
+        /** @var ObjectCacheEntry[] */
+        private $objectCache = array();
+        /** @var ArrayCacheEntry[] */
+        private $arrayCache = array();
 
         /**
          * @param \ReflectionProperty|\ReflectionMethod $property
@@ -75,75 +49,51 @@ namespace PrettyPrinter\Introspection {
         /**
          * @param $value
          *
-         * @return Values\ValuePoolReference
+         * @return Values\Value
          */
         function introspectRef(&$value) {
-            $that = $this;
+            if (is_string($value))
+                return new Values\ValueString($value);
 
-            if (is_string($value)) {
-                $f = function () use ($value) { return new Values\ValueString($value); };
+            if (is_int($value))
+                return new Values\ValueInt($value);
 
-                return $this->introspectCacheByString($f, 'string', "$value");
-            } else if (is_int($value)) {
-                $f = function () use ($value) { return new Values\ValueInt($value); };
+            if (is_bool($value))
+                return new Values\ValueBool($value);
 
-                return $this->introspectCacheByString($f, 'int', "$value");
-            } else if (is_bool($value)) {
-                $f = function () use ($value) { return new Values\ValueBool($value); };
+            if (is_null($value))
+                return new Values\ValueNull($value);
 
-                return $this->introspectCacheByString($f, 'bool', "$value");
-            } else if (is_null($value)) {
-                $f = function () use ($value) { return new Values\ValueNull($value); };
+            if (is_float($value))
+                return new Values\ValueFloat($value);
 
-                return $this->introspectCacheByString($f, 'null', "$value");
-            } else if (is_float($value)) {
-                $f = function () use ($value) { return new Values\ValueFloat($value); };
+            if (is_array($value))
+                return Values\ValueArray::introspect($this, $value, $this->arrayCache);
 
-                return $this->introspectCacheByString($f, 'float', "$value");
-            } else if (is_array($value)) {
-                $f = function () use ($that, $value) { return Values\ValueArray::introspect($that, $value); };
+            if (is_object($value))
+                return Values\ValueObject::introspect($this, $value, $this->objectCache);
 
-                return $this->introspectCacheArrayRef($f, $value);
-            } else if (is_object($value)) {
-                $f = function () use ($that, $value) { return Values\ValueObject::introspect($that, $value); };
+            if (is_resource($value))
+                return Values\ValueResource::introspect($value);
 
-                return $this->introspectCacheByString($f, 'object', spl_object_hash($value));
-            } else if (is_resource($value)) {
-                $f = function () use ($value) { return Values\ValueResource::introspect($value); };
-
-                return $this->introspectCacheByString($f, 'resource', "$value");
-            } else {
-                $f = function () use ($value) { return new Values\ValueUnknown; };
-
-                return $this->introspectCacheByString($f, 'unknown', '');
-            }
+            return new Values\ValueUnknown;
         }
 
-        function introspectValue($value) {
-            return $this->introspectRef($value);
-        }
+        function introspectValue($value) { return $this->introspectRef($value); }
 
-        function introspectException(\Exception $e) {
-            $that = $this;
-            $f    = function () use ($that, $e) { return Values\ValueException::introspect($that, $e); };
+        function introspectException(\Exception $e) { return Values\ValueException::introspect($this, $e); }
 
-            return $this->introspectCacheByString($f, 'exception', spl_object_hash($e));
-        }
-
-        function introspectMockException() {
-            $that = $this;
-            $f    = function () use ($that) { return Values\ValueException::mock($that); };
-
-            return $this->introspectNoCache($f);
-        }
+        function introspectMockException() { return Values\ValueException::mock($this); }
     }
 }
 
 namespace PrettyPrinter\Values {
     use ErrorHandler\Exception;
+    use PrettyPrinter\Introspection\ArrayCacheEntry;
     use PrettyPrinter\Introspection\ExceptionHasFullTrace;
     use PrettyPrinter\Introspection\ExceptionHasLocalVariables;
     use PrettyPrinter\Introspection\Introspection;
+    use PrettyPrinter\Introspection\ObjectCacheEntry;
     use PrettyPrinter\PrettyPrinter;
     use PrettyPrinter\Test\DummyClass1;
     use PrettyPrinter\Test\DummyClass2;
@@ -152,42 +102,6 @@ namespace PrettyPrinter\Values {
     use PrettyPrinter\Utils\Text;
 
     abstract class Value {
-        static function deserialize(ValuePool $pool, $v) {
-            if (is_bool($v))
-                return new ValueBool($v);
-
-            if (is_string($v))
-                return new ValueString($v);
-
-            if (is_null($v))
-                return new ValueNull;
-
-            if (is_float($v))
-                return new ValueFloat($v);
-
-            if (is_int($v))
-                return new ValueInt($v);
-
-            if (is_array($v)) {
-                switch ($v['type']) {
-                    case 'object':
-                        return ValueObject::deserialize($pool, $v);
-                    case 'float':
-                        return ValueFloat::deserialize($pool, $v);
-                    case 'array':
-                        return ValueArray::deserialize($pool, $v);
-                    case 'exception':
-                        return ValueException::deserialize($pool, $v);
-                    case 'resource':
-                        return ValueResource::deserialize($pool, $v);
-                    case 'unknown':
-                        return new ValueUnknown;
-                }
-            }
-
-            throw new Exception("Invalid JSON value");
-        }
-
         /**
          * @param PrettyPrinter $settings
          *
@@ -195,13 +109,39 @@ namespace PrettyPrinter\Values {
          */
         abstract function render(PrettyPrinter $settings);
 
-        abstract function serialize();
+        /**
+         * @return string
+         */
+        abstract function type();
+
+        abstract function serialize(Serialization $s);
+
+        function serialuzeUnserialize() {
+            return Deserialization::deserializeWhole(Serialization::serializeWhole($this));
+        }
     }
 
     class ValueArray extends Value {
-        static function introspect(Introspection $introspection, array $array) {
+        /**
+         * @param Introspection     $introspection
+         * @param array             $array
+         * @param ArrayCacheEntry[] $arrayCache
+         *
+         * @return ValueArray
+         */
+        static function introspect(Introspection $introspection, array &$array, array &$arrayCache) {
+            foreach ($arrayCache as $entry)
+                if (Ref::equal($array, $entry->array))
+                    return $entry->result;
+
             $self                = new self;
             $self->isAssociative = ArrayUtil::isAssoc($array);
+            $self->id            = count($arrayCache);
+
+            $cache         = new ArrayCacheEntry;
+            $cache->array  =& $array;
+            $cache->result = $self;
+            $arrayCache[]  = $cache;
 
             foreach ($array as $k => &$v)
                 $self->entries[] = ArrayEntry::introspect($introspection, $k, $v);
@@ -209,6 +149,7 @@ namespace PrettyPrinter\Values {
             return $self;
         }
 
+        private $id;
         private $isAssociative = false;
         /** @var ArrayEntry[] */
         private $entries = array();
@@ -221,26 +162,51 @@ namespace PrettyPrinter\Values {
 
         function render(PrettyPrinter $settings) { return $settings->renderArray($this); }
 
-        function serialize() {
+        function serialize(Serialization $s) {
+            $s->addArray($this);
+
+            return $this->id;
+        }
+
+        function serializeArray(Serialization $s) {
             $entries = array();
 
             foreach ($this->entries as $entry)
-                $entries[] = $entry->serialize();
+                $entries[] = $entry->serialize($s);
 
-            return array('type'          => 'array',
-                         'isAssociative' => $this->isAssociative,
-                         'entries'       => $entries);
+            return array(
+                'type'          => 'array',
+                'isAssociative' => $this->isAssociative,
+                'entries'       => $entries,
+            );
         }
 
-        static function deserialize(ValuePool $pool, $v) {
+        function type() { return 'array'; }
+
+        /**
+         * @param Deserialization $pool
+         * @param                 $id
+         * @param                 $v
+         * @param ValueArray[]    $cache
+         *
+         * @return ValueArray
+         */
+        static function deserialize(Deserialization $pool, $id, $v, array &$cache) {
+            if (isset($cache[$id]))
+                return $cache[$id];
+
             $self                = new self;
             $self->isAssociative = $v['isAssociative'];
+            $self->id            = $id;
+            $cache[$id]          = $self;
 
             foreach ($v['entries'] as $entry)
                 $self->entries[] = ArrayEntry::deserialize($pool, $entry);
 
             return $self;
         }
+
+        function id() { return $this->id; }
     }
 
     class ArrayEntry {
@@ -252,17 +218,17 @@ namespace PrettyPrinter\Values {
             return $self;
         }
 
-        static function deserialize(ValuePool $pool, $value) {
+        static function deserialize(Deserialization $pool, $value) {
             $self        = new self;
-            $self->key   = $pool->deserializeRef($value['key']);
-            $self->value = $pool->deserializeRef($value['value']);
+            $self->key   = $pool->deserialize($value['key']);
+            $self->value = $pool->deserialize($value['value']);
 
             return $self;
         }
 
-        /** @var ValuePoolReference */
+        /** @var Value */
         private $key;
-        /** @var ValuePoolReference */
+        /** @var Value */
         private $value;
 
         private function __construct() { }
@@ -271,9 +237,11 @@ namespace PrettyPrinter\Values {
 
         function value() { return $this->value; }
 
-        function serialize() {
-            return array('key'   => $this->key->serialize(),
-                         'value' => $this->value->serialize());
+        function serialize(Serialization $s) {
+            return array(
+                'key'   => $s->serialize($this->key),
+                'value' => $s->serialize($this->value),
+            );
         }
     }
 
@@ -289,9 +257,9 @@ namespace PrettyPrinter\Values {
 
         function render(PrettyPrinter $settings) { return $settings->text($this->bool ? 'true' : 'false'); }
 
-        function serialize() {
-            return $this->bool;
-        }
+        function serialize(Serialization $s) { return $this->bool; }
+
+        function type() { return 'bool'; }
     }
 
     class ValueException extends Value {
@@ -386,31 +354,30 @@ s;
 
         function stack() { return $this->stack; }
 
-        function serialize() {
+        function serialize(Serialization $s) {
             $stack    = array();
             $locals   = null;
-            $previous = $this->previous === null ? null : $this->previous->serialize();
+            $previous = $this->previous === null ? null : $this->previous->serialize($s);
             $globals  = null;
 
             foreach ($this->stack as $frame)
-                $stack[] = $frame->serialize();
+                $stack[] = $frame->serialize($s);
 
             if ($this->locals !== null) {
                 $locals = array();
 
                 foreach ($this->locals as $local)
-                    $locals[] = $local->serialize();
+                    $locals[] = $local->serialize($s);
             }
 
             if ($this->globals !== null) {
                 $globals = array();
 
                 foreach ($this->globals as $global)
-                    $globals[] = $global->serialize();
+                    $globals[] = $global->serialize($s);
             }
 
             return array(
-                'type'      => 'exception',
                 'className' => $this->className,
                 'stack'     => $stack,
                 'locals'    => $locals,
@@ -423,7 +390,7 @@ s;
             );
         }
 
-        static function deserialize(ValuePool $pool, $v) {
+        static function deserialize(Deserialization $pool, $v) {
             $self            = new self;
             $self->className = $v['className'];
             $self->code      = $v['code'];
@@ -452,11 +419,13 @@ s;
 
             return $self;
         }
+
+        function type() { return 'exception'; }
     }
 
     class Variable {
-        static function deserialize(ValuePool $pool, $prop) {
-            $self               = new self($prop['name'], $pool->deserializeRef($prop['value']));
+        static function deserialize(Deserialization $pool, $prop) {
+            $self               = new self($prop['name'], $pool->deserialize($prop['value']));
             $self->functionName = $prop['functionName'];
             $self->access       = $prop['access'];
             $self->isGlobal     = $prop['isGlobal'];
@@ -610,10 +579,10 @@ s;
         private $isStatic = false;
 
         /**
-         * @param string             $name
-         * @param ValuePoolReference $value
+         * @param string $name
+         * @param Value  $value
          */
-        private function __construct($name, ValuePoolReference $value) {
+        private function __construct($name, Value $value) {
             $this->value = $value;
             $this->name  = $name;
         }
@@ -641,10 +610,10 @@ s;
             return $prefix->appendLines($settings->renderVariable($this->name));
         }
 
-        function serialize() {
+        function serialize(Serialization $s) {
             return array(
                 'name'         => $this->name,
-                'value'        => $this->value->serialize(),
+                'value'        => $s->serialize($this->value),
                 'className'    => $this->className,
                 'functionName' => $this->functionName,
                 'access'       => $this->access,
@@ -657,19 +626,19 @@ s;
     }
 
     class FunctionCall {
-        static function deserialize(ValuePool $pool, $frame) {
+        static function deserialize(Deserialization $pool, $frame) {
             $self            = new self($frame['functionName']);
             $self->isStatic  = $frame['isStatic'];
             $self->file      = $frame['file'];
             $self->line      = $frame['line'];
             $self->className = $frame['className'];
-            $self->object    = $frame['object'] === null ? null : $pool->deserializeRef($frame['object']);
+            $self->object    = $frame['object'] === null ? null : $pool->deserialize($frame['object']);
 
             if ($frame['args'] !== null) {
                 $self->args = array();
 
                 foreach ($frame['args'] as $arg)
-                    $self->args [] = $pool->deserializeRef($arg);
+                    $self->args [] = $pool->deserialize($arg);
             }
 
             return $self;
@@ -732,9 +701,9 @@ s;
 
         private $className;
         private $functionName;
-        /** @var ValuePoolReference[]|null */
+        /** @var Value[]|null */
         private $args;
-        /** @var ValuePoolReference|null */
+        /** @var Value|null */
         private $object;
         private $isStatic;
         private $file;
@@ -798,15 +767,15 @@ s;
             return $settings->text();
         }
 
-        function serialize() {
+        function serialize(Serialization $s) {
             $args   = null;
-            $object = $this->object === null ? null : $this->object->serialize();
+            $object = $this->object === null ? null : $s->serialize($this->object);
 
             if ($this->args !== null) {
                 $args = array();
 
                 foreach ($this->args as $arg)
-                    $args[] = $arg->serialize();
+                    $args[] = $s->serialize($arg);
             }
 
             return array(
@@ -831,36 +800,16 @@ s;
             $this->float = $float;
         }
 
-        function render(PrettyPrinter $settings) {
+        function render(PrettyPrinter $settings) { return $settings->text($this->toPHP()); }
+
+        function serialize(Serialization $s) { return $this->toPHP(); }
+
+        function type() { return 'float'; }
+
+        private function toPHP() {
             $int = (int)$this->float;
 
-            return $settings->text("$int" === "$this->float" ? "$this->float.0" : "$this->float");
-        }
-
-        function serialize() {
-            if (is_nan($this->float))
-                $float = 'nan';
-            else if ($this->float === INF)
-                $float = 'inf';
-            else if ($this->float === -INF)
-                $float = '-inf';
-            else
-                $float = $this->float;
-
-            return array('type' => 'float', 'value' => $float);
-        }
-
-        static function deserialize(ValuePool $pool, $v) {
-            $float = $v['value'];
-
-            if ($float === 'nan')
-                return new self(NAN);
-            else if ($float === 'inf')
-                return new self(INF);
-            else if ($float === '-inf')
-                return new self(-INF);
-            else
-                return new self((float)$float);
+            return "$int" === "$this->float" ? "$this->float.0" : "$this->float";
         }
     }
 
@@ -870,34 +819,54 @@ s;
         /**
          * @param int $int
          */
-        function __construct($int) {
-            $this->int = $int;
-        }
+        function __construct($int) { $this->int = $int; }
 
         function render(PrettyPrinter $settings) { return $settings->text("$this->int"); }
 
-        function serialize() {
-            return $this->int;
-        }
+        function serialize(Serialization $s) { return $this->int; }
+
+        function type() { return 'int'; }
     }
 
     class ValueNull extends Value {
         function render(PrettyPrinter $settings) { return $settings->text('null'); }
 
-        function serialize() {
-            return null;
-        }
+        function serialize(Serialization $s) { return null; }
+
+        function type() { return 'null'; }
     }
 
     class ValueObject extends Value {
-        static function introspect(Introspection $i, $object) {
-            $self             = new self;
-            $self->className  = get_class($object);
+        /**
+         * @param Introspection      $i
+         * @param object             $object
+         * @param ObjectCacheEntry[] $cache
+         *
+         * @return ValueObject
+         */
+        static function introspect(Introspection $i, $object, array &$cache) {
+            $hash = spl_object_hash($object);
+
+            if (isset($cache[$hash]))
+                return $cache[$hash]->result;
+
+            $self            = new self;
+            $self->id        = count($cache);
+            $self->hash      = $hash;
+            $self->className = get_class($object);
+
+            $entry         = new ObjectCacheEntry;
+            $entry->object = $object;
+            $entry->result = $self;
+            $cache[$hash]  = $entry;
+
             $self->properties = Variable::introspectObjectProperties($i, $object);
 
             return $self;
         }
 
+        private $id;
+        private $hash;
         private $className;
         /** @var Variable[] */
         private $properties = array();
@@ -910,113 +879,52 @@ s;
 
         function render(PrettyPrinter $settings) { return $settings->renderObject($this); }
 
-        function serialize() {
+        function serialize(Serialization $s) {
+            $s->addObject($this);
+
+            return $this->id;
+        }
+
+        function serializeObject(Serialization $s) {
             $properties = array();
 
             foreach ($this->properties as $prop)
-                $properties[] = $prop->serialize();
+                $properties[] = $prop->serialize($s);
 
-            return array('type'       => 'object',
-                         'className'  => $this->className,
-                         'properties' => $properties);
+            return array(
+                'className'  => $this->className,
+                'hash'       => $this->hash,
+                'properties' => $properties,
+            );
         }
 
-        static function deserialize(ValuePool $pool, $v) {
+        function type() { return 'object'; }
+
+        /**
+         * @param Deserialization $pool
+         * @param                 $id
+         * @param                 $v
+         * @param ValueObject[]   $cache
+         *
+         * @return ValueObject
+         */
+        static function deserialize(Deserialization $pool, $id, $v, array &$cache) {
+            if (isset($cache[$id]))
+                return $cache[$id];
+
             $self            = new self;
+            $self->id        = $id;
             $self->className = $v['className'];
+            $self->hash      = $v['hash'];
+            $cache[$id]      = $self;
 
             foreach ($v['properties'] as $prop)
                 $self->properties[] = Variable::deserialize($pool, $prop);
 
             return $self;
         }
-    }
-
-    class ValuePool {
-        static function deserialize($value) {
-            $self = new self;
-
-            foreach ($value as $id => $cell)
-                $self->cells[$id] = Value::deserialize($self, $cell);
-
-            return $self;
-        }
-
-        /** @var Value[] */
-        private $cells = array();
-
-        function fill($id, \Closure $wrapped) {
-            if ($this->cells[$id] === null)
-                $this->cells[$id] = $wrapped();
-        }
-
-        function get($id) { return $this->cells[$id]; }
-
-        function map() { return $this->cells; }
-
-        function newEmpty() {
-            $this->cells[] = null;
-
-            return new ValuePoolReference($this, count($this->cells) - 1);
-        }
-
-        function deserializeRef($key) {
-            return ValuePoolReference::deserialize2($this, $key);
-        }
-
-        function serialize() {
-            $cells = array();
-
-            foreach ($this->cells as $id => $value)
-                $cells[$id] = $value->serialize();
-
-            return $cells;
-        }
-    }
-
-    class ValuePoolReference extends Value {
-        static function deserialize2(ValuePool $self, $value) {
-            return new self($self, $value);
-        }
-
-        static function deserializeWhole($whole) {
-            $pool = ValuePool::deserialize($whole['pool']);
-
-            return self::deserialize2($pool, $whole['root']);
-        }
-
-        private $id;
-        /** @var ValuePool */
-        private $memory;
-
-        function __construct(ValuePool $memory, $id) {
-            $this->memory = $memory;
-            $this->id     = $id;
-        }
-
-        function fill(\Closure $wrapped) {
-            $this->memory->fill($this->id, $wrapped);
-        }
-
-        function get() { return $this->memory->get($this->id); }
 
         function id() { return $this->id; }
-
-        function pool() { return $this->memory; }
-
-        function render(PrettyPrinter $settings) { return $this->get()->render($settings); }
-
-        function serialize() {
-            return $this->id;
-        }
-
-        function serializeWhole() {
-            return array('root' => $this->serialize(), 'pool' => $this->memory->serialize());
-        }
-
-        function serialuzeUnserialize() {
-            return self::deserializeWhole($this->serializeWhole());
-        }
     }
 
     class ValueResource extends Value {
@@ -1026,30 +934,34 @@ s;
          * @return \PrettyPrinter\Values\ValueResource
          */
         static function introspect($value) {
-            return new self(get_resource_type($value));
+            $self       = new self;
+            $self->type = get_resource_type($value);
+            $self->id   = (int)$value;
+
+            return $self;
         }
 
-        private $resourceType;
+        private $type;
+        private $id;
 
-        /**
-         * @param string $resourceType
-         */
-        private function __construct($resourceType) {
-            $this->resourceType = $resourceType;
+        function render(PrettyPrinter $settings) { return $settings->text($this->type); }
+
+        function serialize(Serialization $s) {
+            return array(
+                'resourceType' => $this->type,
+                'resourceId'   => $this->id,
+            );
         }
 
-        function render(PrettyPrinter $settings) { return $settings->text($this->resourceType); }
+        static function deserialize($v) {
+            $self       = new self;
+            $self->type = $v['resourceType'];
+            $self->id   = $v['resourceId'];
 
-        function resourceType() { return $this->resourceType; }
-
-        function serialize() {
-            return array('type'         => 'resource',
-                         'resourceType' => $this->resourceType);
+            return $self;
         }
 
-        static function deserialize(ValuePool $pool, $v) {
-            return new self($v['resourceType']);
-        }
+        function type() { return 'resource'; }
     }
 
     class ValueString extends Value {
@@ -1062,16 +974,126 @@ s;
 
         function render(PrettyPrinter $settings) { return $settings->renderString($this->string); }
 
-        function serialize() {
-            return $this->string;
-        }
+        function serialize(Serialization $s) { return $this->string; }
+
+        function type() { return 'string'; }
     }
 
     class ValueUnknown extends Value {
         function render(PrettyPrinter $settings) { return $settings->text('unknown type'); }
 
-        function serialize() {
-            return array('type' => 'unknown');
+        function serialize(Serialization $s) { return null; }
+
+        function type() { return 'unknown'; }
+    }
+
+    class Deserialization {
+        static function deserializeWhole($value) {
+            $self          = new self;
+            $self->objects = $value['objects'];
+            $self->arrays  = $value['arrays'];
+
+            return $self->deserialize($value['root']);
+        }
+
+        private $arrays = array();
+        private $objects = array();
+
+        /** @var ValueArray[] */
+        private $arrayCache = array();
+        /** @var ValueObject[] */
+        private $objectCache = array();
+
+        /**
+         * @param array $v
+         *
+         * @throws \ErrorHandler\Exception
+         * @return Value
+         */
+        function deserialize($v) {
+            $type  = $v['type'];
+            $value = $v[$type];
+
+            switch ($type) {
+                case 'object':
+                    return $this->deserializeObject($value);
+                case 'float':
+                    if ($value === 'INF')
+                        return new ValueFloat(INF);
+                    else if ($value === '-INF')
+                        return new ValueFloat(-INF);
+                    else if ($value === 'NAN')
+                        return new ValueFloat(NAN);
+                    else
+                        return new ValueFloat((float)$value);
+                case 'array':
+                    return $this->deserializeArray($value);
+                case 'exception':
+                    return ValueException::deserialize($this, $value);
+                case 'resource':
+                    return ValueResource::deserialize($value);
+                case 'unknown':
+                    return new ValueUnknown;
+                case 'null':
+                    return new ValueNull;
+                case 'int':
+                    return new ValueInt((int)$value);
+                case 'bool':
+                    return new ValueBool((bool)$value);
+                case 'string':
+                    return new ValueString($value);
+                default:
+                    throw new Exception("Unknown type: $type");
+            }
+        }
+
+        function deserializeObject($value) {
+            return ValueObject::deserialize($this, $value, $this->objects[$value], $this->objectCache);
+        }
+
+        function deserializeArray($value) {
+            return ValueArray::deserialize($this, $value, $this->arrays[$value], $this->arrayCache);
+        }
+    }
+
+    class Serialization {
+        static function serializeWhole(Value $v) {
+            $self = new self;
+            $root = $self->serialize($v);
+
+            return array(
+                'root'    => $root,
+                'arrays'  => $self->arrays,
+                'objects' => $self->objects,
+            );
+        }
+
+        private $arrays = array();
+        private $objects = array();
+
+        function addArray(ValueArray $a) {
+            $id = $a->id();
+
+            if (!isset($this->arrays[$id])) {
+                $this->arrays[$id] = true;
+                $this->arrays[$id] = $a->serializeArray($this);
+            }
+        }
+
+        function addObject(ValueObject $o) {
+            $id = $o->id();
+
+            if (!isset($this->objects[$id])) {
+                $this->objects[$id] = true;
+                $this->objects[$id] = $o->serializeObject($this);
+            }
+        }
+
+        function serialize(Value $value) {
+            return array(
+                'type'         => $value->type(),
+                $value->type() => $value->serialize($this),
+            );
         }
     }
 }

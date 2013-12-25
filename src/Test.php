@@ -4,7 +4,6 @@ namespace PrettyPrinter\Test {
     use PrettyPrinter\Introspection\Introspection;
     use PrettyPrinter\PrettyPrinter;
     use PrettyPrinter\Values;
-    use PrettyPrinter\Values\ValuePool;
 
     class DummyClass1 {
         private static /** @noinspection PhpUnusedPrivateFieldInspection */
@@ -44,7 +43,7 @@ s
         function testComplexObject() {
             $this->markTestIncomplete();
 
-            self::pp()->setMaxArrayEntries(10)->assertPrettyIs(new Introspection(new ValuePool), <<<'s'
+            self::pp()->setMaxArrayEntries(10)->assertPrettyIs(new Introspection, <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
@@ -136,7 +135,7 @@ s
         }
 
         function testException() {
-            $i         = new Introspection(new Values\ValuePool);
+            $i         = new Introspection;
             $exception = $i->introspectMockException()->serialuzeUnserialize();
 
             self::assertEquals($exception->render(self::pp())->toString(), <<<'s'
@@ -253,7 +252,6 @@ s
         }
 
         function testObjectArrayRecursion() {
-            $this->markTestIncomplete();
             $object      = new \stdClass;
             $array       = array($object);
             $object->foo =& $array;
@@ -281,7 +279,6 @@ s
         }
 
         function testRecursiveArray() {
-            $this->markTestIncomplete();
             $recursiveArray            = array();
             $recursiveArray['recurse'] =& $recursiveArray;
 

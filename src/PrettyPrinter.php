@@ -4,7 +4,6 @@ namespace PrettyPrinter {
     use PrettyPrinter\Introspection\Introspection;
     use PrettyPrinter\Utils\Table;
     use PrettyPrinter\Utils\Text;
-    use PrettyPrinter\Values\ValuePool;
     use PrettyPrinter\Values\Variable;
 
     final class PrettyPrinter {
@@ -20,6 +19,9 @@ namespace PrettyPrinter {
         private $showExceptionLocalVariables = true;
         private $showExceptionStackTrace = true;
         private $splitMultiLineStrings = true;
+
+        private $printedObjects = array();
+        private $printedArrays = array();
 
         function __construct() { }
 
@@ -38,19 +40,24 @@ namespace PrettyPrinter {
         }
 
         function prettyPrintException(\Exception $e) {
-            $introspection = new Introspection(new ValuePool);
+            $introspection = new Introspection;
 
             return $introspection->introspectException($e)->render($this)->toString();
         }
 
         function prettyPrintRef(&$ref) {
-            $introspection = new Introspection(new ValuePool);
+            $introspection = new Introspection;
 
             return $introspection->introspectRef($ref)->serialuzeUnserialize()->render($this)
                                  ->setHasEndingNewline(false)->toString();
         }
 
         function renderArray(Values\ValueArray $object) {
+            if (isset($this->printedArrays[$object->id()]))
+                return $this->text('array( ... )');
+
+            $this->printedArrays[$object->id()] = true;
+
             if ($object->entries() === array())
                 return $this->text('array()');
 
@@ -167,6 +174,11 @@ namespace PrettyPrinter {
         }
 
         function renderObject(Values\ValueObject $object) {
+            if (isset($this->printedObjects[$object->id()]))
+                return $this->text("new {$object->className()} { ... }");
+
+            $this->printedObjects[$object->id()] = true;
+
             return $this->renderVariables($object->properties(), '', $this->maxObjectProperties)
                         ->indent(2)
                         ->wrapLines("new {$object->className()} {", "}");
