@@ -136,7 +136,7 @@ s
 
         function testException() {
             $i         = new Introspection;
-            $exception = $i->introspectMockException()->serialuzeUnserialize();
+            $exception = Values\ValueException::mock($i)->serialuzeUnserialize();
 
             self::assertEquals($exception->render(self::pp())->toString(), <<<'s'
 MuhMockException Dummy exception code in /the/path/to/muh/file:9000
@@ -282,7 +282,7 @@ s
             $recursiveArray            = array();
             $recursiveArray['recurse'] =& $recursiveArray;
 
-            self::pp()->assertPrettyRefIs($recursiveArray,
+            self::pp()->assertPrettyIs(array(&$recursiveArray, $recursiveArray, $recursiveArray),
                 <<<'s'
 #1 array( "recurse" => #1 array(...) )
 s

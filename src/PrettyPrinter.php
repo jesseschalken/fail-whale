@@ -2,8 +2,9 @@
 
 namespace PrettyPrinter {
     use PrettyPrinter\Introspection\Introspection;
-    use PrettyPrinter\Utils\Table;
+    use PrettyPrinter\Introspection\Wrapped;
     use PrettyPrinter\Utils\Text;
+    use PrettyPrinter\Values\Value;
     use PrettyPrinter\Values\Variable;
 
     final class PrettyPrinter {
@@ -20,8 +21,7 @@ namespace PrettyPrinter {
         private $showExceptionStackTrace = true;
         private $splitMultiLineStrings = true;
 
-        private $printedObjects = array();
-        private $printedArrays = array();
+        private $valuesReferable = array();
 
         function __construct() { }
 
@@ -48,42 +48,52 @@ namespace PrettyPrinter {
         function prettyPrintRef(&$ref) {
             $introspection = new Introspection;
 
-            return $introspection->introspectRef($ref)->serialuzeUnserialize()->render($this)
+            return $introspection->introspect(Wrapped::ref($ref))->serialuzeUnserialize()->render($this)
                                  ->setHasEndingNewline(false)->toString();
         }
 
-        function renderArray(Values\ValueArray $object) {
-            if (isset($this->printedArrays[$object->id()]))
-                return $this->text('array( ... )');
+        function render(Value $v) {
+            $id = $v->id();
 
-            $this->printedArrays[$object->id()] = true;
+            if (isset($this->valuesReferable[$id]))
+                return $this->text('*recursion*');
 
-            if ($object->entries() === array())
-                return $this->text('array()');
+            $this->valuesReferable[$id] = true;
 
-            $table = new Table;
+            $result = $v->renderImpl($this);
 
-            foreach ($object->entries() as $keyValuePair) {
-                if (($table->count() + 1) > $this->maxArrayEntries)
+            unset($this->valuesReferable[$id]);
+
+            return $result;
+        }
+
+        function renderArray(Values\ValueArray $array) {
+            if ($array->entries() === array())
+                return $this->text("array()");
+
+            $rows = array();
+
+            foreach ($array->entries() as $keyValuePair) {
+                if ((count($rows) + 1) > $this->maxArrayEntries)
                     break;
 
                 $key   = $keyValuePair->key()->render($this);
                 $value = $keyValuePair->value()->render($this);
 
-                if ($table->count() != count($object->entries()) - 1)
+                if (count($rows) != count($array->entries()) - 1)
                     $value->append(',');
 
-                $table->addRow($object->isAssociative()
-                                   ? array($key, $value->prepend(' => '))
-                                   : array($value));
+                $rows[] = $array->isAssociative()
+                    ? array($key, $value->prepend(' => '))
+                    : array($value);
             }
 
-            $result = $table->render();
+            $result = Text::renderTable($rows);
 
-            if ($table->count() < count($object->entries()))
+            if (count($rows) < count($array->entries()))
                 $result->addLine('...');
 
-            return $result->wrap('array( ', ' )');
+            return $result->wrap("array( ", " )");
         }
 
         /**
@@ -126,22 +136,24 @@ namespace PrettyPrinter {
          * @return Text
          */
         function renderVariables(array $variables, $noneText, $max) {
-            $table = new Table;
+            $rows = array();
 
             foreach ($variables as $variable) {
-                if (($table->count() + 1) > $max)
+                if ((count($rows) + 1) > $max)
                     break;
 
-                $table->addRow(array($variable->render($this),
-                                     $variable->value()->render($this)->wrap(' = ', ';')));
+                $rows[] = array(
+                    $variable->render($this),
+                    $variable->value()->render($this)->wrap(' = ', ';'),
+                );
             }
 
-            if ($table->count() == 0)
+            if (count($rows) == 0)
                 return $this->text($noneText);
 
-            $result = $table->render();
+            $result = Text::renderTable($rows);
 
-            if ($table->count() < count($variables))
+            if (count($rows) < count($variables))
                 $result->addLine('...');
 
             return $result;
@@ -174,14 +186,8 @@ namespace PrettyPrinter {
         }
 
         function renderObject(Values\ValueObject $object) {
-            if (isset($this->printedObjects[$object->id()]))
-                return $this->text("new {$object->className()} { ... }");
-
-            $this->printedObjects[$object->id()] = true;
-
             return $this->renderVariables($object->properties(), '', $this->maxObjectProperties)
-                        ->indent(2)
-                        ->wrapLines("new {$object->className()} {", "}");
+                        ->indent(2)->wrapLines("new {$object->className()} {", "}");
         }
 
         /**

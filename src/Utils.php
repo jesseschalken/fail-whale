@@ -1,98 +1,34 @@
 <?php
 
 namespace PrettyPrinter\Utils {
-    class ArrayUtil {
-        static function get($array, $key, $default = null) {
-            return array_key_exists($key, $array) ? $array[$key] : $default;
-        }
-
-        static function get2($array, $key1, $key2, $default = null) {
-            $array = self::get($array, $key1);
-            $value = self::get($array, $key2, $default);
-
-            return $value;
-        }
-
-        static function isAssoc(array $array) {
-            $i = 0;
-
-            /** @noinspection PhpUnusedLocalVariableInspection */
-            foreach ($array as $k => &$v)
-                if ($k !== $i++)
-                    return true;
-
-            return false;
-        }
-
-        static function lastKey(array $array) {
-            /** @noinspection PhpUnusedLocalVariableInspection */
-            foreach ($array as $k => &$v)
-                ;
-
-            return isset($k) ? $k : null;
-        }
-    }
-
-    class Ref {
-        static function &create($value = null) { return $value; }
-
-        static function equal(&$a, &$b) {
-            $aOld   = $a;
-            $a      = new \stdClass;
-            $result = $a === $b;
-            $a      = $aOld;
-
-            return $result;
-        }
-
-        static function get(&$ref) { return $ref; }
-
-        static function set(&$ref, $value = null) { $ref = $value; }
-    }
-
-    class Table implements \Countable {
-        /** @var (Text[])[] */
-        private $rows = array();
-
-        function __clone() {
-            foreach ($this->rows as &$row)
-                foreach ($row as &$cell)
-                    $cell = clone $cell;
-        }
-
+    class Text {
         /**
-         * @param Text[] $cells
+         * @param (self[])[] $cells
          *
-         * @return self
+         * @return \PrettyPrinter\Utils\Text
          */
-        function addRow(array $cells) {
-            foreach ($cells as &$cell)
-                $cell = clone $cell;
-
-            $this->rows[] = $cells;
-
-            return $this;
-        }
-
-        function count() { return count($this->rows); }
-
-        function render() {
+        static function renderTable(array $rows) {
             $columnWidths = array();
-            $result       = new Text;
 
             /** @var $cell Text */
-            foreach ($this->rows as $cells) {
-                foreach ($cells as $column => $cell) {
-                    $width =& $columnWidths[$column];
-                    $width = max((int)$width, $cell->width());
-                }
+            foreach (self::flipArray($rows) as $colNo => $column) {
+                $width = 0;
+
+                foreach ($column as $cell)
+                    $width = max($width, $cell->width());
+
+                $columnWidths[$colNo] = $width;
             }
 
-            foreach ($this->rows as $cells) {
+            $result = new Text;
+
+            foreach ($rows as $cells) {
                 $row        = new Text;
-                $lastColumn = ArrayUtil::lastKey($cells);
+                $lastColumn = count($cells) - 1;
 
                 foreach ($cells as $column => $cell) {
+                    $cell = clone $cell;
+
                     if ($column !== $lastColumn)
                         $cell->padWidth($columnWidths[$column]);
 
@@ -104,9 +40,17 @@ namespace PrettyPrinter\Utils {
 
             return $result;
         }
-    }
 
-    class Text {
+        private static function flipArray(array $x) {
+            $result = array();
+
+            foreach ($x as $k1 => $v1)
+                foreach ($v1 as $k2 => $v2)
+                    $result[$k2][$k1] = $v2;
+
+            return $result;
+        }
+
         private $lines, $hasEndingNewLine, $newLineChar;
 
         function __construct($text = "", $newLineChar = "\n") {
