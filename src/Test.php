@@ -186,25 +186,25 @@ array( 1,
        3,
        ... )
 s
-        )
-           ->assertPrettyIs(array("blarg" => "foo",
+        );
+        $pp->assertPrettyIs(array("blarg" => "foo",
                                   "bar"   => "bar"),
-               <<<'s'
+            <<<'s'
 array( "blarg" => "foo",
        "bar"   => "bar" )
 s
-            )
-           ->assertPrettyIs(array("blarg"    => "foo",
+        );
+        $pp->assertPrettyIs(array("blarg"    => "foo",
                                   "bar"      => "bar",
                                   "bawreara" => "wrjenrg",
                                   "awfjnrg"  => "awrrg"),
-               <<<'s'
+            <<<'s'
 array( "blarg"    => "foo",
        "bar"      => "bar",
        "bawreara" => "wrjenrg",
        ... )
 s
-            );
+        );
     }
 
     function testMaxObjectProperties() {
