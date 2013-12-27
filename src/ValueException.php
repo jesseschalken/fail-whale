@@ -120,7 +120,7 @@ s;
     function message() { return $this->message; }
 
     function previous() { return $this->previous; }
-    
+
     function stack() { return $this->stack; }
 
     function renderImpl(PrettyPrinter $settings) {
@@ -211,7 +211,7 @@ class ValueVariable {
     /**
      * @param Introspection $i
      *
-     * @return ValueVariable[]
+     * @return self[]
      */
     static function introspectGlobals(Introspection $i) {
         $globals = array();
@@ -272,6 +272,12 @@ class ValueVariable {
         return $globals;
     }
 
+    /**
+     * @param Introspection $i
+     * @param object        $object
+     *
+     * @return self[]
+     */
     static function introspectObjectProperties(Introspection $i, $object) {
         $properties = array();
 
@@ -296,6 +302,11 @@ class ValueVariable {
         return $properties;
     }
 
+    /**
+     * @param Introspection $param
+     *
+     * @return self[]
+     */
     static function mockGlobals(Introspection $param) {
         //  private static BlahClass::$blahProperty                       = null;
         //  function BlahAnotherClass()::static $public                   = null;
