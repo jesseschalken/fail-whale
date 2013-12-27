@@ -20,7 +20,7 @@ class ArrayCache {
     /** @var ArrayCacheEntry[] */
     private $entries = array();
 
-    function get(Introspection $i, Wrapped $array) {
+    function introspect(Introspection $i, Wrapped $array) {
         foreach ($this->entries as $entry)
             if ($entry->equals($array))
                 return $entry->result();
@@ -55,11 +55,13 @@ class ObjectCache {
 
     /**
      * @param Introspection $i
-     * @param object        $object
+     * @param Wrapped       $value
      *
      * @return ValueObject
      */
-    function get(Introspection $i, $object) {
+    function introspect(Introspection $i, Wrapped $value) {
+        $object = $value->get();
+
         if (isset($this->entries[spl_object_hash($object)]))
             return $this->entries[spl_object_hash($object)]->result();
 
@@ -83,7 +85,9 @@ class ObjectCacheEntry {
 }
 
 class Introspection {
+    /** @var ObjectCache */
     private $objectCache;
+    /** @var ArrayCache */
     private $arrayCache;
 
     function __construct() {
@@ -103,7 +107,15 @@ class Introspection {
     function introspectException(\Exception $e) { return ValueException::introspect($this, $e); }
 
     function introspect(Wrapped $k) {
-        return $k->introspect($this, $this->objectCache, $this->arrayCache);
+        return $k->introspect($this);
+    }
+
+    function introspectArray(Wrapped $array) {
+        return $this->arrayCache->introspect($this, $array);
+    }
+
+    function introspectObject(Wrapped $object) {
+        return $this->objectCache->introspect($this, $object);
     }
 }
 
@@ -129,7 +141,7 @@ class Wrapped {
 
     function get() { return $this->ref; }
 
-    function introspect(Introspection $i, ObjectCache $o, ArrayCache $a) {
+    function introspect(Introspection $i) {
         $value = $this->ref;
 
         if (is_string($value))
@@ -148,10 +160,10 @@ class Wrapped {
             return new ValueFloat($value);
 
         if (is_array($value))
-            return $a->get($i, $this);
+            return $i->introspectArray($this);
 
         if (is_object($value))
-            return $o->get($i, $value);
+            return $i->introspectObject($this);
 
         if (is_resource($value))
             return ValueResource::introspect($value);
@@ -208,27 +220,16 @@ class ValueArray extends Value {
      * @return ValueArray
      */
     static function introspect(Introspection $i, Wrapped $ref, ArrayCache $cache) {
-        $self = new self;
+        $array = $ref->get();
+        $self  = new self;
         $cache->insert($ref, $self);
 
-        $array               = $ref->get();
-        $self->isAssociative = self::isArrayAssociative($array);
+        $self->isAssociative = array_is_associative($array);
 
         foreach ($array as $k => &$v)
             $self->entries[] = new ArrayEntry($i->introspect(Wrapped::val($k)), $i->introspect(Wrapped::ref($v)));
 
         return $self;
-    }
-
-    private static function isArrayAssociative(array $array) {
-        $i = 0;
-
-        /** @noinspection PhpUnusedLocalVariableInspection */
-        foreach ($array as $k => &$v)
-            if ($k !== $i++)
-                return true;
-
-        return false;
     }
 
     private $isAssociative = false;
@@ -273,8 +274,8 @@ class ValueArray extends Value {
 
     /**
      * @param Deserialization $pool
-     * @param                 $id
-     * @param                 $v
+     * @param int             $id
+     * @param mixed           $v
      * @param ValueArray[]    $cache
      *
      * @return ValueArray
@@ -283,9 +284,10 @@ class ValueArray extends Value {
         if (isset($cache[$id]))
             return $cache[$id];
 
-        $self                = new self;
+        $self       = new self;
+        $cache[$id] = $self;
+
         $self->isAssociative = $v['isAssociative'];
-        $cache[$id]          = $self;
 
         foreach ($v['entries'] as $entry)
             $self->entries[] = new ArrayEntry($pool->deserialize($entry['key']),

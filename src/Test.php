@@ -40,7 +40,9 @@ s
     function testComplexObject() {
         $this->markTestIncomplete();
 
-        self::pp()->setMaxArrayEntries(10)->assertPrettyIs(new Introspection, <<<'s'
+        $pp = self::pp();
+        $pp->setMaxArrayEntries(10);
+        $pp->assertPrettyIs(new Introspection, <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
@@ -176,8 +178,9 @@ s
     }
 
     function testMaxArrayEntries() {
-        self::pp()->setMaxArrayEntries(3)
-            ->assertPrettyIs(range(1, 10), <<<'s'
+        $pp = self::pp();
+        $pp->setMaxArrayEntries(3);
+        $pp->assertPrettyIs(range(1, 10), <<<'s'
 array( 1,
        2,
        3,
@@ -205,7 +208,9 @@ s
     }
 
     function testMaxObjectProperties() {
-        self::pp()->setMaxObjectProperties(5)->assertPrettyIs(new DummyClass2, <<<'s'
+        $pp = self::pp();
+        $pp->setMaxObjectProperties(5);
+        $pp->assertPrettyIs(new DummyClass2, <<<'s'
 new PrettyPrinter\Test\DummyClass2 #1 {
     public $public2       = null;
     private $private2     = null;
@@ -219,8 +224,9 @@ s
     }
 
     function testMaxStringLength() {
-        self::pp()->setMaxStringLength(10)
-            ->assertPrettyIs("wafkjawejf bawjehfb awjhefb j,awhebf ", '"wafkjawejf...');
+        $pp = self::pp();
+        $pp->setMaxStringLength(10);
+        $pp->assertPrettyIs("wafkjawejf bawjehfb awjhefb j,awhebf ", '"wafkjawejf...');
     }
 
     function testMultiLineString() {

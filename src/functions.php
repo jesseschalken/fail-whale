@@ -16,3 +16,13 @@ function array_set(array &$a, $k, $v) {
     if ($v !== null)
         $a[$k] = $v;
 }
+
+function array_is_associative(array $a) {
+    $i = 0;
+
+    foreach ($a as $k => $v)
+        if ($k !== $i++)
+            return true;
+
+    return false;
+}

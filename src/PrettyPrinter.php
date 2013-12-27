@@ -234,50 +234,34 @@ final class PrettyPrinter {
 
     function setEscapeTabsInStrings($escapeTabsInStrings) {
         $this->escapeTabsInStrings = (bool)$escapeTabsInStrings;
-
-        return $this;
     }
 
     function setMaxArrayEntries($maxArrayEntries) {
         $this->maxArrayEntries = (float)$maxArrayEntries;
-
-        return $this;
     }
 
     function setMaxObjectProperties($maxObjectProperties) {
         $this->maxObjectProperties = (float)$maxObjectProperties;
-
-        return $this;
     }
 
     function setMaxStringLength($maxStringLength) {
         $this->maxStringLength = (float)$maxStringLength;
-
-        return $this;
     }
 
     function setShowExceptionGlobalVariables($showExceptionGlobalVariables) {
         $this->showExceptionGlobalVariables = (bool)$showExceptionGlobalVariables;
-
-        return $this;
     }
 
     function setShowExceptionLocalVariables($showExceptionLocalVariables) {
         $this->showExceptionLocalVariables = (bool)$showExceptionLocalVariables;
-
-        return $this;
     }
 
     function setShowExceptionStackTrace($showExceptionStackTrace) {
         $this->showExceptionStackTrace = (bool)$showExceptionStackTrace;
-
-        return $this;
     }
 
     function setSplitMultiLineStrings($splitMultiLineStrings) {
         $this->splitMultiLineStrings = (bool)$splitMultiLineStrings;
-
-        return $this;
     }
 }
 

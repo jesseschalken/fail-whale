@@ -127,11 +127,12 @@ function set_exception_handler($handler) {
 
 function simple_handler() {
     return function (\Exception $e) {
-        output('error', PrettyPrinter::create()
-                                     ->setMaxStringLength(100)
-                                     ->setMaxArrayEntries(10)
-                                     ->setMaxObjectProperties(10)
-                                     ->prettyPrintException($e));
+        $pp = PrettyPrinter::create();
+        $pp->setMaxStringLength(100);
+        $pp->setMaxArrayEntries(10);
+        $pp->setMaxObjectProperties(10);
+
+        output('error', $pp->prettyPrintException($e));
     };
 }
 
