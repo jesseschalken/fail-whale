@@ -79,6 +79,8 @@ class ValueBool extends Value {
      * @param bool $bool
      */
     function __construct($bool) {
+        assert(is_bool($bool));
+
         $this->bool = $bool;
     }
 
@@ -101,24 +103,31 @@ class ValueFloat extends Value {
      * @param float $float
      */
     function __construct($float) {
+        assert(is_float($float));
+
         $this->float = $float;
     }
 
     function renderImpl(PrettyPrinter $settings) {
-        return $settings->text($this->toPHP());
+        $int = (int)$this->float;
+
+        return $settings->text("$int" === "$this->float" ? "$this->float.0" : "$this->float");
     }
 
     function toJsonValueImpl(JsonSerialize $s) {
+        if ($this->float === INF)
+            return array('type' => '+inf');
+
+        if ($this->float === -INF)
+            return array('type' => '-inf');
+
+        if ($this->float === NAN)
+            return array('type' => 'nan');
+
         return array(
             'type'  => 'float',
-            'float' => $this->toPHP(),
+            'float' => $this->float,
         );
-    }
-
-    private function toPHP() {
-        $int = (int)$this->float;
-
-        return "$int" === "$this->float" ? "$this->float.0" : "$this->float";
     }
 }
 
@@ -129,6 +138,8 @@ class ValueInt extends Value {
      * @param int $int
      */
     function __construct($int) {
+        assert(is_int($int));
+
         $this->int = $int;
     }
 
@@ -207,6 +218,8 @@ class ValueString extends Value {
      * @param string $string
      */
     function __construct($string) {
+        assert(is_string($string));
+
         $this->string = $string;
     }
 

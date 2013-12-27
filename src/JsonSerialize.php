@@ -54,16 +54,14 @@ class JsonSerialize {
                     return $this->mapIndexToObject[$index];
 
                 return ValueObject::fromJsonValueImpl($this, $index, $this->serializedObjects[$index]);
+            case '-inf':
+                return new ValueFloat(-INF);
+            case '+inf':
+                return new ValueFloat(INF);
+            case 'nan':
+                return new ValueFloat(NAN);
             case 'float':
-                $value = $v['float'];
-                if ($value === 'INF')
-                    return new ValueFloat(INF);
-                else if ($value === '-INF')
-                    return new ValueFloat(-INF);
-                else if ($value === 'NAN')
-                    return new ValueFloat(NAN);
-                else
-                    return new ValueFloat((float)$value);
+                return new ValueFloat((float)$v['float']);
             case 'array':
                 $index = $v['array'];
 
@@ -82,7 +80,7 @@ class JsonSerialize {
             case 'int':
                 return new ValueInt((int)$v['int']);
             case 'bool':
-                return new ValueBool((bool)$v['bool']);
+                return new ValueBool($v['bool']);
             case 'string':
                 return new ValueString($v['string']);
             default:
