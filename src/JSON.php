@@ -8,7 +8,7 @@ class JSON {
      *
      * @return string
      */
-    static function encode($value) {
+    static function stringify($value) {
         $result = json_encode(self::prepare($value));
 
         self::checkError();
@@ -21,7 +21,7 @@ class JSON {
      *
      * @return mixed
      */
-    static function decode($json) {
+    static function parse($json) {
         $result = json_decode($json, true);
 
         self::checkError();

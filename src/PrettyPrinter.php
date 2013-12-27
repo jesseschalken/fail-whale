@@ -35,16 +35,12 @@ final class PrettyPrinter {
     }
 
     function prettyPrintException(\Exception $e) {
-        $introspection = new Introspection;
-
-        return $introspection->introspectException($e)->render($this)->toString();
+        return Value::introspectException($e)->render($this)->toString();
     }
 
     function prettyPrintRef(&$ref) {
-        $introspection = new Introspection;
-
-        return $introspection->introspect(Wrapped::ref($ref))->serialuzeUnserialize()->render($this)
-                             ->setHasEndingNewline(false)->toString();
+        return Value::introspectRef($ref)->toJsonFromJson()->render($this)
+                    ->setHasEndingNewline(false)->toString();
     }
 
     function render(Value $v) {

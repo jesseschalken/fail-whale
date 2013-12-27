@@ -20,75 +20,64 @@ class ArrayCache {
     /** @var ArrayCacheEntry[] */
     private $entries = array();
 
-    function introspect(Introspection $i, Wrapped $array) {
+    function introspect(Introspection $i, array &$array) {
         foreach ($this->entries as $entry)
             if ($entry->equals($array))
                 return $entry->result();
 
-        return ValueArray::introspect($i, $array, $this);
+        return ValueArray::introspectImpl($i, $array, $this);
     }
 
-    function insert(Wrapped $array, ValueArray $result) {
+    function insert(&$array, ValueArray $result) {
         $this->entries[] = new ArrayCacheEntry($array, $result);
     }
 }
 
 class ArrayCacheEntry {
-    /** @var Wrapped */
+    /** @var array */
     private $array;
     /** @var ValueArray */
     private $result;
 
-    function __construct(Wrapped $ref, ValueArray $result) {
-        $this->array  = $ref;
+    function __construct(array &$array, ValueArray $result) {
+        $this->array  =& $array;
         $this->result = $result;
     }
 
-    function equals(Wrapped $array) { return $this->array->equals($array); }
+    function equals(array &$array) { return ref_equal($this->array, $array); }
 
     function result() { return $this->result; }
 }
 
 class ObjectCache {
-    /** @var ObjectCacheEntry[] */
-    private $entries = array();
+    /** @var ValueObject[] */
+    private $results = array();
+    /** @var object[] Just to keep a reference to the objects, because if they get GC'd their hash can get re-used */
+    private $objects = array();
 
     /**
      * @param Introspection $i
-     * @param Wrapped       $value
+     * @param object        $object
      *
      * @return ValueObject
      */
-    function introspect(Introspection $i, Wrapped $value) {
-        $object = $value->get();
+    function introspect(Introspection $i, $object) {
+        $hash = spl_object_hash($object);
 
-        if (isset($this->entries[spl_object_hash($object)]))
-            return $this->entries[spl_object_hash($object)]->result();
+        if (array_key_exists($hash, $this->results))
+            return $this->results[$hash];
 
-        return ValueObject::introspect($i, $object, $this);
+        return ValueObject::introspectImpl($i, $hash, $object, $this);
     }
 
-    function insert($object, ValueObject $result) {
-        $this->entries[spl_object_hash($object)] = new ObjectCacheEntry($object, $result);
+    function insert($object, $hash, ValueObject $result) {
+        $this->objects[$hash] = $object;
+        $this->results[$hash] = $result;
     }
-}
-
-class ObjectCacheEntry {
-    private $object, $result;
-
-    function __construct($object, ValueObject $result) {
-        $this->object = $object;
-        $this->result = $result;
-    }
-
-    function result() { return $this->result; }
 }
 
 class Introspection {
-    /** @var ObjectCache */
-    private $objectCache;
-    /** @var ArrayCache */
-    private $arrayCache;
+    private $objectCache, $arrayCache;
 
     function __construct() {
         $this->objectCache = new ObjectCache;
@@ -98,81 +87,80 @@ class Introspection {
     /**
      * @param \ReflectionProperty|\ReflectionMethod $property
      *
+     * @throws \Exception
      * @return string
      */
     function propertyOrMethodAccess($property) {
-        return $property->isPrivate() ? 'private' : ($property->isPublic() ? 'public' : 'protected');
+        if ($property->isPublic())
+            return 'public';
+        if ($property->isPrivate())
+            return 'private';
+        if ($property->isProtected())
+            return 'protected';
+
+        throw new \Exception("This thing is not protected, public, nor private? Huh?");
     }
 
-    function introspectException(\Exception $e) { return ValueException::introspect($this, $e); }
-
-    function introspect(Wrapped $k) {
-        return $k->introspect($this);
+    function introspectException(\Exception $e) {
+        return ValueException::introspectImpl($this, $e);
     }
 
-    function introspectArray(Wrapped $array) {
-        return $this->arrayCache->introspect($this, $array);
+    function introspect($x) {
+        return $this->introspectRef($x);
     }
 
-    function introspectObject(Wrapped $object) {
-        return $this->objectCache->introspect($this, $object);
-    }
-}
+    function introspectRef(&$x) {
+        if (is_string($x))
+            return new ValueString($x);
 
-class Wrapped {
-    private $ref;
+        if (is_int($x))
+            return new ValueInt($x);
 
-    static function val($x = null) { return new self($x); }
+        if (is_bool($x))
+            return new ValueBool($x);
 
-    static function ref(&$x = null) { return new self($x); }
+        if (is_null($x))
+            return new ValueNull($x);
 
-    private function __construct(&$ref) {
-        $this->ref =& $ref;
-    }
+        if (is_float($x))
+            return new ValueFloat($x);
 
-    function equals(self $ref) {
-        $old       = $this->ref;
-        $this->ref = new \stdClass;
-        $result    = $this->ref === $ref->ref;
-        $this->ref = $old;
+        if (is_array($x))
+            return $this->arrayCache->introspect($this, $x);
 
-        return $result;
-    }
+        if (is_object($x))
+            return $this->objectCache->introspect($this, $x);
 
-    function get() { return $this->ref; }
-
-    function introspect(Introspection $i) {
-        $value = $this->ref;
-
-        if (is_string($value))
-            return new ValueString($value);
-
-        if (is_int($value))
-            return new ValueInt($value);
-
-        if (is_bool($value))
-            return new ValueBool($value);
-
-        if (is_null($value))
-            return new ValueNull($value);
-
-        if (is_float($value))
-            return new ValueFloat($value);
-
-        if (is_array($value))
-            return $i->introspectArray($this);
-
-        if (is_object($value))
-            return $i->introspectObject($this);
-
-        if (is_resource($value))
-            return ValueResource::introspect($value);
+        if (is_resource($x))
+            return ValueResource::introspectImpl($x);
 
         return new ValueUnknown;
     }
 }
 
 abstract class Value {
+    static function introspect($x) {
+        return self::i()->introspect($x);
+    }
+
+    static function introspectRef(&$x) {
+        return self::i()->introspectRef($x);
+    }
+
+    static function introspectException(\Exception $e) {
+        return self::i()->introspectException($e);
+    }
+
+    static function fromJsonValue($x) {
+        return JsonSerialize::fromJsonWhole($x);
+    }
+
+    static function fromJson($json) {
+        return self::fromJsonValue(JSON::parse($json));
+    }
+
+    private static function i() { return new Introspection; }
+
     private static $nextId = 0;
     private $id;
 
@@ -187,13 +175,18 @@ abstract class Value {
      */
     final function render(PrettyPrinter $settings) { return $settings->render($this); }
 
-    abstract function serialize(Serialization $s);
+    abstract function toJsonValueImpl(JsonSerialize $s);
 
-    function serialuzeUnserialize() {
-        $x = Serialization::serializeWhole($this);
-        $x = JSON::decode(JSON::encode($x));
+    final function toJsonValue() {
+        return JsonSerialize::toJsonWhole($this);
+    }
 
-        return Deserialization::deserializeWhole($x);
+    final function toJson() {
+        return JSON::stringify($this->toJsonValue());
+    }
+
+    function toJsonFromJson() {
+        return self::fromJson($this->toJson());
     }
 
     function id() { return $this->id; }
@@ -214,20 +207,19 @@ abstract class Value {
 class ValueArray extends Value {
     /**
      * @param Introspection $i
-     * @param Wrapped       $ref
+     * @param array         $array
      * @param ArrayCache    $cache
      *
      * @return ValueArray
      */
-    static function introspect(Introspection $i, Wrapped $ref, ArrayCache $cache) {
-        $array = $ref->get();
-        $self  = new self;
-        $cache->insert($ref, $self);
+    static function introspectImpl(Introspection $i, array &$array, ArrayCache $cache) {
+        $self = new self;
+        $cache->insert($array, $self);
 
         $self->isAssociative = array_is_associative($array);
 
         foreach ($array as $k => &$v)
-            $self->entries[] = new ArrayEntry($i->introspect(Wrapped::val($k)), $i->introspect(Wrapped::ref($v)));
+            $self->entries[] = new ArrayEntry($i->introspect($k), $i->introspectRef($v));
 
         return $self;
     }
@@ -253,11 +245,11 @@ class ValueArray extends Value {
 
     function renderImpl(PrettyPrinter $settings) { return $settings->renderArray($this); }
 
-    function serialize(Serialization $s) {
+    function toJsonValueImpl(JsonSerialize $s) {
         return array('type' => 'array', 'array' => $s->addArray($this));
     }
 
-    function serializeArray(Serialization $s) {
+    function serializeArray(JsonSerialize $s) {
         $result = array(
             'isAssociative' => $this->isAssociative,
             'entries'       => array(),
@@ -265,33 +257,22 @@ class ValueArray extends Value {
 
         foreach ($this->entries as $entry)
             $result['entries'][] = array(
-                'key'   => $s->serialize($entry->key()),
-                'value' => $s->serialize($entry->value()),
+                'key'   => $s->toJsonValue($entry->key()),
+                'value' => $s->toJsonValue($entry->value()),
             );
 
         return $result;
     }
 
-    /**
-     * @param Deserialization $pool
-     * @param int             $id
-     * @param mixed           $v
-     * @param ValueArray[]    $cache
-     *
-     * @return ValueArray
-     */
-    static function deserialize(Deserialization $pool, $id, $v, array &$cache) {
-        if (isset($cache[$id]))
-            return $cache[$id];
-
-        $self       = new self;
-        $cache[$id] = $self;
-
+    static function fromJsonValueImpl(JsonSerialize $pool, $index, array $v) {
+        $self                = new self;
         $self->isAssociative = $v['isAssociative'];
 
+        $pool->insertArray($index, $self);
+
         foreach ($v['entries'] as $entry)
-            $self->entries[] = new ArrayEntry($pool->deserialize($entry['key']),
-                                              $pool->deserialize($entry['value']));
+            $self->entries[] = new ArrayEntry($pool->fromJsonValue($entry['key']),
+                                              $pool->fromJsonValue($entry['value']));
 
         return $self;
     }
@@ -322,12 +303,12 @@ class ValueBool extends Value {
 
     function renderImpl(PrettyPrinter $settings) { return $settings->text($this->bool ? 'true' : 'false'); }
 
-    function serialize(Serialization $s) { return array('type' => 'bool', 'bool' => $this->bool); }
+    function toJsonValueImpl(JsonSerialize $s) { return array('type' => 'bool', 'bool' => $this->bool); }
 }
 
 class ValueException extends Value {
-    static function introspect(Introspection $i, \Exception $e) {
-        $self          = self::introspectException($i, $e);
+    static function introspectImpl(Introspection $i, \Exception $e) {
+        $self          = self::introspectImplNoGlobals($i, $e);
         $self->globals = Variable::introspectGlobals($i);
 
         return $self;
@@ -355,7 +336,7 @@ class ValueException extends Value {
         return $x;
     }
 
-    private static function introspectException(Introspection $i, \Exception $e) {
+    private static function introspectImplNoGlobals(Introspection $i, \Exception $e) {
         $self            = new self;
         $self->className = get_class($e);
         $self->code      = $e->getCode();
@@ -364,14 +345,14 @@ class ValueException extends Value {
         $self->file      = $e->getFile();
 
         if ($e->getPrevious() !== null)
-            $self->previous = self::introspectException($i, $e->getPrevious());
+            $self->previous = self::introspectImplNoGlobals($i, $e->getPrevious());
 
         if ($e instanceof ExceptionHasLocalVariables && $e->getLocalVariables() !== null) {
             $self->locals = array();
 
             $locals = $e->getLocalVariables();
             foreach ($locals as $name => &$value)
-                $self->locals[] = Variable::introspect($i, $name, Wrapped::ref($value));
+                $self->locals[] = new Variable($name, $i->introspectRef($value));
         }
 
         foreach ($e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace() as $frame)
@@ -391,8 +372,8 @@ s;
         $self->code      = 'Dummy exception code';
         $self->file      = '/the/path/to/muh/file';
         $self->line      = 9000;
-        $self->locals    = array(Variable::introspect($param, 'lol', Wrapped::val(8)),
-                                 Variable::introspect($param, 'foo', Wrapped::val('bar')));
+        $self->locals    = array(new Variable('lol', $param->introspect(8)),
+                                 new Variable('foo', $param->introspect('bar')));
 
         $self->stack   = FunctionCall::mock($param);
         $self->globals = Variable::mockGlobals($param);
@@ -434,7 +415,7 @@ s;
 
     function stack() { return $this->stack; }
 
-    function serialize(Serialization $s) {
+    function toJsonValueImpl(JsonSerialize $s) {
         $result = array(
             'className' => $this->className,
             'stack'     => array(),
@@ -445,7 +426,7 @@ s;
         );
 
         if ($this->previous !== null)
-            $result['previous'] = $s->serialize($this->previous);
+            $result['previous'] = $s->toJsonValue($this->previous);
 
         foreach ($this->stack as $frame)
             $result['stack'][] = $frame->serialize($s);
@@ -470,7 +451,7 @@ s;
         );
     }
 
-    static function deserialize(Deserialization $pool, $v) {
+    static function fromJsonValueImpl(JsonSerialize $pool, array $v) {
         $self            = new self;
         $self->className = $v['className'];
         $self->code      = $v['code'];
@@ -482,7 +463,7 @@ s;
             $self->stack[] = FunctionCall::deserialize($pool, $frame);
 
         if (array_key_exists('previous', $v))
-            $self->previous = self::deserialize($pool, $v['previous']);
+            $self->previous = self::fromJsonValueImpl($pool, $v['previous']);
 
         if (array_key_exists('locals', $v)) {
             $self->locals = array();
@@ -503,8 +484,8 @@ s;
 }
 
 class Variable {
-    static function deserialize(Deserialization $pool, $prop) {
-        $self               = new self($prop['name'], $pool->deserialize($prop['value']));
+    static function deserialize(JsonSerialize $pool, $prop) {
+        $self               = new self($prop['name'], $pool->fromJsonValue($prop['value']));
         $self->functionName = array_get($prop, 'functionName');
         $self->access       = array_get($prop, 'access');
         $self->isGlobal     = array_get($prop, 'isGlobal');
@@ -525,7 +506,7 @@ class Variable {
 
         foreach ($GLOBALS as $variableName => &$globalValue) {
             if ($variableName !== 'GLOBALS') {
-                $self           = self::introspect($i, $variableName, Wrapped::ref($globalValue));
+                $self           = new self($variableName, $i->introspectRef($globalValue));
                 $self->isGlobal = true;
 
                 $globals [] = $self;
@@ -538,7 +519,7 @@ class Variable {
             foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
                 $property->setAccessible(true);
 
-                $self            = new self($property->name, $i->introspect(Wrapped::val($property->getValue())));
+                $self            = new self($property->name, $i->introspect($property->getValue()));
                 $self->className = $property->class;
                 $self->access    = $i->propertyOrMethodAccess($property);
                 $self->isStatic  = true;
@@ -551,7 +532,7 @@ class Variable {
                 $staticVariables = $method->getStaticVariables();
 
                 foreach ($staticVariables as $variableName => &$varValue) {
-                    $self               = self::introspect($i, $variableName, Wrapped::ref($varValue));
+                    $self               = new self($variableName, $i->introspectRef($varValue));
                     $self->className    = $method->class;
                     $self->access       = $i->propertyOrMethodAccess($method);
                     $self->functionName = $method->getName();
@@ -568,7 +549,7 @@ class Variable {
                 $staticVariables = $reflection->getStaticVariables();
 
                 foreach ($staticVariables as $propertyName => &$varValue) {
-                    $self               = self::introspect($i, $propertyName, Wrapped::ref($varValue));
+                    $self               = new self($propertyName, $i->introspectRef($varValue));
                     $self->functionName = $function;
 
                     $globals[] = $self;
@@ -577,10 +558,6 @@ class Variable {
         }
 
         return $globals;
-    }
-
-    static function introspect(Introspection $i, $name, Wrapped $value) {
-        return new self($name, $i->introspect($value));
     }
 
     static function introspectObjectProperties(Introspection $i, $object) {
@@ -595,7 +572,7 @@ class Variable {
 
                 $property->setAccessible(true);
 
-                $self            = self::introspect($i, $property->name, Wrapped::val($property->getValue($object)));
+                $self            = new self($property->name, $i->introspect($property->getValue($object)));
                 $self->className = $property->class;
                 $self->access    = $i->propertyOrMethodAccess($property);
                 $self->isDefault = $property->isDefault();
@@ -614,7 +591,7 @@ class Variable {
         //  function BlahYetAnotherClass::blahMethod()::static $lolStatic = null;
         //  global $blahVariable                                          = null;
 
-        $null = $param->introspect(Wrapped::val(null));
+        $null = $param->introspect(null);
 
         $globals = array();
 
@@ -663,7 +640,7 @@ class Variable {
      * @param string $name
      * @param Value  $value
      */
-    private function __construct($name, Value $value) {
+    function __construct($name, Value $value) {
         $this->value = $value;
         $this->name  = $name;
     }
@@ -691,10 +668,10 @@ class Variable {
         return $prefix->appendLines($settings->renderVariable($this->name));
     }
 
-    function serialize(Serialization $s) {
+    function serialize(JsonSerialize $s) {
         $result = array(
             'name'  => $this->name,
-            'value' => $s->serialize($this->value),
+            'value' => $s->toJsonValue($this->value),
         );
 
         array_set($result, 'className', $this->className);
@@ -711,7 +688,7 @@ class Variable {
 }
 
 class FunctionCall {
-    static function deserialize(Deserialization $pool, $frame) {
+    static function deserialize(JsonSerialize $pool, $frame) {
         $self            = new self($frame['functionName']);
         $self->isStatic  = array_get($frame, 'isStatic');
         $self->file      = array_get($frame, 'file');
@@ -719,13 +696,13 @@ class FunctionCall {
         $self->className = array_get($frame, 'className');
 
         if (array_key_exists('object', $frame))
-            $self->object = $pool->deserialize($frame['object']);
+            $self->object = $pool->fromJsonValue($frame['object']);
 
         if (array_key_exists('args', $frame)) {
             $self->args = array();
 
             foreach ($frame['args'] as $arg)
-                $self->args [] = $pool->deserialize($arg);
+                $self->args [] = $pool->fromJsonValue($arg);
         }
 
         return $self;
@@ -744,11 +721,11 @@ class FunctionCall {
             $self->args = array();
 
             foreach ($frame['args'] as &$arg)
-                $self->args[] = $i->introspect(Wrapped::ref($arg));
+                $self->args[] = $i->introspectRef($arg);
         }
 
         if (array_key_exists('object', $frame))
-            $self->object = $i->introspect(Wrapped::val($frame['object']));
+            $self->object = $i->introspectRef($frame['object']);
 
         return $self;
     }
@@ -762,16 +739,16 @@ class FunctionCall {
         $stack = array();
 
         $self            = new self('aFunction');
-        $self->args      = array($param->introspect(Wrapped::val(new DummyClass2)));
+        $self->args      = array($param->introspect(new DummyClass2));
         $self->file      = '/path/to/muh/file';
         $self->line      = 1928;
-        $self->object    = $param->introspect(Wrapped::val(new DummyClass1));
+        $self->object    = $param->introspect(new DummyClass1);
         $self->className = 'DummyClass1';
 
         $stack[] = $self;
 
         $self       = new self('aFunction');
-        $self->args = array($param->introspect(Wrapped::val(new DummyClass2)));
+        $self->args = array($param->introspect(new DummyClass2));
         $self->file = '/path/to/muh/file';
         $self->line = 1928;
 
@@ -861,18 +838,18 @@ class FunctionCall {
         return $settings->text();
     }
 
-    function serialize(Serialization $s) {
+    function serialize(JsonSerialize $s) {
         $result = array('functionName' => $this->functionName);
 
         if ($this->args !== null) {
             $result['args'] = array();
 
             foreach ($this->args as $arg)
-                $result['args'][] = $s->serialize($arg);
+                $result['args'][] = $s->toJsonValue($arg);
         }
 
         if ($this->object !== null)
-            $result['object'] = $s->serialize($this->object);
+            $result['object'] = $s->toJsonValue($this->object);
 
         array_set($result, 'className', $this->className);
         array_set($result, 'isStatic', $this->isStatic);
@@ -895,7 +872,7 @@ class ValueFloat extends Value {
 
     function renderImpl(PrettyPrinter $settings) { return $settings->text($this->toPHP()); }
 
-    function serialize(Serialization $s) { return array('type' => 'float', 'float' => $this->toPHP()); }
+    function toJsonValueImpl(JsonSerialize $s) { return array('type' => 'float', 'float' => $this->toPHP()); }
 
     private function toPHP() {
         $int = (int)$this->float;
@@ -914,13 +891,13 @@ class ValueInt extends Value {
 
     function renderImpl(PrettyPrinter $settings) { return $settings->text("$this->int"); }
 
-    function serialize(Serialization $s) { return array('type' => 'int', 'int' => $this->int); }
+    function toJsonValueImpl(JsonSerialize $s) { return array('type' => 'int', 'int' => $this->int); }
 }
 
 class ValueNull extends Value {
     function renderImpl(PrettyPrinter $settings) { return $settings->text('null'); }
 
-    function serialize(Serialization $s) { return array('type' => 'null'); }
+    function toJsonValueImpl(JsonSerialize $s) { return array('type' => 'null'); }
 
     function __construct() {
         parent::__construct();
@@ -930,16 +907,17 @@ class ValueNull extends Value {
 class ValueObject extends Value {
     /**
      * @param Introspection $i
+     * @param string        $hash
      * @param object        $object
      * @param ObjectCache   $cache
      *
      * @return ValueObject
      */
-    static function introspect(Introspection $i, $object, ObjectCache $cache) {
+    static function introspectImpl(Introspection $i, $hash, $object, ObjectCache $cache) {
         $self = new self;
-        $cache->insert($object, $self);
+        $cache->insert($object, $hash, $self);
 
-        $self->hash       = spl_object_hash($object);
+        $self->hash       = $hash;
         $self->className  = get_class($object);
         $self->properties = Variable::introspectObjectProperties($i, $object);
 
@@ -966,11 +944,11 @@ class ValueObject extends Value {
 
     function renderImpl(PrettyPrinter $settings) { return $settings->renderObject($this); }
 
-    function serialize(Serialization $s) {
+    function toJsonValueImpl(JsonSerialize $s) {
         return array('type' => 'object', 'object' => $s->addObject($this));
     }
 
-    function serializeObject(Serialization $s) {
+    function serializeObject(JsonSerialize $s) {
         $result = array(
             'className'  => $this->className,
             'hash'       => $this->hash,
@@ -983,22 +961,12 @@ class ValueObject extends Value {
         return $result;
     }
 
-    /**
-     * @param Deserialization $pool
-     * @param                 $id
-     * @param                 $v
-     * @param ValueObject[]   $cache
-     *
-     * @return ValueObject
-     */
-    static function deserialize(Deserialization $pool, $id, $v, array &$cache) {
-        if (isset($cache[$id]))
-            return $cache[$id];
-
+    static function fromJsonValueImpl(JsonSerialize $pool, $index, array $v) {
         $self            = new self;
         $self->className = $v['className'];
         $self->hash      = $v['hash'];
-        $cache[$id]      = $self;
+
+        $pool->insertObject($index, $self);
 
         foreach ($v['properties'] as $prop)
             $self->properties[] = Variable::deserialize($pool, $prop);
@@ -1013,7 +981,7 @@ class ValueResource extends Value {
      *
      * @return self
      */
-    static function introspect($value) {
+    static function introspectImpl($value) {
         $self       = new self;
         $self->type = get_resource_type($value);
         $self->id   = (int)$value;
@@ -1026,17 +994,17 @@ class ValueResource extends Value {
 
     function renderImpl(PrettyPrinter $settings) { return $settings->text($this->type); }
 
-    function serialize(Serialization $s) {
+    function toJsonValueImpl(JsonSerialize $s) {
         return array(
             'type'     => 'resource',
             'resource' => array(
                 'resourceType' => $this->type,
                 'resourceId'   => $this->id,
-            )
+            ),
         );
     }
 
-    static function deserialize($v) {
+    static function fromJsonValueImpl(array $v) {
         $self       = new self;
         $self->type = $v['resourceType'];
         $self->id   = $v['resourceId'];
@@ -1055,35 +1023,55 @@ class ValueString extends Value {
 
     function renderImpl(PrettyPrinter $settings) { return $settings->renderString($this->string); }
 
-    function serialize(Serialization $s) { return array('type' => 'string', 'string' => $this->string); }
+    function toJsonValueImpl(JsonSerialize $s) { return array('type' => 'string', 'string' => $this->string); }
 }
 
 class ValueUnknown extends Value {
     function renderImpl(PrettyPrinter $settings) { return $settings->text('unknown type'); }
 
-    function serialize(Serialization $s) { return array('type' => 'unknown'); }
+    function toJsonValueImpl(JsonSerialize $s) { return array('type' => 'unknown'); }
 
     function __construct() {
         parent::__construct();
     }
 }
 
-class Deserialization {
-    static function deserializeWhole($value) {
-        $self          = new self;
-        $self->objects = $value['objects'];
-        $self->arrays  = $value['arrays'];
+class JsonSerialize {
+    static function fromJsonWhole(array $value) {
+        $self                    = new self;
+        $self->serializedObjects = $value['objects'];
+        $self->serializedArrays  = $value['arrays'];
 
-        return $self->deserialize($value['root']);
+        return $self->fromJsonValue($value['root']);
     }
 
-    private $arrays = array();
-    private $objects = array();
+    static function toJsonWhole(Value $v) {
+        $self = new self;
+        $root = $self->toJsonValue($v);
+
+        return array(
+            'root'    => $root,
+            'arrays'  => $self->serializedArrays,
+            'objects' => $self->serializedObjects,
+        );
+    }
+
+    /** @var mixed[] */
+    private $serializedArrays = array();
+    /** @var mixed[] */
+    private $serializedObjects = array();
 
     /** @var ValueArray[] */
-    private $arrayCache = array();
+    private $mapIndexToArray = array();
     /** @var ValueObject[] */
-    private $objectCache = array();
+    private $mapIndexToObject = array();
+
+    /** @var int[] */
+    private $mapArrayToIndex = array();
+    /** @var int[] */
+    private $mapObjectToIndex = array();
+
+    private function __construct() { }
 
     /**
      * @param array $v
@@ -1091,10 +1079,15 @@ class Deserialization {
      * @throws Exception
      * @return Value
      */
-    function deserialize($v) {
+    function fromJsonValue(array $v) {
         switch ($v['type']) {
             case 'object':
-                return $this->deserializeObject($v['object']);
+                $index = $v['object'];
+
+                if (isset($this->mapIndexToObject[$index]))
+                    return $this->mapIndexToObject[$index];
+
+                return ValueObject::fromJsonValueImpl($this, $index, $this->serializedObjects[$index]);
             case 'float':
                 $value = $v['float'];
                 if ($value === 'INF')
@@ -1106,11 +1099,16 @@ class Deserialization {
                 else
                     return new ValueFloat((float)$value);
             case 'array':
-                return $this->deserializeArray($v['array']);
+                $index = $v['array'];
+
+                if (isset($this->mapIndexToArray[$index]))
+                    return $this->mapIndexToArray[$index];
+
+                return ValueArray::fromJsonValueImpl($this, $index, $this->serializedArrays[$index]);
             case 'exception':
-                return ValueException::deserialize($this, $v['exception']);
+                return ValueException::fromJsonValueImpl($this, $v['exception']);
             case 'resource':
-                return ValueResource::deserialize($v['resource']);
+                return ValueResource::fromJsonValueImpl($v['resource']);
             case 'unknown':
                 return new ValueUnknown;
             case 'null':
@@ -1126,60 +1124,45 @@ class Deserialization {
         }
     }
 
-    function deserializeObject($value) {
-        return ValueObject::deserialize($this, $value, $this->objects[$value], $this->objectCache);
+    function toJsonValue(Value $value) {
+        return $value->toJsonValueImpl($this);
     }
 
-    function deserializeArray($value) {
-        return ValueArray::deserialize($this, $value, $this->arrays[$value], $this->arrayCache);
-    }
-}
-
-class Serialization {
-    static function serializeWhole(Value $v) {
-        $self = new self;
-        $root = $self->serialize($v);
-
-        return array(
-            'root'    => $root,
-            'arrays'  => $self->arrays,
-            'objects' => $self->objects,
-        );
+    function insertObject($index, ValueObject $self) {
+        $this->mapIndexToObject[$index]      = $self;
+        $this->mapObjectToIndex[$self->id()] = $index;
     }
 
-    /** @var mixed[] */
-    private $arrays = array();
-    /** @var mixed[] */
-    private $objects = array();
-    /** @var int[] */
-    private $arrayIDs = array();
-    /** @var int[] */
-    private $objectIDs = array();
+    function insertArray($index, ValueArray $self) {
+        $this->mapIndexToArray[$index]      = $self;
+        $this->mapArrayToIndex[$self->id()] = $index;
+    }
 
-    function addArray(ValueArray $a) {
-        $id = $a->id();
+    function addArray(ValueArray $array) {
+        if (isset($this->mapArrayToIndex[$array->id()]))
+            return $this->mapArrayToIndex[$array->id()];
 
-        if (array_key_exists($id, $this->arrayIDs))
-            return $this->arrayIDs[$id];
+        $index = count($this->mapArrayToIndex);
 
-        $this->arrayIDs[$id]  = $index = count($this->arrayIDs);
-        $this->arrays[$index] = $a->serializeArray($this);
+        $this->insertArray($index, $array);
+
+        $this->serializedArrays[$index] = $array->serializeArray($this);
 
         return $index;
     }
 
-    function addObject(ValueObject $o) {
-        $id = $o->id();
+    function addObject(ValueObject $object) {
+        if (isset($this->mapObjectToIndex[$object->id()]))
+            return $this->mapObjectToIndex[$object->id()];
 
-        if (array_key_exists($id, $this->objectIDs))
-            return $this->objectIDs[$id];
+        $index = count($this->mapObjectToIndex);
 
-        $this->objectIDs[$id]  = $index = count($this->objectIDs);
-        $this->objects[$index] = $o->serializeObject($this);
+        $this->insertObject($index, $object);
+
+        $this->serializedObjects[$index] = $object->serializeObject($this);
 
         return $index;
     }
-
-    function serialize(Value $value) { return $value->serialize($this); }
 }
+
 

@@ -135,7 +135,7 @@ s
 
     function testException() {
         $i         = new Introspection;
-        $exception = ValueException::mock($i)->serialuzeUnserialize();
+        $exception = ValueException::mock($i)->toJsonFromJson();
 
         self::assertEquals($exception->render(self::pp())->toString(), <<<'s'
 MuhMockException Dummy exception code in /the/path/to/muh/file:9000
@@ -186,19 +186,19 @@ array( 1,
        3,
        ... )
 s
-            )
-            ->assertPrettyIs(array("blarg" => "foo",
-                                   "bar"   => "bar"),
-                <<<'s'
+        )
+           ->assertPrettyIs(array("blarg" => "foo",
+                                  "bar"   => "bar"),
+               <<<'s'
 array( "blarg" => "foo",
        "bar"   => "bar" )
 s
             )
-            ->assertPrettyIs(array("blarg"    => "foo",
-                                   "bar"      => "bar",
-                                   "bawreara" => "wrjenrg",
-                                   "awfjnrg"  => "awrrg"),
-                <<<'s'
+           ->assertPrettyIs(array("blarg"    => "foo",
+                                  "bar"      => "bar",
+                                  "bawreara" => "wrjenrg",
+                                  "awfjnrg"  => "awrrg"),
+               <<<'s'
 array( "blarg"    => "foo",
        "bar"      => "bar",
        "bawreara" => "wrjenrg",

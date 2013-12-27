@@ -8,6 +8,15 @@ function ref_get(&$x) { return $x; }
 
 function ref_set(&$x, $y) { $x = $y; }
 
+function ref_equal(&$x, &$y) {
+    $xOld   = $x;
+    $x      = new \stdClass;
+    $result = $x === $y;
+    $x      = $xOld;
+
+    return $result;
+}
+
 function array_get(array $a, $k) {
     return array_key_exists($k, $a) ? $a[$k] : null;
 }
