@@ -12,6 +12,6 @@
     },
     "autoload": {
         "classmap": [ "src/" ],
-        "files": ["src/ErrorHandler.php"]
+        "files": ["src/ErrorHandler.php", "src/functions.php"]
     }
 }

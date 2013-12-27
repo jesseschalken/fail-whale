@@ -174,6 +174,7 @@ namespace PrettyPrinter\Values {
     use PrettyPrinter\Test\DummyClass1;
     use PrettyPrinter\Test\DummyClass2;
     use PrettyPrinter\Utils\Text;
+    use PrettyPrinter as PP;
 
     abstract class Value {
         private static $nextId = 0;
@@ -193,7 +194,10 @@ namespace PrettyPrinter\Values {
         abstract function serialize(Serialization $s);
 
         function serialuzeUnserialize() {
-            return Deserialization::deserializeWhole(Serialization::serializeWhole($this));
+            $x = Serialization::serializeWhole($this);
+            $x = PP\JSON::decode(PP\JSON::encode($x));
+
+            return Deserialization::deserializeWhole($x);
         }
 
         function id() { return $this->id; }
@@ -213,13 +217,13 @@ namespace PrettyPrinter\Values {
 
     class ValueArray extends Value {
         /**
-         * @param Introspection $introspection
+         * @param Introspection $i
          * @param Wrapped       $ref
          * @param ArrayCache    $cache
          *
          * @return ValueArray
          */
-        static function introspect(Introspection $introspection, Wrapped $ref, ArrayCache $cache) {
+        static function introspect(Introspection $i, Wrapped $ref, ArrayCache $cache) {
             $self = new self;
             $cache->insert($ref, $self);
 
@@ -227,7 +231,7 @@ namespace PrettyPrinter\Values {
             $self->isAssociative = self::isArrayAssociative($array);
 
             foreach ($array as $k => &$v)
-                $self->entries[] = ArrayEntry::introspect($introspection, Wrapped::val($k), Wrapped::ref($v));
+                $self->entries[] = new ArrayEntry($i->introspect(Wrapped::val($k)), $i->introspect(Wrapped::ref($v)));
 
             return $self;
         }
@@ -265,21 +269,22 @@ namespace PrettyPrinter\Values {
         function renderImpl(PrettyPrinter $settings) { return $settings->renderArray($this); }
 
         function serialize(Serialization $s) {
-            $s->addArray($this);
-
-            return array('type' => 'array', 'array' => $this->id());
+            return array('type' => 'array', 'array' => $s->addArray($this));
         }
 
         function serializeArray(Serialization $s) {
-            $entries = array();
+            $result = array(
+                'isAssociative' => $this->isAssociative,
+                'entries'       => array(),
+            );
 
             foreach ($this->entries as $entry)
-                $entries[] = $entry->serialize($s);
+                $result['entries'][] = array(
+                    'key'   => $s->serialize($entry->key()),
+                    'value' => $s->serialize($entry->value()),
+                );
 
-            return array(
-                'isAssociative' => $this->isAssociative,
-                'entries'       => $entries,
-            );
+            return $result;
         }
 
         /**
@@ -299,46 +304,24 @@ namespace PrettyPrinter\Values {
             $cache[$id]          = $self;
 
             foreach ($v['entries'] as $entry)
-                $self->entries[] = ArrayEntry::deserialize($pool, $entry);
+                $self->entries[] = new ArrayEntry($pool->deserialize($entry['key']),
+                                                  $pool->deserialize($entry['value']));
 
             return $self;
         }
     }
 
     class ArrayEntry {
-        static function introspect(Introspection $introspection, Wrapped $k, Wrapped $v) {
-            $self        = new self;
-            $self->key   = $introspection->introspect($k);
-            $self->value = $introspection->introspect($v);
+        private $key, $value;
 
-            return $self;
+        function __construct(Value $key, Value $value) {
+            $this->key   = $key;
+            $this->value = $value;
         }
-
-        static function deserialize(Deserialization $pool, $value) {
-            $self        = new self;
-            $self->key   = $pool->deserialize($value['key']);
-            $self->value = $pool->deserialize($value['value']);
-
-            return $self;
-        }
-
-        /** @var Value */
-        private $key;
-        /** @var Value */
-        private $value;
-
-        private function __construct() { }
 
         function key() { return $this->key; }
 
         function value() { return $this->value; }
-
-        function serialize(Serialization $s) {
-            return array(
-                'key'   => $s->serialize($this->key),
-                'value' => $s->serialize($this->value),
-            );
-        }
     }
 
     class ValueBool extends Value {
@@ -466,41 +449,38 @@ s;
         function stack() { return $this->stack; }
 
         function serialize(Serialization $s) {
-            $stack    = array();
-            $locals   = null;
-            $previous = $this->previous === null ? null : $s->serialize($this->previous);
-            $globals  = null;
+            $result = array(
+                'className' => $this->className,
+                'stack'     => array(),
+                'code'      => $this->code,
+                'message'   => $this->message,
+                'file'      => $this->file,
+                'line'      => $this->line,
+            );
+
+            if ($this->previous !== null)
+                $result['previous'] = $s->serialize($this->previous);
 
             foreach ($this->stack as $frame)
-                $stack[] = $frame->serialize($s);
+                $result['stack'][] = $frame->serialize($s);
 
             if ($this->locals !== null) {
-                $locals = array();
+                $result['locals'] = array();
 
                 foreach ($this->locals as $local)
-                    $locals[] = $local->serialize($s);
+                    $result['locals'][] = $local->serialize($s);
             }
 
             if ($this->globals !== null) {
-                $globals = array();
+                $result['globals'] = array();
 
                 foreach ($this->globals as $global)
-                    $globals[] = $global->serialize($s);
+                    $result['globals'][] = $global->serialize($s);
             }
 
             return array(
                 'type'      => 'exception',
-                'exception' => array(
-                    'className' => $this->className,
-                    'stack'     => $stack,
-                    'locals'    => $locals,
-                    'code'      => $this->code,
-                    'message'   => $this->message,
-                    'previous'  => $previous,
-                    'file'      => $this->file,
-                    'line'      => $this->line,
-                    'globals'   => $globals,
-                )
+                'exception' => $result,
             );
         }
 
@@ -515,16 +495,17 @@ s;
             foreach ($v['stack'] as $frame)
                 $self->stack[] = FunctionCall::deserialize($pool, $frame);
 
-            $self->previous = $v['previous'] === null ? null : self::deserialize($pool, $v['previous']);
+            if (array_key_exists('previous', $v))
+                $self->previous = self::deserialize($pool, $v['previous']);
 
-            if ($v['locals'] !== null) {
+            if (array_key_exists('locals', $v)) {
                 $self->locals = array();
 
                 foreach ($v['locals'] as $local)
                     $self->locals[] = Variable::deserialize($pool, $local);
             }
 
-            if ($v['globals'] !== null) {
+            if (array_key_exists('globals', $v)) {
                 $self->globals = array();
 
                 foreach ($v['globals'] as $global)
@@ -538,11 +519,12 @@ s;
     class Variable {
         static function deserialize(Deserialization $pool, $prop) {
             $self               = new self($prop['name'], $pool->deserialize($prop['value']));
-            $self->functionName = $prop['functionName'];
-            $self->access       = $prop['access'];
-            $self->isGlobal     = $prop['isGlobal'];
-            $self->isStatic     = $prop['isStatic'];
-            $self->className    = $prop['className'];
+            $self->functionName = PP\array_get($prop, 'functionName');
+            $self->access       = PP\array_get($prop, 'access');
+            $self->isGlobal     = PP\array_get($prop, 'isGlobal');
+            $self->isStatic     = PP\array_get($prop, 'isStatic');
+            $self->isDefault    = PP\array_get($prop, 'isDefault');
+            $self->className    = PP\array_get($prop, 'className');
 
             return $self;
         }
@@ -574,6 +556,7 @@ s;
                     $self->className = $property->class;
                     $self->access    = $i->propertyOrMethodAccess($property);
                     $self->isStatic  = true;
+                    $self->isDefault = $property->isDefault();
 
                     $globals[] = $self;
                 }
@@ -629,7 +612,7 @@ s;
                     $self            = self::introspect($i, $property->name, Wrapped::val($property->getValue($object)));
                     $self->className = $property->class;
                     $self->access    = $i->propertyOrMethodAccess($property);
-                    $self->isStatic  = false;
+                    $self->isDefault = $property->isDefault();
 
                     $properties[] = $self;
                 }
@@ -686,8 +669,9 @@ s;
         private $className;
         private $functionName;
         private $access;
-        private $isGlobal = false;
-        private $isStatic = false;
+        private $isGlobal;
+        private $isStatic;
+        private $isDefault;
 
         /**
          * @param string $name
@@ -722,15 +706,19 @@ s;
         }
 
         function serialize(Serialization $s) {
-            return array(
-                'name'         => $this->name,
-                'value'        => $s->serialize($this->value),
-                'className'    => $this->className,
-                'functionName' => $this->functionName,
-                'access'       => $this->access,
-                'isGlobal'     => $this->isGlobal,
-                'isStatic'     => $this->isStatic,
+            $result = array(
+                'name'  => $this->name,
+                'value' => $s->serialize($this->value),
             );
+
+            PP\array_set($result, 'className', $this->className);
+            PP\array_set($result, 'functionName', $this->functionName);
+            PP\array_set($result, 'access', $this->access);
+            PP\array_set($result, 'isGlobal', $this->isGlobal);
+            PP\array_set($result, 'isStatic', $this->isStatic);
+            PP\array_set($result, 'isDefault', $this->isDefault);
+
+            return $result;
         }
 
         function value() { return $this->value; }
@@ -739,13 +727,15 @@ s;
     class FunctionCall {
         static function deserialize(Deserialization $pool, $frame) {
             $self            = new self($frame['functionName']);
-            $self->isStatic  = $frame['isStatic'];
-            $self->file      = $frame['file'];
-            $self->line      = $frame['line'];
-            $self->className = $frame['className'];
-            $self->object    = $frame['object'] === null ? null : $pool->deserialize($frame['object']);
+            $self->isStatic  = PP\array_get($frame, 'isStatic');
+            $self->file      = PP\array_get($frame, 'file');
+            $self->line      = PP\array_get($frame, 'line');
+            $self->className = PP\array_get($frame, 'className');
 
-            if ($frame['args'] !== null) {
+            if (array_key_exists('object', $frame))
+                $self->object = $pool->deserialize($frame['object']);
+
+            if (array_key_exists('args', $frame)) {
                 $self->args = array();
 
                 foreach ($frame['args'] as $arg)
@@ -756,16 +746,13 @@ s;
         }
 
         static function introspect(Introspection $i, array $frame) {
-            $self = new self($frame['function']);
+            $self            = new self($frame['function']);
+            $self->file      = PP\array_get($frame, 'file');
+            $self->line      = PP\array_get($frame, 'line');
+            $self->className = PP\array_get($frame, 'class');
 
-            if (array_key_exists('file', $frame))
-                $self->file = $frame['file'];
-
-            if (array_key_exists('line', $frame))
-                $self->line = $frame['line'];
-
-            if (array_key_exists('class', $frame))
-                $self->className = $frame['class'];
+            if (array_key_exists('type', $frame))
+                $self->isStatic = $frame['type'] === '::';
 
             if (array_key_exists('args', $frame)) {
                 $self->args = array();
@@ -776,9 +763,6 @@ s;
 
             if (array_key_exists('object', $frame))
                 $self->object = $i->introspect(Wrapped::val($frame['object']));
-
-            if (array_key_exists('type', $frame))
-                $self->isStatic = $frame['type'] === '::';
 
             return $self;
         }
@@ -892,25 +876,24 @@ s;
         }
 
         function serialize(Serialization $s) {
-            $args   = null;
-            $object = $this->object === null ? null : $s->serialize($this->object);
+            $result = array('functionName' => $this->functionName);
 
             if ($this->args !== null) {
-                $args = array();
+                $result['args'] = array();
 
                 foreach ($this->args as $arg)
-                    $args[] = $s->serialize($arg);
+                    $result['args'][] = $s->serialize($arg);
             }
 
-            return array(
-                'className'    => $this->className,
-                'functionName' => $this->functionName,
-                'args'         => $args,
-                'object'       => $object,
-                'isStatic'     => $this->isStatic,
-                'file'         => $this->file,
-                'line'         => $this->line,
-            );
+            if ($this->object !== null)
+                $result['object'] = $s->serialize($this->object);
+
+            PP\array_set($result, 'className', $this->className);
+            PP\array_set($result, 'isStatic', $this->isStatic);
+            PP\array_set($result, 'file', $this->file);
+            PP\array_set($result, 'line', $this->line);
+
+            return $result;
         }
     }
 
@@ -998,22 +981,20 @@ s;
         function renderImpl(PrettyPrinter $settings) { return $settings->renderObject($this); }
 
         function serialize(Serialization $s) {
-            $s->addObject($this);
-
-            return array('type' => 'object', 'object' => $this->id());
+            return array('type' => 'object', 'object' => $s->addObject($this));
         }
 
         function serializeObject(Serialization $s) {
-            $properties = array();
-
-            foreach ($this->properties as $prop)
-                $properties[] = $prop->serialize($s);
-
-            return array(
+            $result = array(
                 'className'  => $this->className,
                 'hash'       => $this->hash,
-                'properties' => $properties,
+                'properties' => array(),
             );
+
+            foreach ($this->properties as $prop)
+                $result['properties'][] = $prop->serialize($s);
+
+            return $result;
         }
 
         /**
@@ -1181,25 +1162,37 @@ s;
             );
         }
 
+        /** @var mixed[] */
         private $arrays = array();
+        /** @var mixed[] */
         private $objects = array();
+        /** @var int[] */
+        private $arrayIDs = array();
+        /** @var int[] */
+        private $objectIDs = array();
 
         function addArray(ValueArray $a) {
             $id = $a->id();
 
-            if (!isset($this->arrays[$id])) {
-                $this->arrays[$id] = true;
-                $this->arrays[$id] = $a->serializeArray($this);
-            }
+            if (array_key_exists($id, $this->arrayIDs))
+                return $this->arrayIDs[$id];
+
+            $this->arrayIDs[$id]  = $index = count($this->arrayIDs);
+            $this->arrays[$index] = $a->serializeArray($this);
+
+            return $index;
         }
 
         function addObject(ValueObject $o) {
             $id = $o->id();
 
-            if (!isset($this->objects[$id])) {
-                $this->objects[$id] = true;
-                $this->objects[$id] = $o->serializeObject($this);
-            }
+            if (array_key_exists($id, $this->objectIDs))
+                return $this->objectIDs[$id];
+
+            $this->objectIDs[$id]  = $index = count($this->objectIDs);
+            $this->objects[$index] = $o->serializeObject($this);
+
+            return $index;
         }
 
         function serialize(Value $value) { return $value->serialize($this); }
