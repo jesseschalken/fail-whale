@@ -1,288 +1,283 @@
 <?php
 
-namespace PrettyPrinter {
-    use PrettyPrinter\Introspection\Introspection;
-    use PrettyPrinter\Introspection\Wrapped;
-    use PrettyPrinter\Utils\Text;
-    use PrettyPrinter\Values\Value;
-    use PrettyPrinter\Values\Variable;
+namespace ErrorHandler;
 
-    final class PrettyPrinter {
-        static function create() { return new self; }
+final class PrettyPrinter {
+    static function create() { return new self; }
 
-        function text($text = '') { return new Text($text); }
+    function text($text = '') { return new Text($text); }
 
-        private $escapeTabsInStrings = false;
-        private $maxArrayEntries = INF;
-        private $maxObjectProperties = INF;
-        private $maxStringLength = INF;
-        private $showExceptionGlobalVariables = true;
-        private $showExceptionLocalVariables = true;
-        private $showExceptionStackTrace = true;
-        private $splitMultiLineStrings = true;
+    private $escapeTabsInStrings = false;
+    private $maxArrayEntries = INF;
+    private $maxObjectProperties = INF;
+    private $maxStringLength = INF;
+    private $showExceptionGlobalVariables = true;
+    private $showExceptionLocalVariables = true;
+    private $showExceptionStackTrace = true;
+    private $splitMultiLineStrings = true;
 
-        private $valuesReferable = array();
+    private $valuesReferable = array();
 
-        function __construct() { }
+    function __construct() { }
 
-        function assertPrettyIs($value, $expectedPretty) {
-            return $this->assertPrettyRefIs($value, $expectedPretty);
+    function assertPrettyIs($value, $expectedPretty) {
+        return $this->assertPrettyRefIs($value, $expectedPretty);
+    }
+
+    function assertPrettyRefIs(&$ref, $expectedPretty) {
+        \PHPUnit_Framework_TestCase::assertEquals($expectedPretty, $this->prettyPrintRef($ref));
+
+        return $this;
+    }
+
+    function prettyPrint($value) {
+        return $this->prettyPrintRef($value);
+    }
+
+    function prettyPrintException(\Exception $e) {
+        $introspection = new Introspection;
+
+        return $introspection->introspectException($e)->render($this)->toString();
+    }
+
+    function prettyPrintRef(&$ref) {
+        $introspection = new Introspection;
+
+        return $introspection->introspect(Wrapped::ref($ref))->serialuzeUnserialize()->render($this)
+                             ->setHasEndingNewline(false)->toString();
+    }
+
+    function render(Value $v) {
+        $id = $v->id();
+
+        if (isset($this->valuesReferable[$id]))
+            return $this->text('*recursion*');
+
+        $this->valuesReferable[$id] = true;
+
+        $result = $v->renderImpl($this);
+
+        unset($this->valuesReferable[$id]);
+
+        return $result;
+    }
+
+    function renderArray(ValueArray $array) {
+        if ($array->entries() === array())
+            return $this->text("array()");
+
+        $rows = array();
+
+        foreach ($array->entries() as $keyValuePair) {
+            if ((count($rows) + 1) > $this->maxArrayEntries)
+                break;
+
+            $key   = $keyValuePair->key()->render($this);
+            $value = $keyValuePair->value()->render($this);
+
+            if (count($rows) != count($array->entries()) - 1)
+                $value->append(',');
+
+            $rows[] = $array->isAssociative()
+                ? array($key, $value->prepend(' => '))
+                : array($value);
         }
 
-        function assertPrettyRefIs(&$ref, $expectedPretty) {
-            \PHPUnit_Framework_TestCase::assertEquals($expectedPretty, $this->prettyPrintRef($ref));
+        $result = Text::renderTable($rows);
 
-            return $this;
-        }
+        if (count($rows) < count($array->entries()))
+            $result->addLine('...');
 
-        function prettyPrint($value) {
-            return $this->prettyPrintRef($value);
-        }
+        return $result->wrap("array( ", " )");
+    }
 
-        function prettyPrintException(\Exception $e) {
-            $introspection = new Introspection;
+    /**
+     * @param ValueException $e
+     *
+     * @return Text
+     */
+    function renderException(ValueException $e) {
+        $text = $this->text("{$e->className()} {$e->code()} in {$e->file()}:{$e->line()}");
+        $text->addLine();
+        $text->addLines($this->text($e->message())->indent(2));
+        $text->addLine();
 
-            return $introspection->introspectException($e)->render($this)->toString();
-        }
-
-        function prettyPrintRef(&$ref) {
-            $introspection = new Introspection;
-
-            return $introspection->introspect(Wrapped::ref($ref))->serialuzeUnserialize()->render($this)
-                                 ->setHasEndingNewline(false)->toString();
-        }
-
-        function render(Value $v) {
-            $id = $v->id();
-
-            if (isset($this->valuesReferable[$id]))
-                return $this->text('*recursion*');
-
-            $this->valuesReferable[$id] = true;
-
-            $result = $v->renderImpl($this);
-
-            unset($this->valuesReferable[$id]);
-
-            return $result;
-        }
-
-        function renderArray(Values\ValueArray $array) {
-            if ($array->entries() === array())
-                return $this->text("array()");
-
-            $rows = array();
-
-            foreach ($array->entries() as $keyValuePair) {
-                if ((count($rows) + 1) > $this->maxArrayEntries)
-                    break;
-
-                $key   = $keyValuePair->key()->render($this);
-                $value = $keyValuePair->value()->render($this);
-
-                if (count($rows) != count($array->entries()) - 1)
-                    $value->append(',');
-
-                $rows[] = $array->isAssociative()
-                    ? array($key, $value->prepend(' => '))
-                    : array($value);
-            }
-
-            $result = Text::renderTable($rows);
-
-            if (count($rows) < count($array->entries()))
-                $result->addLine('...');
-
-            return $result->wrap("array( ", " )");
-        }
-
-        /**
-         * @param Values\ValueException $e
-         *
-         * @return Text
-         */
-        function renderException(Values\ValueException $e) {
-            $text = $this->text("{$e->className()} {$e->code()} in {$e->file()}:{$e->line()}");
+        if ($this->showExceptionLocalVariables && $e->locals() !== null) {
+            $text->addLine("local variables:");
+            $text->addLines($this->renderVariables($e->locals(), 'none', INF)->indent());
             $text->addLine();
-            $text->addLines($this->text($e->message())->indent(2));
+        }
+
+        if ($this->showExceptionStackTrace) {
+            $text->addLine("stack trace:");
+            $text->addLines($this->renderExceptionStack($e)->indent());
             $text->addLine();
-
-            if ($this->showExceptionLocalVariables && $e->locals() !== null) {
-                $text->addLine("local variables:");
-                $text->addLines($this->renderVariables($e->locals(), 'none', INF)->indent());
-                $text->addLine();
-            }
-
-            if ($this->showExceptionStackTrace) {
-                $text->addLine("stack trace:");
-                $text->addLines($this->renderExceptionStack($e)->indent());
-                $text->addLine();
-            }
-
-            if ($e->previous() !== null) {
-                $text->addLine("previous exception:");
-                $text->addLines($this->renderException($e->previous())->indent(2));
-                $text->addLine();
-            }
-
-            return $text;
         }
 
-        /**
-         * @param Variable[] $variables
-         * @param string     $noneText
-         * @param float      $max
-         *
-         * @return Text
-         */
-        function renderVariables(array $variables, $noneText, $max) {
-            $rows = array();
-
-            foreach ($variables as $variable) {
-                if ((count($rows) + 1) > $max)
-                    break;
-
-                $rows[] = array(
-                    $variable->render($this),
-                    $variable->value()->render($this)->wrap(' = ', ';'),
-                );
-            }
-
-            if (count($rows) == 0)
-                return $this->text($noneText);
-
-            $result = Text::renderTable($rows);
-
-            if (count($rows) < count($variables))
-                $result->addLine('...');
-
-            return $result;
+        if ($e->previous() !== null) {
+            $text->addLine("previous exception:");
+            $text->addLines($this->renderException($e->previous())->indent(2));
+            $text->addLine();
         }
 
-        function renderExceptionStack(Values\ValueException $exception) {
-            $text = $this->text();
-            $i    = 1;
+        return $text;
+    }
 
-            foreach ($exception->stack() as $frame) {
-                $text->addLine("#$i {$frame->location()}");
-                $text->addLines($frame->render($this)->append(';')->indent(3));
-                $text->addLine();
-                $i++;
-            }
+    /**
+     * @param Variable[] $variables
+     * @param string     $noneText
+     * @param float      $max
+     *
+     * @return Text
+     */
+    function renderVariables(array $variables, $noneText, $max) {
+        $rows = array();
 
-            return $text->addLine("#$i {main}");
-        }
+        foreach ($variables as $variable) {
+            if ((count($rows) + 1) > $max)
+                break;
 
-        function renderExceptionWithGlobals(Values\ValueException $exception) {
-            $text = $this->renderException($exception);
-
-            if ($this->showExceptionGlobalVariables && $exception->globals() !== null) {
-                $text->addLine("global variables:");
-                $text->addLines($this->renderVariables($exception->globals(), 'none', INF)->indent());
-                $text->addLine();
-            }
-
-            return $text;
-        }
-
-        function renderObject(Values\ValueObject $object) {
-            return $this->renderVariables($object->properties(), '', $this->maxObjectProperties)
-                        ->indent(2)->wrapLines("new {$object->className()} {", "}");
-        }
-
-        /**
-         * @param string $string
-         *
-         * @return Text
-         */
-        function renderString($string) {
-            $characterEscapeCache = array(
-                "\\" => '\\\\',
-                "\$" => '\$',
-                "\r" => '\r',
-                "\v" => '\v',
-                "\f" => '\f',
-                "\"" => '\"',
-                "\t" => $this->escapeTabsInStrings ? '\t' : "\t",
-                "\n" => $this->splitMultiLineStrings ? "\\n\" .\n\"" : '\n',
+            $rows[] = array(
+                $variable->render($this),
+                $variable->value()->render($this)->wrap(' = ', ';'),
             );
+        }
 
-            $escaped = '';
-            $length  = min(strlen($string), $this->maxStringLength);
+        if (count($rows) == 0)
+            return $this->text($noneText);
 
-            for ($i = 0; $i < $length; $i++) {
-                $char        = $string[$i];
-                $charEscaped =& $characterEscapeCache[$char];
+        $result = Text::renderTable($rows);
 
-                if (!isset($charEscaped)) {
-                    $ord         = ord($char);
-                    $charEscaped = $ord >= 32 && $ord <= 126 ? $char : '\x' . substr('00' . dechex($ord), -2);
-                }
+        if (count($rows) < count($variables))
+            $result->addLine('...');
 
-                $escaped .= $charEscaped;
+        return $result;
+    }
+
+    function renderExceptionStack(ValueException $exception) {
+        $text = $this->text();
+        $i    = 1;
+
+        foreach ($exception->stack() as $frame) {
+            $text->addLine("#$i {$frame->location()}");
+            $text->addLines($frame->render($this)->append(';')->indent(3));
+            $text->addLine();
+            $i++;
+        }
+
+        return $text->addLine("#$i {main}");
+    }
+
+    function renderExceptionWithGlobals(ValueException $exception) {
+        $text = $this->renderException($exception);
+
+        if ($this->showExceptionGlobalVariables && $exception->globals() !== null) {
+            $text->addLine("global variables:");
+            $text->addLines($this->renderVariables($exception->globals(), 'none', INF)->indent());
+            $text->addLine();
+        }
+
+        return $text;
+    }
+
+    function renderObject(ValueObject $object) {
+        return $this->renderVariables($object->properties(), '', $this->maxObjectProperties)
+                    ->indent(2)->wrapLines("new {$object->className()} {", "}");
+    }
+
+    /**
+     * @param string $string
+     *
+     * @return Text
+     */
+    function renderString($string) {
+        $characterEscapeCache = array(
+            "\\" => '\\\\',
+            "\$" => '\$',
+            "\r" => '\r',
+            "\v" => '\v',
+            "\f" => '\f',
+            "\"" => '\"',
+            "\t" => $this->escapeTabsInStrings ? '\t' : "\t",
+            "\n" => $this->splitMultiLineStrings ? "\\n\" .\n\"" : '\n',
+        );
+
+        $escaped = '';
+        $length  = min(strlen($string), $this->maxStringLength);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char        = $string[$i];
+            $charEscaped =& $characterEscapeCache[$char];
+
+            if (!isset($charEscaped)) {
+                $ord         = ord($char);
+                $charEscaped = $ord >= 32 && $ord <= 126 ? $char : '\x' . substr('00' . dechex($ord), -2);
             }
 
-            return $this->text("\"$escaped" . (strlen($string) > $length ? '...' : '"'));
+            $escaped .= $charEscaped;
         }
 
-        /**
-         * @param string $name
-         *
-         * @return Text
-         */
-        function renderVariable($name) {
-            if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name))
-                return $this->text("$$name");
+        return $this->text("\"$escaped" . (strlen($string) > $length ? '...' : '"'));
+    }
 
-            return $this->renderString($name)->wrap('${', '}');
-        }
+    /**
+     * @param string $name
+     *
+     * @return Text
+     */
+    function renderVariable($name) {
+        if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name))
+            return $this->text("$$name");
 
-        function setEscapeTabsInStrings($escapeTabsInStrings) {
-            $this->escapeTabsInStrings = (bool)$escapeTabsInStrings;
+        return $this->renderString($name)->wrap('${', '}');
+    }
 
-            return $this;
-        }
+    function setEscapeTabsInStrings($escapeTabsInStrings) {
+        $this->escapeTabsInStrings = (bool)$escapeTabsInStrings;
 
-        function setMaxArrayEntries($maxArrayEntries) {
-            $this->maxArrayEntries = (float)$maxArrayEntries;
+        return $this;
+    }
 
-            return $this;
-        }
+    function setMaxArrayEntries($maxArrayEntries) {
+        $this->maxArrayEntries = (float)$maxArrayEntries;
 
-        function setMaxObjectProperties($maxObjectProperties) {
-            $this->maxObjectProperties = (float)$maxObjectProperties;
+        return $this;
+    }
 
-            return $this;
-        }
+    function setMaxObjectProperties($maxObjectProperties) {
+        $this->maxObjectProperties = (float)$maxObjectProperties;
 
-        function setMaxStringLength($maxStringLength) {
-            $this->maxStringLength = (float)$maxStringLength;
+        return $this;
+    }
 
-            return $this;
-        }
+    function setMaxStringLength($maxStringLength) {
+        $this->maxStringLength = (float)$maxStringLength;
 
-        function setShowExceptionGlobalVariables($showExceptionGlobalVariables) {
-            $this->showExceptionGlobalVariables = (bool)$showExceptionGlobalVariables;
+        return $this;
+    }
 
-            return $this;
-        }
+    function setShowExceptionGlobalVariables($showExceptionGlobalVariables) {
+        $this->showExceptionGlobalVariables = (bool)$showExceptionGlobalVariables;
 
-        function setShowExceptionLocalVariables($showExceptionLocalVariables) {
-            $this->showExceptionLocalVariables = (bool)$showExceptionLocalVariables;
+        return $this;
+    }
 
-            return $this;
-        }
+    function setShowExceptionLocalVariables($showExceptionLocalVariables) {
+        $this->showExceptionLocalVariables = (bool)$showExceptionLocalVariables;
 
-        function setShowExceptionStackTrace($showExceptionStackTrace) {
-            $this->showExceptionStackTrace = (bool)$showExceptionStackTrace;
+        return $this;
+    }
 
-            return $this;
-        }
+    function setShowExceptionStackTrace($showExceptionStackTrace) {
+        $this->showExceptionStackTrace = (bool)$showExceptionStackTrace;
 
-        function setSplitMultiLineStrings($splitMultiLineStrings) {
-            $this->splitMultiLineStrings = (bool)$splitMultiLineStrings;
+        return $this;
+    }
 
-            return $this;
-        }
+    function setSplitMultiLineStrings($splitMultiLineStrings) {
+        $this->splitMultiLineStrings = (bool)$splitMultiLineStrings;
+
+        return $this;
     }
 }
+

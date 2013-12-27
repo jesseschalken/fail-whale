@@ -1,6 +1,6 @@
 <?php
 
-namespace PrettyPrinter;
+namespace ErrorHandler;
 
 class JSON {
     /**

@@ -12,6 +12,5 @@ $e->bind();
 Use the pretty printer with:
 ```php
 $p = new \PrettyPrinter\PrettyPrinter;
-
 print $p->prettyPrint( "This is a string." );
 ```

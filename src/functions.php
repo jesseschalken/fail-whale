@@ -1,6 +1,6 @@
 <?php
 
-namespace PrettyPrinter;
+namespace ErrorHandler;
 
 function &ref_new($x = null) { return $x; }
 
