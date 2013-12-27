@@ -121,7 +121,7 @@ class ValueFloat extends Value {
         if ($this->float === -INF)
             return array('type' => '-inf');
 
-        if ($this->float === NAN)
+        if (is_nan($this->float))
             return array('type' => 'nan');
 
         return array(
