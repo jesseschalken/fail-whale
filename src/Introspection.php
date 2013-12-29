@@ -79,7 +79,7 @@ class IntrospectionObjectCache {
     function introspect(Introspection $i, $object) {
         $hash = spl_object_hash($object);
 
-        if (array_key_exists($hash, $this->results))
+        if (isset($this->results[$hash]))
             return $this->results[$hash];
 
         return ValueObject::introspectImpl($i, $hash, $object, $this);

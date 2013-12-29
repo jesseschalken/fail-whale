@@ -46,7 +46,10 @@ class ValueArray extends Value {
     }
 
     function toJsonValueImpl(JsonSerialize $s) {
-        return array('type' => 'array', 'array' => $s->addArray($this));
+        return array(
+            'type' => 'array',
+            'array' => $s->addArray($this),
+        );
     }
 
     function serializeArray(JsonSerialize $s) {

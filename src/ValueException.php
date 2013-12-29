@@ -128,38 +128,42 @@ s;
     }
 
     function toJsonValueImpl(JsonSerialize $s) {
-        $result = array(
-            'className' => $this->className,
-            'stack'     => array(),
-            'code'      => $this->code,
-            'message'   => $this->message,
-            'file'      => $this->file,
-            'line'      => $this->line,
-        );
-
-        if ($this->previous !== null)
-            $result['previous'] = $s->toJsonValue($this->previous);
+        $stack = array();
 
         foreach ($this->stack as $frame)
-            $result['stack'][] = $frame->toJsonValue($s);
+            $stack[] = $frame->toJsonValue($s);
 
         if ($this->locals !== null) {
-            $result['locals'] = array();
+            $locals = array();
 
             foreach ($this->locals as $local)
-                $result['locals'][] = $local->toJsonValue($s);
+                $locals[] = $local->toJsonValue($s);
+        } else {
+            $locals = null;
         }
 
         if ($this->globals !== null) {
-            $result['globals'] = array();
+            $globals = array();
 
             foreach ($this->globals as $global)
-                $result['globals'][] = $global->toJsonValue($s);
+                $globals[] = $global->toJsonValue($s);
+        } else {
+            $globals = null;
         }
 
         return array(
             'type'      => 'exception',
-            'exception' => $result,
+            'exception' => array(
+                'className' => $this->className,
+                'stack'     => $stack,
+                'code'      => $this->code,
+                'message'   => $this->message,
+                'file'      => $this->file,
+                'line'      => $this->line,
+                'previous'  => $this->previous !== null ? $s->toJsonValue($this->previous) : null,
+                'locals'    => $locals,
+                'globals'   => $globals,
+            ),
         );
     }
 
@@ -170,21 +174,19 @@ s;
         $self->message   = $v['message'];
         $self->file      = $v['file'];
         $self->line      = $v['line'];
+        $self->previous  = $v['previous'] !== null ? self::fromJsonValueImpl($pool, $v['previous']) : null;
 
         foreach ($v['stack'] as $frame)
             $self->stack[] = ValueExceptionStackFrame::fromJsonValue($pool, $frame);
 
-        if (array_key_exists('previous', $v))
-            $self->previous = self::fromJsonValueImpl($pool, $v['previous']);
-
-        if (array_key_exists('locals', $v)) {
+        if ($v['locals'] !== null) {
             $self->locals = array();
 
             foreach ($v['locals'] as $local)
                 $self->locals[] = ValueVariable::fromJsonValue($pool, $local);
         }
 
-        if (array_key_exists('globals', $v)) {
+        if ($v['globals'] !== null) {
             $self->globals = array();
 
             foreach ($v['globals'] as $global)
@@ -198,12 +200,12 @@ s;
 class ValueVariable {
     static function fromJsonValue(JsonSerialize $pool, $prop) {
         $self               = new self($prop['name'], $pool->fromJsonValue($prop['value']));
-        $self->functionName = array_get($prop, 'functionName');
-        $self->access       = array_get($prop, 'access');
-        $self->isGlobal     = array_get($prop, 'isGlobal');
-        $self->isStatic     = array_get($prop, 'isStatic');
-        $self->isDefault    = array_get($prop, 'isDefault');
-        $self->className    = array_get($prop, 'className');
+        $self->functionName = $prop['functionName'];
+        $self->access       = $prop['access'];
+        $self->isGlobal     = $prop['isGlobal'];
+        $self->isStatic     = $prop['isStatic'];
+        $self->isDefault    = $prop['isDefault'];
+        $self->className    = $prop['className'];
 
         return $self;
     }
@@ -392,19 +394,16 @@ class ValueVariable {
     }
 
     function toJsonValue(JsonSerialize $s) {
-        $result = array(
-            'name'  => $this->name,
-            'value' => $s->toJsonValue($this->value),
+        return array(
+            'name'         => $this->name,
+            'value'        => $s->toJsonValue($this->value),
+            'className'    => $this->className,
+            'functionName' => $this->functionName,
+            'access'       => $this->access,
+            'isGlobal'     => $this->isGlobal,
+            'isStatic'     => $this->isStatic,
+            'isDefault'    => $this->isDefault,
         );
-
-        array_set($result, 'className', $this->className);
-        array_set($result, 'functionName', $this->functionName);
-        array_set($result, 'access', $this->access);
-        array_set($result, 'isGlobal', $this->isGlobal);
-        array_set($result, 'isStatic', $this->isStatic);
-        array_set($result, 'isDefault', $this->isDefault);
-
-        return $result;
     }
 
     function value() { return $this->value; }
@@ -412,16 +411,15 @@ class ValueVariable {
 
 class ValueExceptionStackFrame {
     static function fromJsonValue(JsonSerialize $pool, $frame) {
-        $self            = new self($frame['functionName']);
-        $self->isStatic  = array_get($frame, 'isStatic');
-        $self->file      = array_get($frame, 'file');
-        $self->line      = array_get($frame, 'line');
-        $self->className = array_get($frame, 'className');
+        $self               = new self;
+        $self->functionName = $frame['functionName'];
+        $self->isStatic     = $frame['isStatic'];
+        $self->file         = $frame['file'];
+        $self->line         = $frame['line'];
+        $self->className    = $frame['className'];
+        $self->object       = $frame['object'] !== null ? $pool->fromJsonValue($frame['object']) : null;
 
-        if (array_key_exists('object', $frame))
-            $self->object = $pool->fromJsonValue($frame['object']);
-
-        if (array_key_exists('args', $frame)) {
+        if ($frame['args'] !== null) {
             $self->args = array();
 
             foreach ($frame['args'] as $arg)
@@ -432,23 +430,20 @@ class ValueExceptionStackFrame {
     }
 
     static function introspect(Introspection $i, array $frame) {
-        $self            = new self($frame['function']);
-        $self->file      = array_get($frame, 'file');
-        $self->line      = array_get($frame, 'line');
-        $self->className = array_get($frame, 'class');
+        $self               = new self;
+        $self->functionName = array_get($frame, 'function');
+        $self->file         = array_get($frame, 'file');
+        $self->line         = array_get($frame, 'line');
+        $self->className    = array_get($frame, 'class');
+        $self->isStatic     = isset($frame['type']) ? $frame['type'] === '::' : null;
+        $self->object       = isset($frame['object']) ? $i->introspectRef($frame['object']) : null;
 
-        if (array_key_exists('type', $frame))
-            $self->isStatic = $frame['type'] === '::';
-
-        if (array_key_exists('args', $frame)) {
+        if (isset($frame['args'])) {
             $self->args = array();
 
             foreach ($frame['args'] as &$arg)
                 $self->args[] = $i->introspectRef($arg);
         }
-
-        if (array_key_exists('object', $frame))
-            $self->object = $i->introspectRef($frame['object']);
 
         return $self;
     }
@@ -461,19 +456,21 @@ class ValueExceptionStackFrame {
     static function mock(Introspection $param) {
         $stack = array();
 
-        $self            = new self('aFunction');
-        $self->args      = array($param->introspect(new DummyClass2));
-        $self->file      = '/path/to/muh/file';
-        $self->line      = 1928;
-        $self->object    = $param->introspect(new DummyClass1);
-        $self->className = 'DummyClass1';
+        $self               = new self;
+        $self->functionName = 'aFunction';
+        $self->args         = array($param->introspect(new DummyClass2));
+        $self->file         = '/path/to/muh/file';
+        $self->line         = 1928;
+        $self->object       = $param->introspect(new DummyClass1);
+        $self->className    = 'DummyClass1';
 
         $stack[] = $self;
 
-        $self       = new self('aFunction');
-        $self->args = array($param->introspect(new DummyClass2));
-        $self->file = '/path/to/muh/file';
-        $self->line = 1928;
+        $self               = new self;
+        $self->functionName = 'aFunction';
+        $self->args         = array($param->introspect(new DummyClass2));
+        $self->file         = '/path/to/muh/file';
+        $self->line         = 1928;
 
         $stack[] = $self;
 
@@ -490,12 +487,7 @@ class ValueExceptionStackFrame {
     private $file;
     private $line;
 
-    /**
-     * @param string $functionName
-     */
-    private function __construct($functionName) {
-        $this->functionName = $functionName;
-    }
+    private function __construct() { }
 
     function subValues() {
         $x = array();
@@ -562,23 +554,23 @@ class ValueExceptionStackFrame {
     }
 
     function toJsonValue(JsonSerialize $s) {
-        $result = array('functionName' => $this->functionName);
-
         if ($this->args !== null) {
-            $result['args'] = array();
+            $args = array();
 
             foreach ($this->args as $arg)
-                $result['args'][] = $s->toJsonValue($arg);
+                $args[] = $s->toJsonValue($arg);
+        } else {
+            $args = null;
         }
 
-        if ($this->object !== null)
-            $result['object'] = $s->toJsonValue($this->object);
-
-        array_set($result, 'className', $this->className);
-        array_set($result, 'isStatic', $this->isStatic);
-        array_set($result, 'file', $this->file);
-        array_set($result, 'line', $this->line);
-
-        return $result;
+        return array(
+            'functionName' => $this->functionName,
+            'className'    => $this->className,
+            'isStatic'     => $this->isStatic,
+            'file'         => $this->file,
+            'line'         => $this->line,
+            'args'         => $args,
+            'object'       => $this->object !== null ? $s->toJsonValue($this->object) : null,
+        );
     }
 }

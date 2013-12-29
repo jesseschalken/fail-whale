@@ -52,16 +52,16 @@ class ValueObject extends Value {
     }
 
     function serializeObject(JsonSerialize $s) {
-        $result = array(
-            'className'  => $this->className,
-            'hash'       => $this->hash,
-            'properties' => array(),
-        );
+        $properties = array();
 
         foreach ($this->properties as $prop)
-            $result['properties'][] = $prop->toJsonValue($s);
+            $properties[] = $prop->toJsonValue($s);
 
-        return $result;
+        return array(
+            'className'  => $this->className,
+            'hash'       => $this->hash,
+            'properties' => $properties,
+        );
     }
 
     static function fromJsonValueImpl(JsonSerialize $pool, $index, array $v) {

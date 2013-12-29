@@ -134,12 +134,6 @@ function wrap_html($title, $body) {
 html;
 }
 
-function &ref_new($x = null) { return $x; }
-
-function ref_get(&$x) { return $x; }
-
-function ref_set(&$x, $y) { $x = $y; }
-
 function ref_equal(&$x, &$y) {
     $xOld   = $x;
     $x      = new \stdClass;
@@ -158,11 +152,6 @@ function array_get2(array $a, $k1, $k2, $default = null) {
     $a = array_get($a, $k2, $default);
 
     return $a;
-}
-
-function array_set(array &$a, $k, $v) {
-    if ($v !== null)
-        $a[$k] = $v;
 }
 
 function array_is_associative(array $a) {
