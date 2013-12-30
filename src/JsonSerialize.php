@@ -136,7 +136,12 @@ class Json {
      * @return string
      */
     static function stringify($value) {
-        $result = json_encode(self::prepare($value));
+        $flags = 0;
+
+        if (defined('JSON_PRETTY_PRINT'))
+            $flags |= JSON_PRETTY_PRINT;
+
+        $result = json_encode(self::prepare($value), $flags);
 
         self::checkError();
 
