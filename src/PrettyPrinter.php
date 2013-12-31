@@ -29,7 +29,7 @@ final class PrettyPrinter {
     }
 
     function prettyPrintException(\Exception $e) {
-        return Value::introspectException($e)->render($this)->toString();
+        return Value::introspectException($e)->toJsonFromJson()->render($this)->toString();
     }
 
     function prettyPrintRef(&$ref) {

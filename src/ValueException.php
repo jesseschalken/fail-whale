@@ -19,7 +19,7 @@ interface ExceptionHasLocalVariables {
 class ValueException extends Value {
     static function introspectImpl(Introspection $i, \Exception $e) {
         $self          = self::introspectImplNoGlobals($i, $e);
-        $self->globals = ValueVariable::introspectGlobals($i);
+        $self->globals = ValueGlobalVariable::introspectGlobals($i);
 
         return $self;
     }
@@ -86,7 +86,7 @@ s;
                                  new ValueVariable('foo', $param->introspect('bar')));
 
         $self->stack   = ValueExceptionStackFrame::mock($param);
-        $self->globals = ValueVariable::mockGlobals($param);
+        $self->globals = ValueGlobalVariable::mockGlobals($param);
 
         return $self;
     }
@@ -102,7 +102,7 @@ s;
     private $previous;
     private $file;
     private $line;
-    /** @var ValueVariable[]|null */
+    /** @var ValueGlobalVariable[]|null */
     private $globals;
 
     function className() { return $this->className; }
@@ -190,7 +190,7 @@ s;
             $self->globals = array();
 
             foreach ($v['globals'] as $global)
-                $self->globals[] = ValueVariable::fromJsonValue($pool, $global);
+                $self->globals[] = ValueGlobalVariable::fromJsonValue($pool, $global);
         }
 
         return $self;
@@ -199,11 +199,47 @@ s;
 
 class ValueVariable {
     static function fromJsonValue(JsonSerialize $pool, $prop) {
+        return new self($prop['name'], $pool->fromJsonValue($prop['value']));
+    }
+
+    private $name;
+    /** @var Value */
+    private $value;
+
+    /**
+     * @param string $name
+     * @param Value  $value
+     */
+    function __construct($name, Value $value) {
+        $this->value = $value;
+        $this->name  = $name;
+    }
+
+    function render(PrettyPrinter $settings) {
+        return $this->renderPrefix($settings)->appendLines($settings->renderVariable($this->name));
+    }
+
+    function value() { return $this->value; }
+
+    function name() { return $this->name; }
+
+    function renderPrefix(PrettyPrinter $settings) {
+        return $settings->text();
+    }
+
+    function toJsonValue(JsonSerialize $s) {
+        return array(
+            'name'  => $this->name,
+            'value' => $s->toJsonValue($this->value),
+        );
+    }
+}
+
+class ValueGlobalVariable extends ValueVariable {
+    static function fromJsonValue(JsonSerialize $pool, $prop) {
         $self               = new self($prop['name'], $pool->fromJsonValue($prop['value']));
         $self->functionName = $prop['functionName'];
         $self->access       = $prop['access'];
-        $self->isGlobal     = $prop['isGlobal'];
-        $self->isStatic     = $prop['isStatic'];
         $self->isDefault    = $prop['isDefault'];
         $self->className    = $prop['className'];
 
@@ -220,10 +256,7 @@ class ValueVariable {
 
         foreach ($GLOBALS as $variableName => &$globalValue) {
             if ($variableName !== 'GLOBALS') {
-                $self           = new self($variableName, $i->introspectRef($globalValue));
-                $self->isGlobal = true;
-
-                $globals [] = $self;
+                $globals [] = new self($variableName, $i->introspectRef($globalValue));
             }
         }
 
@@ -236,7 +269,6 @@ class ValueVariable {
                 $self            = new self($property->name, $i->introspect($property->getValue()));
                 $self->className = $property->class;
                 $self->access    = $i->propertyOrMethodAccess($property);
-                $self->isStatic  = true;
                 $self->isDefault = $property->isDefault();
 
                 $globals[] = $self;
@@ -250,7 +282,6 @@ class ValueVariable {
                     $self->className    = $method->class;
                     $self->access       = $i->propertyOrMethodAccess($method);
                     $self->functionName = $method->getName();
-                    $self->isStatic     = $method->isStatic();
 
                     $globals[] = $self;
                 }
@@ -275,36 +306,6 @@ class ValueVariable {
     }
 
     /**
-     * @param Introspection $i
-     * @param object        $object
-     *
-     * @return self[]
-     */
-    static function introspectObjectProperties(Introspection $i, $object) {
-        $properties = array();
-
-        for ($reflection = new \ReflectionObject($object);
-             $reflection !== false;
-             $reflection = $reflection->getParentClass()) {
-            foreach ($reflection->getProperties() as $property) {
-                if ($property->isStatic() || $property->class !== $reflection->name)
-                    continue;
-
-                $property->setAccessible(true);
-
-                $self            = new self($property->name, $i->introspect($property->getValue($object)));
-                $self->className = $property->class;
-                $self->access    = $i->propertyOrMethodAccess($property);
-                $self->isDefault = $property->isDefault();
-
-                $properties[] = $self;
-            }
-        }
-
-        return $properties;
-    }
-
-    /**
      * @param Introspection $param
      *
      * @return self[]
@@ -323,7 +324,6 @@ class ValueVariable {
         $self            = new self('blahProperty', $null);
         $self->className = 'BlahClass';
         $self->access    = 'private';
-        $self->isStatic  = true;
 
         $globals[] = $self;
 
@@ -332,81 +332,62 @@ class ValueVariable {
 
         $globals[] = $self;
 
-        $self           = new self('lol global', $null);
-        $self->isGlobal = true;
-
-        $globals[] = $self;
+        $globals[] = new self('lol global', $null);
 
         $self               = new self('lolStatic', $null);
         $self->functionName = 'blahMethod';
         $self->className    = 'BlahYetAnotherClass';
-        $self->isStatic     = true;
 
         $globals[] = $self;
 
-        $self           = new self('blahVariable', $null);
-        $self->isGlobal = true;
-
-        $globals[] = $self;
+        $globals[] = new self('blahVariable', $null);
 
         return $globals;
     }
 
-    private $name;
-    private $value;
     private $className;
     private $functionName;
     private $access;
-    private $isGlobal;
-    private $isStatic;
     private $isDefault;
 
-    /**
-     * @param string $name
-     * @param Value  $value
-     */
-    function __construct($name, Value $value) {
-        $this->value = $value;
-        $this->name  = $name;
-    }
+    function renderPrefix(PrettyPrinter $settings) {
+        if ($this->className !== null && $this->functionName !== null)
+            return $settings->text("function $this->className::$this->functionName()::static ");
 
-    function render(PrettyPrinter $settings) {
-        if ($this->className !== null) {
-            if ($this->functionName !== null) {
-                $prefix = $settings->text("function $this->className::$this->functionName()::static ");
-            } else if ($this->isStatic) {
-                $prefix = $settings->text("$this->access static $this->className::");
-            } else {
-                $prefix = $settings->text("$this->access ");
-            }
-        } else if ($this->functionName !== null) {
-            $prefix = $settings->text("function $this->functionName()::static ");
-        } else if ($this->isGlobal) {
-            $prefix = $settings->text(in_array($this->name, array('_POST', '_GET', '_SESSION',
-                                                                  '_COOKIE', '_FILES',
-                                                                  '_REQUEST', '_ENV',
-                                                                  '_SERVER'), true) ? '' : 'global ');
-        } else {
-            $prefix = $settings->text();
-        }
+        if ($this->className !== null)
+            return $settings->text("$this->access static $this->className::");
 
-        return $prefix->appendLines($settings->renderVariable($this->name));
+        if ($this->functionName !== null)
+            return $settings->text("function $this->functionName()::static ");
+
+        return $settings->text($this->isSuperGlobal() ? '' : 'global ');
     }
 
     function toJsonValue(JsonSerialize $s) {
         return array(
-            'name'         => $this->name,
-            'value'        => $s->toJsonValue($this->value),
+            'name'         => $this->name(),
+            'value'        => $s->toJsonValue($this->value()),
             'className'    => $this->className,
             'functionName' => $this->functionName,
             'access'       => $this->access,
-            'isGlobal'     => $this->isGlobal,
-            'isStatic'     => $this->isStatic,
             'isDefault'    => $this->isDefault,
         );
     }
 
-    function value() { return $this->value; }
+    private function isSuperGlobal() {
+        $superGlobals = array(
+            '_POST',
+            '_GET',
+            '_SESSION',
+            '_COOKIE',
+            '_FILES',
+            '_REQUEST',
+            '_ENV',
+            '_SERVER',
+        );
+
+        return in_array($this->name(), $superGlobals, true);
+    }
 }
 
 class ValueExceptionStackFrame {
