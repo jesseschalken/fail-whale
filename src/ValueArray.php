@@ -58,7 +58,7 @@ class ValueArray extends Value {
     }
 
     function toJSON(JsonSerializationState $s) {
-        $index =& $s->arrayIDs[$this->id()];
+        $index =& $s->arrayIndexes[$this->id()];
 
         if ($index === null) {
             $index = count($s->root['arrays']);

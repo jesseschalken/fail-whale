@@ -52,7 +52,7 @@ class ValueObject extends Value {
     }
 
     function toJSON(JsonSerializationState $s) {
-        $id =& $s->objectIDs[$this->id()];
+        $id =& $s->objectIndexes[$this->id()];
 
         if ($id === null) {
             $id = count($s->root['objects']);

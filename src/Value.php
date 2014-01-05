@@ -19,11 +19,56 @@ abstract class Value implements JsonSerializable {
         $d       = new JsonDeSerializationState;
         $d->root = $v;
 
-        return $d->constructValue($v['root']);
+        return self::fromJson($d, $v['root']);
     }
 
     private static function i() {
         return new Introspection;
+    }
+
+    static function fromJson(JsonDeSerializationState $s, $v) {
+        if (is_float($v))
+            return new ValueFloat($v);
+
+        if (is_int($v))
+            return new ValueInt($v);
+
+        if (is_bool($v))
+            return new ValueBool($v);
+
+        if (is_null($v))
+            return new ValueNull;
+
+        if (is_string($v))
+            return new ValueString($v);
+
+        switch ($v[0]) {
+            case 'object':
+                return ValueObject::fromJson($s, $v);
+            case '-inf':
+            case '+inf':
+            case 'nan':
+            case 'float':
+                return ValueFloat::fromJson($v);
+            case 'array':
+                return ValueArray::fromJson($s, $v);
+            case 'exception':
+                return ValueException::fromJson($s, $v);
+            case 'resource':
+                return ValueResource::fromJson($s, $v);
+            case 'unknown':
+                return new ValueUnknown;
+            case 'null':
+                return new ValueNull;
+            case 'int':
+                return new ValueInt($v[1]);
+            case 'bool':
+                return new ValueBool($v[1]);
+            case 'string':
+                return new ValueString($v[1]);
+            default:
+                throw new Exception("Unknown type: {$v[0]}");
+        }
     }
 
     private static $nextID = 0;
@@ -120,6 +165,11 @@ class ValueFloat extends Value {
         return array('float', $float);
     }
 
+    /**
+     * @param mixed $x2
+     *
+     * @return self
+     */
     static function fromJSON($x2) {
         $x = $x2[1];
         if ($x === '+inf')
@@ -160,9 +210,6 @@ class ValueNull extends Value {
 
     function toJSON(JsonSerializationState $s) {
         return null;
-    }
-
-    function fromJSON(JsonDeSerializationState $s, $x) {
     }
 
     function __construct() { parent::__construct(); }
