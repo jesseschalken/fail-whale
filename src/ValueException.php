@@ -17,9 +17,12 @@ interface ExceptionHasLocalVariables {
 }
 
 class ValueException extends Value {
-    function introspectImpl(Introspection $i, &$x) {
-        $this->introspectImplNoGlobals($i, $x);
-        $this->globals = ValueVariable::introspectGlobals($i);
+    static function introspectImpl(Introspection $i, &$x) {
+        $self = new self;
+        $self->introspectImplNoGlobals($i, $x);
+        $self->globals = ValueVariable::introspectGlobals($i);
+
+        return $self;
     }
 
     function subValues() {
@@ -117,17 +120,17 @@ s;
         return $settings->renderExceptionWithGlobals($this);
     }
 
-    function schema() {
+    private function schema() {
         $schema = new JsonSchemaObject;
         $schema->bindRef('className', $this->className);
         $schema->bindRef('code', $this->code);
         $schema->bindRef('message', $this->message);
         $schema->bindRef('file', $this->file);
         $schema->bindRef('line', $this->line);
-        $schema->bindObject('previous', $this->previous, function () { return new ValueException; }, true);
-        $schema->bindObjectList('stack', $this->stack, function () { return new ValueExceptionStackFrame; });
-        $schema->bindObjectList('locals', $this->locals, function () { return new ValueVariable; });
-        $schema->bindObjectList('globals', $this->globals, function () { return new ValueVariable; });
+        $schema->bindObject('previous', $this->previous, function ($j, $v) { return ValueException::fromJSON($j, $v); });
+        $schema->bindObjectList('stack', $this->stack, function ($j, $v) { return ValueExceptionStackFrame::fromJSON($j, $v); });
+        $schema->bindObjectList('locals', $this->locals, function ($j, $v) { return ValueVariable::fromJSON($j, $v); });
+        $schema->bindObjectList('globals', $this->globals, function ($j, $v) { return ValueVariable::fromJSON($j, $v); });
 
         return $schema;
     }
@@ -136,8 +139,14 @@ s;
         return array('exception', $this->schema()->toJSON($s));
     }
 
-    function fromJSON(JsonDeSerializationState $s, $x) {
-        $this->schema()->fromJSON($s, $x[1]);
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        if ($x === null)
+            return null;
+
+        $self = new self;
+        $self->schema()->fromJSON($s, $x[1]);
+
+        return $self;
     }
 }
 
@@ -368,7 +377,7 @@ class ValueVariable implements JsonSerializable {
         return $prefix->appendLines($settings->renderVariable($this->name));
     }
 
-    function schema() {
+    private function schema() {
         $schema = new JsonSchemaObject;
         $schema->bindRef('name', $this->name);
         $schema->bindValue('value', $this->value);
@@ -386,8 +395,11 @@ class ValueVariable implements JsonSerializable {
         return $this->schema()->toJSON($s);
     }
 
-    function fromJSON(JsonDeSerializationState $s, $x) {
-        $this->schema()->fromJSON($s, $x);
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        $self = new self;
+        $self->schema()->fromJSON($s, $x);
+
+        return $self;
     }
 
     function value() { return $this->value; }
@@ -522,14 +534,14 @@ class ValueExceptionStackFrame implements JsonSerializable {
         return $settings->text();
     }
 
-    function schema() {
+    private function schema() {
         $schema = new JsonSchemaObject;
         $schema->bindRef('functionName', $this->functionName);
         $schema->bindRef('className', $this->className);
         $schema->bindRef('isStatic', $this->isStatic);
         $schema->bindRef('file', $this->file);
         $schema->bindRef('line', $this->line);
-        $schema->bindObject('object', $this->object, function () { return new ValueObject; }, true);
+        $schema->bindObject('object', $this->object, function ($j, $v) { return ValueObject::fromJSON($j, $v); });
         $schema->bindValueList('args', $this->args);
 
         return $schema;
@@ -539,7 +551,10 @@ class ValueExceptionStackFrame implements JsonSerializable {
         return $this->schema()->toJSON($s);
     }
 
-    function fromJSON(JsonDeSerializationState $s, $x) {
-        $this->schema()->fromJSON($s, $x);
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        $self = new self;
+        $self->schema()->fromJSON($s, $x);
+
+        return $self;
     }
 }

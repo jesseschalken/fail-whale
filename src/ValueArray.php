@@ -3,22 +3,27 @@
 namespace ErrorHandler;
 
 class ValueArray extends Value {
-    function introspectImpl(Introspection $i, &$x) {
-        $entry =& $i->arrayCache[$this->id()];
-        if ($entry !== null)
-            return;
+    static function introspectImpl(Introspection $i, array &$x) {
+        foreach ($i->arrayCache as $entry)
+            if (ref_equal($entry->array, $x))
+                return $entry->result;
+
         $entry         = new IntrospectionArrayCacheEntry;
-        $entry->result = $this;
+        $entry->result = $self = new self;
         $entry->array  =& $x;
 
-        $this->isAssociative = array_is_associative($x);
+        $i->arrayCache[] = $entry;
+
+        $self->isAssociative = array_is_associative($x);
 
         $index = 0;
         foreach ($x as $k => &$v) {
-            $this->entries[$index] = new ValueArrayEntry;
-            $this->entries[$index]->introspectImpl($i, $k, $v);
+            $self->entries[$index] = new ValueArrayEntry;
+            $self->entries[$index]->introspectImpl($i, $k, $v);
             $index++;
         }
+
+        return $self;
     }
 
     private $isAssociative;
@@ -44,10 +49,10 @@ class ValueArray extends Value {
         return $settings->renderArray($this);
     }
 
-    function schema() {
+    private function schema() {
         $schema = new JsonSchemaObject;
         $schema->bindRef('isAssociative', $this->isAssociative);
-        $schema->bindObjectList('entries', $this->entries, function () { return new ValueArrayEntry; });
+        $schema->bindObjectList('entries', $this->entries, function ($j, $v) { return ValueArrayEntry::fromJSON($j, $v); });
 
         return $schema;
     }
@@ -64,12 +69,14 @@ class ValueArray extends Value {
         return array('array', $index);
     }
 
-    function fromJSON(JsonDeSerializationState $s, $x) {
-        $array =& $s->finishedArrays[$x[1]];
-        if ($array !== $this) {
-            $array = $this;
-            $this->schema()->fromJSON($s, $s->root['arrays'][$x[1]]);
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        $self =& $s->finishedArrays[$x[1]];
+        if ($self === null) {
+            $self = new self;
+            $self->schema()->fromJSON($s, $s->root['arrays'][$x[1]]);
         }
+
+        return $self;
     }
 }
 
@@ -88,10 +95,7 @@ class ValueArrayEntry implements JsonSerializable {
         $this->value = $i->introspectRef($v);
     }
 
-    /**
-     * @return JsonSerializable
-     */
-    function schema() {
+    private function schema() {
         $schema = new JsonSchemaObject;
         $schema->bindValue(0, $this->key);
         $schema->bindValue(1, $this->value);
@@ -103,8 +107,11 @@ class ValueArrayEntry implements JsonSerializable {
         return $this->schema()->toJSON($s);
     }
 
-    function fromJSON(JsonDeSerializationState $s, $x) {
-        $this->schema()->fromJSON($s, $x);
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        $self = new self;
+        $self->schema()->fromJSON($s, $x);
+
+        return $self;
     }
 }
 

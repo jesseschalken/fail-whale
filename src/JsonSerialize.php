@@ -4,7 +4,7 @@ namespace ErrorHandler;
 
 class JsonSerializationState {
     public $root = array(
-        'arrays' => array(),
+        'arrays'  => array(),
         'objects' => array(),
     );
     public $objectIDs = array();
@@ -20,48 +20,44 @@ class JsonDeSerializationState {
 
     function constructValue($v) {
         if (is_float($v))
-            return new ValueFloat;
+            return new ValueFloat($v);
 
         if (is_int($v))
-            return new ValueInt;
+            return new ValueInt($v);
 
         if (is_bool($v))
-            return new ValueBool;
+            return new ValueBool($v);
 
         if (is_null($v))
             return new ValueNull;
 
         if (is_string($v))
-            return new ValueString;
+            return new ValueString($v);
 
         switch ($v[0]) {
             case 'object':
-                $object =& $this->finishedObjects[$v[1]];
-
-                return $object === null ? new ValueObject : $object;
+                return ValueObject::fromJson($this, $v);
             case '-inf':
             case '+inf':
             case 'nan':
             case 'float':
-                return new ValueFloat;
+                return ValueFloat::fromJson($v);
             case 'array':
-                $array =& $this->finishedArrays[$v[1]];
-
-                return $array === null ? new ValueArray : $array;
+                return ValueArray::fromJson($this, $v);
             case 'exception':
-                return new ValueException;
+                return ValueException::fromJson($this, $v);
             case 'resource':
-                return new ValueResource;
+                return ValueResource::fromJson($this, $v);
             case 'unknown':
                 return new ValueUnknown;
             case 'null':
                 return new ValueNull;
             case 'int':
-                return new ValueInt;
+                return new ValueInt($v[1]);
             case 'bool':
-                return new ValueBool;
+                return new ValueBool($v[1]);
             case 'string':
-                return new ValueString;
+                return new ValueString($v[1]);
             default:
                 throw new Exception("Unknown type: {$v[0]}");
         }
@@ -69,7 +65,7 @@ class JsonDeSerializationState {
 }
 
 class JsonSchemaObject implements JsonSerializable {
-    /** @var JsonSerializable[] */
+    /** @var JsonWritable[] */
     private $properties = array();
 
     function toJSON(JsonSerializationState $s) {
@@ -90,12 +86,12 @@ class JsonSchemaObject implements JsonSerializable {
         $this->bind($property, new JsonRef($ref));
     }
 
-    function bind($property, JsonSerializable $j) {
+    function bind($property, JsonWritable $j) {
         $this->properties[$property] = $j;
     }
 
-    function bindObject($property, &$ref, $constructor, $nullable) {
-        $this->bind($property, new JsonRefObject($ref, $constructor, $nullable));
+    function bindObject($property, &$ref, $constructor) {
+        $this->bind($property, new JsonRefObject($ref, $constructor));
     }
 
     function bindObjectList($property, &$ref, $constructor) {
@@ -103,21 +99,27 @@ class JsonSchemaObject implements JsonSerializable {
     }
 
     function bindValueList($string, &$args) {
-        $this->bind($string, new JsonRefValueList($args));
+        $this->bindObjectList($string, $args, function (JsonDeSerializationState $j, $v) {
+            return $j->constructValue($v);
+        });
     }
 
     function bindValue($string, &$value) {
-        $this->bind($string, new JsonRefValue($value));
+        $this->bindObject($string, $value, function (JsonDeSerializationState $j, $v) {
+            return $j->constructValue($v);
+        });
     }
 }
 
 interface JsonSerializable {
     function toJSON(JsonSerializationState $s);
+}
 
+interface JsonWritable extends JsonSerializable {
     function fromJSON(JsonDeSerializationState $s, $x);
 }
 
-class JsonRef implements JsonSerializable {
+class JsonRef implements JsonWritable {
     private $ref;
 
     function __construct(&$ref) {
@@ -137,20 +139,17 @@ class JsonRef implements JsonSerializable {
     }
 }
 
-class JsonRefObject implements JsonSerializable {
+class JsonRefObject implements JsonWritable {
     private $constructor;
     private $ref;
-    private $nullable;
 
     /**
      * @param JsonSerializable|null $ref
      * @param callable              $constructor
-     * @param bool                  $nullable
      */
-    function __construct(&$ref, \Closure $constructor, $nullable = false) {
+    function __construct(&$ref, \Closure $constructor) {
         $this->constructor = $constructor;
         $this->ref         =& $ref;
-        $this->nullable    = $nullable;
     }
 
     function toJSON(JsonSerializationState $s) {
@@ -158,27 +157,12 @@ class JsonRefObject implements JsonSerializable {
     }
 
     function fromJSON(JsonDeSerializationState $s, $x) {
-        if ($x === null && $this->nullable) {
-            $this->ref = null;
-        } else {
-            /** @var JsonSerializable $object */
-            $constructor = $this->constructor;
-            $object      = $constructor($s, $x);
-            $this->ref   = $object;
-            $this->ref->fromJSON($s, $x);
-        }
+        $constructor = $this->constructor;
+        $this->ref   = $constructor($s, $x);
     }
 }
 
-class JsonRefValue extends JsonRefObject {
-    function __construct(&$ref) {
-        $constructor = function (JsonDeSerializationState $s, $v) { return $s->constructValue($v); };
-
-        parent::__construct($ref, $constructor, false);
-    }
-}
-
-class JsonRefObjectList implements JsonSerializable {
+class JsonRefObjectList implements JsonWritable {
     private $ref;
     private $constructor;
 
@@ -211,21 +195,10 @@ class JsonRefObjectList implements JsonSerializable {
             $this->ref = array();
 
             foreach ($x as $k => $v) {
-                /** @var JsonSerializable $object */
-                $constructor = $this->constructor;
-                $object      = $constructor($s, $v);
-                $object->fromJSON($s, $v);
-                $this->ref[$k] = $object;
+                $constructor   = $this->constructor;
+                $this->ref[$k] = $constructor($s, $v);
             }
         }
-    }
-}
-
-class JsonRefValueList extends JsonRefObjectList {
-    function __construct(&$ref) {
-        $constructor = function (JsonDeSerializationState $s, $v) { return $s->constructValue($v); };
-
-        parent::__construct($ref, $constructor);
     }
 }
 

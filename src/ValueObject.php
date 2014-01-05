@@ -3,18 +3,21 @@
 namespace ErrorHandler;
 
 class ValueObject extends Value {
-    function introspectImpl(Introspection $i, &$x) {
+    static function introspectImpl(Introspection $i, &$x) {
         $hash = spl_object_hash($x);
 
-        $a =& $i->objectCache[$hash];
-        if ($a !== null)
-            return;
-        $a = $this;
+        $self =& $i->objectCache[$hash];
+        if ($self !== null)
+            return $self;
+        $self = new self;
 
-        $i->objects[]     = $x;
-        $this->hash       = $hash;
-        $this->className  = get_class($x);
-        $this->properties = ValueVariable::introspectObjectProperties($i, $x);
+        $i->objects[] = $x;
+
+        $self->hash       = $hash;
+        $self->className  = get_class($x);
+        $self->properties = ValueVariable::introspectObjectProperties($i, $x);
+
+        return $self;
     }
 
     function subValues() {
@@ -39,11 +42,11 @@ class ValueObject extends Value {
         return $settings->renderObject($this);
     }
 
-    function schema() {
+    private function schema() {
         $schema = new JsonSchemaObject;
         $schema->bindRef('className', $this->className);
         $schema->bindRef('hash', $this->hash);
-        $schema->bindObjectList('properties', $this->properties, function () { return new ValueVariable; });
+        $schema->bindObjectList('properties', $this->properties, function ($j, $v) { return ValueVariable::fromJSON($j, $v); });
 
         return $schema;
     }
@@ -60,13 +63,18 @@ class ValueObject extends Value {
         return array('object', $id);
     }
 
-    function fromJSON(JsonDeSerializationState $s, $x) {
-        $object =& $s->finishedObjects[$x[1]];
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        if ($x === null)
+            return null;
 
-        if ($object !== $this) {
-            $object = $this;
-            $this->schema()->fromJSON($s, $s->root['objects'][$x[1]]);
+        $self =& $s->finishedObjects[$x[1]];
+
+        if ($self === null) {
+            $self = new self;
+            $self->schema()->fromJSON($s, $s->root['objects'][$x[1]]);
         }
+
+        return $self;
     }
 }
 

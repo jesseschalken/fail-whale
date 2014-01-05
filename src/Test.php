@@ -135,7 +135,7 @@ s
 
     function testException() {
         $i         = new Introspection;
-        $exception = ValueException::mock($i);
+        $exception = ValueException::mock($i)->toJsonFromJson();
 
         self::assertEquals($exception->render(self::pp())->toString(), <<<'s'
 MuhMockException Dummy exception code in /the/path/to/muh/file:9000
