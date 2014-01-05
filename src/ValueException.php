@@ -74,11 +74,9 @@ s;
         $self->code      = 'Dummy exception code';
         $self->file      = '/the/path/to/muh/file';
         $self->line      = 9000;
-        $self->locals    = array(new ValueVariable('lol', $param->introspect(8)),
-                                 new ValueVariable('foo', $param->introspect('bar')));
-
-        $self->stack   = ValueExceptionStackFrame::mock($param);
-        $self->globals = ValueVariable::mockGlobals($param);
+        $self->locals    = ValueVariable::mockLocals($param);
+        $self->stack     = ValueExceptionStackFrame::mock($param);
+        $self->globals   = ValueVariable::mockGlobals($param);
 
         return $self;
     }
@@ -120,24 +118,26 @@ s;
     }
 
     function schema() {
-        return new JsonSchemaObject(
-            array(
-                'type'      => new JsonConst('exception'),
-                'exception' => new JsonSchemaObject(
-                        array(
-                            'className' => new JsonRef($this->className),
-                            'code'      => new JsonRef($this->code),
-                            'message'   => new JsonRef($this->message),
-                            'file'      => new JsonRef($this->file),
-                            'line'      => new JsonRef($this->line),
-                            'previous'  => new JsonRefObject($this->previous, function () { return new ValueException; }, true),
-                            'stack'     => new JsonRefObjectList($this->stack, function () { return new ValueExceptionStackFrame; }),
-                            'locals'    => new JsonRefObjectList($this->locals, function () { return new ValueVariable; }),
-                            'globals'   => new JsonRefObjectList($this->globals, function () { return new ValueVariable; }),
-                        )
-                    ),
-            )
-        );
+        $schema = new JsonSchemaObject;
+        $schema->bindRef('className', $this->className);
+        $schema->bindRef('code', $this->code);
+        $schema->bindRef('message', $this->message);
+        $schema->bindRef('file', $this->file);
+        $schema->bindRef('line', $this->line);
+        $schema->bindObject('previous', $this->previous, function () { return new ValueException; }, true);
+        $schema->bindObjectList('stack', $this->stack, function () { return new ValueExceptionStackFrame; });
+        $schema->bindObjectList('locals', $this->locals, function () { return new ValueVariable; });
+        $schema->bindObjectList('globals', $this->globals, function () { return new ValueVariable; });
+
+        return $schema;
+    }
+
+    function toJSON(JsonSerializationState $s) {
+        return array('exception', $this->schema()->toJSON($s));
+    }
+
+    function fromJSON(JsonDeSerializationState $s, $x) {
+        $this->schema()->fromJSON($s, $x[1]);
     }
 }
 
@@ -317,6 +317,24 @@ class ValueVariable implements JsonSerializable {
         return $globals;
     }
 
+    static function mockLocals(Introspection $i) {
+        $locals = array();
+
+        $self        = new self;
+        $self->name  = 'lol';
+        $self->value = $i->introspect(8);
+
+        $locals[] = $self;
+
+        $self        = new self;
+        $self->name  = 'foo';
+        $self->value = $i->introspect('bar');
+
+        $locals[] = $self;
+
+        return $locals;
+    }
+
     private $name;
     /** @var Value */
     private $value;
@@ -351,18 +369,25 @@ class ValueVariable implements JsonSerializable {
     }
 
     function schema() {
-        return new JsonSchemaObject(
-            array(
-                'name'         => new JsonRef($this->name),
-                'value'        => new JsonRefValue($this->name),
-                'className'    => new JsonRef($this->className),
-                'functionName' => new JsonRef($this->functionName),
-                'access'       => new JsonRef($this->access),
-                'isGlobal'     => new JsonRef($this->isGlobal),
-                'isStatic'     => new JsonRef($this->isStatic),
-                'isDefault'    => new JsonRef($this->isDefault),
-            )
-        );
+        $schema = new JsonSchemaObject;
+        $schema->bindRef('name', $this->name);
+        $schema->bindValue('value', $this->value);
+        $schema->bindRef('className', $this->className);
+        $schema->bindRef('functionName', $this->functionName);
+        $schema->bindRef('access', $this->access);
+        $schema->bindRef('isGlobal', $this->isGlobal);
+        $schema->bindRef('isStatic', $this->isStatic);
+        $schema->bindRef('isDefault', $this->isDefault);
+
+        return $schema;
+    }
+
+    function toJSON(JsonSerializationState $s) {
+        return $this->schema()->toJSON($s);
+    }
+
+    function fromJSON(JsonDeSerializationState $s, $x) {
+        $this->schema()->fromJSON($s, $x);
     }
 
     function value() { return $this->value; }
@@ -498,16 +523,23 @@ class ValueExceptionStackFrame implements JsonSerializable {
     }
 
     function schema() {
-        return new JsonSchemaObject(
-            array(
-                'functionName' => new JsonRef($this->functionName),
-                'className'    => new JsonRef($this->className),
-                'isStatic'     => new JsonRef($this->isStatic),
-                'file'         => new JsonRef($this->file),
-                'line'         => new JsonRef($this->line),
-                'object'       => new JsonRefObject($this->object, function () { return new ValueObject; }, true),
-                'args'         => new JsonRefValueList($this->args),
-            )
-        );
+        $schema = new JsonSchemaObject;
+        $schema->bindRef('functionName', $this->functionName);
+        $schema->bindRef('className', $this->className);
+        $schema->bindRef('isStatic', $this->isStatic);
+        $schema->bindRef('file', $this->file);
+        $schema->bindRef('line', $this->line);
+        $schema->bindObject('object', $this->object, function () { return new ValueObject; }, true);
+        $schema->bindValueList('args', $this->args);
+
+        return $schema;
+    }
+
+    function toJSON(JsonSerializationState $s) {
+        return $this->schema()->toJSON($s);
+    }
+
+    function fromJSON(JsonDeSerializationState $s, $x) {
+        $this->schema()->fromJSON($s, $x);
     }
 }

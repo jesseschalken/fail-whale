@@ -40,49 +40,33 @@ class ValueObject extends Value {
     }
 
     function schema() {
-        return new JsonSchemaObject(
-            array(
-                'type'   => new JsonConst('object'),
-                'object' => new JsonObjectID($this),
-            )
-        );
-    }
+        $schema = new JsonSchemaObject;
+        $schema->bindRef('className', $this->className);
+        $schema->bindRef('hash', $this->hash);
+        $schema->bindObjectList('properties', $this->properties, function () { return new ValueVariable; });
 
-    function wholeSchema() {
-        return new JsonSchemaObject(
-            array(
-                'className'  => new JsonRef($this->className),
-                'hash'       => new JsonRef($this->hash),
-                'properties' => new JsonRefObjectList($this->properties, function () { return new ValueVariable; }),
-            )
-        );
-    }
-}
-
-class JsonObjectID extends JsonSchema {
-    /** @var ValueObject */
-    private $o;
-
-    function __construct(ValueObject $o) {
-        $this->o = $o;
+        return $schema;
     }
 
     function toJSON(JsonSerializationState $s) {
-        $id =& $s->objectIDs[$this->o->id()];
-        if ($id !== null)
-            return $id;
-        $id = count($s->root['objects']);
+        $id =& $s->objectIDs[$this->id()];
 
-        $s->root['objects'][$id] = $this->o->wholeSchema()->toJSON($s);
+        if ($id === null) {
+            $id = count($s->root['objects']);
 
-        return $id;
+            $s->root['objects'][$id] = $this->schema()->toJSON($s);
+        }
+
+        return array('object', $id);
     }
 
     function fromJSON(JsonDeSerializationState $s, $x) {
-        $object =& $s->finishedObjects[$x];
-        if ($object !== null)
-            return;
-        $object = $this->o;
-        $object->wholeSchema()->fromJSON($s, $s->root['objects'][$x]);
+        $object =& $s->finishedObjects[$x[1]];
+
+        if ($object !== $this) {
+            $object = $this;
+            $this->schema()->fromJSON($s, $s->root['objects'][$x[1]]);
+        }
     }
 }
+

@@ -45,35 +45,31 @@ class ValueArray extends Value {
     }
 
     function schema() {
-        return new JsonSchemaObject(
-            array(
-                'type' => new JsonConst('array'),
-                'id'   => new JsonArrayID($this),
-            )
-        );
-    }
+        $schema = new JsonSchemaObject;
+        $schema->bindRef('isAssociative', $this->isAssociative);
+        $schema->bindObjectList('entries', $this->entries, function () { return new ValueArrayEntry; });
 
-    function wholeSchema() {
-        return new JsonSchemaObject(
-            array(
-                'isAssociative' => new JsonRef($this->isAssociative),
-                'entries'       => new JsonRefObjectList($this->entries, function () { return new ValueArrayEntry; }),
-            )
-        );
-    }
-}
-
-class JsonArrayID extends JsonSchema {
-    private $a;
-
-    function __construct(ValueArray $a) {
-        $this->a = $a;
+        return $schema;
     }
 
     function toJSON(JsonSerializationState $s) {
+        $index =& $s->arrayIDs[$this->id()];
+
+        if ($index === null) {
+            $index = count($s->root['arrays']);
+
+            $s->root['arrays'][$index] = $this->schema()->toJSON($s);
+        }
+
+        return array('array', $index);
     }
 
     function fromJSON(JsonDeSerializationState $s, $x) {
+        $array =& $s->finishedArrays[$x[1]];
+        if ($array !== $this) {
+            $array = $this;
+            $this->schema()->fromJSON($s, $s->root['arrays'][$x[1]]);
+        }
     }
 }
 
@@ -93,15 +89,22 @@ class ValueArrayEntry implements JsonSerializable {
     }
 
     /**
-     * @return JsonSchema
+     * @return JsonSerializable
      */
     function schema() {
-        return new JsonSchemaObject(
-            array(
-                'key'   => new JsonRefValue($this->key),
-                'value' => new JsonRefValue($this->value),
-            )
-        );
+        $schema = new JsonSchemaObject;
+        $schema->bindValue(0, $this->key);
+        $schema->bindValue(1, $this->value);
+
+        return $schema;
+    }
+
+    function toJSON(JsonSerializationState $s) {
+        return $this->schema()->toJSON($s);
+    }
+
+    function fromJSON(JsonDeSerializationState $s, $x) {
+        $this->schema()->fromJSON($s, $x);
     }
 }
 
