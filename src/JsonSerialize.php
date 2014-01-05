@@ -65,7 +65,7 @@ class JsonDeSerializationState {
 }
 
 class JsonSchemaObject implements JsonSerializable {
-    /** @var JsonWritable[] */
+    /** @var JsonSchema[] */
     private $properties = array();
 
     function toJSON(JsonSerializationState $s) {
@@ -86,7 +86,7 @@ class JsonSchemaObject implements JsonSerializable {
         $this->bind($property, new JsonRef($ref));
     }
 
-    function bind($property, JsonWritable $j) {
+    function bind($property, JsonSchema $j) {
         $this->properties[$property] = $j;
     }
 
@@ -115,11 +115,11 @@ interface JsonSerializable {
     function toJSON(JsonSerializationState $s);
 }
 
-interface JsonWritable extends JsonSerializable {
-    function fromJSON(JsonDeSerializationState $s, $x);
+abstract class JsonSchema implements JsonSerializable {
+    abstract function fromJSON(JsonDeSerializationState $s, $x);
 }
 
-class JsonRef implements JsonWritable {
+class JsonRef extends JsonSchema {
     private $ref;
 
     function __construct(&$ref) {
@@ -139,7 +139,7 @@ class JsonRef implements JsonWritable {
     }
 }
 
-class JsonRefObject implements JsonWritable {
+class JsonRefObject extends JsonSchema {
     private $constructor;
     private $ref;
 
@@ -162,7 +162,7 @@ class JsonRefObject implements JsonWritable {
     }
 }
 
-class JsonRefObjectList implements JsonWritable {
+class JsonRefObjectList extends JsonSchema {
     private $ref;
     private $constructor;
 
