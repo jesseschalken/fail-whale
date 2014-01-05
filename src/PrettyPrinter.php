@@ -33,7 +33,7 @@ final class PrettyPrinter {
     }
 
     function prettyPrintRef(&$ref) {
-        return Value::introspectRef($ref)->toJsonFromJson()->render($this)->toString();
+        return Value::introspectRef($ref)->render($this)->toString();
     }
 
     function render(Value $v) {

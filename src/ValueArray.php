@@ -3,26 +3,25 @@
 namespace ErrorHandler;
 
 class ValueArray extends Value {
-    /**
-     * @param Introspection $i
-     * @param array         $array
-     * @param IntrospectionArrayCache    $cache
-     *
-     * @return ValueArray
-     */
-    static function introspectImpl(Introspection $i, array &$array, IntrospectionArrayCache $cache) {
-        $self = new self;
-        $cache->insert($array, $self);
+    function introspectImpl(Introspection $i, &$x) {
+        $entry =& $i->arrayCache[$this->id()];
+        if ($entry !== null)
+            return;
+        $entry         = new IntrospectionArrayCacheEntry;
+        $entry->result = $this;
+        $entry->array  =& $x;
 
-        $self->isAssociative = array_is_associative($array);
+        $this->isAssociative = array_is_associative($x);
 
-        foreach ($array as $k => &$v)
-            $self->entries[] = new ValueArrayEntry($i->introspect($k), $i->introspectRef($v));
-
-        return $self;
+        $index = 0;
+        foreach ($x as $k => &$v) {
+            $this->entries[$index] = new ValueArrayEntry;
+            $this->entries[$index]->introspectImpl($i, $k, $v);
+            $index++;
+        }
     }
 
-    private $isAssociative = false;
+    private $isAssociative;
     /** @var ValueArrayEntry[] */
     private $entries = array();
 
@@ -45,51 +44,64 @@ class ValueArray extends Value {
         return $settings->renderArray($this);
     }
 
-    function toJsonValueImpl(JsonSerialize $s) {
-        return array(
-            'type' => 'array',
-            'array' => $s->addArray($this),
+    function schema() {
+        return new JsonSchemaObject(
+            array(
+                'type' => new JsonConst('array'),
+                'id'   => new JsonArrayID($this),
+            )
         );
     }
 
-    function serializeArray(JsonSerialize $s) {
-        $result = array(
-            'isAssociative' => $this->isAssociative,
-            'entries'       => array(),
+    function wholeSchema() {
+        return new JsonSchemaObject(
+            array(
+                'isAssociative' => new JsonRef($this->isAssociative),
+                'entries'       => new JsonRefObjectList($this->entries, function () { return new ValueArrayEntry; }),
+            )
         );
-
-        foreach ($this->entries as $entry)
-            $result['entries'][] = array(
-                'key'   => $s->toJsonValue($entry->key()),
-                'value' => $s->toJsonValue($entry->value()),
-            );
-
-        return $result;
-    }
-
-    static function fromJsonValueImpl(JsonSerialize $pool, $index, array $v) {
-        $self                = new self;
-        $self->isAssociative = $v['isAssociative'];
-
-        $pool->insertArray($index, $self);
-
-        foreach ($v['entries'] as $entry)
-            $self->entries[] = new ValueArrayEntry($pool->fromJsonValue($entry['key']),
-                                              $pool->fromJsonValue($entry['value']));
-
-        return $self;
     }
 }
 
-class ValueArrayEntry {
-    private $key, $value;
+class JsonArrayID extends JsonSchema {
+    private $a;
 
-    function __construct(Value $key, Value $value) {
-        $this->key   = $key;
-        $this->value = $value;
+    function __construct(ValueArray $a) {
+        $this->a = $a;
     }
+
+    function toJSON(JsonSerializationState $s) {
+    }
+
+    function fromJSON(JsonDeSerializationState $s, $x) {
+    }
+}
+
+class ValueArrayEntry implements JsonSerializable {
+    /** @var Value */
+    private $key;
+    /** @var Value */
+    private $value;
 
     function key() { return $this->key; }
 
     function value() { return $this->value; }
+
+    function introspectImpl(Introspection $i, $k, &$v) {
+        $this->key   = $i->introspect($k);
+        $this->value = $i->introspectRef($v);
+    }
+
+    /**
+     * @return JsonSchema
+     */
+    function schema() {
+        return new JsonSchemaObject(
+            array(
+                'key'   => new JsonRefValue($this->key),
+                'value' => new JsonRefValue($this->value),
+            )
+        );
+    }
 }
+

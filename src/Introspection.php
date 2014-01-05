@@ -3,12 +3,12 @@
 namespace ErrorHandler;
 
 class Introspection {
-    private $objectCache, $arrayCache;
-
-    function __construct() {
-        $this->objectCache = new IntrospectionObjectCache;
-        $this->arrayCache  = new IntrospectionArrayCache;
-    }
+    /** @var ValueObject[] */
+    public $objectCache = array();
+    /** @var object[] Just to keep a reference to the objects, because if they get GC'd their hash can get re-used */
+    public $objects = array();
+    /** @var IntrospectionArrayCacheEntry[] */
+    public $arrayCache = array();
 
     /**
      * @param \ReflectionProperty|\ReflectionMethod $property
@@ -28,7 +28,10 @@ class Introspection {
     }
 
     function introspectException(\Exception $e) {
-        return ValueException::introspectImpl($this, $e);
+        $result = new ValueException;
+        $result->introspectImpl($this, $e);
+
+        return $result;
     }
 
     function introspect($x) {
@@ -36,94 +39,57 @@ class Introspection {
     }
 
     function introspectRef(&$x) {
+        $value = $this->create($x);
+        $value->introspectImpl($this, $x);
+
+        return $value;
+    }
+
+    /**
+     * @param $x
+     *
+     * @return Value
+     */
+    function create(&$x) {
         if (is_string($x))
-            return new ValueString($x);
+            return new ValueString;
 
         if (is_int($x))
-            return new ValueInt($x);
+            return new ValueInt;
 
         if (is_bool($x))
-            return new ValueBool($x);
+            return new ValueBool;
 
         if (is_null($x))
             return new ValueNull;
 
         if (is_float($x))
-            return new ValueFloat($x);
+            return new ValueFloat;
 
-        if (is_array($x))
-            return $this->arrayCache->introspect($this, $x);
+        if (is_array($x)) {
+            foreach ($this->arrayCache as $entry)
+                if (ref_equal($entry->array, $x))
+                    return $entry->result;
 
-        if (is_object($x))
-            return $this->objectCache->introspect($this, $x);
+            return new ValueArray;
+        }
+
+        if (is_object($x)) {
+            $result =& $this->objectCache[spl_object_hash($x)];
+
+            return $result === null ? new ValueObject : $result;
+        }
 
         if (is_resource($x))
-            return ValueResource::introspectImpl($x);
+            return new ValueResource;
 
         return new ValueUnknown;
     }
 }
 
-class IntrospectionObjectCache {
-    /** @var ValueObject[] */
-    private $results = array();
-    /** @var object[] Just to keep a reference to the objects, because if they get GC'd their hash can get re-used */
-    private $objects = array();
-
-    /**
-     * @param Introspection $i
-     * @param object        $object
-     *
-     * @return ValueObject
-     */
-    function introspect(Introspection $i, $object) {
-        $hash = spl_object_hash($object);
-
-        if (isset($this->results[$hash]))
-            return $this->results[$hash];
-
-        return ValueObject::introspectImpl($i, $hash, $object, $this);
-    }
-
-    function insert($object, $hash, ValueObject $result) {
-        $this->objects[$hash] = $object;
-        $this->results[$hash] = $result;
-    }
-}
-
-class IntrospectionArrayCache {
-    /** @var IntrospectionArrayCacheEntry[] */
-    private $entries = array();
-
-    function introspect(Introspection $i, array &$array) {
-        foreach ($this->entries as $entry)
-            if ($entry->equals($array))
-                return $entry->result();
-
-        return ValueArray::introspectImpl($i, $array, $this);
-    }
-
-    function insert(&$array, ValueArray $result) {
-        $this->entries[] = new IntrospectionArrayCacheEntry($array, $result);
-    }
-}
-
 class IntrospectionArrayCacheEntry {
     /** @var array */
-    private $array;
+    public $array;
     /** @var ValueArray */
-    private $result;
-
-    function __construct(array &$array, ValueArray $result) {
-        $this->array  =& $array;
-        $this->result = $result;
-    }
-
-    function equals(array &$array) {
-        return ref_equal($this->array, $array);
-    }
-
-    function result() {
-        return $this->result;
-    }
+    public $result;
 }

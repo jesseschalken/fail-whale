@@ -2,7 +2,7 @@
 
 namespace ErrorHandler;
 
-abstract class Value {
+abstract class Value implements JsonSerializable {
     static function introspect($x) {
         return self::i()->introspect($x);
     }
@@ -15,14 +15,6 @@ abstract class Value {
         return self::i()->introspectException($e);
     }
 
-    static function fromJsonValue($x) {
-        return JsonSerialize::fromJsonWhole($x);
-    }
-
-    static function fromJson($json) {
-        return self::fromJsonValue(Json::parse($json));
-    }
-
     private static function i() {
         return new Introspection;
     }
@@ -30,7 +22,11 @@ abstract class Value {
     private static $nextID = 0;
     private $id;
 
-    protected function __construct() {
+    function __construct() {
+        $this->id = self::$nextID++;
+    }
+
+    function __clone() {
         $this->id = self::$nextID++;
     }
 
@@ -41,20 +37,6 @@ abstract class Value {
      */
     final function render(PrettyPrinter $settings) {
         return $settings->render($this);
-    }
-
-    abstract function toJsonValueImpl(JsonSerialize $s);
-
-    final function toJsonValue() {
-        return JsonSerialize::toJsonWhole($this);
-    }
-
-    final function toJson() {
-        return Json::stringify($this->toJsonValue());
-    }
-
-    function toJsonFromJson() {
-        return self::fromJson($this->toJson());
     }
 
     function id() { return $this->id; }
@@ -70,29 +52,25 @@ abstract class Value {
      * @return self[]
      */
     function subValues() { return array(); }
+
+    abstract function introspectImpl(Introspection $i, &$x);
 }
 
 class ValueBool extends Value {
     private $bool;
 
-    /**
-     * @param bool $bool
-     */
-    function __construct($bool) {
-        assert(is_bool($bool));
+    function introspectImpl(Introspection $i, &$x) {
+        assert(is_bool($i));
 
-        $this->bool = $bool;
+        $this->bool = $i;
     }
 
     function renderImpl(PrettyPrinter $settings) {
         return $settings->text($this->bool ? 'true' : 'false');
     }
 
-    function toJsonValueImpl(JsonSerialize $s) {
-        return array(
-            'type' => 'bool',
-            'bool' => $this->bool,
-        );
+    function schema() {
+        return new JsonRef($this->bool);
     }
 }
 
@@ -100,12 +78,13 @@ class ValueFloat extends Value {
     private $float;
 
     /**
-     * @param float $float
+     * @param \ErrorHandler\Introspection|float $i
+     * @param                                   $x
      */
-    function __construct($float) {
-        assert(is_float($float));
+    function introspectImpl(Introspection $i, &$x) {
+        assert(is_float($i));
 
-        $this->float = $float;
+        $this->float = $i;
     }
 
     function renderImpl(PrettyPrinter $settings) {
@@ -114,44 +93,76 @@ class ValueFloat extends Value {
         return $settings->text("$int" === "$this->float" ? "$this->float.0" : "$this->float");
     }
 
-    function toJsonValueImpl(JsonSerialize $s) {
-        if ($this->float === INF)
-            return array('type' => '+inf');
-
-        if ($this->float === -INF)
-            return array('type' => '-inf');
-
-        if (is_nan($this->float))
-            return array('type' => 'nan');
-
-        return array(
-            'type'  => 'float',
-            'float' => $this->float,
+    function schema() {
+        return new JsonSchemaObject(
+            array(
+                'type'  => new JsonConst('float'),
+                'float' => new JsonFloatRef($this->float),
+            )
         );
     }
+}
+
+class JsonFloatRef extends JsonRef {
+    function toJSON(JsonSerializationState $s) {
+        $result = $this->get();
+
+        if ($result === INF)
+            return '+inf';
+        else if ($result === -INF)
+            return '-inf';
+        else if (is_nan($result))
+            return 'nan';
+        else
+            return $result;
+    }
+
+    function fromJSON(JsonDeSerializationState $s, $x) {
+        if ($x === '+inf')
+            $result = INF;
+        else if ($x === '-inf')
+            $result = -INF;
+        else if ($x === 'nan')
+            $result = NAN;
+        else
+            $result = (float)$x;
+
+        $this->set($result);
+    }
+
+}
+
+class JsonConst extends JsonSchema {
+    private $const;
+
+    function __construct($const) {
+        $this->const = $const;
+    }
+
+    function toJSON(JsonSerializationState $s) {
+        return $this->const;
+    }
+
+    function fromJSON(JsonDeSerializationState $s, $x) {
+    }
+
 }
 
 class ValueInt extends Value {
     private $int;
 
-    /**
-     * @param int $int
-     */
-    function __construct($int) {
-        assert(is_int($int));
+    function introspectImpl(Introspection $i, &$x) {
+        assert(is_int($x));
 
-        $this->int = $int;
+        $this->int = $x;
     }
 
     function renderImpl(PrettyPrinter $settings) {
         return $settings->text("$this->int");
     }
 
-    function toJsonValueImpl(JsonSerialize $s) {
-        return array(
-            'type' => 'int',
-            'int'  => $this->int,
-        );
+    function schema() {
+        return new JsonRef($this->int);
     }
 }
 
@@ -160,29 +171,18 @@ class ValueNull extends Value {
         return $settings->text('null');
     }
 
-    function toJsonValueImpl(JsonSerialize $s) {
-        return array(
-            'type' => 'null',
-        );
+    function introspectImpl(Introspection $i, &$x) {
     }
 
-    function __construct() {
-        parent::__construct();
+    function schema() {
+        return new JsonConst(null);
     }
 }
 
 class ValueResource extends Value {
-    /**
-     * @param resource $value
-     *
-     * @return self
-     */
-    static function introspectImpl($value) {
-        $self       = new self;
-        $self->type = get_resource_type($value);
-        $self->id   = (int)$value;
-
-        return $self;
+    function introspectImpl(Introspection $i, &$x) {
+        $this->type = get_resource_type($x);
+        $this->id   = (int)$x;
     }
 
     private $type;
@@ -192,46 +192,42 @@ class ValueResource extends Value {
         return $settings->text($this->type);
     }
 
-    function toJsonValueImpl(JsonSerialize $s) {
-        return array(
-            'type'     => 'resource',
-            'resource' => array(
-                'resourceType' => $this->type,
-                'resourceId'   => $this->id,
-            ),
+    /**
+     * @return JsonSchema
+     */
+    function schema() {
+        return new JsonSchemaObject(
+            array(
+                'type'     => new JsonConst('resource'),
+                'resource' => new JsonSchemaObject(
+                        array(
+                            'type' => new JsonRef($this->type),
+                            'id'   => new JsonRef($this->id),
+                        )
+                    ),
+            )
         );
-    }
-
-    static function fromJsonValueImpl(array $v) {
-        $self       = new self;
-        $self->type = $v['resourceType'];
-        $self->id   = $v['resourceId'];
-
-        return $self;
     }
 }
 
 class ValueString extends Value {
     private $string;
 
-    /**
-     * @param string $string
-     */
-    function __construct($string) {
-        assert(is_string($string));
+    function introspectImpl(Introspection $i, &$x) {
+        assert(is_string($x));
 
-        $this->string = $string;
+        $this->string = $x;
+    }
+
+    /**
+     * @return JsonSchema
+     */
+    function schema() {
+        return new JsonRef($this->string);
     }
 
     function renderImpl(PrettyPrinter $settings) {
         return $settings->renderString($this->string);
-    }
-
-    function toJsonValueImpl(JsonSerialize $s) {
-        return array(
-            'type'   => 'string',
-            'string' => $this->string,
-        );
     }
 }
 
@@ -240,14 +236,18 @@ class ValueUnknown extends Value {
         return $settings->text('unknown type');
     }
 
-    function toJsonValueImpl(JsonSerialize $s) {
-        return array(
-            'type' => 'unknown',
-        );
+    function introspectImpl(Introspection $i, &$x) {
     }
 
-    function __construct() {
-        parent::__construct();
+    /**
+     * @return JsonSchema
+     */
+    function schema() {
+        return new JsonSchemaObject(
+            array(
+                'type' => new JsonConst('unknown'),
+            )
+        );
     }
 }
 

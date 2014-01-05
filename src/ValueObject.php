@@ -3,23 +3,18 @@
 namespace ErrorHandler;
 
 class ValueObject extends Value {
-    /**
-     * @param Introspection $i
-     * @param string        $hash
-     * @param object        $object
-     * @param IntrospectionObjectCache   $cache
-     *
-     * @return ValueObject
-     */
-    static function introspectImpl(Introspection $i, $hash, $object, IntrospectionObjectCache $cache) {
-        $self = new self;
-        $cache->insert($object, $hash, $self);
+    function introspectImpl(Introspection $i, &$x) {
+        $hash = spl_object_hash($x);
 
-        $self->hash       = $hash;
-        $self->className  = get_class($object);
-        $self->properties = ValueVariable::introspectObjectProperties($i, $object);
+        $a =& $i->objectCache[$hash];
+        if ($a !== null)
+            return;
+        $a = $this;
 
-        return $self;
+        $i->objects[]     = $x;
+        $this->hash       = $hash;
+        $this->className  = get_class($x);
+        $this->properties = ValueVariable::introspectObjectProperties($i, $x);
     }
 
     function subValues() {
@@ -44,36 +39,50 @@ class ValueObject extends Value {
         return $settings->renderObject($this);
     }
 
-    function toJsonValueImpl(JsonSerialize $s) {
-        return array(
-            'type'   => 'object',
-            'object' => $s->addObject($this),
+    function schema() {
+        return new JsonSchemaObject(
+            array(
+                'type'   => new JsonConst('object'),
+                'object' => new JsonObjectID($this),
+            )
         );
     }
 
-    function serializeObject(JsonSerialize $s) {
-        $properties = array();
-
-        foreach ($this->properties as $prop)
-            $properties[] = $prop->toJsonValue($s);
-
-        return array(
-            'className'  => $this->className,
-            'hash'       => $this->hash,
-            'properties' => $properties,
+    function wholeSchema() {
+        return new JsonSchemaObject(
+            array(
+                'className'  => new JsonRef($this->className),
+                'hash'       => new JsonRef($this->hash),
+                'properties' => new JsonRefObjectList($this->properties, function () { return new ValueVariable; }),
+            )
         );
     }
+}
 
-    static function fromJsonValueImpl(JsonSerialize $pool, $index, array $v) {
-        $self            = new self;
-        $self->className = $v['className'];
-        $self->hash      = $v['hash'];
+class JsonObjectID extends JsonSchema {
+    /** @var ValueObject */
+    private $o;
 
-        $pool->insertObject($index, $self);
+    function __construct(ValueObject $o) {
+        $this->o = $o;
+    }
 
-        foreach ($v['properties'] as $prop)
-            $self->properties[] = ValueVariable::fromJsonValue($pool, $prop);
+    function toJSON(JsonSerializationState $s) {
+        $id =& $s->objectIDs[$this->o->id()];
+        if ($id !== null)
+            return $id;
+        $id = count($s->root['objects']);
 
-        return $self;
+        $s->root['objects'][$id] = $this->o->wholeSchema()->toJSON($s);
+
+        return $id;
+    }
+
+    function fromJSON(JsonDeSerializationState $s, $x) {
+        $object =& $s->finishedObjects[$x];
+        if ($object !== null)
+            return;
+        $object = $this->o;
+        $object->wholeSchema()->fromJSON($s, $s->root['objects'][$x]);
     }
 }
