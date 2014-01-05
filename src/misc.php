@@ -143,6 +143,12 @@ function ref_equal(&$x, &$y) {
     return $result;
 }
 
+function &ref_new($v = null) { return $v; }
+
+function ref_get(&$v) { return $v; }
+
+function ref_set(&$x, $v) { $x = $v; }
+
 function array_get(array $a, $k, $default = null) {
     return array_key_exists($k, $a) ? $a[$k] : $default;
 }

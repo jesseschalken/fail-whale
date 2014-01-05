@@ -3,21 +3,19 @@
 namespace ErrorHandler;
 
 class ValueObject extends Value {
-    /**
-     * @param Introspection $i
-     * @param string        $hash
-     * @param object        $object
-     * @param IntrospectionObjectCache   $cache
-     *
-     * @return ValueObject
-     */
-    static function introspectImpl(Introspection $i, $hash, $object, IntrospectionObjectCache $cache) {
+    static function introspectImpl(Introspection $i, &$x) {
+        $hash = spl_object_hash($x);
+
+        $self =& $i->objectCache[$hash];
+        if ($self !== null)
+            return $self;
         $self = new self;
-        $cache->insert($object, $hash, $self);
+
+        $i->objects[] = $x;
 
         $self->hash       = $hash;
-        $self->className  = get_class($object);
-        $self->properties = ValueObjectProperty::introspectObjectProperties($i, $object);
+        $self->className  = get_class($x);
+        $self->properties = ValueObjectProperty::introspectObjectProperties($i, $x);
 
         return $self;
     }
@@ -44,49 +42,53 @@ class ValueObject extends Value {
         return $settings->renderObject($this);
     }
 
-    function toJsonValueImpl(JsonSerialize $s) {
-        return array(
-            'type'   => 'object',
-            'object' => $s->addObject($this),
-        );
+    private function schema() {
+        $schema = new JsonSchemaObject;
+        $schema->bindRef('className', $this->className);
+        $schema->bindRef('hash', $this->hash);
+        $schema->bindObjectList('properties', $this->properties, function ($j, $v) { return ValueObjectProperty::fromJSON($j, $v); });
+
+        return $schema;
     }
 
-    function serializeObject(JsonSerialize $s) {
-        $properties = array();
+    function toJSON(JsonSerializationState $s) {
+        $id =& $s->objectIndexes[$this->id()];
 
-        foreach ($this->properties as $prop)
-            $properties[] = $prop->toJsonValue($s);
+        if ($id === null) {
+            $id = count($s->root['objects']);
 
-        return array(
-            'className'  => $this->className,
-            'hash'       => $this->hash,
-            'properties' => $properties,
-        );
+            $s->root['objects'][$id] = $this->schema()->toJSON($s);
+        }
+
+        return array('object', $id);
     }
 
-    static function fromJsonValueImpl(JsonSerialize $pool, $index, array $v) {
-        $self            = new self;
-        $self->className = $v['className'];
-        $self->hash      = $v['hash'];
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        if ($x === null)
+            return null;
 
-        $pool->insertObject($index, $self);
+        $self =& $s->finishedObjects[$x[1]];
 
-        foreach ($v['properties'] as $prop)
-            $self->properties[] = ValueObjectProperty::fromJsonValue($pool, $prop);
+        if ($self === null) {
+            $self = new self;
+            $self->schema()->fromJSON($s, $s->root['objects'][$x[1]]);
+        }
 
         return $self;
     }
 }
 
 class ValueObjectProperty extends ValueVariable {
-    static function fromJsonValue(JsonSerialize $pool, $prop) {
-        $self            = new self($prop['name'], $pool->fromJsonValue($prop['value']));
-        $self->access    = $prop['access'];
-        $self->isDefault = $prop['isDefault'];
-        $self->className = $prop['className'];
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        $self = new self;
+        $self->schema()->fromJSON($s, $x);
 
         return $self;
     }
+
+    private $className;
+    private $access;
+    private $isDefault;
 
     /**
      * @param Introspection $i
@@ -106,7 +108,8 @@ class ValueObjectProperty extends ValueVariable {
 
                 $property->setAccessible(true);
 
-                $self            = new self($property->name, $i->introspect($property->getValue($object)));
+                $self = new self;
+                $self->introspect($i, $property->name, ref_new($property->getValue($object)));
                 $self->className = $property->class;
                 $self->access    = $i->propertyOrMethodAccess($property);
                 $self->isDefault = $property->isDefault();
@@ -122,17 +125,13 @@ class ValueObjectProperty extends ValueVariable {
         return $settings->text("$this->access ");
     }
 
-    private $className;
-    private $access;
-    private $isDefault;
+    function schema() {
+        $schema = parent::schema();
+        $schema->bindRef('className', $this->className);
+        $schema->bindRef('access', $this->access);
+        $schema->bindRef('isDefault', $this->isDefault);
 
-    function toJsonValue(JsonSerialize $s) {
-        return array(
-            'name'      => $this->name(),
-            'value'     => $s->toJsonValue($this->value()),
-            'className' => $this->className,
-            'access'    => $this->access,
-            'isDefault' => $this->isDefault,
-        );
+        return $schema;
     }
 }
+

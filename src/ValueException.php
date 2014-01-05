@@ -17,8 +17,9 @@ interface ExceptionHasLocalVariables {
 }
 
 class ValueException extends Value {
-    static function introspectImpl(Introspection $i, \Exception $e) {
-        $self          = self::introspectImplNoGlobals($i, $e);
+    static function introspectImpl(Introspection $i, \Exception $x) {
+        $self = new self;
+        $self->introspectImplNoGlobals($i, $x);
         $self->globals = ValueGlobalVariable::introspectGlobals($i);
 
         return $self;
@@ -46,29 +47,23 @@ class ValueException extends Value {
         return $x;
     }
 
-    private static function introspectImplNoGlobals(Introspection $i, \Exception $e) {
-        $self            = new self;
-        $self->className = get_class($e);
-        $self->code      = $e->getCode();
-        $self->message   = $e->getMessage();
-        $self->line      = $e->getLine();
-        $self->file      = $e->getFile();
+    private function introspectImplNoGlobals(Introspection $i, \Exception $e) {
+        $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
+        $frames = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
 
-        if ($e->getPrevious() !== null)
-            $self->previous = self::introspectImplNoGlobals($i, $e->getPrevious());
+        $this->className = get_class($e);
+        $this->code      = $e->getCode();
+        $this->message   = $e->getMessage();
+        $this->line      = $e->getLine();
+        $this->file      = $e->getFile();
+        $this->locals    = $locals !== null ? ValueVariable::introspectLocals($i, $locals) : null;
+        $this->stack     = ValueExceptionStackFrame::introspectMany($i, $frames);
 
-        if ($e instanceof ExceptionHasLocalVariables && $e->getLocalVariables() !== null) {
-            $self->locals = array();
-
-            $locals = $e->getLocalVariables();
-            foreach ($locals as $name => &$value)
-                $self->locals[] = new ValueVariable($name, $i->introspectRef($value));
+        if ($e->getPrevious() !== null) {
+            $this->previous = new self;
+            $this->previous->introspectImplNoGlobals($i, $e->getPrevious());
         }
 
-        foreach ($e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace() as $frame)
-            $self->stack[] = ValueExceptionStackFrame::introspect($i, $frame);
-
-        return $self;
     }
 
     static function mock(Introspection $param) {
@@ -82,11 +77,9 @@ s;
         $self->code      = 'Dummy exception code';
         $self->file      = '/the/path/to/muh/file';
         $self->line      = 9000;
-        $self->locals    = array(new ValueVariable('lol', $param->introspect(8)),
-                                 new ValueVariable('foo', $param->introspect('bar')));
-
-        $self->stack   = ValueExceptionStackFrame::mock($param);
-        $self->globals = ValueGlobalVariable::mockGlobals($param);
+        $self->locals    = ValueVariable::mockLocals($param);
+        $self->stack     = ValueExceptionStackFrame::mock($param);
+        $self->globals   = ValueGlobalVariable::mockGlobals($param);
 
         return $self;
     }
@@ -127,136 +120,131 @@ s;
         return $settings->renderExceptionWithGlobals($this);
     }
 
-    function toJsonValueImpl(JsonSerialize $s) {
-        $stack = array();
+    private function schema() {
+        $schema = new JsonSchemaObject;
+        $schema->bindRef('className', $this->className);
+        $schema->bindRef('code', $this->code);
+        $schema->bindRef('message', $this->message);
+        $schema->bindRef('file', $this->file);
+        $schema->bindRef('line', $this->line);
+        $schema->bindObject('previous', $this->previous, function ($j, $v) { return ValueException::fromJSON($j, $v); });
+        $schema->bindObjectList('stack', $this->stack, function ($j, $v) { return ValueExceptionStackFrame::fromJSON($j, $v); });
+        $schema->bindObjectList('locals', $this->locals, function ($j, $v) { return ValueVariable::fromJSON($j, $v); });
+        $schema->bindObjectList('globals', $this->globals, function ($j, $v) { return ValueGlobalVariable::fromJSON($j, $v); });
 
-        foreach ($this->stack as $frame)
-            $stack[] = $frame->toJsonValue($s);
-
-        if ($this->locals !== null) {
-            $locals = array();
-
-            foreach ($this->locals as $local)
-                $locals[] = $local->toJsonValue($s);
-        } else {
-            $locals = null;
-        }
-
-        if ($this->globals !== null) {
-            $globals = array();
-
-            foreach ($this->globals as $global)
-                $globals[] = $global->toJsonValue($s);
-        } else {
-            $globals = null;
-        }
-
-        return array(
-            'type'      => 'exception',
-            'exception' => array(
-                'className' => $this->className,
-                'stack'     => $stack,
-                'code'      => $this->code,
-                'message'   => $this->message,
-                'file'      => $this->file,
-                'line'      => $this->line,
-                'previous'  => $this->previous !== null ? $s->toJsonValue($this->previous) : null,
-                'locals'    => $locals,
-                'globals'   => $globals,
-            ),
-        );
+        return $schema;
     }
 
-    static function fromJsonValueImpl(JsonSerialize $pool, array $v) {
-        $self            = new self;
-        $self->className = $v['className'];
-        $self->code      = $v['code'];
-        $self->message   = $v['message'];
-        $self->file      = $v['file'];
-        $self->line      = $v['line'];
-        $self->previous  = $v['previous'] !== null ? self::fromJsonValueImpl($pool, $v['previous']) : null;
+    function toJSON(JsonSerializationState $s) {
+        return array('exception', $this->schema()->toJSON($s));
+    }
 
-        foreach ($v['stack'] as $frame)
-            $self->stack[] = ValueExceptionStackFrame::fromJsonValue($pool, $frame);
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        if ($x === null)
+            return null;
 
-        if ($v['locals'] !== null) {
-            $self->locals = array();
-
-            foreach ($v['locals'] as $local)
-                $self->locals[] = ValueVariable::fromJsonValue($pool, $local);
-        }
-
-        if ($v['globals'] !== null) {
-            $self->globals = array();
-
-            foreach ($v['globals'] as $global)
-                $self->globals[] = ValueGlobalVariable::fromJsonValue($pool, $global);
-        }
+        $self = new self;
+        $self->schema()->fromJSON($s, $x[1]);
 
         return $self;
     }
 }
 
-class ValueVariable {
-    static function fromJsonValue(JsonSerialize $pool, $prop) {
-        return new self($prop['name'], $pool->fromJsonValue($prop['value']));
+class ValueVariable implements JsonSerializable {
+    static function introspectLocals(Introspection $i, array $x) {
+        $locals = array();
+
+        foreach ($x as $name => &$value) {
+            $local = new self;
+            $local->introspect($i, $name, $value);
+            $locals[] = $local;
+        }
+
+        return $locals;
+    }
+
+    static function mockLocals(Introspection $i) {
+        $locals = array();
+
+        $self = new self;
+        $self->introspect($i, 'lol', ref_new(8));
+        $locals[] = $self;
+
+        $self = new self;
+        $self->introspect($i, 'foo', ref_new('bar'));
+        $locals[] = $self;
+
+        return $locals;
     }
 
     private $name;
     /** @var Value */
     private $value;
 
-    /**
-     * @param string $name
-     * @param Value  $value
-     */
-    function __construct($name, Value $value) {
-        $this->value = $value;
+    function introspect(Introspection $i, $name, &$value) {
         $this->name  = $name;
+        $this->value = $i->introspectRef($value);
     }
 
     function render(PrettyPrinter $settings) {
         return $this->renderPrefix($settings)->appendLines($settings->renderVariable($this->name));
     }
 
-    function value() { return $this->value; }
-
-    function name() { return $this->name; }
-
     function renderPrefix(PrettyPrinter $settings) {
         return $settings->text();
     }
 
-    function toJsonValue(JsonSerialize $s) {
-        return array(
-            'name'  => $this->name,
-            'value' => $s->toJsonValue($this->value),
-        );
+    protected function schema() {
+        $schema = new JsonSchemaObject;
+        $schema->bindRef('name', $this->name);
+        $schema->bindValue('value', $this->value);
+
+        return $schema;
+    }
+
+    function name() { return $this->name; }
+
+    function value() { return $this->value; }
+
+    function toJSON(JsonSerializationState $s) {
+        return $this->schema()->toJSON($s);
+    }
+
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        $self = new self;
+        $self->schema()->fromJSON($s, $x);
+
+        return $self;
     }
 }
 
 class ValueGlobalVariable extends ValueVariable {
-    static function fromJsonValue(JsonSerialize $pool, $prop) {
-        $self               = new self($prop['name'], $pool->fromJsonValue($prop['value']));
-        $self->functionName = $prop['functionName'];
-        $self->access       = $prop['access'];
-        $self->isDefault    = $prop['isDefault'];
-        $self->className    = $prop['className'];
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        $self = new self;
+        $self->schema()->fromJSON($s, $x);
 
         return $self;
     }
 
+    private $className;
+    private $functionName;
+    private $access;
+    private $isDefault;
+
     /**
      * @param Introspection $i
      *
-     * @return self[]
+     * @return ValueVariable[]
      */
     static function introspectGlobals(Introspection $i) {
         $globals = array();
 
         foreach ($GLOBALS as $variableName => &$globalValue) {
             if ($variableName !== 'GLOBALS') {
-                $globals [] = new self($variableName, $i->introspectRef($globalValue));
+                $self = new self;
+                $self->introspect($i, $variableName, $globalValue);
+
+                $globals [] = $self;
             }
         }
 
@@ -266,7 +254,8 @@ class ValueGlobalVariable extends ValueVariable {
             foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
                 $property->setAccessible(true);
 
-                $self            = new self($property->name, $i->introspect($property->getValue()));
+                $self = new self;
+                $self->introspect($i, $property->name, ref_new($property->getValue()));
                 $self->className = $property->class;
                 $self->access    = $i->propertyOrMethodAccess($property);
                 $self->isDefault = $property->isDefault();
@@ -278,7 +267,8 @@ class ValueGlobalVariable extends ValueVariable {
                 $staticVariables = $method->getStaticVariables();
 
                 foreach ($staticVariables as $variableName => &$varValue) {
-                    $self               = new self($variableName, $i->introspectRef($varValue));
+                    $self = new self;
+                    $self->introspect($i, $variableName, $varValue);
                     $self->className    = $method->class;
                     $self->access       = $i->propertyOrMethodAccess($method);
                     $self->functionName = $method->getName();
@@ -294,7 +284,8 @@ class ValueGlobalVariable extends ValueVariable {
                 $staticVariables = $reflection->getStaticVariables();
 
                 foreach ($staticVariables as $propertyName => &$varValue) {
-                    $self               = new self($propertyName, $i->introspectRef($varValue));
+                    $self = new self;
+                    $self->introspect($i, $propertyName, $varValue);
                     $self->functionName = $function;
 
                     $globals[] = $self;
@@ -308,7 +299,7 @@ class ValueGlobalVariable extends ValueVariable {
     /**
      * @param Introspection $param
      *
-     * @return self[]
+     * @return ValueVariable[]
      */
     static function mockGlobals(Introspection $param) {
         //  private static BlahClass::$blahProperty                       = null;
@@ -317,38 +308,35 @@ class ValueGlobalVariable extends ValueVariable {
         //  function BlahYetAnotherClass::blahMethod()::static $lolStatic = null;
         //  global $blahVariable                                          = null;
 
-        $null = $param->introspect(null);
-
         $globals = array();
 
-        $self            = new self('blahProperty', $null);
+        $self = new self;
+        $self->introspect($param, 'blahProperty', ref_new());
         $self->className = 'BlahClass';
         $self->access    = 'private';
+        $globals[]       = $self;
 
-        $globals[] = $self;
-
-        $self               = new self('public', $null);
+        $self = new self;
+        $self->introspect($param, 'public', ref_new());
         $self->functionName = 'BlahAnotherClass';
+        $globals[]          = $self;
 
+        $self = new self;
+        $self->introspect($param, 'lol global', ref_new());
         $globals[] = $self;
 
-        $globals[] = new self('lol global', $null);
-
-        $self               = new self('lolStatic', $null);
+        $self = new self;
+        $self->introspect($param, 'lolStatic', ref_new());
         $self->functionName = 'blahMethod';
         $self->className    = 'BlahYetAnotherClass';
+        $globals[]          = $self;
 
+        $self = new self;
+        $self->introspect($param, 'blahVariable', ref_new());
         $globals[] = $self;
-
-        $globals[] = new self('blahVariable', $null);
 
         return $globals;
     }
-
-    private $className;
-    private $functionName;
-    private $access;
-    private $isDefault;
 
     function renderPrefix(PrettyPrinter $settings) {
         if ($this->className !== null && $this->functionName !== null)
@@ -361,17 +349,6 @@ class ValueGlobalVariable extends ValueVariable {
             return $settings->text("function $this->functionName()::static ");
 
         return $settings->text($this->isSuperGlobal() ? '' : 'global ');
-    }
-
-    function toJsonValue(JsonSerialize $s) {
-        return array(
-            'name'         => $this->name(),
-            'value'        => $s->toJsonValue($this->value()),
-            'className'    => $this->className,
-            'functionName' => $this->functionName,
-            'access'       => $this->access,
-            'isDefault'    => $this->isDefault,
-        );
     }
 
     private function isSuperGlobal() {
@@ -388,45 +365,42 @@ class ValueGlobalVariable extends ValueVariable {
 
         return in_array($this->name(), $superGlobals, true);
     }
+
+    protected function schema() {
+        $schema = parent::schema();
+        $schema->bindRef('className', $this->className);
+        $schema->bindRef('functionName', $this->functionName);
+        $schema->bindRef('access', $this->access);
+        $schema->bindRef('isDefault', $this->isDefault);
+
+        return $schema;
+    }
 }
 
-class ValueExceptionStackFrame {
-    static function fromJsonValue(JsonSerialize $pool, $frame) {
-        $self               = new self;
-        $self->functionName = $frame['functionName'];
-        $self->isStatic     = $frame['isStatic'];
-        $self->file         = $frame['file'];
-        $self->line         = $frame['line'];
-        $self->className    = $frame['className'];
-        $self->object       = $frame['object'] !== null ? $pool->fromJsonValue($frame['object']) : null;
+class ValueExceptionStackFrame implements JsonSerializable {
+    static function introspectMany(Introspection $i, array $frames) {
+        $result = array();
 
-        if ($frame['args'] !== null) {
-            $self->args = array();
+        foreach ($frames as $frame) {
+            $self               = new self;
+            $self->functionName = array_get($frame, 'function');
+            $self->file         = array_get($frame, 'file');
+            $self->line         = array_get($frame, 'line');
+            $self->className    = array_get($frame, 'class');
+            $self->isStatic     = isset($frame['type']) ? $frame['type'] === '::' : null;
+            $self->object       = isset($frame['object']) ? $i->introspectRef($frame['object']) : null;
 
-            foreach ($frame['args'] as $arg)
-                $self->args [] = $pool->fromJsonValue($arg);
+            if (isset($frame['args'])) {
+                $self->args = array();
+
+                foreach ($frame['args'] as $k => &$arg)
+                    $self->args[$k] = $i->introspectRef($arg);
+            }
+
+            $result[] = $self;
         }
 
-        return $self;
-    }
-
-    static function introspect(Introspection $i, array $frame) {
-        $self               = new self;
-        $self->functionName = array_get($frame, 'function');
-        $self->file         = array_get($frame, 'file');
-        $self->line         = array_get($frame, 'line');
-        $self->className    = array_get($frame, 'class');
-        $self->isStatic     = isset($frame['type']) ? $frame['type'] === '::' : null;
-        $self->object       = isset($frame['object']) ? $i->introspectRef($frame['object']) : null;
-
-        if (isset($frame['args'])) {
-            $self->args = array();
-
-            foreach ($frame['args'] as &$arg)
-                $self->args[] = $i->introspectRef($arg);
-        }
-
-        return $self;
+        return $result;
     }
 
     /**
@@ -467,8 +441,6 @@ class ValueExceptionStackFrame {
     private $isStatic;
     private $file;
     private $line;
-
-    private function __construct() { }
 
     function subValues() {
         $x = array();
@@ -534,24 +506,27 @@ class ValueExceptionStackFrame {
         return $settings->text();
     }
 
-    function toJsonValue(JsonSerialize $s) {
-        if ($this->args !== null) {
-            $args = array();
+    private function schema() {
+        $schema = new JsonSchemaObject;
+        $schema->bindRef('functionName', $this->functionName);
+        $schema->bindRef('className', $this->className);
+        $schema->bindRef('isStatic', $this->isStatic);
+        $schema->bindRef('file', $this->file);
+        $schema->bindRef('line', $this->line);
+        $schema->bindObject('object', $this->object, function ($j, $v) { return ValueObject::fromJSON($j, $v); });
+        $schema->bindValueList('args', $this->args);
 
-            foreach ($this->args as $arg)
-                $args[] = $s->toJsonValue($arg);
-        } else {
-            $args = null;
-        }
+        return $schema;
+    }
 
-        return array(
-            'functionName' => $this->functionName,
-            'className'    => $this->className,
-            'isStatic'     => $this->isStatic,
-            'file'         => $this->file,
-            'line'         => $this->line,
-            'args'         => $args,
-            'object'       => $this->object !== null ? $s->toJsonValue($this->object) : null,
-        );
+    function toJSON(JsonSerializationState $s) {
+        return $this->schema()->toJSON($s);
+    }
+
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        $self = new self;
+        $self->schema()->fromJSON($s, $x);
+
+        return $self;
     }
 }

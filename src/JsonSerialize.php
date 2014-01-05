@@ -1,131 +1,156 @@
 <?php
- 
+
 namespace ErrorHandler;
 
-class JsonSerialize {
-    static function fromJsonWhole(array $value) {
-        $self                    = new self;
-        $self->serializedObjects = $value['objects'];
-        $self->serializedArrays  = $value['arrays'];
+class JsonSerializationState {
+    public $root = array(
+        'root'    => null,
+        'arrays'  => array(),
+        'objects' => array(),
+    );
+    public $objectIndexes = array();
+    public $arrayIndexes = array();
+}
 
-        return $self->fromJsonValue($value['root']);
-    }
-
-    static function toJsonWhole(Value $v) {
-        $self = new self;
-        $root = $self->toJsonValue($v);
-
-        return array(
-            'root'    => $root,
-            'arrays'  => $self->serializedArrays,
-            'objects' => $self->serializedObjects,
-        );
-    }
-
-    /** @var mixed[] */
-    private $serializedArrays = array();
-    /** @var mixed[] */
-    private $serializedObjects = array();
-
-    /** @var ValueArray[] */
-    private $mapIndexToArray = array();
+class JsonDeSerializationState {
     /** @var ValueObject[] */
-    private $mapIndexToObject = array();
+    public $finishedObjects = array();
+    /** @var ValueArray[] */
+    public $finishedArrays = array();
+    public $root;
+}
 
-    /** @var int[] */
-    private $mapArrayToIndex = array();
-    /** @var int[] */
-    private $mapObjectToIndex = array();
+class JsonSchemaObject implements JsonSerializable {
+    /** @var JsonSchema[] */
+    private $properties = array();
 
-    private function __construct() { }
+    function toJSON(JsonSerializationState $s) {
+        $result = array();
+
+        foreach ($this->properties as $k => $p)
+            $result[$k] = $p->toJSON($s);
+
+        return $result;
+    }
+
+    function fromJSON(JsonDeSerializationState $s, $x) {
+        foreach ($this->properties as $k => $p)
+            $p->fromJSON($s, $x[$k]);
+    }
+
+    function bindRef($property, &$ref) {
+        $this->bind($property, new JsonRef($ref));
+    }
+
+    function bind($property, JsonSchema $j) {
+        $this->properties[$property] = $j;
+    }
+
+    function bindObject($property, &$ref, $constructor) {
+        $this->bind($property, new JsonRefObject($ref, $constructor));
+    }
+
+    function bindObjectList($property, &$ref, $constructor) {
+        $this->bind($property, new JsonRefObjectList($ref, $constructor));
+    }
+
+    function bindValueList($string, &$args) {
+        $this->bindObjectList($string, $args, function ($j, $v) { return Value::fromJson($j, $v); });
+    }
+
+    function bindValue($string, &$value) {
+        $this->bindObject($string, $value, function ($j, $v) { return Value::fromJson($j, $v); });
+    }
+}
+
+interface JsonSerializable {
+    function toJSON(JsonSerializationState $s);
+}
+
+abstract class JsonSchema implements JsonSerializable {
+    abstract function fromJSON(JsonDeSerializationState $s, $x);
+}
+
+class JsonRef extends JsonSchema {
+    private $ref;
+
+    function __construct(&$ref) {
+        $this->ref =& $ref;
+    }
+
+    protected function get() { return $this->ref; }
+
+    protected function set($x) { $this->ref = $x; }
+
+    function toJSON(JsonSerializationState $s) {
+        return $this->ref;
+    }
+
+    function fromJSON(JsonDeSerializationState $s, $x) {
+        $this->ref = $x;
+    }
+}
+
+class JsonRefObject extends JsonSchema {
+    private $constructor;
+    private $ref;
 
     /**
-     * @param array $v
-     *
-     * @throws Exception
-     * @return Value
+     * @param JsonSerializable|null $ref
+     * @param callable              $constructor
      */
-    function fromJsonValue(array $v) {
-        switch ($v['type']) {
-            case 'object':
-                $index = $v['object'];
+    function __construct(&$ref, \Closure $constructor) {
+        $this->constructor = $constructor;
+        $this->ref         =& $ref;
+    }
 
-                if (isset($this->mapIndexToObject[$index]))
-                    return $this->mapIndexToObject[$index];
+    function toJSON(JsonSerializationState $s) {
+        return $this->ref !== null ? $this->ref->toJSON($s) : null;
+    }
 
-                return ValueObject::fromJsonValueImpl($this, $index, $this->serializedObjects[$index]);
-            case '-inf':
-                return new ValueFloat(-INF);
-            case '+inf':
-                return new ValueFloat(INF);
-            case 'nan':
-                return new ValueFloat(NAN);
-            case 'float':
-                return new ValueFloat((float)$v['float']);
-            case 'array':
-                $index = $v['array'];
+    function fromJSON(JsonDeSerializationState $s, $x) {
+        $constructor = $this->constructor;
+        $this->ref   = $constructor($s, $x);
+    }
+}
 
-                if (isset($this->mapIndexToArray[$index]))
-                    return $this->mapIndexToArray[$index];
+class JsonRefObjectList extends JsonSchema {
+    private $ref;
+    private $constructor;
 
-                return ValueArray::fromJsonValueImpl($this, $index, $this->serializedArrays[$index]);
-            case 'exception':
-                return ValueException::fromJsonValueImpl($this, $v['exception']);
-            case 'resource':
-                return ValueResource::fromJsonValueImpl($v['resource']);
-            case 'unknown':
-                return new ValueUnknown;
-            case 'null':
-                return new ValueNull;
-            case 'int':
-                return new ValueInt((int)$v['int']);
-            case 'bool':
-                return new ValueBool($v['bool']);
-            case 'string':
-                return new ValueString($v['string']);
-            default:
-                throw new Exception("Unknown type: {$v['type']}");
+    /**
+     * @param JsonSerializable[]|null $ref
+     * @param callable                $constructor
+     */
+    function __construct(&$ref, \Closure $constructor) {
+        $this->ref         =& $ref;
+        $this->constructor = $constructor;
+    }
+
+    function toJSON(JsonSerializationState $s) {
+        if ($this->ref === null)
+            return null;
+
+        $result = array();
+
+        foreach ($this->ref as $k => $v) {
+            $result[$k] = $v->toJSON($s);
         }
+
+        return $result;
     }
 
-    function toJsonValue(Value $value) {
-        return $value->toJsonValueImpl($this);
-    }
+    function fromJSON(JsonDeSerializationState $s, $x) {
+        if ($x === null) {
+            $this->ref = null;
+        } else {
+            $this->ref = array();
 
-    function insertObject($index, ValueObject $self) {
-        $this->mapIndexToObject[$index]      = $self;
-        $this->mapObjectToIndex[$self->id()] = $index;
-    }
-
-    function insertArray($index, ValueArray $self) {
-        $this->mapIndexToArray[$index]      = $self;
-        $this->mapArrayToIndex[$self->id()] = $index;
-    }
-
-    function addArray(ValueArray $array) {
-        if (isset($this->mapArrayToIndex[$array->id()]))
-            return $this->mapArrayToIndex[$array->id()];
-
-        $index = count($this->mapArrayToIndex);
-
-        $this->insertArray($index, $array);
-
-        $this->serializedArrays[$index] = $array->serializeArray($this);
-
-        return $index;
-    }
-
-    function addObject(ValueObject $object) {
-        if (isset($this->mapObjectToIndex[$object->id()]))
-            return $this->mapObjectToIndex[$object->id()];
-
-        $index = count($this->mapObjectToIndex);
-
-        $this->insertObject($index, $object);
-
-        $this->serializedObjects[$index] = $object->serializeObject($this);
-
-        return $index;
+            foreach ($x as $k => $v) {
+                $constructor   = $this->constructor;
+                $this->ref[$k] = $constructor($s, $v);
+            }
+        }
     }
 }
 
@@ -212,3 +237,4 @@ class Json {
         return $result;
     }
 }
+
