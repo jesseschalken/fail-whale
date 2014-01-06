@@ -46,7 +46,10 @@ class ValueObject extends Value {
         $schema = new JsonSchemaObject;
         $schema->bindRef('className', $this->className);
         $schema->bindRef('hash', $this->hash);
-        $schema->bindObjectList('properties', $this->properties, function ($j, $v) { return ValueObjectProperty::fromJSON($j, $v); });
+
+        $schema->bindObjectList('properties', $this->properties, function ($j, $v) {
+            return ValueObjectProperty::fromJSON($j, $v);
+        });
 
         return $schema;
     }
@@ -79,7 +82,26 @@ class ValueObject extends Value {
 }
 
 class ValueObjectProperty extends ValueVariable {
+    static function mockStatic(Introspection $i) {
+        $self            = static::introspect($i, 'blahProperty', ref_new());
+        $self->className = 'BlahClass';
+        $self->access    = 'private';
+        $self->isDefault = false;
+        $globals[]       = $self;
+
+        return $globals;
+    }
+
     static protected function create() { return new self; }
+
+    protected static function introspectObjectProperty(Introspection $i, $name, &$value, \ReflectionProperty $p) {
+        $self            = static::introspect($i, $name, $value);
+        $self->className = $p->class;
+        $self->access    = $i->propertyOrMethodAccess($p);
+        $self->isDefault = $p->isDefault();
+
+        return $self;
+    }
 
     private $className;
     private $access;
@@ -103,17 +125,17 @@ class ValueObjectProperty extends ValueVariable {
 
                 $property->setAccessible(true);
 
-                $self = self::introspect($i, $property->name, ref_new($property->getValue($object)));
-                $self->className = $property->class;
-                $self->access    = $i->propertyOrMethodAccess($property);
-                $self->isDefault = $property->isDefault();
-
-                $properties[] = $self;
+                $properties[] = self::introspectObjectProperty($i, $property->name,
+                                                               ref_new($property->getValue($object)), $property);
             }
         }
 
         return $properties;
     }
+
+    function access() { return $this->access; }
+
+    function className() { return $this->className; }
 
     function renderPrefix(PrettyPrinter $settings) {
         return $settings->text("$this->access ");
@@ -129,3 +151,27 @@ class ValueObjectProperty extends ValueVariable {
     }
 }
 
+class ValueObjectPropertyStatic extends ValueObjectProperty {
+    static protected function create() { return new self; }
+
+    static function introspectStaticProperties(Introspection $i) {
+        $globals = array();
+
+        foreach (get_declared_classes() as $class) {
+            $reflection = new \ReflectionClass($class);
+
+            foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
+                $property->setAccessible(true);
+
+                $globals[] = self::introspectObjectProperty($i, $property->name,
+                                                            ref_new($property->getValue()), $property);
+            }
+        }
+
+        return $globals;
+    }
+
+    function renderPrefix(PrettyPrinter $settings) {
+        return $settings->text("{$this->access()} static {$this->className()}::");
+    }
+}

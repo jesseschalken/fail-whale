@@ -162,7 +162,7 @@ final class PrettyPrinter {
 
         if ($this->showExceptionGlobalVariables && $exception->globals() !== null) {
             $text->addLine("global variables:");
-            $text->addLines($this->renderVariables($exception->globals(), 'none', INF)->indent());
+            $text->addLines($this->renderVariables($exception->globals()->variables(), 'none', INF)->indent());
             $text->addLine();
         }
 

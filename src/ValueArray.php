@@ -52,7 +52,9 @@ class ValueArray extends Value {
     private function schema() {
         $schema = new JsonSchemaObject;
         $schema->bindRef('isAssociative', $this->isAssociative);
-        $schema->bindObjectList('entries', $this->entries, function ($j, $v) { return ValueArrayEntry::fromJSON($j, $v); });
+        $schema->bindObjectList('entries', $this->entries, function ($j, $v) {
+            return ValueArrayEntry::fromJSON($j, $v);
+        });
 
         return $schema;
     }
