@@ -151,13 +151,26 @@ s;
 }
 
 class ValueVariable implements JsonSerializable {
+    /**
+     * @param Introspection $i
+     * @param               $name
+     * @param               $value
+     *
+     * @return static
+     */
+    protected static function introspect(Introspection $i, $name, &$value) {
+        $self        = static::create();
+        $self->name  = $name;
+        $self->value = $i->introspectRef($value);
+
+        return $self;
+    }
+
     static function introspectLocals(Introspection $i, array $x) {
         $locals = array();
 
         foreach ($x as $name => &$value) {
-            $local = new self;
-            $local->introspect($i, $name, $value);
-            $locals[] = $local;
+            $locals[] = self::introspect($i, $name, $value);
         }
 
         return $locals;
@@ -166,13 +179,9 @@ class ValueVariable implements JsonSerializable {
     static function mockLocals(Introspection $i) {
         $locals = array();
 
-        $self = new self;
-        $self->introspect($i, 'lol', ref_new(8));
-        $locals[] = $self;
+        $locals[] = self::introspect($i, 'lol', ref_new(8));
 
-        $self = new self;
-        $self->introspect($i, 'foo', ref_new('bar'));
-        $locals[] = $self;
+        $locals[] = self::introspect($i, 'foo', ref_new('bar'));
 
         return $locals;
     }
@@ -180,11 +189,6 @@ class ValueVariable implements JsonSerializable {
     private $name;
     /** @var Value */
     private $value;
-
-    function introspect(Introspection $i, $name, &$value) {
-        $this->name  = $name;
-        $this->value = $i->introspectRef($value);
-    }
 
     function render(PrettyPrinter $settings) {
         return $this->renderPrefix($settings)->appendLines($settings->renderVariable($this->name));
@@ -216,7 +220,10 @@ class ValueVariable implements JsonSerializable {
 
         return $self;
     }
-    
+
+    /**
+     * @return static
+     */
     static protected function create() { return new self; }
 }
 
@@ -238,10 +245,7 @@ class ValueGlobalVariable extends ValueVariable {
 
         foreach ($GLOBALS as $variableName => &$globalValue) {
             if ($variableName !== 'GLOBALS') {
-                $self = new self;
-                $self->introspect($i, $variableName, $globalValue);
-
-                $globals [] = $self;
+                $globals [] = self::introspect($i, $variableName, $globalValue);
             }
         }
 
@@ -251,8 +255,7 @@ class ValueGlobalVariable extends ValueVariable {
             foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
                 $property->setAccessible(true);
 
-                $self = new self;
-                $self->introspect($i, $property->name, ref_new($property->getValue()));
+                $self            = self::introspect($i, $property->name, ref_new($property->getValue()));
                 $self->className = $property->class;
                 $self->access    = $i->propertyOrMethodAccess($property);
                 $self->isDefault = $property->isDefault();
@@ -264,8 +267,7 @@ class ValueGlobalVariable extends ValueVariable {
                 $staticVariables = $method->getStaticVariables();
 
                 foreach ($staticVariables as $variableName => &$varValue) {
-                    $self = new self;
-                    $self->introspect($i, $variableName, $varValue);
+                    $self               = self::introspect($i, $variableName, $varValue);
                     $self->className    = $method->class;
                     $self->access       = $i->propertyOrMethodAccess($method);
                     $self->functionName = $method->getName();
@@ -281,8 +283,7 @@ class ValueGlobalVariable extends ValueVariable {
                 $staticVariables = $reflection->getStaticVariables();
 
                 foreach ($staticVariables as $propertyName => &$varValue) {
-                    $self = new self;
-                    $self->introspect($i, $propertyName, $varValue);
+                    $self               = self::introspect($i, $propertyName, $varValue);
                     $self->functionName = $function;
 
                     $globals[] = $self;
@@ -307,29 +308,24 @@ class ValueGlobalVariable extends ValueVariable {
 
         $globals = array();
 
-        $self = new self;
-        $self->introspect($param, 'blahProperty', ref_new());
+        $self            = self::introspect($param, 'blahProperty', ref_new());
         $self->className = 'BlahClass';
         $self->access    = 'private';
         $globals[]       = $self;
 
-        $self = new self;
-        $self->introspect($param, 'public', ref_new());
+        $self               = self::introspect($param, 'public', ref_new());
         $self->functionName = 'BlahAnotherClass';
         $globals[]          = $self;
 
-        $self = new self;
-        $self->introspect($param, 'lol global', ref_new());
+        $self      = self::introspect($param, 'lol global', ref_new());
         $globals[] = $self;
 
-        $self = new self;
-        $self->introspect($param, 'lolStatic', ref_new());
+        $self               = self::introspect($param, 'lolStatic', ref_new());
         $self->functionName = 'blahMethod';
         $self->className    = 'BlahYetAnotherClass';
         $globals[]          = $self;
 
-        $self = new self;
-        $self->introspect($param, 'blahVariable', ref_new());
+        $self      = self::introspect($param, 'blahVariable', ref_new());
         $globals[] = $self;
 
         return $globals;

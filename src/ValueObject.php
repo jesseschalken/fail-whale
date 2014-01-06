@@ -103,8 +103,7 @@ class ValueObjectProperty extends ValueVariable {
 
                 $property->setAccessible(true);
 
-                $self = new self;
-                $self->introspect($i, $property->name, ref_new($property->getValue($object)));
+                $self = self::introspect($i, $property->name, ref_new($property->getValue($object)));
                 $self->className = $property->class;
                 $self->access    = $i->propertyOrMethodAccess($property);
                 $self->isDefault = $property->isDefault();
