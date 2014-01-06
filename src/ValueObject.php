@@ -79,12 +79,7 @@ class ValueObject extends Value {
 }
 
 class ValueObjectProperty extends ValueVariable {
-    static function fromJSON(JsonDeSerializationState $s, $x) {
-        $self = new self;
-        $self->schema()->fromJSON($s, $x);
-
-        return $self;
-    }
+    static protected function create() { return new self; }
 
     private $className;
     private $access;

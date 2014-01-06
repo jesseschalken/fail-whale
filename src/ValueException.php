@@ -210,21 +210,18 @@ class ValueVariable implements JsonSerializable {
         return $this->schema()->toJSON($s);
     }
 
-    static function fromJSON(JsonDeSerializationState $s, $x) {
-        $self = new self;
+    static final function fromJSON(JsonDeSerializationState $s, $x) {
+        $self = static::create();
         $self->schema()->fromJSON($s, $x);
 
         return $self;
     }
+    
+    static protected function create() { return new self; }
 }
 
 class ValueGlobalVariable extends ValueVariable {
-    static function fromJSON(JsonDeSerializationState $s, $x) {
-        $self = new self;
-        $self->schema()->fromJSON($s, $x);
-
-        return $self;
-    }
+    static protected function create() { return new self; }
 
     private $className;
     private $functionName;
