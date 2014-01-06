@@ -104,9 +104,7 @@ class ValueArrayEntry implements JsonSerializable {
         $this->value = $i->introspectRef($v);
     }
 
-    function toJSON(JsonSerializationState $s) {
-        return $this->schema()->toJSON($s);
-    }
+    function toJSON(JsonSerializationState $s) { return $this->schema()->toJSON($s); }
 
     private function schema() {
         $schema = new JsonSchemaObject;

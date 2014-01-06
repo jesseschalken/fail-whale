@@ -18,8 +18,7 @@ interface ExceptionHasLocalVariables {
 
 class ValueException extends Value {
     static function introspectImpl(Introspection $i, \Exception $x) {
-        $self = new self;
-        $self->introspectImplNoGlobals($i, $x);
+        $self          = self::introspectImplNoGlobals($i, $x);
         $self->globals = ValueExceptionGlobalState::introspect($i);
 
         return $self;
@@ -49,6 +48,23 @@ s;
 
         $self = new self;
         $self->schema()->fromJSON($s, $x[1]);
+
+        return $self;
+    }
+
+    private static function introspectImplNoGlobals(Introspection $i, \Exception $e) {
+        $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
+        $frames = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
+
+        $self           = new self;
+        $self->class    = get_class($e);
+        $self->code     = $e->getCode();
+        $self->message  = $e->getMessage();
+        $self->line     = $e->getLine();
+        $self->file     = $e->getFile();
+        $self->locals   = $locals !== null ? ValueVariable::introspectLocals($i, $locals) : null;
+        $self->stack    = ValueExceptionStackFrame::introspectMany($i, $frames);
+        $self->previous = $e->getPrevious() !== null ? self::introspectImplNoGlobals($i, $e->getPrevious()) : null;
 
         return $self;
     }
@@ -115,25 +131,6 @@ s;
         return array('exception', $this->schema()->toJSON($s));
     }
 
-    private function introspectImplNoGlobals(Introspection $i, \Exception $e) {
-        $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
-        $frames = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
-
-        $this->class   = get_class($e);
-        $this->code    = $e->getCode();
-        $this->message = $e->getMessage();
-        $this->line    = $e->getLine();
-        $this->file    = $e->getFile();
-        $this->locals  = $locals !== null ? ValueVariable::introspectLocals($i, $locals) : null;
-        $this->stack   = ValueExceptionStackFrame::introspectMany($i, $frames);
-
-        if ($e->getPrevious() !== null) {
-            $this->previous = new self;
-            $this->previous->introspectImplNoGlobals($i, $e->getPrevious());
-        }
-
-    }
-
     private function schema() {
         $schema = new JsonSchemaObject;
         $schema->bindRef('class', $this->class);
@@ -195,11 +192,9 @@ class ValueExceptionGlobalState implements JsonSerializable {
     /** @var ValueVariableStatic[] */
     private $staticVariables = array();
 
-    function toJSON(JsonSerializationState $s) {
-        return $this->schema()->toJSON($s);
-    }
+    function toJSON(JsonSerializationState $s) { return $this->schema()->toJSON($s); }
 
-    /** @return ValueVariable[] $vars */
+    /** @return ValueVariable[] */
     function variables() {
         return array_merge($this->staticProperties,
                            $this->globalVariables,
@@ -229,9 +224,8 @@ class ValueVariable implements JsonSerializable {
     static function introspectLocals(Introspection $i, array $x) {
         $locals = array();
 
-        foreach ($x as $name => &$value) {
+        foreach ($x as $name => &$value)
             $locals[] = self::introspect($i, $name, $value);
-        }
 
         return $locals;
     }
@@ -278,17 +272,13 @@ class ValueVariable implements JsonSerializable {
         return $this->renderPrefix($settings)->appendLines($settings->renderVariable($this->name));
     }
 
-    function renderPrefix(PrettyPrinter $settings) {
-        return $settings->text();
-    }
+    function renderPrefix(PrettyPrinter $settings) { return $settings->text(); }
 
     function name() { return $this->name; }
 
     function value() { return $this->value; }
 
-    function toJSON(JsonSerializationState $s) {
-        return $this->schema()->toJSON($s);
-    }
+    function toJSON(JsonSerializationState $s) { return $this->schema()->toJSON($s); }
 
     protected function schema() {
         $schema = new JsonSchemaObject;
@@ -325,7 +315,7 @@ class ValueGlobalVariable extends ValueVariable {
         return $settings->text($this->isSuperGlobal() ? '' : 'global ');
     }
 
-    private function isSuperGlobal() {
+    function isSuperGlobal() {
         $superGlobals = array(
             '_POST',
             '_GET',
@@ -342,6 +332,11 @@ class ValueGlobalVariable extends ValueVariable {
 }
 
 class ValueVariableStatic extends ValueVariable {
+    /**
+     * @param Introspection $i
+     *
+     * @return self[]
+     */
     static function mockStatics(Introspection $i) {
         $self           = self::introspect($i, 'public', ref_new());
         $self->function = 'BlahAnotherClass';
@@ -355,6 +350,11 @@ class ValueVariableStatic extends ValueVariable {
         return $globals;
     }
 
+    /**
+     * @param Introspection $i
+     *
+     * @return self[]
+     */
     static function introspectStaticVariables(Introspection $i) {
         $globals = array();
 
@@ -411,6 +411,12 @@ class ValueVariableStatic extends ValueVariable {
 }
 
 class ValueExceptionStackFrame implements JsonSerializable {
+    /**
+     * @param Introspection $i
+     * @param array         $frames
+     *
+     * @return self[]
+     */
     static function introspectMany(Introspection $i, array $frames) {
         $result = array();
 
@@ -439,7 +445,7 @@ class ValueExceptionStackFrame implements JsonSerializable {
     /**
      * @param Introspection $param
      *
-     * @return ValueExceptionStackFrame[]
+     * @return self[]
      */
     static function mock(Introspection $param) {
         $stack = array();
@@ -482,6 +488,8 @@ class ValueExceptionStackFrame implements JsonSerializable {
     private $file;
     private $line;
 
+    protected function __construct() { }
+
     function subValues() {
         $x = array();
 
@@ -495,9 +503,7 @@ class ValueExceptionStackFrame implements JsonSerializable {
         return $x;
     }
 
-    function location() {
-        return $this->file === null ? '[internal function]' : "$this->file:$this->line";
-    }
+    function location() { return $this->file === null ? '[internal function]' : "$this->file:$this->line"; }
 
     function renderArgs(PrettyPrinter $settings) {
         if ($this->args === null)
@@ -546,9 +552,7 @@ class ValueExceptionStackFrame implements JsonSerializable {
         return $settings->text();
     }
 
-    function toJSON(JsonSerializationState $s) {
-        return $this->schema()->toJSON($s);
-    }
+    function toJSON(JsonSerializationState $s) { return $this->schema()->toJSON($s); }
 
     private function schema() {
         $schema = new JsonSchemaObject;

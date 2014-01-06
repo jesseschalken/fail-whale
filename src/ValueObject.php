@@ -5,14 +5,14 @@ namespace ErrorHandler;
 class ValueObject extends Value {
     static function introspectImpl(Introspection $i, &$x) {
         $hash = spl_object_hash($x);
-
         $self =& $i->objectCache[$hash];
+
         if ($self !== null)
             return $self;
-        $self = new self;
 
         $i->objects[] = $x;
 
+        $self             = new self;
         $self->hash       = $hash;
         $self->class      = get_class($x);
         $self->properties = ValueObjectProperty::introspectObjectProperties($i, $x);
@@ -82,6 +82,11 @@ class ValueObject extends Value {
 }
 
 class ValueObjectProperty extends ValueVariable {
+    /**
+     * @param Introspection $i
+     *
+     * @return self[]
+     */
     static function mockStatic(Introspection $i) {
         $self            = static::introspect($i, 'blahProperty', ref_new());
         $self->class     = 'BlahClass';
@@ -105,13 +110,9 @@ class ValueObjectProperty extends ValueVariable {
              $reflection !== false;
              $reflection = $reflection->getParentClass()) {
             foreach ($reflection->getProperties() as $property) {
-                if ($property->isStatic() || $property->class !== $reflection->name)
-                    continue;
-
-                $property->setAccessible(true);
-
-                $properties[] = self::introspectObjectProperty($i, $property->name,
-                                                               ref_new($property->getValue($object)), $property);
+                if (!$property->isStatic() && $property->class === $reflection->name) {
+                    $properties[] = self::introspectObjectProperty($i, $property, $object);
+                }
             }
         }
 
@@ -120,8 +121,10 @@ class ValueObjectProperty extends ValueVariable {
 
     static protected function create() { return new self; }
 
-    protected static function introspectObjectProperty(Introspection $i, $name, &$value, \ReflectionProperty $p) {
-        $self            = static::introspect($i, $name, $value);
+    protected static function introspectObjectProperty(Introspection $i, \ReflectionProperty $p, $object = null) {
+        $p->setAccessible(true);
+
+        $self            = static::introspect($i, $p->name, ref_new($p->getValue($object)));
         $self->class     = $p->class;
         $self->access    = $i->propertyOrMethodAccess($p);
         $self->isDefault = $p->isDefault();
@@ -159,10 +162,7 @@ class ValueObjectPropertyStatic extends ValueObjectProperty {
             $reflection = new \ReflectionClass($class);
 
             foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
-                $property->setAccessible(true);
-
-                $globals[] = self::introspectObjectProperty($i, $property->name,
-                                                            ref_new($property->getValue()), $property);
+                $globals[] = self::introspectObjectProperty($i, $property);
             }
         }
 
