@@ -28,16 +28,6 @@
           <option name="ALIGN_MULTILINE_ARRAY_INITIALIZER_EXPRESSION" value="true" />
           <option name="KEEP_SIMPLE_METHODS_IN_ONE_LINE" value="true" />
           <arrangement>
-            <groups>
-              <group>
-                <type>GETTERS_AND_SETTERS</type>
-                <order>KEEP</order>
-              </group>
-              <group>
-                <type>DEPENDENT_METHODS</type>
-                <order>DEPTH_FIRST</order>
-              </group>
-            </groups>
             <rules>
               <rule>
                 <match>
@@ -74,6 +64,33 @@
               <rule>
                 <match>
                   <AND>
+                    <METHOD />
+                    <PUBLIC />
+                    <STATIC />
+                  </AND>
+                </match>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <METHOD />
+                    <PROTECTED />
+                    <STATIC />
+                  </AND>
+                </match>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
+                    <METHOD />
+                    <PRIVATE />
+                    <STATIC />
+                  </AND>
+                </match>
+              </rule>
+              <rule>
+                <match>
+                  <AND>
                     <FIELD />
                     <PUBLIC />
                   </AND>
@@ -98,33 +115,6 @@
               <rule>
                 <match>
                   <CONSTRUCTOR />
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <METHOD />
-                    <PUBLIC />
-                    <STATIC />
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <METHOD />
-                    <PROTECTED />
-                    <STATIC />
-                  </AND>
-                </match>
-              </rule>
-              <rule>
-                <match>
-                  <AND>
-                    <METHOD />
-                    <PRIVATE />
-                    <STATIC />
-                  </AND>
                 </match>
               </rule>
               <rule>

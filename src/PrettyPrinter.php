@@ -3,8 +3,6 @@
 namespace ErrorHandler;
 
 final class PrettyPrinter {
-    function text($text = '') { return new PrettyPrinterText($text, "\n"); }
-
     private $escapeTabsInStrings = false;
     private $maxArrayEntries = INF;
     private $maxObjectProperties = INF;
@@ -13,8 +11,9 @@ final class PrettyPrinter {
     private $showExceptionLocalVariables = true;
     private $showExceptionStackTrace = true;
     private $splitMultiLineStrings = true;
-
     private $valuesReferable = array();
+
+    function text($text = '') { return new PrettyPrinterText($text, "\n"); }
 
     function assertPrettyIs($value, $expectedPretty) {
         $this->assertPrettyRefIs($value, $expectedPretty);

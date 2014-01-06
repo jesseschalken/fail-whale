@@ -3,6 +3,8 @@
 namespace ErrorHandler;
 
 abstract class Value implements JsonSerializable {
+    private static $nextID = 0;
+
     static function introspect($x) {
         return self::i()->introspect($x);
     }
@@ -20,10 +22,6 @@ abstract class Value implements JsonSerializable {
         $d->root = $v;
 
         return self::fromJson($d, $v['root']);
-    }
-
-    private static function i() {
-        return new Introspection;
     }
 
     static function fromJson(JsonDeSerializationState $s, $v) {
@@ -71,7 +69,10 @@ abstract class Value implements JsonSerializable {
         }
     }
 
-    private static $nextID = 0;
+    private static function i() {
+        return new Introspection;
+    }
+
     private $id;
 
     protected function __construct() {
@@ -136,6 +137,25 @@ class ValueBool extends Value {
 }
 
 class ValueFloat extends Value {
+    /**
+     * @param mixed $x2
+     *
+     * @return self
+     */
+    static function fromJSONFloat($x2) {
+        $x = $x2[1];
+        if ($x === '+inf')
+            $result = INF;
+        else if ($x === '-inf')
+            $result = -INF;
+        else if ($x === 'nan')
+            $result = NAN;
+        else
+            $result = (float)$x;
+
+        return new self($result);
+    }
+
     private $float;
 
     function __construct($x) {
@@ -164,25 +184,6 @@ class ValueFloat extends Value {
 
         return array('float', $float);
     }
-
-    /**
-     * @param mixed $x2
-     *
-     * @return self
-     */
-    static function fromJSONFloat($x2) {
-        $x = $x2[1];
-        if ($x === '+inf')
-            $result = INF;
-        else if ($x === '-inf')
-            $result = -INF;
-        else if ($x === 'nan')
-            $result = NAN;
-        else
-            $result = (float)$x;
-
-        return new self($result);
-    }
 }
 
 class ValueInt extends Value {
@@ -204,6 +205,8 @@ class ValueInt extends Value {
 }
 
 class ValueNull extends Value {
+    function __construct() { parent::__construct(); }
+
     function renderImpl(PrettyPrinter $settings) {
         return $settings->text('null');
     }
@@ -211,8 +214,6 @@ class ValueNull extends Value {
     function toJSON(JsonSerializationState $s) {
         return null;
     }
-
-    function __construct() { parent::__construct(); }
 }
 
 class ValueResource extends Value {
@@ -224,11 +225,22 @@ class ValueResource extends Value {
         return $self;
     }
 
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        $self = new self;
+        $self->schema()->fromJSON($s, $x[1]);
+
+        return $self;
+    }
+
     private $type;
     private $id;
 
     function renderImpl(PrettyPrinter $settings) {
         return $settings->text($this->type);
+    }
+
+    function toJSON(JsonSerializationState $s) {
+        return array('resource', $this->schema()->toJSON($s));
     }
 
     private function schema() {
@@ -237,17 +249,6 @@ class ValueResource extends Value {
         $schema->bindRef('id', $this->id);
 
         return $schema;
-    }
-
-    function toJSON(JsonSerializationState $s) {
-        return array('resource', $this->schema()->toJSON($s));
-    }
-
-    static function fromJSON(JsonDeSerializationState $s, $x) {
-        $self = new self;
-        $self->schema()->fromJSON($s, $x[1]);
-
-        return $self;
     }
 }
 
@@ -270,11 +271,11 @@ class ValueString extends Value {
 }
 
 class ValueUnknown extends Value {
+    function __construct() { parent::__construct(); }
+
     function renderImpl(PrettyPrinter $settings) {
         return $settings->text('unknown type');
     }
-
-    function __construct() { parent::__construct(); }
 
     function toJSON(JsonSerializationState $s) {
         return array('unknown');

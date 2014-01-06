@@ -20,6 +20,25 @@ class ValueObject extends Value {
         return $self;
     }
 
+    static function fromJSON(JsonDeSerializationState $s, $x) {
+        if ($x === null)
+            return null;
+
+        $self =& $s->finishedObjects[$x[1]];
+
+        if ($self === null) {
+            $self = new self;
+            $self->schema()->fromJSON($s, $s->root['objects'][$x[1]]);
+        }
+
+        return $self;
+    }
+
+    private $hash;
+    private $class;
+    /** @var ValueObjectProperty[] */
+    private $properties = array();
+
     function subValues() {
         $x = parent::subValues();
 
@@ -29,29 +48,12 @@ class ValueObject extends Value {
         return $x;
     }
 
-    private $hash;
-    private $class;
-    /** @var ValueObjectProperty[] */
-    private $properties = array();
-
     function className() { return $this->class; }
 
     function properties() { return $this->properties; }
 
     function renderImpl(PrettyPrinter $settings) {
         return $settings->renderObject($this);
-    }
-
-    private function schema() {
-        $schema = new JsonSchemaObject;
-        $schema->bindRef('class', $this->class);
-        $schema->bindRef('hash', $this->hash);
-
-        $schema->bindObjectList('properties', $this->properties, function ($j, $v) {
-            return ValueObjectProperty::fromJSON($j, $v);
-        });
-
-        return $schema;
     }
 
     function toJSON(JsonSerializationState $s) {
@@ -66,18 +68,16 @@ class ValueObject extends Value {
         return array('object', $id);
     }
 
-    static function fromJSON(JsonDeSerializationState $s, $x) {
-        if ($x === null)
-            return null;
+    private function schema() {
+        $schema = new JsonSchemaObject;
+        $schema->bindRef('class', $this->class);
+        $schema->bindRef('hash', $this->hash);
 
-        $self =& $s->finishedObjects[$x[1]];
+        $schema->bindObjectList('properties', $this->properties, function ($j, $v) {
+            return ValueObjectProperty::fromJSON($j, $v);
+        });
 
-        if ($self === null) {
-            $self = new self;
-            $self->schema()->fromJSON($s, $s->root['objects'][$x[1]]);
-        }
-
-        return $self;
+        return $schema;
     }
 }
 
@@ -91,21 +91,6 @@ class ValueObjectProperty extends ValueVariable {
 
         return $globals;
     }
-
-    static protected function create() { return new self; }
-
-    protected static function introspectObjectProperty(Introspection $i, $name, &$value, \ReflectionProperty $p) {
-        $self            = static::introspect($i, $name, $value);
-        $self->class     = $p->class;
-        $self->access    = $i->propertyOrMethodAccess($p);
-        $self->isDefault = $p->isDefault();
-
-        return $self;
-    }
-
-    private $class;
-    private $access;
-    private $isDefault;
 
     /**
      * @param Introspection $i
@@ -133,6 +118,21 @@ class ValueObjectProperty extends ValueVariable {
         return $properties;
     }
 
+    static protected function create() { return new self; }
+
+    protected static function introspectObjectProperty(Introspection $i, $name, &$value, \ReflectionProperty $p) {
+        $self            = static::introspect($i, $name, $value);
+        $self->class     = $p->class;
+        $self->access    = $i->propertyOrMethodAccess($p);
+        $self->isDefault = $p->isDefault();
+
+        return $self;
+    }
+
+    private $class;
+    private $access;
+    private $isDefault;
+
     function access() { return $this->access; }
 
     function className() { return $this->class; }
@@ -152,8 +152,6 @@ class ValueObjectProperty extends ValueVariable {
 }
 
 class ValueObjectPropertyStatic extends ValueObjectProperty {
-    static protected function create() { return new self; }
-
     static function introspectStaticProperties(Introspection $i) {
         $globals = array();
 
@@ -170,6 +168,8 @@ class ValueObjectPropertyStatic extends ValueObjectProperty {
 
         return $globals;
     }
+
+    static protected function create() { return new self; }
 
     function renderPrefix(PrettyPrinter $settings) {
         return $settings->text("{$this->access()} static {$this->className()}::");

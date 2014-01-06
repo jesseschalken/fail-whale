@@ -2,6 +2,10 @@
 
 namespace ErrorHandler;
 
+interface JsonSerializable {
+    function toJSON(JsonSerializationState $s);
+}
+
 class JsonSerializationState {
     public $root = array(
         'root'    => null,
@@ -63,10 +67,6 @@ class JsonSchemaObject implements JsonSerializable {
     }
 }
 
-interface JsonSerializable {
-    function toJSON(JsonSerializationState $s);
-}
-
 abstract class JsonSchema implements JsonSerializable {
     abstract function fromJSON(JsonDeSerializationState $s, $x);
 }
@@ -78,10 +78,6 @@ class JsonRef extends JsonSchema {
         $this->ref =& $ref;
     }
 
-    protected function get() { return $this->ref; }
-
-    protected function set($x) { $this->ref = $x; }
-
     function toJSON(JsonSerializationState $s) {
         return $this->ref;
     }
@@ -89,6 +85,10 @@ class JsonRef extends JsonSchema {
     function fromJSON(JsonDeSerializationState $s, $x) {
         $this->ref = $x;
     }
+
+    protected function get() { return $this->ref; }
+
+    protected function set($x) { $this->ref = $x; }
 }
 
 class JsonRefObject extends JsonSchema {
