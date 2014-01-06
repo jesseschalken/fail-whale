@@ -51,13 +51,13 @@ class ValueException extends Value {
         $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
         $frames = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
 
-        $this->className = get_class($e);
-        $this->code      = $e->getCode();
-        $this->message   = $e->getMessage();
-        $this->line      = $e->getLine();
-        $this->file      = $e->getFile();
-        $this->locals    = $locals !== null ? ValueVariable::introspectLocals($i, $locals) : null;
-        $this->stack     = ValueExceptionStackFrame::introspectMany($i, $frames);
+        $this->class   = get_class($e);
+        $this->code    = $e->getCode();
+        $this->message = $e->getMessage();
+        $this->line    = $e->getLine();
+        $this->file    = $e->getFile();
+        $this->locals  = $locals !== null ? ValueVariable::introspectLocals($i, $locals) : null;
+        $this->stack   = ValueExceptionStackFrame::introspectMany($i, $frames);
 
         if ($e->getPrevious() !== null) {
             $this->previous = new self;
@@ -67,24 +67,24 @@ class ValueException extends Value {
     }
 
     static function mock(Introspection $param) {
-        $self            = new self;
-        $self->className = 'MuhMockException';
-        $self->message   = <<<'s'
+        $self          = new self;
+        $self->class   = 'MuhMockException';
+        $self->message = <<<'s'
 This is a dummy exception message.
 
 lololool
 s;
-        $self->code      = 'Dummy exception code';
-        $self->file      = '/the/path/to/muh/file';
-        $self->line      = 9000;
-        $self->locals    = ValueVariable::mockLocals($param);
-        $self->stack     = ValueExceptionStackFrame::mock($param);
-        $self->globals   = ValueExceptionGlobalState::mock($param);
+        $self->code    = 'Dummy exception code';
+        $self->file    = '/the/path/to/muh/file';
+        $self->line    = 9000;
+        $self->locals  = ValueVariable::mockLocals($param);
+        $self->stack   = ValueExceptionStackFrame::mock($param);
+        $self->globals = ValueExceptionGlobalState::mock($param);
 
         return $self;
     }
 
-    private $className;
+    private $class;
     /** @var ValueExceptionStackFrame[] */
     private $stack = array();
     /** @var ValueVariable[]|null */
@@ -98,7 +98,7 @@ s;
     /** @var ValueExceptionGlobalState|null */
     private $globals;
 
-    function className() { return $this->className; }
+    function className() { return $this->class; }
 
     function code() { return $this->code; }
 
@@ -122,7 +122,7 @@ s;
 
     private function schema() {
         $schema = new JsonSchemaObject;
-        $schema->bindRef('className', $this->className);
+        $schema->bindRef('class', $this->class);
         $schema->bindRef('code', $this->code);
         $schema->bindRef('message', $this->message);
         $schema->bindRef('file', $this->file);
@@ -343,14 +343,14 @@ class ValueGlobalVariable extends ValueVariable {
 
 class ValueVariableStatic extends ValueVariable {
     static function mockStatics(Introspection $i) {
-        $self               = self::introspect($i, 'public', ref_new());
-        $self->functionName = 'BlahAnotherClass';
-        $globals[]          = $self;
+        $self           = self::introspect($i, 'public', ref_new());
+        $self->function = 'BlahAnotherClass';
+        $globals[]      = $self;
 
-        $self               = self::introspect($i, 'lolStatic', ref_new());
-        $self->functionName = 'blahMethod';
-        $self->className    = 'BlahYetAnotherClass';
-        $globals[]          = $self;
+        $self           = self::introspect($i, 'lolStatic', ref_new());
+        $self->function = 'blahMethod';
+        $self->class    = 'BlahYetAnotherClass';
+        $globals[]      = $self;
 
         return $globals;
     }
@@ -367,9 +367,9 @@ class ValueVariableStatic extends ValueVariable {
                 $staticVariables = $method->getStaticVariables();
 
                 foreach ($staticVariables as $variableName => &$varValue) {
-                    $self               = self::introspect($i, $variableName, $varValue);
-                    $self->className    = $method->class;
-                    $self->functionName = $method->getName();
+                    $self           = self::introspect($i, $variableName, $varValue);
+                    $self->class    = $method->class;
+                    $self->function = $method->getName();
 
                     $globals[] = $self;
                 }
@@ -382,8 +382,8 @@ class ValueVariableStatic extends ValueVariable {
                 $staticVariables = $reflection->getStaticVariables();
 
                 foreach ($staticVariables as $propertyName => &$varValue) {
-                    $self               = self::introspect($i, $propertyName, $varValue);
-                    $self->functionName = $function;
+                    $self           = self::introspect($i, $propertyName, $varValue);
+                    $self->function = $function;
 
                     $globals[] = $self;
                 }
@@ -393,18 +393,18 @@ class ValueVariableStatic extends ValueVariable {
         return $globals;
     }
 
-    private $className, $functionName;
+    private $class, $function;
 
     protected function schema() {
         $schema = parent::schema();
-        $schema->bindRef('className', $this->className);
-        $schema->bindRef('functionName', $this->functionName);
+        $schema->bindRef('class', $this->class);
+        $schema->bindRef('function', $this->function);
 
         return $schema;
     }
 
     function renderPrefix(PrettyPrinter $settings) {
-        $function = $this->className === null ? "$this->functionName" : "$this->className::$this->functionName";
+        $function = $this->class === null ? "$this->function" : "$this->class::$this->function";
 
         return $settings->text("function $function()::static ");
     }
@@ -415,13 +415,13 @@ class ValueExceptionStackFrame implements JsonSerializable {
         $result = array();
 
         foreach ($frames as $frame) {
-            $self               = new self;
-            $self->functionName = array_get($frame, 'function');
-            $self->file         = array_get($frame, 'file');
-            $self->line         = array_get($frame, 'line');
-            $self->className    = array_get($frame, 'class');
-            $self->isStatic     = isset($frame['type']) ? $frame['type'] === '::' : null;
-            $self->object       = isset($frame['object']) ? $i->introspectRef($frame['object']) : null;
+            $self           = new self;
+            $self->function = array_get($frame, 'function');
+            $self->file     = array_get($frame, 'file');
+            $self->line     = array_get($frame, 'line');
+            $self->class    = array_get($frame, 'class');
+            $self->isStatic = isset($frame['type']) ? $frame['type'] === '::' : null;
+            $self->object   = isset($frame['object']) ? $i->introspectRef($frame['object']) : null;
 
             if (isset($frame['args'])) {
                 $self->args = array();
@@ -444,29 +444,29 @@ class ValueExceptionStackFrame implements JsonSerializable {
     static function mock(Introspection $param) {
         $stack = array();
 
-        $self               = new self;
-        $self->functionName = 'aFunction';
-        $self->args         = array($param->introspect(new DummyClass2));
-        $self->file         = '/path/to/muh/file';
-        $self->line         = 1928;
-        $self->object       = $param->introspect(new DummyClass1);
-        $self->className    = 'DummyClass1';
+        $self           = new self;
+        $self->function = 'aFunction';
+        $self->args     = array($param->introspect(new DummyClass2));
+        $self->file     = '/path/to/muh/file';
+        $self->line     = 1928;
+        $self->object   = $param->introspect(new DummyClass1);
+        $self->class    = 'DummyClass1';
 
         $stack[] = $self;
 
-        $self               = new self;
-        $self->functionName = 'aFunction';
-        $self->args         = array($param->introspect(new DummyClass2));
-        $self->file         = '/path/to/muh/file';
-        $self->line         = 1928;
+        $self           = new self;
+        $self->function = 'aFunction';
+        $self->args     = array($param->introspect(new DummyClass2));
+        $self->file     = '/path/to/muh/file';
+        $self->line     = 1928;
 
         $stack[] = $self;
 
         return $stack;
     }
 
-    private $className;
-    private $functionName;
+    private $class;
+    private $function;
     /** @var Value[]|null */
     private $args;
     /** @var Value|null */
@@ -525,7 +525,7 @@ class ValueExceptionStackFrame implements JsonSerializable {
 
     function render(PrettyPrinter $settings) {
         return $this->prefix($settings)
-                    ->append($this->functionName)
+                    ->append($this->function)
                     ->appendLines($this->renderArgs($settings));
     }
 
@@ -533,16 +533,16 @@ class ValueExceptionStackFrame implements JsonSerializable {
         if ($this->object !== null)
             return $this->object->render($settings)->append('->');
 
-        if ($this->className !== null)
-            return $settings->text($this->isStatic ? "$this->className::" : "$this->className->");
+        if ($this->class !== null)
+            return $settings->text($this->isStatic ? "$this->class::" : "$this->class->");
 
         return $settings->text();
     }
 
     private function schema() {
         $schema = new JsonSchemaObject;
-        $schema->bindRef('functionName', $this->functionName);
-        $schema->bindRef('className', $this->className);
+        $schema->bindRef('function', $this->function);
+        $schema->bindRef('class', $this->class);
         $schema->bindRef('isStatic', $this->isStatic);
         $schema->bindRef('file', $this->file);
         $schema->bindRef('line', $this->line);

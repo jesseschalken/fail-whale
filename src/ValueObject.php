@@ -14,7 +14,7 @@ class ValueObject extends Value {
         $i->objects[] = $x;
 
         $self->hash       = $hash;
-        $self->className  = get_class($x);
+        $self->class      = get_class($x);
         $self->properties = ValueObjectProperty::introspectObjectProperties($i, $x);
 
         return $self;
@@ -30,11 +30,11 @@ class ValueObject extends Value {
     }
 
     private $hash;
-    private $className;
+    private $class;
     /** @var ValueObjectProperty[] */
     private $properties = array();
 
-    function className() { return $this->className; }
+    function className() { return $this->class; }
 
     function properties() { return $this->properties; }
 
@@ -44,7 +44,7 @@ class ValueObject extends Value {
 
     private function schema() {
         $schema = new JsonSchemaObject;
-        $schema->bindRef('className', $this->className);
+        $schema->bindRef('class', $this->class);
         $schema->bindRef('hash', $this->hash);
 
         $schema->bindObjectList('properties', $this->properties, function ($j, $v) {
@@ -84,7 +84,7 @@ class ValueObject extends Value {
 class ValueObjectProperty extends ValueVariable {
     static function mockStatic(Introspection $i) {
         $self            = static::introspect($i, 'blahProperty', ref_new());
-        $self->className = 'BlahClass';
+        $self->class     = 'BlahClass';
         $self->access    = 'private';
         $self->isDefault = false;
         $globals[]       = $self;
@@ -96,14 +96,14 @@ class ValueObjectProperty extends ValueVariable {
 
     protected static function introspectObjectProperty(Introspection $i, $name, &$value, \ReflectionProperty $p) {
         $self            = static::introspect($i, $name, $value);
-        $self->className = $p->class;
+        $self->class     = $p->class;
         $self->access    = $i->propertyOrMethodAccess($p);
         $self->isDefault = $p->isDefault();
 
         return $self;
     }
 
-    private $className;
+    private $class;
     private $access;
     private $isDefault;
 
@@ -135,7 +135,7 @@ class ValueObjectProperty extends ValueVariable {
 
     function access() { return $this->access; }
 
-    function className() { return $this->className; }
+    function className() { return $this->class; }
 
     function renderPrefix(PrettyPrinter $settings) {
         return $settings->text("$this->access ");
@@ -143,7 +143,7 @@ class ValueObjectProperty extends ValueVariable {
 
     function schema() {
         $schema = parent::schema();
-        $schema->bindRef('className', $this->className);
+        $schema->bindRef('class', $this->class);
         $schema->bindRef('access', $this->access);
         $schema->bindRef('isDefault', $this->isDefault);
 

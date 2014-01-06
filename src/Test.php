@@ -307,8 +307,8 @@ s
         $pp->assertPrettyIs(100.0000, "100.0");
         $pp->assertPrettyIs(100.00001, "100.00001");
         $pp->assertPrettyIs(-1.9999, "-1.9999");
-        $pp->assertPrettyIs(PHP_INT_MAX, (string) PHP_INT_MAX);
-        $pp->assertPrettyIs(~PHP_INT_MAX, (string) ~PHP_INT_MAX);
+        $pp->assertPrettyIs(PHP_INT_MAX, (string)PHP_INT_MAX);
+        $pp->assertPrettyIs(~PHP_INT_MAX, (string)~PHP_INT_MAX);
         $pp->assertPrettyIs(0.0745, "0.0745");
         $pp->assertPrettyIs(0.33333333333333, "0.33333333333333");
         $pp->assertPrettyIs(2.2250738585072e-308, "2.2250738585072e-308");
