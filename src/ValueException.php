@@ -56,17 +56,45 @@ s;
         $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
         $frames = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
 
-        $self           = new self;
-        $self->class    = get_class($e);
-        $self->code     = $e->getCode();
-        $self->message  = $e->getMessage();
-        $self->line     = $e->getLine();
-        $self->file     = $e->getFile();
-        $self->locals   = $locals !== null ? ValueVariable::introspectLocals($i, $locals) : null;
-        $self->stack    = ValueExceptionStackFrame::introspectMany($i, $frames);
-        $self->previous = $e->getPrevious() !== null ? self::introspectImplNoGlobals($i, $e->getPrevious()) : null;
+        $self             = new self;
+        $self->class      = get_class($e);
+        $self->code       = $e->getCode();
+        $self->message    = $e->getMessage();
+        $self->line       = $e->getLine();
+        $self->file       = $e->getFile();
+        $self->locals     = $locals !== null ? ValueVariable::introspectLocals($i, $locals) : null;
+        $self->stack      = ValueExceptionStackFrame::introspectMany($i, $frames);
+        $self->previous   = $e->getPrevious() !== null ? self::introspectImplNoGlobals($i, $e->getPrevious()) : null;
+        $self->sourceCode = self::introspectSourceCode($self->file, $self->line);
 
         return $self;
+    }
+
+    /**
+     * @param string|null $file
+     * @param string|null $line
+     *
+     * @return string[]|null
+     */
+    private static function introspectSourceCode($file, $line) {
+        if ($file === null || $line === null)
+            return null;
+
+        $contents = @file_get_contents($file);
+
+        if (!is_string($contents))
+            return null;
+
+        $lines   = explode("\n", $contents);
+        $results = array();
+
+        foreach (range($line - 5, $line + 5) as $lineToScan) {
+            if (isset($lines[$lineToScan])) {
+                $results[$lineToScan] = $lines[$lineToScan - 1];
+            }
+        }
+
+        return $results;
     }
 
     private $class;
@@ -82,6 +110,8 @@ s;
     private $line;
     /** @var ValueExceptionGlobalState|null */
     private $globals;
+    /** @var string[]|null */
+    private $sourceCode;
 
     function subValues() {
         $x = parent::subValues();
@@ -123,6 +153,8 @@ s;
 
     function stack() { return $this->stack; }
 
+    function sourceCode() { return $this->sourceCode; }
+
     function renderImpl(PrettyPrinter $settings) {
         return $settings->renderExceptionWithGlobals($this);
     }
@@ -138,6 +170,7 @@ s;
         $schema->bindRef('message', $this->message);
         $schema->bindRef('file', $this->file);
         $schema->bindRef('line', $this->line);
+        $schema->bindRef('sourceCode', $this->sourceCode);
 
         $schema->bindObject('previous', $this->previous, function ($j, $v) {
             return ValueException::fromJSON($j, $v);

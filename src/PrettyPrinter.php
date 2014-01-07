@@ -12,6 +12,7 @@ final class PrettyPrinter {
     private $showExceptionStackTrace = true;
     private $splitMultiLineStrings = true;
     private $valuesReferable = array();
+    private $showExceptionSourceCode = true;
 
     function text($text = '') { return new PrettyPrinterText($text, "\n"); }
 
@@ -90,6 +91,12 @@ final class PrettyPrinter {
         $text->addLines($this->text($e->message())->indent(2));
         $text->addLine();
 
+        if ($this->showExceptionSourceCode && $e->sourceCode() !== null) {
+            $text->addLine("source code:");
+            $text->addLines($this->renderSourceCode($e->sourceCode(), $e->line())->indent());
+            $text->addLine();
+        }
+
         if ($this->showExceptionLocalVariables && $e->locals() !== null) {
             $text->addLine("local variables:");
             $text->addLines($this->renderVariables($e->locals(), 'none', INF)->indent());
@@ -109,6 +116,24 @@ final class PrettyPrinter {
         }
 
         return $text;
+    }
+
+    /**
+     * @param string[] $code
+     * @param int      $line
+     *
+     * @return PrettyPrinterText
+     */
+    function renderSourceCode($code, $line) {
+        $rows = array();
+
+        foreach ($code as $codeLine => $codeText) {
+            $rows[] = array($this->text($codeLine == $line ? "> " : ''),
+                            $this->text("$codeLine "),
+                            $this->text($codeText));
+        }
+
+        return $this->renderTable($rows);
     }
 
     /**
@@ -247,6 +272,10 @@ final class PrettyPrinter {
 
     function setShowExceptionStackTrace($showExceptionStackTrace) {
         $this->showExceptionStackTrace = (bool)$showExceptionStackTrace;
+    }
+    
+    function setShowExceptionSourceCode($showExceptionSourceCode) {
+        $this->showExceptionSourceCode = (bool)$showExceptionSourceCode;
     }
 
     function setSplitMultiLineStrings($splitMultiLineStrings) {
