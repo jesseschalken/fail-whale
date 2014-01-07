@@ -144,6 +144,9 @@ final class PrettyPrinter {
      * @return PrettyPrinterText
      */
     function renderVariables(array $variables, $noneText, $max) {
+        if (count($variables) == 0)
+            return $this->text($noneText);
+
         $rows = array();
 
         foreach ($variables as $variable) {
@@ -155,9 +158,6 @@ final class PrettyPrinter {
                 $variable->value()->render($this)->wrap(' = ', ';'),
             );
         }
-
-        if (count($rows) == 0)
-            return $this->text($noneText);
 
         $result = $this->renderTable($rows);
 
@@ -194,9 +194,17 @@ final class PrettyPrinter {
     }
 
     function renderObject(ValueObject $object) {
-        return $this->renderVariables($object->properties(), '', $this->maxObjectProperties)
-                    ->setHasEndingNewline(false)
-                    ->indent(2)->wrapLines("new {$object->className()} {", "}");
+        $properties = $object->properties();
+        $class      = $object->className();
+
+        if ($properties === array())
+            return $this->text("new $class {}");
+        elseif ($this->maxObjectProperties == 0)
+            return $this->text("new $class {...}");
+        else
+            return $this->renderVariables($properties, '', $this->maxObjectProperties)
+                        ->setHasEndingNewline(false)
+                        ->indent(2)->wrapLines("new $class {", "}");
     }
 
     /**
@@ -273,7 +281,7 @@ final class PrettyPrinter {
     function setShowExceptionStackTrace($showExceptionStackTrace) {
         $this->showExceptionStackTrace = (bool)$showExceptionStackTrace;
     }
-    
+
     function setShowExceptionSourceCode($showExceptionSourceCode) {
         $this->showExceptionSourceCode = (bool)$showExceptionSourceCode;
     }
