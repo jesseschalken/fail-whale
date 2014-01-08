@@ -51,7 +51,10 @@ s;
         return $self;
     }
 
-    private static function introspectImplNoGlobals(Introspection $i, \Exception $e) {
+    private static function introspectImplNoGlobals(Introspection $i, \Exception $e = null) {
+        if ($e === null)
+            return null;
+
         $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
         $frames = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
 
@@ -60,9 +63,9 @@ s;
         $self->code     = $e->getCode();
         $self->message  = $e->getMessage();
         $self->location = ValueExceptionCodeLocation::introspect($i, $e->getFile(), $e->getLine());
-        $self->locals   = $locals !== null ? ValueVariable::introspectLocals($i, $locals) : null;
+        $self->locals   = ValueVariable::introspectLocals($i, $locals);
         $self->stack    = ValueExceptionStackFrame::introspectMany($i, $frames);
-        $self->previous = $e->getPrevious() !== null ? self::introspectImplNoGlobals($i, $e->getPrevious()) : null;
+        $self->previous = self::introspectImplNoGlobals($i, $e->getPrevious());
 
         return $self;
     }
@@ -318,7 +321,10 @@ class ValueExceptionCodeLocation {
 }
 
 class ValueVariable implements JsonSerializable {
-    static function introspectLocals(Introspection $i, array $x) {
+    static function introspectLocals(Introspection $i, array $x = null) {
+        if ($x === null)
+            return null;
+
         $locals = array();
 
         foreach ($x as $name => &$value)
