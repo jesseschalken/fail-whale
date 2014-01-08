@@ -25,19 +25,18 @@ class ValueException extends Value {
     }
 
     static function mock(Introspection $param) {
-        $self          = new self;
-        $self->class   = 'MuhMockException';
-        $self->message = <<<'s'
+        $self           = new self;
+        $self->class    = 'MuhMockException';
+        $self->message  = <<<'s'
 This is a dummy exception message.
 
 lololool
 s;
-        $self->code    = 'Dummy exception code';
-        $self->file    = '/the/path/to/muh/file';
-        $self->line    = 9000;
-        $self->locals  = ValueVariable::mockLocals($param);
-        $self->stack   = ValueExceptionStackFrame::mock($param);
-        $self->globals = ValueExceptionGlobalState::mock($param);
+        $self->code     = 'Dummy exception code';
+        $self->location = ValueExceptionCodeLocation::mock('/path/to/muh/file', 9000);
+        $self->locals   = ValueVariable::mockLocals($param);
+        $self->stack    = ValueExceptionStackFrame::mock($param);
+        $self->globals  = ValueExceptionGlobalState::mock($param);
 
         return $self;
     }
@@ -56,45 +55,16 @@ s;
         $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
         $frames = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
 
-        $self             = new self;
-        $self->class      = get_class($e);
-        $self->code       = $e->getCode();
-        $self->message    = $e->getMessage();
-        $self->line       = $e->getLine();
-        $self->file       = $e->getFile();
-        $self->locals     = $locals !== null ? ValueVariable::introspectLocals($i, $locals) : null;
-        $self->stack      = ValueExceptionStackFrame::introspectMany($i, $frames);
-        $self->previous   = $e->getPrevious() !== null ? self::introspectImplNoGlobals($i, $e->getPrevious()) : null;
-        $self->sourceCode = self::introspectSourceCode($self->file, $self->line);
+        $self           = new self;
+        $self->class    = get_class($e);
+        $self->code     = $e->getCode();
+        $self->message  = $e->getMessage();
+        $self->location = ValueExceptionCodeLocation::introspect($i, $e->getFile(), $e->getLine());
+        $self->locals   = $locals !== null ? ValueVariable::introspectLocals($i, $locals) : null;
+        $self->stack    = ValueExceptionStackFrame::introspectMany($i, $frames);
+        $self->previous = $e->getPrevious() !== null ? self::introspectImplNoGlobals($i, $e->getPrevious()) : null;
 
         return $self;
-    }
-
-    /**
-     * @param string|null $file
-     * @param string|null $line
-     *
-     * @return string[]|null
-     */
-    private static function introspectSourceCode($file, $line) {
-        if ($file === null || $line === null)
-            return null;
-
-        $contents = @file_get_contents($file);
-
-        if (!is_string($contents))
-            return null;
-
-        $lines   = explode("\n", $contents);
-        $results = array();
-
-        foreach (range($line - 5, $line + 5) as $lineToScan) {
-            if (isset($lines[$lineToScan])) {
-                $results[$lineToScan] = $lines[$lineToScan - 1];
-            }
-        }
-
-        return $results;
     }
 
     private $class;
@@ -106,12 +76,10 @@ s;
     private $message;
     /** @var self|null */
     private $previous;
-    private $file;
-    private $line;
     /** @var ValueExceptionGlobalState|null */
     private $globals;
-    /** @var string[]|null */
-    private $sourceCode;
+    /** @var ValueExceptionCodeLocation */
+    private $location;
 
     function subValues() {
         $x = parent::subValues();
@@ -139,11 +107,11 @@ s;
 
     function code() { return $this->code; }
 
-    function file() { return $this->file; }
+    function file() { return $this->location->file(); }
 
     function globals() { return $this->globals; }
 
-    function line() { return $this->line; }
+    function line() { return $this->location->line(); }
 
     function locals() { return $this->locals; }
 
@@ -153,7 +121,7 @@ s;
 
     function stack() { return $this->stack; }
 
-    function sourceCode() { return $this->sourceCode; }
+    function sourceCode() { return $this->location->sourceCode(); }
 
     function renderImpl(PrettyPrinter $settings) {
         return $settings->renderExceptionWithGlobals($this);
@@ -168,9 +136,9 @@ s;
         $schema->bindRef('class', $this->class);
         $schema->bindRef('code', $this->code);
         $schema->bindRef('message', $this->message);
-        $schema->bindRef('file', $this->file);
-        $schema->bindRef('line', $this->line);
-        $schema->bindRef('sourceCode', $this->sourceCode);
+        $schema->bindObject('location', $this->location, function ($j, $v) {
+            return ValueExceptionCodeLocation::fromJson($j, $v);
+        });
 
         $schema->bindObject('previous', $this->previous, function ($j, $v) {
             return ValueException::fromJSON($j, $v);
@@ -248,6 +216,102 @@ class ValueExceptionGlobalState implements JsonSerializable {
         $schema->bindObjectList('staticVariables', $this->staticVariables, function ($j, $v) {
             return ValueVariableStatic::fromJSON($j, $v);
         });
+
+        return $schema;
+    }
+}
+
+class ValueExceptionCodeLocation {
+    /**
+     * @param string        $file
+     * @param int           $line
+     * @param string[]|null $sourceCode
+     *
+     * @return ValueExceptionCodeLocation
+     */
+    static function mock($file, $line, array $sourceCode = null) {
+        $self             = new self;
+        $self->file       = $file;
+        $self->line       = $line;
+        $self->sourceCode = $sourceCode;
+
+        return $self;
+    }
+
+    static function fromJson(JsonDeSerializationState $j, $x) {
+        if ($x === null)
+            return null;
+
+        $self = new self;
+        $self->schema()->fromJSON($j, $x);
+
+        return $self;
+    }
+
+    static function introspect(/** @noinspection PhpUnusedParameterInspection */
+        Introspection $i, $file, $line) {
+
+        if ($file === null)
+            return null;
+
+        $self             = new self;
+        $self->file       = $file;
+        $self->line       = $line;
+        $self->sourceCode = self::introspectSourceCode($file, $line);
+
+        return $self;
+    }
+
+    /**
+     * @param string|null $file
+     * @param string|null $line
+     *
+     * @return string[]|null
+     */
+    private static function introspectSourceCode($file, $line) {
+        if ($file === null)
+            return null;
+
+        $contents = @file_get_contents($file);
+
+        if (!is_string($contents))
+            return null;
+
+        $lines   = explode("\n", $contents);
+        $results = array();
+
+        foreach (range($line - 5, $line + 5) as $lineToScan) {
+            if (isset($lines[$lineToScan])) {
+                $results[$lineToScan] = $lines[$lineToScan - 1];
+            }
+        }
+
+        return $results;
+    }
+
+    private $line;
+    private $file;
+    private $sourceCode;
+
+    function toJSON(JsonSerializationState $s) {
+        return $this->schema()->toJSON($s);
+    }
+
+    function render(PrettyPrinter $p) {
+        return $p->text("$this->file:$this->line");
+    }
+
+    function sourceCode() { return $this->sourceCode; }
+
+    function line() { return $this->line; }
+
+    function file() { return $this->file; }
+
+    private function schema() {
+        $schema = new JsonSchemaObject;
+        $schema->bindRef('line', $this->line);
+        $schema->bindRef('file', $this->file);
+        $schema->bindRef('sourceCode', $this->sourceCode);
 
         return $schema;
     }
@@ -456,8 +520,7 @@ class ValueExceptionStackFrame implements JsonSerializable {
         foreach ($frames as $frame) {
             $self           = new self;
             $self->function = array_get($frame, 'function');
-            $self->file     = array_get($frame, 'file');
-            $self->line     = array_get($frame, 'line');
+            $self->location = ValueExceptionCodeLocation::introspect($i, array_get($frame, 'file'), array_get($frame, 'line'));
             $self->class    = array_get($frame, 'class');
             $self->isStatic = isset($frame['type']) ? $frame['type'] === '::' : null;
             $self->object   = isset($frame['object']) ? $i->introspectRef($frame['object']) : null;
@@ -486,8 +549,7 @@ class ValueExceptionStackFrame implements JsonSerializable {
         $self           = new self;
         $self->function = 'aFunction';
         $self->args     = array($param->introspect(new DummyClass2));
-        $self->file     = '/path/to/muh/file';
-        $self->line     = 1928;
+        $self->location = ValueExceptionCodeLocation::mock('/path/to/muh/file', 1928);
         $self->object   = $param->introspect(new DummyClass1);
         $self->class    = 'DummyClass1';
 
@@ -496,8 +558,7 @@ class ValueExceptionStackFrame implements JsonSerializable {
         $self           = new self;
         $self->function = 'aFunction';
         $self->args     = array($param->introspect(new DummyClass2));
-        $self->file     = '/path/to/muh/file';
-        $self->line     = 1928;
+        $self->location = ValueExceptionCodeLocation::mock('/path/to/muh/file', 1928);
 
         $stack[] = $self;
 
@@ -518,8 +579,8 @@ class ValueExceptionStackFrame implements JsonSerializable {
     /** @var Value|null */
     private $object;
     private $isStatic;
-    private $file;
-    private $line;
+    /** @var ValueExceptionCodeLocation */
+    private $location;
 
     protected function __construct() { }
 
@@ -536,7 +597,11 @@ class ValueExceptionStackFrame implements JsonSerializable {
         return $x;
     }
 
-    function location() { return $this->file === null ? '[internal function]' : "$this->file:$this->line"; }
+    function file() { return $this->location === null ? null : $this->location->file(); }
+
+    function line() { return $this->location === null ? null : $this->location->line(); }
+
+    function location() { return $this->location === null ? '[internal function]' : "{$this->file()}:{$this->line()}"; }
 
     function renderArgs(PrettyPrinter $settings) {
         if ($this->args === null)
@@ -592,8 +657,9 @@ class ValueExceptionStackFrame implements JsonSerializable {
         $schema->bindRef('function', $this->function);
         $schema->bindRef('class', $this->class);
         $schema->bindRef('isStatic', $this->isStatic);
-        $schema->bindRef('file', $this->file);
-        $schema->bindRef('line', $this->line);
+        $schema->bindObject('location', $this->location, function ($j, $v) {
+            return ValueExceptionCodeLocation::fromJson($j, $v);
+        });
         $schema->bindObject('object', $this->object, function ($j, $v) { return ValueObject::fromJSON($j, $v); });
         $schema->bindValueList('args', $this->args);
 
