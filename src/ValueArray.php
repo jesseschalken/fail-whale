@@ -3,16 +3,12 @@
 namespace ErrorHandler;
 
 class ValueArray extends Value {
-    static function introspectImpl(Introspection $i, array &$x) {
+    static function introspect(Introspection $i, &$x) {
         foreach ($i->arrayCache as $entry)
-            if (ref_equal($entry->array, $x))
-                return $entry->result;
+            if ($entry->isSame($x))
+                return $entry->result();
 
-        $entry         = new IntrospectionArrayCacheEntry;
-        $entry->result = $self = new self;
-        $entry->array  =& $x;
-
-        $i->arrayCache[] = $entry;
+        $self = IntrospectionArrayCacheEntry::add($i, new self, $x);
 
         $self->isAssociative = array_is_associative($x);
 
@@ -100,8 +96,8 @@ class ValueArrayEntry implements JsonSerializable {
     function value() { return $this->value; }
 
     function introspectImpl(Introspection $i, $k, &$v) {
-        $this->key   = $i->introspect($k);
-        $this->value = $i->introspectRef($v);
+        $this->key   = Value::introspect($i, $k);
+        $this->value = Value::introspect($i, $v);
     }
 
     function toJSON(JsonSerializationState $s) { return $this->schema()->toJSON($s); }

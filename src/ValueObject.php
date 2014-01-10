@@ -3,7 +3,7 @@
 namespace ErrorHandler;
 
 class ValueObject extends Value {
-    static function introspectImpl(Introspection $i, &$x) {
+    static function introspect(Introspection $i, &$x) {
         $hash = spl_object_hash($x);
         $self =& $i->objectCache[$hash];
 
@@ -126,10 +126,21 @@ class ValueObjectProperty extends ValueVariable {
 
         $self            = static::introspect($i, $p->name, ref_new($p->getValue($object)));
         $self->class     = $p->class;
-        $self->access    = $i->propertyOrMethodAccess($p);
+        $self->access    = self::accessAsString($p);
         $self->isDefault = $p->isDefault();
 
         return $self;
+    }
+    
+    private static function accessAsString(\ReflectionProperty $property) {
+        if ($property->isPublic())
+            return 'public';
+        else if ($property->isPrivate())
+            return 'private';
+        else if ($property->isProtected())
+            return 'protected';
+        else
+            throw new \Exception("This thing is not protected, public, nor private? Huh?");
     }
 
     private $class;

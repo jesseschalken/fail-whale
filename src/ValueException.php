@@ -17,7 +17,13 @@ interface ExceptionHasLocalVariables {
 }
 
 class ValueException extends Value {
-    static function introspectImpl(Introspection $i, \Exception $x) {
+    /**
+     * @param Introspection $i
+     * @param \Exception    $x
+     *
+     * @return self
+     */
+    static function introspect(Introspection $i, &$x) {
         $self          = self::introspectImplNoGlobals($i, $x);
         $self->globals = ValueExceptionGlobalState::introspect($i);
 
@@ -51,6 +57,12 @@ s;
         return $self;
     }
 
+    /**
+     * @param Introspection $i
+     * @param \Exception    $e
+     *
+     * @return ValueException|null
+     */
     private static function introspectImplNoGlobals(Introspection $i, \Exception $e = null) {
         if ($e === null)
             return null;
@@ -357,7 +369,7 @@ class ValueVariable implements JsonSerializable {
     protected static function introspect(Introspection $i, $name, &$value) {
         $self        = static::create();
         $self->name  = $name;
-        $self->value = $i->introspectRef($value);
+        $self->value = Value::introspect($i, $value);
 
         return $self;
     }
@@ -529,13 +541,13 @@ class ValueExceptionStackFrame implements JsonSerializable {
             $self->location = ValueExceptionCodeLocation::introspect($i, array_get($frame, 'file'), array_get($frame, 'line'));
             $self->class    = array_get($frame, 'class');
             $self->isStatic = isset($frame['type']) ? $frame['type'] === '::' : null;
-            $self->object   = isset($frame['object']) ? $i->introspectRef($frame['object']) : null;
+            $self->object   = isset($frame['object']) ? ValueObject::introspect($i, $frame['object']) : null;
 
             if (isset($frame['args'])) {
                 $self->args = array();
 
                 foreach ($frame['args'] as $k => &$arg)
-                    $self->args[$k] = $i->introspectRef($arg);
+                    $self->args[$k] = Value::introspect($i, $arg);
             }
 
             $result[] = $self;

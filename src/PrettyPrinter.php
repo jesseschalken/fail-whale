@@ -29,11 +29,11 @@ final class PrettyPrinter {
     }
 
     function prettyPrintException(\Exception $e) {
-        return Value::introspectException($e)->toJsonFromJson()->render($this)->toString();
+        return Introspection::introspectException($e)->toJsonFromJson()->render($this)->toString();
     }
 
     function prettyPrintRef(&$ref) {
-        return Value::introspectRef($ref)->toJsonFromJson()->render($this)->toString();
+        return Introspection::introspectRef($ref)->toJsonFromJson()->render($this)->toString();
     }
 
     function render(Value $v) {

@@ -5,16 +5,25 @@ namespace ErrorHandler;
 abstract class Value implements JsonSerializable {
     private static $nextID = 0;
 
-    static function introspect($x) {
-        return self::i()->introspect($x);
-    }
-
-    static function introspectRef(&$x) {
-        return self::i()->introspectRef($x);
-    }
-
-    static function introspectException(\Exception $e) {
-        return self::i()->introspectException($e);
+    static function introspect(Introspection $i, &$x) {
+        if (is_string($x))
+            return new ValueString($x);
+        else if (is_int($x))
+            return new ValueInt($x);
+        else if (is_bool($x))
+            return new ValueBool($x);
+        else if (is_null($x))
+            return new ValueNull;
+        else if (is_float($x))
+            return new ValueFloat($x);
+        else if (is_array($x))
+            return ValueArray::introspect($i, $x);
+        else if (is_object($x))
+            return ValueObject::introspect($i, $x);
+        else if (is_resource($x))
+            return ValueResource::introspect($i, $x);
+        else
+            return new ValueUnknown;
     }
 
     static function fromJsonWhole($v) {
@@ -67,10 +76,6 @@ abstract class Value implements JsonSerializable {
             default:
                 throw new Exception("Unknown type: {$v[0]}");
         }
-    }
-
-    private static function i() {
-        return new Introspection;
     }
 
     private $id;
@@ -217,7 +222,7 @@ class ValueNull extends Value {
 }
 
 class ValueResource extends Value {
-    static function introspectImpl($x) {
+    static function introspect(Introspection $i, &$x) {
         $self       = new self;
         $self->type = get_resource_type($x);
         $self->id   = (int)$x;

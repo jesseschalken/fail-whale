@@ -42,7 +42,7 @@ s
 
         $pp = self::pp();
         $pp->setMaxArrayEntries(10);
-        $pp->assertPrettyIs(new Introspection, <<<'s'
+        $pp->assertPrettyIs(null, <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
@@ -134,8 +134,7 @@ s
     }
 
     function testException() {
-        $i         = new Introspection;
-        $exception = ValueException::mock($i)->toJsonFromJson();
+        $exception = Introspection::mockException()->toJsonFromJson();
 
         self::assertEquals($exception->render(self::pp())->toString(), <<<'s'
 MuhMockException Dummy exception code in /the/path/to/muh/file:9000
