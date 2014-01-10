@@ -6,7 +6,14 @@ interface JsonSerializable {
     function toJSON(JsonSerializationState $s);
 }
 
-class JsonSerializationState {
+final class JsonSerializationState {
+    static function toJson(Value $v) {
+        $self               = new self;
+        $self->root['root'] = $v->toJSON($self);
+
+        return $self->root;
+    }
+
     public $root = array(
         'root'    => null,
         'arrays'  => array(),
@@ -14,17 +21,28 @@ class JsonSerializationState {
     );
     public $objectIndexes = array();
     public $arrayIndexes = array();
+
+    private function __construct() { }
 }
 
-class JsonDeSerializationState {
+final class JsonDeSerializationState {
+    static function fromJson($parse) {
+        $self       = new self;
+        $self->root = $parse;
+
+        return self::fromJson($self, $parse['root']);
+    }
+
     /** @var ValueObject[] */
     public $finishedObjects = array();
     /** @var ValueArray[] */
     public $finishedArrays = array();
     public $root;
+
+    private function __construct() { }
 }
 
-class JsonSchemaObject implements JsonSerializable {
+final class JsonSchemaObject implements JsonSerializable {
     /** @var JsonSchema[] */
     private $properties = array();
 
@@ -71,7 +89,7 @@ abstract class JsonSchema implements JsonSerializable {
     abstract function fromJSON(JsonDeSerializationState $s, $x);
 }
 
-class JsonRef extends JsonSchema {
+final class JsonRef extends JsonSchema {
     private $ref;
 
     function __construct(&$ref) {
@@ -91,7 +109,7 @@ class JsonRef extends JsonSchema {
     protected function set($x) { $this->ref = $x; }
 }
 
-class JsonRefObject extends JsonSchema {
+final class JsonRefObject extends JsonSchema {
     private $constructor;
     private $ref;
 
@@ -114,7 +132,7 @@ class JsonRefObject extends JsonSchema {
     }
 }
 
-class JsonRefObjectList extends JsonSchema {
+final class JsonRefObjectList extends JsonSchema {
     private $ref;
     private $constructor;
 
@@ -154,7 +172,7 @@ class JsonRefObjectList extends JsonSchema {
     }
 }
 
-class Json {
+final class Json {
     /**
      * @param mixed $value
      *

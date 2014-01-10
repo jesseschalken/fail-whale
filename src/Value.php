@@ -26,13 +26,6 @@ abstract class Value implements JsonSerializable {
             return new ValueUnknown;
     }
 
-    static function fromJsonWhole($v) {
-        $d       = new JsonDeSerializationState;
-        $d->root = $v;
-
-        return self::fromJson($d, $v['root']);
-    }
-
     static function fromJson(JsonDeSerializationState $s, $v) {
         if (is_float($v))
             return new ValueFloat($v);
@@ -88,15 +81,12 @@ abstract class Value implements JsonSerializable {
         $this->id = self::$nextID++;
     }
 
-    function toJsonWhole() {
-        $s               = new JsonSerializationState;
-        $s->root['root'] = $this->toJSON($s);
-
-        return $s->root;
-    }
-
     function toJsonFromJson() {
-        return self::fromJsonWhole(Json::parse(Json::stringify($this->toJsonWhole())));
+        $json  = JsonSerializationState::toJson($this);
+        $json  = Json::parse(Json::stringify($json));
+        $value = JsonDeSerializationState::fromJson($json);
+
+        return $value;
     }
 
     /**
@@ -104,9 +94,7 @@ abstract class Value implements JsonSerializable {
      *
      * @return PrettyPrinterText
      */
-    final function render(PrettyPrinter $settings) {
-        return $settings->render($this);
-    }
+    final function render(PrettyPrinter $settings) { return $settings->render($this); }
 
     function id() { return $this->id; }
 
