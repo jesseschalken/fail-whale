@@ -47,7 +47,7 @@ s;
         return $self;
     }
 
-    static function fromJSON(JsonDeSerializationState $s, $x) {
+    static function fromJSON(JSONUnserialize $s, $x) {
         if ($x === null)
             return null;
 
@@ -142,12 +142,12 @@ s;
         return $settings->renderExceptionWithGlobals($this);
     }
 
-    function toJSON(JsonSerializationState $s) {
+    function toJSON(JSONSerialize $s) {
         return array('exception', $this->schema()->toJSON($s));
     }
 
     private function schema() {
-        $schema = new JsonSchemaObject;
+        $schema = new JSONSchema;
         $schema->bind('class', $this->class);
         $schema->bind('code', $this->code);
         $schema->bind('message', $this->message);
@@ -175,8 +175,8 @@ s;
     }
 }
 
-class ValueExceptionGlobalState implements JsonSerializable {
-    static function fromJSON(JsonDeSerializationState $j, $v) {
+class ValueExceptionGlobalState implements JSONSerializable {
+    static function fromJSON(JSONUnserialize $j, $v) {
         $self = new self;
         $self->schema()->fromJSON($j, $v);
 
@@ -208,7 +208,7 @@ class ValueExceptionGlobalState implements JsonSerializable {
     /** @var ValueVariableStatic[] */
     private $staticVariables = array();
 
-    function toJSON(JsonSerializationState $s) { return $this->schema()->toJSON($s); }
+    function toJSON(JSONSerialize $s) { return $this->schema()->toJSON($s); }
 
     /** @return ValueVariable[] */
     function variables() {
@@ -218,7 +218,7 @@ class ValueExceptionGlobalState implements JsonSerializable {
     }
 
     private function schema() {
-        $schema = new JsonSchemaObject;
+        $schema = new JSONSchema;
 
         $schema->bindObjectList('staticProperties', $this->staticProperties, function ($j, $v) {
             return ValueObjectPropertyStatic::fromJSON($j, $v);
@@ -236,7 +236,7 @@ class ValueExceptionGlobalState implements JsonSerializable {
     }
 }
 
-class ValueExceptionCodeLocation {
+class ValueExceptionCodeLocation implements JSONSerializable {
     /**
      * @param string        $file
      * @param int           $line
@@ -253,7 +253,7 @@ class ValueExceptionCodeLocation {
         return $self;
     }
 
-    static function fromJson(JsonDeSerializationState $j, $x) {
+    static function fromJson(JSONUnserialize $j, $x) {
         if ($x === null)
             return null;
 
@@ -308,7 +308,7 @@ class ValueExceptionCodeLocation {
     private $file;
     private $sourceCode;
 
-    function toJSON(JsonSerializationState $s) {
+    function toJSON(JSONSerialize $s) {
         return $this->schema()->toJSON($s);
     }
 
@@ -323,7 +323,7 @@ class ValueExceptionCodeLocation {
     function file() { return $this->file; }
 
     private function schema() {
-        $schema = new JsonSchemaObject;
+        $schema = new JSONSchema;
         $schema->bind('line', $this->line);
         $schema->bind('file', $this->file);
         $schema->bind('sourceCode', $this->sourceCode);
@@ -332,7 +332,7 @@ class ValueExceptionCodeLocation {
     }
 }
 
-class ValueVariable implements JsonSerializable {
+class ValueVariable implements JSONSerializable {
     static function introspectLocals(Introspection $i, array $x = null) {
         if ($x === null)
             return null;
@@ -352,7 +352,7 @@ class ValueVariable implements JsonSerializable {
         return $locals;
     }
 
-    static final function fromJSON(JsonDeSerializationState $s, $x) {
+    static final function fromJSON(JSONUnserialize $s, $x) {
         $self = static::create();
         $self->schema()->fromJSON($s, $x);
 
@@ -393,12 +393,12 @@ class ValueVariable implements JsonSerializable {
 
     function value() { return $this->value; }
 
-    function toJSON(JsonSerializationState $s) { return $this->schema()->toJSON($s); }
+    function toJSON(JSONSerialize $s) { return $this->schema()->toJSON($s); }
 
     protected function schema() {
-        $schema = new JsonSchemaObject;
+        $schema = new JSONSchema;
         $schema->bind('name', $this->name);
-        $schema->bindObject('value', $this->value, function ($j, $v) { return Value::fromJson($j, $v); });
+        $schema->bindObject('value', $this->value, function ($j, $v) { return Value::fromJSON($j, $v); });
 
         return $schema;
     }
@@ -525,7 +525,7 @@ class ValueVariableStatic extends ValueVariable {
     }
 }
 
-class ValueExceptionStackFrame implements JsonSerializable {
+class ValueExceptionStackFrame implements JSONSerializable {
     /**
      * @param Introspection $i
      * @param array         $frames
@@ -583,7 +583,7 @@ class ValueExceptionStackFrame implements JsonSerializable {
         return $stack;
     }
 
-    static function fromJSON(JsonDeSerializationState $s, $x) {
+    static function fromJSON(JSONUnserialize $s, $x) {
         $self = new self;
         $self->schema()->fromJSON($s, $x);
 
@@ -668,10 +668,10 @@ class ValueExceptionStackFrame implements JsonSerializable {
         return $settings->text();
     }
 
-    function toJSON(JsonSerializationState $s) { return $this->schema()->toJSON($s); }
+    function toJSON(JSONSerialize $s) { return $this->schema()->toJSON($s); }
 
     private function schema() {
-        $schema = new JsonSchemaObject;
+        $schema = new JSONSchema;
         $schema->bind('function', $this->function);
         $schema->bind('class', $this->class);
         $schema->bind('isStatic', $this->isStatic);
@@ -679,7 +679,7 @@ class ValueExceptionStackFrame implements JsonSerializable {
             return ValueExceptionCodeLocation::fromJson($j, $v);
         });
         $schema->bindObject('object', $this->object, function ($j, $v) { return ValueObject::fromJSON($j, $v); });
-        $schema->bindObjectList('args', $this->args, function ($j, $v) { return Value::fromJson($j, $v); });
+        $schema->bindObjectList('args', $this->args, function ($j, $v) { return Value::fromJSON($j, $v); });
 
         return $schema;
     }

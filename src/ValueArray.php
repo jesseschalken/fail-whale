@@ -22,7 +22,7 @@ class ValueArray extends Value {
         return $self;
     }
 
-    static function fromJSON(JsonDeSerializationState $s, $x) {
+    static function fromJSON(JSONUnserialize $s, $x) {
         $self =& $s->finishedArrays[$x[1]];
         if ($self === null) {
             $self = new self;
@@ -55,7 +55,7 @@ class ValueArray extends Value {
         return $settings->renderArray($this);
     }
 
-    function toJSON(JsonSerializationState $s) {
+    function toJSON(JSONSerialize $s) {
         $index =& $s->arrayIndexes[$this->id()];
 
         if ($index === null) {
@@ -68,7 +68,7 @@ class ValueArray extends Value {
     }
 
     private function schema() {
-        $schema = new JsonSchemaObject;
+        $schema = new JSONSchema;
         $schema->bind('isAssociative', $this->isAssociative);
         $schema->bindObjectList('entries', $this->entries, function ($j, $v) {
             return ValueArrayEntry::fromJSON($j, $v);
@@ -78,8 +78,8 @@ class ValueArray extends Value {
     }
 }
 
-class ValueArrayEntry implements JsonSerializable {
-    static function fromJSON(JsonDeSerializationState $s, $x) {
+class ValueArrayEntry implements JSONSerializable {
+    static function fromJSON(JSONUnserialize $s, $x) {
         $self = new self;
         $self->schema()->fromJSON($s, $x);
 
@@ -100,12 +100,12 @@ class ValueArrayEntry implements JsonSerializable {
         $this->value = Value::introspect($i, $v);
     }
 
-    function toJSON(JsonSerializationState $s) { return $this->schema()->toJSON($s); }
+    function toJSON(JSONSerialize $s) { return $this->schema()->toJSON($s); }
 
     private function schema() {
-        $schema = new JsonSchemaObject;
-        $schema->bindObject(0, $this->key, function ($j, $v) { return Value::fromJson($j, $v); });
-        $schema->bindObject(1, $this->value, function ($j, $v) { return Value::fromJson($j, $v); });
+        $schema = new JSONSchema;
+        $schema->bindObject(0, $this->key, function ($j, $v) { return Value::fromJSON($j, $v); });
+        $schema->bindObject(1, $this->value, function ($j, $v) { return Value::fromJSON($j, $v); });
 
         return $schema;
     }

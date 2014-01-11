@@ -20,7 +20,7 @@ class ValueObject extends Value {
         return $self;
     }
 
-    static function fromJSON(JsonDeSerializationState $s, $x) {
+    static function fromJSON(JSONUnserialize $s, $x) {
         if ($x === null)
             return null;
 
@@ -56,7 +56,7 @@ class ValueObject extends Value {
         return $settings->renderObject($this);
     }
 
-    function toJSON(JsonSerializationState $s) {
+    function toJSON(JSONSerialize $s) {
         $id =& $s->objectIndexes[$this->id()];
 
         if ($id === null) {
@@ -69,7 +69,7 @@ class ValueObject extends Value {
     }
 
     private function schema() {
-        $schema = new JsonSchemaObject;
+        $schema = new JSONSchema;
         $schema->bind('class', $this->class);
         $schema->bind('hash', $this->hash);
 
