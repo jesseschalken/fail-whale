@@ -49,7 +49,7 @@ abstract class Value implements JsonSerializable {
             case '+inf':
             case 'nan':
             case 'float':
-                return ValueFloat::fromJSONFloat($v);
+                return ValueFloat::fromJSON($s, $v);
             case 'array':
                 return ValueArray::fromJson($s, $v);
             case 'exception':
@@ -120,22 +120,19 @@ class ValueBool extends Value {
         $this->bool = $x;
     }
 
-    function renderImpl(PrettyPrinter $settings) {
-        return $settings->text($this->bool ? 'true' : 'false');
-    }
+    function renderImpl(PrettyPrinter $settings) { return $settings->text($this->bool ? 'true' : 'false'); }
 
-    function toJSON(JsonSerializationState $s) {
-        return $this->bool;
-    }
+    function toJSON(JsonSerializationState $s) { return $this->bool; }
 }
 
 class ValueFloat extends Value {
     /**
-     * @param mixed $x2
+     * @param JsonDeSerializationState $s
+     * @param mixed                    $x2
      *
      * @return self
      */
-    static function fromJSONFloat($x2) {
+    static function fromJSON(JsonDeSerializationState $s, $x2) {
         $x = $x2[1];
         if ($x === '+inf')
             $result = INF;
@@ -188,25 +185,17 @@ class ValueInt extends Value {
         $this->int = $x;
     }
 
-    function renderImpl(PrettyPrinter $settings) {
-        return $settings->text("$this->int");
-    }
+    function renderImpl(PrettyPrinter $settings) { return $settings->text("$this->int"); }
 
-    function toJSON(JsonSerializationState $s) {
-        return $this->int;
-    }
+    function toJSON(JsonSerializationState $s) { return $this->int; }
 }
 
 class ValueNull extends Value {
     function __construct() { parent::__construct(); }
 
-    function renderImpl(PrettyPrinter $settings) {
-        return $settings->text('null');
-    }
+    function renderImpl(PrettyPrinter $settings) { return $settings->text('null'); }
 
-    function toJSON(JsonSerializationState $s) {
-        return null;
-    }
+    function toJSON(JsonSerializationState $s) { return null; }
 }
 
 class ValueResource extends Value {
@@ -238,8 +227,8 @@ class ValueResource extends Value {
 
     private function schema() {
         $schema = new JsonSchemaObject;
-        $schema->bindRef('type', $this->type);
-        $schema->bindRef('id', $this->id);
+        $schema->bind('type', $this->type);
+        $schema->bind('id', $this->id);
 
         return $schema;
     }
@@ -254,13 +243,9 @@ class ValueString extends Value {
         $this->string = $x;
     }
 
-    function renderImpl(PrettyPrinter $settings) {
-        return $settings->renderString($this->string);
-    }
+    function renderImpl(PrettyPrinter $settings) { return $settings->renderString($this->string); }
 
-    function toJSON(JsonSerializationState $s) {
-        return $this->string;
-    }
+    function toJSON(JsonSerializationState $s) { return $this->string; }
 }
 
 class ValueUnknown extends Value {
@@ -270,9 +255,7 @@ class ValueUnknown extends Value {
         return $settings->text('unknown type');
     }
 
-    function toJSON(JsonSerializationState $s) {
-        return array('unknown');
-    }
+    function toJSON(JsonSerializationState $s) { return array('unknown'); }
 }
 
 

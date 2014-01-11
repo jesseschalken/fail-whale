@@ -148,9 +148,9 @@ s;
 
     private function schema() {
         $schema = new JsonSchemaObject;
-        $schema->bindRef('class', $this->class);
-        $schema->bindRef('code', $this->code);
-        $schema->bindRef('message', $this->message);
+        $schema->bind('class', $this->class);
+        $schema->bind('code', $this->code);
+        $schema->bind('message', $this->message);
         $schema->bindObject('location', $this->location, function ($j, $v) {
             return ValueExceptionCodeLocation::fromJson($j, $v);
         });
@@ -324,9 +324,9 @@ class ValueExceptionCodeLocation {
 
     private function schema() {
         $schema = new JsonSchemaObject;
-        $schema->bindRef('line', $this->line);
-        $schema->bindRef('file', $this->file);
-        $schema->bindRef('sourceCode', $this->sourceCode);
+        $schema->bind('line', $this->line);
+        $schema->bind('file', $this->file);
+        $schema->bind('sourceCode', $this->sourceCode);
 
         return $schema;
     }
@@ -397,8 +397,8 @@ class ValueVariable implements JsonSerializable {
 
     protected function schema() {
         $schema = new JsonSchemaObject;
-        $schema->bindRef('name', $this->name);
-        $schema->bindValue('value', $this->value);
+        $schema->bind('name', $this->name);
+        $schema->bindObject('value', $this->value, function ($j, $v) { return Value::fromJson($j, $v); });
 
         return $schema;
     }
@@ -518,8 +518,8 @@ class ValueVariableStatic extends ValueVariable {
 
     protected function schema() {
         $schema = parent::schema();
-        $schema->bindRef('class', $this->class);
-        $schema->bindRef('function', $this->function);
+        $schema->bind('class', $this->class);
+        $schema->bind('function', $this->function);
 
         return $schema;
     }
@@ -672,14 +672,14 @@ class ValueExceptionStackFrame implements JsonSerializable {
 
     private function schema() {
         $schema = new JsonSchemaObject;
-        $schema->bindRef('function', $this->function);
-        $schema->bindRef('class', $this->class);
-        $schema->bindRef('isStatic', $this->isStatic);
+        $schema->bind('function', $this->function);
+        $schema->bind('class', $this->class);
+        $schema->bind('isStatic', $this->isStatic);
         $schema->bindObject('location', $this->location, function ($j, $v) {
             return ValueExceptionCodeLocation::fromJson($j, $v);
         });
         $schema->bindObject('object', $this->object, function ($j, $v) { return ValueObject::fromJSON($j, $v); });
-        $schema->bindValueList('args', $this->args);
+        $schema->bindObjectList('args', $this->args, function ($j, $v) { return Value::fromJson($j, $v); });
 
         return $schema;
     }

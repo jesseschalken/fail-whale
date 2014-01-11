@@ -69,7 +69,7 @@ class ValueArray extends Value {
 
     private function schema() {
         $schema = new JsonSchemaObject;
-        $schema->bindRef('isAssociative', $this->isAssociative);
+        $schema->bind('isAssociative', $this->isAssociative);
         $schema->bindObjectList('entries', $this->entries, function ($j, $v) {
             return ValueArrayEntry::fromJSON($j, $v);
         });
@@ -104,8 +104,8 @@ class ValueArrayEntry implements JsonSerializable {
 
     private function schema() {
         $schema = new JsonSchemaObject;
-        $schema->bindValue(0, $this->key);
-        $schema->bindValue(1, $this->value);
+        $schema->bindObject(0, $this->key, function ($j, $v) { return Value::fromJson($j, $v); });
+        $schema->bindObject(1, $this->value, function ($j, $v) { return Value::fromJson($j, $v); });
 
         return $schema;
     }

@@ -70,8 +70,8 @@ class ValueObject extends Value {
 
     private function schema() {
         $schema = new JsonSchemaObject;
-        $schema->bindRef('class', $this->class);
-        $schema->bindRef('hash', $this->hash);
+        $schema->bind('class', $this->class);
+        $schema->bind('hash', $this->hash);
 
         $schema->bindObjectList('properties', $this->properties, function ($j, $v) {
             return ValueObjectProperty::fromJSON($j, $v);
@@ -157,9 +157,9 @@ class ValueObjectProperty extends ValueVariable {
 
     function schema() {
         $schema = parent::schema();
-        $schema->bindRef('class', $this->class);
-        $schema->bindRef('access', $this->access);
-        $schema->bindRef('isDefault', $this->isDefault);
+        $schema->bind('class', $this->class);
+        $schema->bind('access', $this->access);
+        $schema->bind('isDefault', $this->isDefault);
 
         return $schema;
     }

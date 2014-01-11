@@ -42,7 +42,11 @@ final class JsonDeSerializationState {
     private function __construct() { }
 }
 
-final class JsonSchemaObject implements JsonSerializable {
+abstract class JsonSchema implements JsonSerializable {
+    abstract function fromJSON(JsonDeSerializationState $s, $x);
+}
+
+final class JsonSchemaObject extends JsonSchema {
     /** @var JsonSchema[] */
     private $properties = array();
 
@@ -60,49 +64,27 @@ final class JsonSchemaObject implements JsonSerializable {
             $p->fromJSON($s, $x[$k]);
     }
 
-    function bindRef($property, &$ref) {
-        $this->bind($property, new JsonRef($ref));
-    }
-
-    function bind($property, JsonSchema $j) {
-        $this->properties[$property] = $j;
+    function bind($property, &$ref) {
+        $this->properties[$property] = new JsonRef($ref);
     }
 
     function bindObject($property, &$ref, $constructor) {
-        $this->bind($property, new JsonRefObject($ref, $constructor));
+        $this->properties[$property] = new JsonRefObject($ref, $constructor);
     }
 
     function bindObjectList($property, &$ref, $constructor) {
-        $this->bind($property, new JsonRefObjectList($ref, $constructor));
+        $this->properties[$property] = new JsonRefObjectList($ref, $constructor);
     }
-
-    function bindValueList($string, &$args) {
-        $this->bindObjectList($string, $args, function ($j, $v) { return Value::fromJson($j, $v); });
-    }
-
-    function bindValue($string, &$value) {
-        $this->bindObject($string, $value, function ($j, $v) { return Value::fromJson($j, $v); });
-    }
-}
-
-abstract class JsonSchema implements JsonSerializable {
-    abstract function fromJSON(JsonDeSerializationState $s, $x);
 }
 
 final class JsonRef extends JsonSchema {
     private $ref;
 
-    function __construct(&$ref) {
-        $this->ref =& $ref;
-    }
+    function __construct(&$ref) { $this->ref =& $ref; }
 
-    function toJSON(JsonSerializationState $s) {
-        return $this->ref;
-    }
+    function toJSON(JsonSerializationState $s) { return $this->ref; }
 
-    function fromJSON(JsonDeSerializationState $s, $x) {
-        $this->ref = $x;
-    }
+    function fromJSON(JsonDeSerializationState $s, $x) { $this->ref = $x; }
 
     protected function get() { return $this->ref; }
 
