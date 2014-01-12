@@ -9,36 +9,19 @@ module PrettyPrinter {
         text.style.width = '800px';
         text.style.height = '500px';
         var container = document.createElement('div');
-        container.style.padding = '8px';
         body.appendChild(container);
 
-        function newBox(text:string = ''):HTMLElement {
-            var div = document.createElement('div');
-            div.style.verticalAlign = 'baseline';
-            div.style.display = 'inline-block';
-            if (text.length !== 0)
-                div.appendChild(document.createTextNode(text));
-            return div;
-        }
-
-        function newDiv(text:string = ''):HTMLElement {
-            var div = document.createElement('div');
-            div.style.verticalAlign = 'baseline';
-            div.style.display = 'block';
-            div.appendChild(document.createTextNode(text));
-            return div;
-        }
-
-        function expandable(closedContent:() => HTMLElement, openContent:() => HTMLElement):HTMLElement {
+        function expandable(closedContent:() => Node, openContent:() => Node):Node {
             var open = false;
             var toggle = document.createElement('a');
             toggle.href = 'javascript:void(0)';
             toggle.style.verticalAlign = 'text-bottom';
-            var container = newBox();
+            var container = document.createElement('div');
+            container.style.display = 'inline-block';
 
             function refresh() {
-                $(toggle).empty().text(open ? '-' : '+');
-                $(container).empty();
+                toggle.textContent = open ? 'collapse' : '...';
+                container.innerHTML = '';
                 container.appendChild(open ? openContent() : closedContent());
             }
 
@@ -49,15 +32,15 @@ module PrettyPrinter {
 
             refresh();
 
-            var wrapper = newBox();
+            var wrapper = document.createElement('div');
+            wrapper.style.display = 'inline-block';
             wrapper.appendChild(toggle);
-            wrapper.appendChild(document.createTextNode(' '));
             wrapper.appendChild(container);
 
             return wrapper;
         }
 
-        function createTable(data:HTMLElement[][]):HTMLElement {
+        function createTable(data:Node[][]):Node {
             var table = document.createElement('table');
             table.style.borderSpacing = '0';
             table.style.padding = '0';
@@ -77,21 +60,23 @@ module PrettyPrinter {
             return table;
         }
 
-        function bold(content:string):HTMLElement {
-            var box = newBox(content);
+        function bold(content:string):Node {
+            var box = document.createElement('span');
+            box.appendChild(document.createTextNode(content));
             box.style.fontWeight = 'bold';
             return box;
         }
 
         function keyword(word:string) {
-            var box = newBox(word);
+            var box = document.createElement('span');
+            box.appendChild(document.createTextNode(word));
             box.style.color = '#008';
             box.style.fontWeight = 'bold';
             return box;
         }
 
-        function renderString(x:string):HTMLElement {
-            var result = newBox('"');
+        function renderString(x:string):Node {
+            var result = document.createElement('span');
             result.style.color = '#080';
             result.style.fontWeight = 'bold';
 
@@ -103,6 +88,8 @@ module PrettyPrinter {
                 '\f': '\\f',
                 '"': '\\"'
             };
+
+            result.appendChild(document.createTextNode('"'));
 
             for (var i = 0; i < x.length; i++) {
                 var char:string = x.charAt(i);
@@ -121,25 +108,28 @@ module PrettyPrinter {
             return result;
         }
 
-        function renderInt(x:number):HTMLElement {
-            var result = newBox(String(x));
+        function renderInt(x:number):Node {
+            var result = document.createElement('span');
+            result.appendChild(document.createTextNode(String(x)));
             result.style.color = '#00F';
             return result;
         }
 
-        function renderFloat(x:number):HTMLElement {
-            return newBox(String(x));
+        function renderFloat(x:number):Node {
+            var result = document.createElement('span');
+            result.appendChild(document.createTextNode(String(x)));
+            return result;
         }
 
-        function renderBool(x:boolean):HTMLElement {
+        function renderBool(x:boolean):Node {
             return keyword(x ? 'true' : 'false');
         }
 
-        function renderNull():HTMLElement {
+        function renderNull():Node {
             return keyword('null');
         }
 
-        function renderArray(x:any):HTMLElement {
+        function renderArray(x:any):Node {
             var result = document.createElement('span');
             $(result).text('array...');
             $(result).click(function (eventObject:JQueryEventObject) {
@@ -153,26 +143,38 @@ module PrettyPrinter {
             return result;
         }
 
-        function renderObject(x, root):HTMLElement {
-            var result = $(document.createElement('span'));
-            result.text('object...');
-            return result[0];
+        function renderObject(x, root):Node {
+            var object = root['objects'][x[1]];
+            var result = document.createElement('span');
+            result.appendChild(keyword('new'));
+            result.appendChild(document.createTextNode(' '));
+            result.appendChild(document.createTextNode(object['class']));
+            result.appendChild(document.createTextNode(' '));
+            result.appendChild(document.createTextNode('{'));
+            result.appendChild(expandable(function () {
+                return document.createTextNode('');
+            }, function () {
+                return document.createTextNode('')
+            }));
+            result.appendChild(document.createTextNode('}'));
+            return result;
         }
 
-        function renderStack(stack:any[], root):HTMLElement {
+        function renderStack(stack:any[], root):Node {
             var rows = [];
 
             for (var x = 0; x < stack.length; x++) {
-                var location = renderLocation(stack[x]['location']);
-                location.appendChild(document.createTextNode(' '));
-                var functionCall = renderFunctionCall(stack[x], root);
-                rows.push([location, functionCall]);
+                rows.push([
+                    renderLocation(stack[x]['location']),
+                    document.createTextNode(' '),
+                    renderFunctionCall(stack[x], root)
+                ]);
             }
 
             return createTable(rows);
         }
 
-        function renderFunctionCall(call:any, root):HTMLElement {
+        function renderFunctionCall(call:any, root):Node {
             var result = document.createElement('span');
             if (call['object']) {
                 result.appendChild(renderObject(call['object'], root));
@@ -185,78 +187,87 @@ module PrettyPrinter {
 
             for (var i = 0; i < call['args'].length; i++) {
                 if (i != 0)
-                    result.appendChild(newBox(', '));
+                    result.appendChild(document.createTextNode(', '));
 
                 result.appendChild(renderAny(call['args'][i], root));
             }
 
-            result.appendChild(newBox(')'));
+            result.appendChild(document.createTextNode(')'));
 
             return result;
         }
 
-        function renderVariable(name:string):HTMLElement {
-            var result = newBox('$' + name);
+        function renderVariable(name:string):Node {
+            var result = document.createElement('span');
+            result.appendChild(document.createTextNode('$' + name));
             result.style.color = '#800';
             return result;
         }
 
-        function renderLocals(locals, root):HTMLElement {
+        function renderLocals(locals, root):Node {
+            var result = document.createElement('div');
+            result.style.display = 'inline-block';
+
             if (locals instanceof Array) {
-                if (!locals)
-                    return newBox('none');
+                if (!locals) {
+                    result.appendChild(document.createTextNode('none'));
+                } else {
+                    var rows = [];
 
-                var rows = [];
+                    for (var i = 0; i < locals.length; i++) {
+                        var local = locals[i];
+                        var name = local['name'];
+                        var value = document.createElement('div');
+                        value.appendChild(renderAny(local['value'], root));
+                        value.appendChild(document.createTextNode(';'));
+                        rows.push([renderVariable(name), document.createTextNode(' = '), value]);
+                    }
 
-                for (var i = 0; i < locals.length; i++) {
-                    var local = locals[i];
-                    var name = local['name'];
-                    var value = newBox(' = ');
-                    value.appendChild(renderAny(local['value'], root));
-                    value.appendChild(document.createTextNode(';'));
-                    rows.push([renderVariable(name), value]);
+                    result.appendChild(createTable(rows));
                 }
-
-                return createTable(rows);
             } else {
-                return newBox('n/a');
+                result.appendChild(document.createTextNode('n/a'));
             }
+
+            return result;
         }
 
-        function renderException(x, root):HTMLElement {
+        function renderException(x, root):Node {
             if (!x)
-                return newBox('none');
+                return document.createTextNode('none');
 
             return createTable([
-                [bold('class '), newBox(x['class'])],
-                [bold('code '), newBox(x['code'])],
-                [bold('message '), newBox(x['message'])],
+                [bold('class '), document.createTextNode(x['class'])],
+                [bold('code '), document.createTextNode(x['code'])],
+                [bold('message '), document.createTextNode(x['message'])],
                 [bold('location '), renderLocation(x['location'])],
                 [bold('stack '), renderStack(x['stack'], root)],
                 [bold('locals '), renderLocals(x['locals'], root)],
-                [bold('globals '), newBox('global variables...')],
+                [bold('globals '), document.createTextNode('global variables...')],
                 [bold('previous '), renderException(x['preivous'], root)]
             ]);
         }
 
-        function renderLocation(location):HTMLElement {
-            var wrapper = document.createElement('div');
-            wrapper.appendChild(newBox(location['file']));
+        function renderLocation(location):Node {
+            var wrapper = document.createElement('span');
+            wrapper.appendChild(document.createTextNode(location['file']));
             wrapper.appendChild(document.createTextNode(':'));
             wrapper.appendChild(renderInt(location['line']));
 
-            function closedContent():HTMLElement {
+            function closedContent():Node {
                 return wrapper;
             }
 
-            function openContent():HTMLElement {
-                return newBox('open!');
+            function openContent():Node {
+                var s = document.createElement('span');
+                s.appendChild(document.createTextNode('open!'));
+                return s;
             }
 
             return expandable(closedContent, openContent);
         }
 
-        function renderAny(root, v):HTMLElement {
+        function renderAny(root, v):Node {
             if (typeof root === 'string')
                 return renderString(root);
             else if (typeof root === 'number')
@@ -282,26 +293,28 @@ module PrettyPrinter {
             else if (root[0] === 'unknown')
                 return renderUnknown();
             else if (root[0] === 'object')
-                return renderObject(root[1], v);
+                return renderObject(root, v);
             else if (root[0] === 'exception')
                 return renderException(root[1], v);
             else
-                throw new String("not goord");
+                throw { message: "not goord" };
         }
 
-        function renderWhole(v):HTMLElement {
+        function renderWhole(v):Node {
             return renderAny(v['root'], v);
         }
 
-        $(text).change(function (e:JQueryEventObject) {
+        function onchange() {
             var json:string = text.value;
             var parsedJSON = $.parseJSON(json);
-            var rendered:HTMLElement = renderWhole(parsedJSON);
+            var rendered:Node = renderWhole(parsedJSON);
             $(container).empty();
             container.appendChild(rendered);
-        });
+        }
+
+        text.addEventListener('change', onchange);
 
         text.value = "{\"root\":[\"exception\",{\"class\":\"MuhMockException\",\"code\":\"Dummy exception code\",\"message\":\"This is a dummy exception message.\\n\\nlololool\",\"location\":{\"line\":9000,\"file\":\"\\/path\\/to\\/muh\\/file\",\"sourceCode\":null},\"previous\":null,\"stack\":[{\"function\":\"aFunction\",\"class\":\"DummyClass1\",\"isStatic\":null,\"location\":{\"line\":1928,\"file\":\"\\/path\\/to\\/muh\\/file\",\"sourceCode\":null},\"object\":[\"object\",0],\"args\":[[\"object\",1]]},{\"function\":\"aFunction\",\"class\":null,\"isStatic\":null,\"location\":{\"line\":1928,\"file\":\"\\/path\\/to\\/muh\\/file\",\"sourceCode\":null},\"object\":null,\"args\":[[\"object\",2]]}],\"locals\":[{\"name\":\"lol\",\"value\":8},{\"name\":\"foo\",\"value\":\"bar\"}],\"globals\":{\"staticProperties\":[{\"name\":\"blahProperty\",\"value\":null,\"class\":\"BlahClass\",\"access\":\"private\",\"isDefault\":false}],\"globalVariables\":[{\"name\":\"lol global\",\"value\":null},{\"name\":\"blahVariable\",\"value\":null}],\"staticVariables\":[{\"name\":\"public\",\"value\":null,\"class\":null,\"function\":\"BlahAnotherClass\"},{\"name\":\"lolStatic\",\"value\":null,\"class\":\"BlahYetAnotherClass\",\"function\":\"blahMethod\"}]}}],\"arrays\":[],\"objects\":[{\"class\":\"ErrorHandler\\\\DummyClass1\",\"hash\":\"0000000058b5388000000000367cf886\",\"properties\":[{\"name\":\"private1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"private\",\"isDefault\":true},{\"name\":\"protected1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"protected\",\"isDefault\":true},{\"name\":\"public1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"public\",\"isDefault\":true}]},{\"class\":\"ErrorHandler\\\\DummyClass2\",\"hash\":\"0000000058b5388300000000367cf886\",\"properties\":[{\"name\":\"private2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"private\",\"isDefault\":true},{\"name\":\"protected2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"protected\",\"isDefault\":true},{\"name\":\"public2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"public\",\"isDefault\":true},{\"name\":\"private1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"private\",\"isDefault\":true},{\"name\":\"protected1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"protected\",\"isDefault\":true},{\"name\":\"public1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"public\",\"isDefault\":true}]},{\"class\":\"ErrorHandler\\\\DummyClass2\",\"hash\":\"0000000058b5388a00000000367cf886\",\"properties\":[{\"name\":\"private2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"private\",\"isDefault\":true},{\"name\":\"protected2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"protected\",\"isDefault\":true},{\"name\":\"public2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"public\",\"isDefault\":true},{\"name\":\"private1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"private\",\"isDefault\":true},{\"name\":\"protected1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"protected\",\"isDefault\":true},{\"name\":\"public1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"public\",\"isDefault\":true}]}]}";
-        $(text).change();
+        onchange();
     });
 }
