@@ -7,11 +7,16 @@ interface JSONSerializable {
 }
 
 final class JSONSerialize {
-    static function toJson(Value $v) {
+    /**
+     * @param Value $v
+     *
+     * @return string
+     */
+    static function toJSON(Value $v) {
         $self               = new self;
         $self->root['root'] = $v->toJSON($self);
 
-        return $self->root;
+        return JSON::stringify($self->root);
     }
 
     public $root = array(
@@ -26,9 +31,14 @@ final class JSONSerialize {
 }
 
 final class JSONUnserialize {
+    /**
+     * @param string $parse
+     *
+     * @return Value
+     */
     static function fromJSON($parse) {
         $self       = new self;
-        $self->root = $parse;
+        $self->root = JSON::parse($parse);
 
         return Value::fromJSON($self, $parse['root']);
     }

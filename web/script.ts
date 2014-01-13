@@ -1,36 +1,64 @@
-
 module PrettyPrinter {
 
-    function expandable(closedContent:() => Node, openContent:() => Node):Node {
-        var open = false;
-        var toggle = document.createElement('a');
-        toggle.href = 'javascript:void(0)';
-        toggle.style.verticalAlign = 'text-bottom';
-        var container = document.createElement('div');
-        container.style.display = 'inline-block';
-
-        function refresh() {
-            toggle.textContent = open ? 'collapse' : 'expand';
-            container.innerHTML = '';
-            container.appendChild(open ? openContent() : closedContent());
-        }
-
-        toggle.addEventListener('click', function (e) {
-            open = !open;
-            refresh();
-        });
-
-        refresh();
-
-        var wrapper = document.createElement('div');
+    function wrapNode(node:Node):HTMLElement {
+        var wrapper = document.createElement('span');
+        wrapper.style.margin = '4px';
         wrapper.style.display = 'inline-block';
-        wrapper.appendChild(toggle);
-        wrapper.appendChild(container);
-
+        wrapper.style.verticalAlign = 'middle';
+        wrapper.appendChild(node);
         return wrapper;
     }
 
-    function createTable(data:Node[][]):Node {
+    function wrap(text:string):HTMLElement {
+        var node = document.createTextNode(text);
+        return wrapNode(node);
+    }
+
+    function collect(nodes:Node[]):Node {
+        var x = document.createDocumentFragment();
+        for (var i = 0; i < nodes.length; i++) {
+            x.appendChild(nodes[i]);
+        }
+        return x;
+    }
+
+    function expandable2(headContent:Node, content:() => Node):Node {
+        var container = document.createElement('div');
+        container.style.display = 'inline-block';
+        container.style.borderWidth = '1px';
+        container.style.borderStyle = 'solid';
+        container.style.backgroundColor = 'white';
+        container.style.verticalAlign = 'middle';
+        container.style.margin = '4px';
+        var head = document.createElement('div');
+        head.style.cursor = 'pointer';
+        head.style.msUserSelect = 'none';
+        head.style.MozUserSelect = 'none';
+        head.style.WebkitUserSelect = 'none';
+        head.style.KhtmlUserSelect = 'none';
+        head.appendChild(headContent);
+        container.appendChild(head);
+        var body = document.createElement('div');
+        body.style.borderTopWidth = '1px';
+        body.style.borderTopStyle = 'dashed';
+        var open = false;
+
+        head.addEventListener('click', function () {
+            if (open) {
+                body.innerHTML = '';
+                container.removeChild(body);
+            } else {
+                body.appendChild(content());
+                container.appendChild(body);
+            }
+
+            open = !open;
+        });
+
+        return container;
+    }
+
+    function createTable(data:Node[][]):HTMLTableElement {
         var table = document.createElement('table');
         table.style.borderSpacing = '0';
         table.style.padding = '0';
@@ -40,26 +68,35 @@ module PrettyPrinter {
             table.appendChild(row);
             for (var y = 0; y < data[x].length; y++) {
                 var td = document.createElement('td');
-                td.style.verticalAlign = 'top';
+                td.style.width = y == data[x].length - 1 ? '100%' : '0';
                 td.style.padding = '0';
                 td.appendChild(data[x][y]);
                 row.appendChild(td);
             }
+            row.style.backgroundColor = '#fff';
+
+            (function (row) {
+                var oldbackgorund = row.style.backgroundColor;
+                row.addEventListener('mouseenter', function () {
+                    row.style.backgroundColor = '#eef';
+                });
+                row.addEventListener('mouseleave', function () {
+                    row.style.backgroundColor = oldbackgorund;
+                });
+            })(row);
         }
 
         return table;
     }
 
     function bold(content:string):Node {
-        var box = document.createElement('span');
-        box.appendChild(document.createTextNode(content));
+        var box = wrap(content);
         box.style.fontWeight = 'bold';
         return box;
     }
 
     function keyword(word:string) {
-        var box = document.createElement('span');
-        box.appendChild(document.createTextNode(word));
+        var box = wrap(word);
         box.style.color = '#008';
         box.style.fontWeight = 'bold';
         return box;
@@ -68,7 +105,9 @@ module PrettyPrinter {
     function renderString(x:string):Node {
         var result = document.createElement('span');
         result.style.color = '#080';
+        result.style.backgroundColor = '#dFd';
         result.style.fontWeight = 'bold';
+        result.style.display = 'inline';
 
         var translate = {
             '\\': '\\\\',
@@ -85,29 +124,39 @@ module PrettyPrinter {
             var char:string = x.charAt(i);
             var code:number = x.charCodeAt(i);
 
+            function escaped(x:string):Node {
+                var box = document.createElement('span');
+                box.appendChild(document.createTextNode(x));
+                box.style.color = '#008';
+                box.style.fontWeight = 'bold';
+                return box;
+            }
+
             if (translate[char] !== undefined) {
-                result.appendChild(keyword(translate[char]));
+                result.appendChild(escaped(translate[char]));
             } else if ((code >= 32 && code <= 126) || char === '\n' || char === '\t') {
                 result.appendChild(document.createTextNode(char));
             } else {
-                result.appendChild(keyword('\\x' + (code < 10 ? '0' + code.toString(16) : code.toString(16))));
+                result.appendChild(escaped('\\x' + (code < 10 ? '0' + code.toString(16) : code.toString(16))));
             }
         }
 
         result.appendChild(document.createTextNode('"'));
-        return result;
+
+
+        return wrapNode(result);
     }
 
     function renderInt(x:number):Node {
-        var result = document.createElement('span');
-        result.appendChild(document.createTextNode(String(x)));
+        var result = wrap(String(x));
         result.style.color = '#00F';
         return result;
     }
 
     function renderFloat(x:number):Node {
-        var result = document.createElement('span');
-        result.appendChild(document.createTextNode(String(x)));
+        var str = x % 1 == 0 ? String(x) + '.0' : String(x);
+        var result = wrap(str);
+        result.style.color = '#00F';
         return result;
     }
 
@@ -119,140 +168,181 @@ module PrettyPrinter {
         return keyword('null');
     }
 
-    function renderArray(x:any):Node {
-        var result = document.createElement('span');
-        result.appendChild(document.createTextNode('array ...'))
-        return result;
+    function renderArray(x:any, root):Node {
+        var array = root['arrays'][x[1]];
+        var entries = array['entries'];
+        return expandable2(keyword('array'), function () {
+            if (entries.length == 0)
+                return wrap('empty');
+
+            var rows:Node[][] = [];
+            for (var i = 0; i < entries.length; i++) {
+                var entry = entries[i];
+                rows.push([
+                    renderAny(entry[0], root),
+                    wrap('=>'),
+                    renderAny(entry[1], root)
+                ]);
+            }
+            return  createTable(rows);
+        });
     }
 
     function renderUnknown() {
-        var result = document.createElement('span');
-        result.appendChild(document.createTextNode('unknown'));
-        return result;
+        return bold('unknown type');
     }
 
     function renderObject(x, root):Node {
         var object = root['objects'][x[1]];
-        var result = document.createElement('span');
+        var result = document.createDocumentFragment();
         result.appendChild(keyword('new'));
-        result.appendChild(document.createTextNode(' '));
-        result.appendChild(document.createTextNode(object['class']));
-        result.appendChild(document.createTextNode(' '));
-        result.appendChild(document.createTextNode('{'));
-        result.appendChild(expandable(function () {
-            return document.createTextNode('');
-        }, function () {
-            return document.createTextNode('')
-        }));
-        result.appendChild(document.createTextNode('}'));
-        return result;
+        result.appendChild(wrap(object['class']));
+
+        function body() {
+            var properties:Array<any> = object['properties'];
+            var rows:Node[][] = [];
+            for (var i = 0; i < properties.length; i++) {
+                var property = properties[i];
+                var variable = renderVariable(property['name']);
+                var value = renderAny(property['value'], root);
+                rows.push([
+                    collect([keyword(property['access']), variable]),
+                    wrap('='),
+                    value
+                ]);
+            }
+            return createTable(rows);
+        }
+
+        return expandable2(result, body);
     }
 
     function renderStack(stack:any[], root):Node {
-        var rows = [];
+        return expandable2(bold('stack trace'), function () {
+            var rows = [];
 
-        for (var x = 0; x < stack.length; x++) {
-            rows.push([
-                renderLocation(stack[x]['location']),
-                document.createTextNode(' '),
-                renderFunctionCall(stack[x], root)
-            ]);
-        }
+            for (var x = 0; x < stack.length; x++) {
+                rows.push([
+                    renderLocation(stack[x]['location']),
+                    renderFunctionCall(stack[x], root)
+                ]);
+            }
 
-        return createTable(rows);
+            return createTable(rows);
+        });
     }
 
     function renderFunctionCall(call:any, root):Node {
-        var result = document.createElement('span');
+        var result = document.createDocumentFragment();
         if (call['object']) {
             result.appendChild(renderObject(call['object'], root));
-            result.appendChild(document.createTextNode('->'));
+            result.appendChild(wrap('->'));
         } else if (call['class']) {
-            result.appendChild(document.createTextNode(call['class'] + (call['isStatic'] ? '::' : '->')));
+            result.appendChild(wrap(call['class']));
+            result.appendChild(wrap(call['isStatic'] ? '::' : '->'));
         }
 
-        result.appendChild(document.createTextNode(call['function'] + '('));
+        result.appendChild(wrap(call['function']));
+        result.appendChild(wrap('('));
 
         for (var i = 0; i < call['args'].length; i++) {
             if (i != 0)
-                result.appendChild(document.createTextNode(', '));
+                result.appendChild(wrap(','));
 
             result.appendChild(renderAny(call['args'][i], root));
         }
 
-        result.appendChild(document.createTextNode(')'));
+        result.appendChild(wrap(')'));
 
         return result;
     }
 
     function renderVariable(name:string):Node {
-        var result = document.createElement('span');
-        result.appendChild(document.createTextNode('$' + name));
+        var result = wrap('$' + name);
         result.style.color = '#800';
         return result;
     }
 
     function renderLocals(locals, root):Node {
-        var result = document.createElement('div');
-        result.style.display = 'inline-block';
+        return expandable2(bold('local variables'), function () {
+            var rows = [];
 
-        if (locals instanceof Array) {
-            if (!locals) {
-                result.appendChild(document.createTextNode('none'));
-            } else {
-                var rows = [];
-
-                for (var i = 0; i < locals.length; i++) {
-                    var local = locals[i];
-                    var name = local['name'];
-                    var value = document.createElement('div');
-                    value.appendChild(renderAny(local['value'], root));
-                    value.appendChild(document.createTextNode(';'));
-                    rows.push([renderVariable(name), document.createTextNode(' = '), value]);
+            if (locals instanceof Array) {
+                if (!locals) {
+                    rows.push([wrap('none')]);
+                } else {
+                    for (var i = 0; i < locals.length; i++) {
+                        var local = locals[i];
+                        var name = local['name'];
+                        rows.push([
+                            renderVariable(name),
+                            wrap('='),
+                            renderAny(local['value'], root)
+                        ]);
+                    }
                 }
-
-                result.appendChild(createTable(rows));
+            } else {
+                rows.push([wrap('n/a')]);
             }
-        } else {
-            result.appendChild(document.createTextNode('n/a'));
-        }
 
-        return result;
+            return createTable(rows);
+        });
     }
 
     function renderException(x, root):Node {
         if (!x)
-            return document.createTextNode('none');
+            return wrap('none');
 
-        return createTable([
-            [bold('class '), document.createTextNode(x['class'])],
-            [bold('code '), document.createTextNode(x['code'])],
-            [bold('message '), document.createTextNode(x['message'])],
-            [bold('location '), renderLocation(x['location'])],
-            [bold('stack '), renderStack(x['stack'], root)],
-            [bold('locals '), renderLocals(x['locals'], root)],
-            [bold('globals '), document.createTextNode('global variables...')],
-            [bold('previous '), renderException(x['preivous'], root)]
-        ]);
+        return expandable2(collect([keyword('new'), wrap(x['class'])]), function () {
+            return createTable([
+                [bold('code '), wrap(x['code'])],
+                [bold('message '), wrap(x['message'])],
+                [bold('location '), renderLocation(x['location'])],
+                [bold('stack '), renderStack(x['stack'], root)],
+                [bold('locals '), renderLocals(x['locals'], root)],
+                [bold('globals '), wrap('global variables...')],
+                [bold('previous '), renderException(x['preivous'], root)]
+            ]);
+        });
     }
 
     function renderLocation(location):Node {
-        var wrapper = document.createElement('span');
-        wrapper.appendChild(document.createTextNode(location['file']));
-        wrapper.appendChild(document.createTextNode(':'));
-        wrapper.appendChild(renderInt(location['line']));
+        var wrapper = document.createDocumentFragment();
+        var file = location['file'];
+        var line = location['line'];
+        wrapper.appendChild(wrap(file));
+        wrapper.appendChild(renderInt(line));
 
-        function closedContent():Node {
-            return wrapper;
-        }
+        return expandable2(wrapper, function () {
+            var sourceCode = location['sourceCode'];
 
-        function openContent():Node {
-            var s = document.createElement('span');
-            s.appendChild(document.createTextNode('open!'));
-            return s;
-        }
+            if (!sourceCode)
+                return wrap('n/a');
 
-        return expandable(closedContent, openContent);
+            var rows:Node[][] = [];
+
+            for (var codeLine in sourceCode) {
+                if (!sourceCode.hasOwnProperty(codeLine))
+                    continue;
+
+                var highlight = (function (doHighlight:boolean) {
+                    return function (t:Node) {
+                        var x = document.createElement('div');
+                        x.appendChild(t);
+                        if (doHighlight)
+                            x.style.backgroundColor = '#fcc';
+                        return x;
+                    }
+                })(codeLine == line);
+
+                rows.push([
+                    highlight(document.createTextNode(codeLine)),
+                    highlight(document.createTextNode(sourceCode[codeLine]))
+                ]);
+            }
+
+            return createTable(rows);
+        });
     }
 
     function renderAny(root, v):Node {
@@ -277,7 +367,7 @@ module PrettyPrinter {
             else
                 return renderFloat(root[1]);
         else if (root[0] === 'array')
-            return renderArray(root[1]);
+            return renderArray(root, v);
         else if (root[0] === 'unknown')
             return renderUnknown();
         else if (root[0] === 'object')
@@ -316,4 +406,10 @@ module PrettyPrinter {
     }
 
     document.addEventListener('DOMContentLoaded', start);
+}
+
+interface CSSStyleDeclaration {
+    MozUserSelect: string;
+    WebkitUserSelect: string;
+    KhtmlUserSelect: string;
 }

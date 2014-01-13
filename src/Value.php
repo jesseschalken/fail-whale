@@ -5,6 +5,12 @@ namespace ErrorHandler;
 abstract class Value implements JSONSerializable {
     private static $nextID = 0;
 
+    /**
+     * @param Introspection $i
+     * @param               $x
+     *
+     * @return self
+     */
     static function introspect(Introspection $i, &$x) {
         if (is_string($x))
             return new ValueString($x);
@@ -26,6 +32,13 @@ abstract class Value implements JSONSerializable {
             return new ValueUnknown;
     }
 
+    /**
+     * @param JSONUnserialize $s
+     * @param                 $v
+     *
+     * @return self
+     * @throws Exception
+     */
     static function fromJSON(JSONUnserialize $s, $v) {
         if (is_float($v))
             return new ValueFloat($v);
@@ -82,11 +95,7 @@ abstract class Value implements JSONSerializable {
     }
 
     function toJsonFromJson() {
-        $json  = JSONSerialize::toJson($this);
-        $json  = JSON::parse(JSON::stringify($json));
-        $value = JSONUnserialize::fromJSON($json);
-
-        return $value;
+        return JSONUnserialize::fromJSON(JSONSerialize::toJSON($this));
     }
 
     /**
