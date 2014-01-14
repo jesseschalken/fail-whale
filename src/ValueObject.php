@@ -62,7 +62,8 @@ class ValueObject extends Value {
         if ($id === null) {
             $id = count($s->root['objects']);
 
-            $s->root['objects'][$id] = $this->schema()->toJSON($s);
+            $json =& $s->root['objects'][$id];
+            $json = $this->schema()->toJSON($s);
         }
 
         return array('object', $id);

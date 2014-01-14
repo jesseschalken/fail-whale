@@ -61,7 +61,8 @@ class ValueArray extends Value {
         if ($index === null) {
             $index = count($s->root['arrays']);
 
-            $s->root['arrays'][$index] = $this->schema()->toJSON($s);
+            $json =& $s->root['arrays'][$index];
+            $json = $this->schema()->toJSON($s);
         }
 
         return array('array', $index);
