@@ -1,9 +1,9 @@
 module PrettyPrinter {
 
-    function wrapNode(node:Node):HTMLElement {
+    function wrapNode(node:Node, inline:boolean = true):HTMLElement {
         var wrapper = document.createElement('span');
         wrapper.style.margin = '0.25em';
-        wrapper.style.display = 'inline-block';
+        wrapper.style.display = inline ? 'inline-block' : 'block';
         wrapper.style.verticalAlign = 'middle';
         wrapper.appendChild(node);
         return wrapper;
@@ -34,7 +34,7 @@ module PrettyPrinter {
         return x;
     }
 
-    function expandable2(headContent:Node, content:() => Node):Node {
+    function expandable2(headContent:Node, content:() => Node, inline:boolean=true):Node {
         var container = document.createElement('div');
         var head = document.createElement('div');
         head.style.backgroundColor = '#eee';
@@ -70,7 +70,7 @@ module PrettyPrinter {
             open = !open;
         });
 
-        return wrapNode(container);
+        return wrapNode(container, inline);
     }
 
     function createTable(data:Node[][]):HTMLTableElement {
@@ -120,9 +120,9 @@ module PrettyPrinter {
             '\f': '\\f',
             '"': '\\"'
         };
-        
+
         var buffer:string = '"';
-        
+
         function flush() {
             if (buffer.length > 0)
                 result.appendChild(document.createTextNode(buffer));
@@ -152,9 +152,9 @@ module PrettyPrinter {
                 result.appendChild(escaped('\\x' + (code < 10 ? '0' + code.toString(16) : code.toString(16))));
             }
         }
-        
+
         buffer += '"';
-        
+
         flush();
 
         return wrapNode(result);
@@ -258,7 +258,7 @@ module PrettyPrinter {
             ])]);
 
             return createTable(rows);
-        });
+        }, false);
     }
 
     function renderFunctionCall(call:any, root):Node {
@@ -315,14 +315,14 @@ module PrettyPrinter {
             }
 
             return createTable(rows);
-        });
+        }, false);
     }
 
     function renderGlobals(globals, root) {
-        if (!globals)
-            return italics('n/a');
-
         return expandable2(bold('global variables'), function () {
+            if (!globals)
+                return italics('n/a');
+
             var staticVariables = globals['staticVariables'];
             var staticProperties = globals['staticProperties'];
             var globalVariables = globals['globalVariables'];
@@ -347,10 +347,10 @@ module PrettyPrinter {
             for (var i = 0; i < staticProperties.length; i++) {
                 var p = staticProperties[i];
                 var pieces = document.createDocumentFragment();
-                pieces.appendChild(keyword(p['access']));
-                pieces.appendChild(keyword('static'));
                 pieces.appendChild(wrap(p['class']));
                 pieces.appendChild(wrap('::'));
+                pieces.appendChild(keyword(p['access']));
+                pieces.appendChild(keyword('static'));
                 pieces.appendChild(renderVariable(p['name']));
 
                 rows.push([pieces, wrap('='), renderAny(p['value'], root)]);
@@ -369,28 +369,27 @@ module PrettyPrinter {
             }
 
             return createTable(rows);
-        });
+        }, false);
     }
 
     function renderException(x, root):Node {
         if (!x)
             return italics('none');
 
-        var box = expandable2(collect([keyword('new'), wrap(x['class'])]), function () {
-            return createTable([
+        return expandable2(collect([keyword('new'), wrap(x['class'])]), function () {
+            var table = createTable([
                 [bold('code'), wrap(x['code'])],
                 [bold('message'), wrap(x['message'])],
                 [bold('location'), renderLocation(x['location'])],
                 [bold('previous'), renderException(x['preivous'], root)]
             ]);
+            return collect([
+                table,
+                block(renderLocals(x['locals'], root)),
+                block(renderStack(x['stack'], root)),
+                block(renderGlobals(x['globals'], root))
+            ]);
         });
-
-        return collect([
-            box,
-            block(renderLocals(x['locals'], root)),
-            block(renderStack(x['stack'], root)),
-            block(renderGlobals(x['globals'], root))
-        ]);
     }
 
     function renderLocation(location):Node {
@@ -406,7 +405,7 @@ module PrettyPrinter {
             if (!sourceCode)
                 return italics('n/a');
 
-            var rows:Node[][] = [];
+            var codeLines = document.createDocumentFragment();
 
             for (var codeLine in sourceCode) {
                 if (!sourceCode.hasOwnProperty(codeLine))
@@ -417,18 +416,28 @@ module PrettyPrinter {
                         var x = document.createElement('div');
                         x.appendChild(t);
                         if (doHighlight)
-                            x.style.backgroundColor = '#fcc';
+                            x.style.backgroundColor = '#fbb';
                         return x;
                     }
                 })(codeLine == line);
 
-                rows.push([
-                    highlight(document.createTextNode(codeLine)),
-                    highlight(document.createTextNode(sourceCode[codeLine]))
-                ]);
+                var lineNumber = document.createElement('span');
+                lineNumber.appendChild(document.createTextNode(String(codeLine)));
+                lineNumber.style.width = '3em';
+                lineNumber.style.borderRightWidth = '0.125em';
+                lineNumber.style.borderRightStyle = 'solid';
+                lineNumber.style.borderRightColor = 'black';
+                lineNumber.style.display = 'inline-block';
+                codeLines.appendChild(highlight(collect([
+                    lineNumber,
+                    document.createTextNode(sourceCode[codeLine])
+                ])));
             }
 
-            return createTable(rows);
+            var inner = wrapNode(codeLines, false);
+            inner.style.backgroundColor = '#def';
+            inner.style.padding = '0.25em';
+            return inner;
         });
     }
 
