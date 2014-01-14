@@ -2,13 +2,13 @@ module PrettyPrinter {
 
     function wrapNode(node:Node):HTMLElement {
         var wrapper = document.createElement('span');
-        wrapper.style.margin = '2px';
+        wrapper.style.margin = '0.25em';
         wrapper.style.display = 'inline-block';
         wrapper.style.verticalAlign = 'middle';
         wrapper.appendChild(node);
         return wrapper;
     }
-    
+
     function block(node:Node):Node {
         var div = document.createElement('div');
         div.appendChild(node);
@@ -19,7 +19,7 @@ module PrettyPrinter {
         var node = document.createTextNode(text);
         return wrapNode(node);
     }
-    
+
     function italics(text:string) {
         var wrapped = wrap(text);
         wrapped.style.fontStyle = 'italic';
@@ -51,10 +51,11 @@ module PrettyPrinter {
         });
         head.appendChild(headContent);
         container.appendChild(head);
+        container.style.backgroundColor = '#fff';
         var body = document.createElement('div');
-        body.style.borderTopWidth = '1px';
+        body.style.borderTopWidth = '0.125em';
         body.style.borderTopStyle = 'dashed';
-        body.style.borderTopColor = '#bbb';
+        body.style.borderTopColor = '#888';
         var open = false;
 
         head.addEventListener('click', function () {
@@ -86,7 +87,6 @@ module PrettyPrinter {
                 td.appendChild(data[x][y]);
                 row.appendChild(td);
             }
-            row.style.backgroundColor = '#fff';
         }
 
         return table;
@@ -120,8 +120,15 @@ module PrettyPrinter {
             '\f': '\\f',
             '"': '\\"'
         };
+        
+        var buffer:string = '"';
+        
+        function flush() {
+            if (buffer.length > 0)
+                result.appendChild(document.createTextNode(buffer));
 
-        result.appendChild(document.createTextNode('"'));
+            buffer = "";
+        }
 
         for (var i = 0; i < x.length; i++) {
             var char:string = x.charAt(i);
@@ -136,15 +143,19 @@ module PrettyPrinter {
             }
 
             if (translate[char] !== undefined) {
+                flush();
                 result.appendChild(escaped(translate[char]));
             } else if ((code >= 32 && code <= 126) || char === '\n' || char === '\t') {
-                result.appendChild(document.createTextNode(char));
+                buffer += char;
             } else {
+                flush();
                 result.appendChild(escaped('\\x' + (code < 10 ? '0' + code.toString(16) : code.toString(16))));
             }
         }
-
-        result.appendChild(document.createTextNode('"'));
+        
+        buffer += '"';
+        
+        flush();
 
         return wrapNode(result);
     }
@@ -229,15 +240,22 @@ module PrettyPrinter {
                 div1.appendChild(wrap('#' + String(x + 1)));
                 div1.appendChild(renderLocation(stack[x]['location']));
                 container.appendChild(div1);
-                
+
                 var div2 = document.createElement('div');
-                div2.style.marginLeft = '64px';
-                div2.style.marginBottom = '16px';
+                div2.style.marginLeft = '4em';
+                div2.style.marginBottom = '1em';
                 div2.appendChild(renderFunctionCall(stack[x], root));
                 container.appendChild(div2);
-                
+
                 rows.push([container]);
             }
+
+            rows.push([collect([
+                wrap('#' + String(x + 1)),
+                expandable2(wrap('{main}'), function () {
+                    return italics('n/a');
+                })
+            ])]);
 
             return createTable(rows);
         });
@@ -313,12 +331,41 @@ module PrettyPrinter {
             for (var i = 0; i < staticVariables.length; i++) {
                 var v = staticVariables[i];
                 var pieces = document.createDocumentFragment();
-                pieces.appendChild(keyword(v['access']));
+                if (v['class']) {
+                    pieces.appendChild(wrap(v['class']));
+                    pieces.appendChild(wrap('::'));
+                }
+                pieces.appendChild(wrap(v['function']));
+                pieces.appendChild(wrap('()'));
+                pieces.appendChild(wrap('::'));
+                pieces.appendChild(keyword('static'));
+                pieces.appendChild(renderVariable(v['name']));
 
-                rows.push([
-                    pieces,
-                    renderAny(v['value'], root)
-                ]);
+                rows.push([ pieces, wrap('='), renderAny(v['value'], root) ]);
+            }
+
+            for (var i = 0; i < staticProperties.length; i++) {
+                var p = staticProperties[i];
+                var pieces = document.createDocumentFragment();
+                pieces.appendChild(keyword(p['access']));
+                pieces.appendChild(keyword('static'));
+                pieces.appendChild(wrap(p['class']));
+                pieces.appendChild(wrap('::'));
+                pieces.appendChild(renderVariable(p['name']));
+
+                rows.push([pieces, wrap('='), renderAny(p['value'], root)]);
+            }
+
+            for (var i = 0; i < globalVariables.length; i++) {
+                var pieces = document.createDocumentFragment();
+                var v = globalVariables[i];
+                var superglobals = ['_SERVER', '_GET', '_POST', '_FILES', '_REQUEST', '_COOKIE', '_ENV', '_SESSION'];
+                if (superglobals.indexOf(v['name']) == -1)
+                    pieces.appendChild(keyword('global'));
+                pieces.appendChild(renderVariable(v['name']));
+
+                rows.push([pieces, wrap('='), renderAny(v['value'], root)]);
+
             }
 
             return createTable(rows);
@@ -414,6 +461,8 @@ module PrettyPrinter {
             return renderObject(root, v);
         else if (root[0] === 'exception')
             return renderException(root[1], v);
+        else if (root[0] === 'resource')
+            return collect([keyword('resource'), wrap(root[1]['type'])]);
         else
             throw { message: "not goord" };
     }
