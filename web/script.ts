@@ -411,16 +411,6 @@ module PrettyPrinter {
                 if (!sourceCode.hasOwnProperty(codeLine))
                     continue;
 
-                var highlight = (function (doHighlight:boolean) {
-                    return function (t:Node) {
-                        var x = document.createElement('div');
-                        x.appendChild(t);
-                        if (doHighlight)
-                            x.style.backgroundColor = '#fbb';
-                        return x;
-                    }
-                })(codeLine == line);
-
                 var lineNumber = document.createElement('span');
                 lineNumber.appendChild(document.createTextNode(String(codeLine)));
                 lineNumber.style.width = '3em';
@@ -428,10 +418,14 @@ module PrettyPrinter {
                 lineNumber.style.borderRightStyle = 'solid';
                 lineNumber.style.borderRightColor = 'black';
                 lineNumber.style.display = 'inline-block';
-                codeLines.appendChild(highlight(collect([
-                    lineNumber,
-                    document.createTextNode(sourceCode[codeLine])
-                ])));
+
+                var row = document.createElement('div');
+                row.appendChild(lineNumber);
+                row.appendChild(document.createTextNode(sourceCode[codeLine]));
+                if (codeLine == line)
+                    row.style.backgroundColor = '#fbb';
+
+                codeLines.appendChild(row);
             }
 
             var inner = wrapNode(codeLines, false);
