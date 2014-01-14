@@ -19,6 +19,12 @@ module PrettyPrinter {
         var node = document.createTextNode(text);
         return wrapNode(node);
     }
+    
+    function italics(text:string) {
+        var wrapped = wrap(text);
+        wrapped.style.fontStyle = 'italic';
+        return wrapped;
+    }
 
     function collect(nodes:Node[]):Node {
         var x = document.createDocumentFragment();
@@ -169,7 +175,7 @@ module PrettyPrinter {
         var entries = array['entries'];
         return expandable2(keyword('array'), function () {
             if (entries.length == 0)
-                return wrap('empty');
+                return italics('empty');
 
             var rows:Node[][] = [];
             for (var i = 0; i < entries.length; i++) {
@@ -274,7 +280,7 @@ module PrettyPrinter {
 
             if (locals instanceof Array) {
                 if (!locals) {
-                    rows.push([wrap('none')]);
+                    rows.push([italics('none')]);
                 } else {
                     for (var i = 0; i < locals.length; i++) {
                         var local = locals[i];
@@ -287,7 +293,7 @@ module PrettyPrinter {
                     }
                 }
             } else {
-                rows.push([wrap('n/a')]);
+                rows.push([italics('n/a')]);
             }
 
             return createTable(rows);
@@ -296,7 +302,7 @@ module PrettyPrinter {
 
     function renderGlobals(globals, root) {
         if (!globals)
-            return wrap('n/a');
+            return italics('n/a');
 
         return expandable2(bold('global variables'), function () {
             var staticVariables = globals['staticVariables'];
@@ -321,7 +327,7 @@ module PrettyPrinter {
 
     function renderException(x, root):Node {
         if (!x)
-            return wrap('none');
+            return italics('none');
 
         var box = expandable2(collect([keyword('new'), wrap(x['class'])]), function () {
             return createTable([
@@ -351,7 +357,7 @@ module PrettyPrinter {
             var sourceCode = location['sourceCode'];
 
             if (!sourceCode)
-                return wrap('n/a');
+                return italics('n/a');
 
             var rows:Node[][] = [];
 
