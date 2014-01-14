@@ -27,6 +27,7 @@ module PrettyPrinter {
         container.style.display = 'inline-block';
         container.style.borderWidth = '1px';
         container.style.borderStyle = 'solid';
+        container.style.borderColor = '#888';
         container.style.backgroundColor = 'white';
         container.style.verticalAlign = 'middle';
         container.style.margin = '4px';
@@ -36,11 +37,18 @@ module PrettyPrinter {
         head.style.MozUserSelect = 'none';
         head.style.WebkitUserSelect = 'none';
         head.style.KhtmlUserSelect = 'none';
+        head.addEventListener('mouseenter', function () {
+            container.style.borderColor = '#000';
+        });
+        head.addEventListener('mouseleave', function () {
+            container.style.borderColor = '#888';
+        });
         head.appendChild(headContent);
         container.appendChild(head);
         var body = document.createElement('div');
         body.style.borderTopWidth = '1px';
         body.style.borderTopStyle = 'dashed';
+        body.style.borderTopColor = '#888';
         var open = false;
 
         head.addEventListener('click', function () {
@@ -289,6 +297,31 @@ module PrettyPrinter {
         });
     }
 
+    function renderGlobals(globals, root) {
+        if (!globals)
+            return wrap('n/a');
+
+        return expandable2(bold('global variables'), function () {
+            var staticVariables = globals['staticVariables'];
+            var staticProperties = globals['staticProperties'];
+            var globalVariables = globals['globalVariables'];
+            var rows = [];
+
+            for (var i = 0; i < staticVariables.length; i++) {
+                var v = staticVariables[i];
+                var pieces = document.createDocumentFragment();
+                pieces.appendChild(keyword(v['access']));
+
+                rows.push([
+                    pieces,
+                    renderAny(v['value'], root)
+                ]);
+            }
+
+            return createTable(rows);
+        });
+    }
+
     function renderException(x, root):Node {
         if (!x)
             return wrap('none');
@@ -300,7 +333,7 @@ module PrettyPrinter {
                 [bold('location '), renderLocation(x['location'])],
                 [bold('stack '), renderStack(x['stack'], root)],
                 [bold('locals '), renderLocals(x['locals'], root)],
-                [bold('globals '), wrap('global variables...')],
+                [bold('globals '), renderGlobals(x['globals'], root)],
                 [bold('previous '), renderException(x['preivous'], root)]
             ]);
         });
