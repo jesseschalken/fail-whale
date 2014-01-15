@@ -34,20 +34,19 @@ module PrettyPrinter {
         return x;
     }
 
-    function expandable2(headContent:Node, content:() => Node, inline:boolean=true):Node {
+    function expandable2(headContent:Node, content:() => Node, inline:boolean = true):Node {
         var container = document.createElement('div');
         var head = document.createElement('div');
         head.style.backgroundColor = '#eee';
         head.style.cursor = 'pointer';
-        head.style.msUserSelect = 'none';
-        head.style.MozUserSelect = 'none';
-        head.style.WebkitUserSelect = 'none';
-        head.style.KhtmlUserSelect = 'none';
         head.addEventListener('mouseenter', function () {
             head.style.backgroundColor = '#ddd';
         });
         head.addEventListener('mouseleave', function () {
             head.style.backgroundColor = '#eee';
+        });
+        head.addEventListener('mousedown', function (e) {
+            e.preventDefault();
         });
         head.appendChild(headContent);
         container.appendChild(head);
@@ -105,7 +104,10 @@ module PrettyPrinter {
         return box;
     }
 
-    function renderString(x:string):Node {
+    function renderString2(x:string):{
+        length:number;
+        result:Node;
+    } {
         var result = document.createElement('span');
         result.style.color = '#080';
         result.style.backgroundColor = '#dFd';
@@ -120,6 +122,8 @@ module PrettyPrinter {
             '\f': '\\f',
             '"': '\\"'
         };
+
+        var length = 0;
 
         var buffer:string = '"';
 
@@ -145,11 +149,14 @@ module PrettyPrinter {
             if (translate[char] !== undefined) {
                 flush();
                 result.appendChild(escaped(translate[char]));
+                length += 2;
             } else if ((code >= 32 && code <= 126) || char === '\n' || char === '\t') {
                 buffer += char;
+                length += 1;
             } else {
                 flush();
                 result.appendChild(escaped('\\x' + (code < 10 ? '0' + code.toString(16) : code.toString(16))));
+                length += 4;
             }
         }
 
@@ -157,7 +164,25 @@ module PrettyPrinter {
 
         flush();
 
-        return wrapNode(result);
+        return { result: wrapNode(result), length: length };
+    }
+
+    function renderString(x:string):Node {
+        var threshold = 200;
+
+        if (x.length > threshold)
+            return expandable2(keyword('string'), function () {
+                return renderString2(x).result;
+            });
+
+        var result = renderString2(x);
+
+        if (result.length > threshold)
+            return expandable2(keyword('string'), function () {
+                return result.result;
+            });
+
+        return result.result;
     }
 
     function renderInt(x:number):Node {
@@ -263,16 +288,16 @@ module PrettyPrinter {
 
     function renderFunctionCall(call:any, root):Node {
         var result = document.createDocumentFragment();
+        var prefix = '';
         if (call['object']) {
             result.appendChild(renderObject(call['object'], root));
-            result.appendChild(wrap('->'));
+            prefix += '->';
         } else if (call['class']) {
-            result.appendChild(wrap(call['class']));
-            result.appendChild(wrap(call['isStatic'] ? '::' : '->'));
+            prefix += call['class'];
+            prefix += call['isStatic'] ? '::' : '->';
         }
 
-        result.appendChild(wrap(call['function']));
-        result.appendChild(wrap('('));
+        result.appendChild(wrap(prefix + call['function'] + '('));
 
         for (var i = 0; i < call['args'].length; i++) {
             if (i != 0)
@@ -287,9 +312,17 @@ module PrettyPrinter {
     }
 
     function renderVariable(name:string):Node {
-        var result = wrap('$' + name);
-        result.style.color = '#800';
-        return result;
+        function red(v:string) {
+            var result = wrap(v);
+            result.style.color = '#800';
+            return result;
+        }
+
+        if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name)) {
+            return red('$' + name);
+        } else {
+            return collect([red('$\{'), renderString(name), red('}')])
+        }
     }
 
     function renderLocals(locals, root):Node {
@@ -498,10 +531,4 @@ module PrettyPrinter {
     }
 
     document.addEventListener('DOMContentLoaded', start);
-}
-
-interface CSSStyleDeclaration {
-    MozUserSelect: string;
-    WebkitUserSelect: string;
-    KhtmlUserSelect: string;
 }
