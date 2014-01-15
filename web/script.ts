@@ -1,7 +1,7 @@
 module PrettyPrinter {
 
     function wrapNode(node:Node, inline:boolean = true):HTMLElement {
-        var wrapper = document.createElement('span');
+        var wrapper = document.createElement('div');
         wrapper.style.margin = '0.25em';
         wrapper.style.display = inline ? 'inline-block' : 'block';
         wrapper.style.verticalAlign = 'middle';
@@ -33,7 +33,7 @@ module PrettyPrinter {
         return x;
     }
 
-    function expandable2(headContent:Node, content:() => Node, inline:boolean = true):Node {
+    function expandable(headContent:Node, content:() => Node, inline:boolean = true):Node {
         var container = document.createElement('div');
         var head = document.createElement('div');
         head.style.backgroundColor = '#eee';
@@ -340,7 +340,7 @@ module PrettyPrinter {
 
     function render(v:Value):Node {
         function renderArray(entries:ValueArrayEntry[]):Node {
-            return expandable2(keyword('array'), function () {
+            return expandable(keyword('array'), function () {
                 if (entries.length == 0)
                     return italics('empty');
 
@@ -354,12 +354,8 @@ module PrettyPrinter {
             });
         }
 
-        function renderUnknown() {
-            return bold('unknown type');
-        }
-
         function renderObject(object:ValueObject):Node {
-            return expandable2(collect([keyword('new'), wrap(object.className)]), function () {
+            return expandable(collect([keyword('new'), wrap(object.className)]), function () {
                 return createTable(object.properties.map(function (property) {
                     var variable = renderVariable(property.name);
                     var value = render(property.value);
@@ -373,7 +369,7 @@ module PrettyPrinter {
         }
 
         function renderStack(stack:ValueExceptionStackFrame[]):Node {
-            return expandable2(bold('stack trace'), function () {
+            return expandable(bold('stack trace'), function () {
                 var rows:Node[][] = [];
 
                 for (var x = 0; x < stack.length; x++) {
@@ -394,7 +390,7 @@ module PrettyPrinter {
 
                 rows.push([collect([
                     wrap('#' + String(x + 1)),
-                    expandable2(wrap('{main}'), function () {
+                    expandable(wrap('{main}'), function () {
                         return italics('n/a');
                     })
                 ])]);
@@ -438,12 +434,12 @@ module PrettyPrinter {
             if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name)) {
                 return red('$' + name);
             } else {
-                return collect([red('$\{'), renderString(name), red('}')])
+                return collect([red('$' + '{'), renderString(name), red('}')])
             }
         }
 
         function renderLocals(locals:ValueVariable[]):Node {
-            return expandable2(bold('local variables'), function () {
+            return expandable(bold('local variables'), function () {
                 if (!(locals instanceof Array))
                     return italics('n/a');
 
@@ -461,7 +457,7 @@ module PrettyPrinter {
         }
 
         function renderGlobals(globals:ValueExceptionGlobals) {
-            return expandable2(bold('global variables'), function () {
+            return expandable(bold('global variables'), function () {
                 if (!globals)
                     return italics('n/a');
 
@@ -517,7 +513,7 @@ module PrettyPrinter {
             if (!x)
                 return italics('none');
 
-            return expandable2(collect([keyword('new'), wrap(x.className)]), function () {
+            return expandable(collect([keyword('new'), wrap(x.className)]), function () {
                 var table = createTable([
                     [bold('code'), wrap(x.code)],
                     [bold('message'), wrap(x.message)],
@@ -540,7 +536,7 @@ module PrettyPrinter {
             wrapper.appendChild(wrap(file));
             wrapper.appendChild(renderInt(line));
 
-            return expandable2(wrapper, function () {
+            return expandable(wrapper, function () {
                 var sourceCode = location.source;
 
                 if (!sourceCode)
@@ -642,17 +638,19 @@ module PrettyPrinter {
 
             var threshold = 200;
 
-            if (x.length > threshold)
-                return expandable2(keyword('string'), function () {
+            if (x.length > threshold) {
+                return expandable(keyword('string'), function () {
                     return renderString2(x).result;
                 });
+            }
 
             var result = renderString2(x);
 
-            if (result.length > threshold)
-                return expandable2(keyword('string'), function () {
+            if (result.length > threshold) {
+                return expandable(keyword('string'), function () {
                     return result.result;
                 });
+            }
 
             return result.result;
         }
@@ -663,28 +661,24 @@ module PrettyPrinter {
             return result;
         }
 
-        function renderFloat(x:number):Node {
-            var str = x % 1 == 0 ? String(x) + '.0' : String(x);
-            var result = wrap(str);
-            result.style.color = '#00F';
-            return result;
-        }
-
-        function renderBool(x:boolean):Node {
-            return keyword(x ? 'true' : 'false');
-        }
-
-        function renderNull():Node {
-            return keyword('null');
-        }
-
         return v.acceptVisitor({
             visitString:    renderString,
-            visitBool:      renderBool,
-            visitNull:      renderNull,
-            visitUnknown:   renderUnknown,
+            visitBool:      function (x:boolean) {
+                return keyword(x ? 'true' : 'false');
+            },
+            visitNull:      function () {
+                return keyword('null');
+            },
+            visitUnknown:   function () {
+                return bold('unknown type');
+            },
             visitInt:       renderInt,
-            visitFloat:     renderFloat,
+            visitFloat:     function (x:number):Node {
+                var str = x % 1 == 0 ? String(x) + '.0' : String(x);
+                var result = wrap(str);
+                result.style.color = '#00F';
+                return result;
+            },
             visitResource:  function (type:string) {
                 return collect([keyword('resource'), wrap(type)]);
             },
