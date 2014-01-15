@@ -16,8 +16,7 @@ module PrettyPrinter {
     }
 
     function wrap(text:string):HTMLElement {
-        var node = document.createTextNode(text);
-        return wrapNode(node);
+        return wrapNode(document.createTextNode(text));
     }
 
     function italics(text:string) {
@@ -104,407 +103,595 @@ module PrettyPrinter {
         return box;
     }
 
-    function renderString2(x:string):{
-        length:number;
-        result:Node;
-    } {
-        var result = document.createElement('span');
-        result.style.color = '#080';
-        result.style.backgroundColor = '#dFd';
-        result.style.fontWeight = 'bold';
-        result.style.display = 'inline';
+    interface ValueObjectProperty extends ValueVariable {
+        className:string;
+        access:string;
+    }
 
-        var translate = {
-            '\\': '\\\\',
-            '$': '\\$',
-            '\r': '\\r',
-            '\v': '\\v',
-            '\f': '\\f',
-            '"': '\\"'
+    interface ValueArrayEntry {
+        key:Value;
+        value:Value;
+    }
+
+    interface ValueVisitor<T> {
+        visitString: (x:string) => T;
+        visitBool: (x:boolean) => T;
+        visitNull: () => T;
+        visitUnknown: () => T;
+        visitInt: (x:number) => T;
+        visitFloat: (x:number) => T;
+        visitResource: (type:string, id:number) => T;
+        visitObject: (x:ValueObject) => T;
+        visitArray: (entries:ValueArrayEntry[]) => T;
+        visitException: (x:ValueException) => T;
+    }
+
+    interface ValueObject {
+        hash: string;
+        className: string;
+        properties:ValueObjectProperty[];
+    }
+
+    interface ValueExceptionLocation {
+        file: string;
+        line: number;
+        source: {
+            [x:number]: string;
         };
+    }
 
-        var length = 0;
+    interface ValueStaticProperty extends ValueObjectProperty {
+    }
 
-        var buffer:string = '"';
+    interface ValueStaticVariable extends ValueVariable {
+        className: string;
+        functionName: string;
+    }
 
-        function flush() {
-            if (buffer.length > 0)
-                result.appendChild(document.createTextNode(buffer));
+    interface ValueVariable {
+        name: string;
+        value: Value;
+    }
 
-            buffer = "";
+    interface ValueExceptionGlobals {
+        staticProperties: ValueStaticProperty[];
+        staticVariables: ValueStaticVariable[];
+        globalVariables: ValueVariable[];
+    }
+
+    interface ValueException {
+        className: string;
+        code: string;
+        message: string;
+        location: ValueExceptionLocation;
+        locals: ValueVariable[];
+        globals: ValueExceptionGlobals;
+        stack: ValueExceptionStackFrame[];
+        previous: ValueException;
+    }
+
+    interface ValueExceptionStackFrame {
+        object: ValueObject;
+        className: string;
+        isStatic: boolean;
+        functionName: string;
+        location: ValueExceptionLocation;
+        args: Value[];
+    }
+
+    interface Value {
+        acceptVisitor<T> (x:ValueVisitor<T>): T;
+    }
+
+    function parse(json:string):Value {
+        var root = JSON.parse(json);
+
+        function parseLocation(x:any):ValueExceptionLocation {
+            if (x === null)
+                return null;
+
+            return {
+                file:   x['file'],
+                line:   x['line'],
+                source: x['sourceCode']
+            };
         }
 
-        for (var i = 0; i < x.length; i++) {
-            var char:string = x.charAt(i);
-            var code:number = x.charCodeAt(i);
+        function parseException(e:any):ValueException {
+            if (e === null)
+                return null;
 
-            function escaped(x:string):Node {
-                var box = document.createElement('span');
-                box.appendChild(document.createTextNode(x));
-                box.style.color = '#008';
-                box.style.fontWeight = 'bold';
-                return box;
-            }
+            var locals:any[] = e['locals'];
+            var staticProps:any[] = e['globals']['staticProperties'];
+            var staticVars:any[] = e['globals']['staticVariables'];
+            var globalVars:any[] = e['globals']['globalVariables'];
+            var stack:any[] = e['stack'];
 
-            if (translate[char] !== undefined) {
-                flush();
-                result.appendChild(escaped(translate[char]));
-                length += 2;
-            } else if ((code >= 32 && code <= 126) || char === '\n' || char === '\t') {
-                buffer += char;
-                length += 1;
-            } else {
-                flush();
-                result.appendChild(escaped('\\x' + (code < 10 ? '0' + code.toString(16) : code.toString(16))));
-                length += 4;
-            }
+            return {
+                className: e['class'],
+                message:   e['message'],
+                code:      e['code'],
+                location:  parseLocation(e['location']),
+                locals:    locals.map(function (x) {
+                    return {
+                        name:  x['name'],
+                        value: parseValue(x['value'])
+                    };
+                }),
+                globals:   {
+                    staticProperties: staticProps.map(function (x) {
+                        return {
+                            name:      x['name'],
+                            value:     parseValue(x['value']),
+                            className: x['class'],
+                            access:    x['access']
+                        };
+                    }),
+                    staticVariables:  staticVars.map(function (x) {
+                        return {
+                            name:         x['name'],
+                            value:        parseValue(x['value']),
+                            className:    x['class'],
+                            functionName: x['function']
+                        };
+                    }),
+                    globalVariables:  globalVars.map(function (x) {
+                        return {
+                            name:  x['name'],
+                            value: parseValue(x['value'])
+                        };
+                    })
+                },
+                stack:     stack.map(function (x) {
+                    var args:any[] = x['args'];
+                    return {
+                        object:       parseObject(x['object']),
+                        className:    x['class'],
+                        isStatic:     x['isStatic'],
+                        functionName: x['function'],
+                        args:         args.map(parseValue),
+                        location:     parseLocation(x['location'])
+                    };
+                }),
+                previous:  parseException(e['previous'])
+            };
         }
 
-        buffer += '"';
+        function parseObject(x):ValueObject {
+            if (x === null)
+                return null;
 
-        flush();
+            var object = root['objects'][ x[1]];
+            var objectProps:any[] = object['properties'];
 
-        return { result: wrapNode(result), length: length };
-    }
-
-    function renderString(x:string):Node {
-        var threshold = 200;
-
-        if (x.length > threshold)
-            return expandable2(keyword('string'), function () {
-                return renderString2(x).result;
-            });
-
-        var result = renderString2(x);
-
-        if (result.length > threshold)
-            return expandable2(keyword('string'), function () {
-                return result.result;
-            });
-
-        return result.result;
-    }
-
-    function renderInt(x:number):Node {
-        var result = wrap(String(x));
-        result.style.color = '#00F';
-        return result;
-    }
-
-    function renderFloat(x:number):Node {
-        var str = x % 1 == 0 ? String(x) + '.0' : String(x);
-        var result = wrap(str);
-        result.style.color = '#00F';
-        return result;
-    }
-
-    function renderBool(x:boolean):Node {
-        return keyword(x ? 'true' : 'false');
-    }
-
-    function renderNull():Node {
-        return keyword('null');
-    }
-
-    function renderArray(x:any, root):Node {
-        var array = root['arrays'][x[1]];
-        var entries = array['entries'];
-        return expandable2(keyword('array'), function () {
-            if (entries.length == 0)
-                return italics('empty');
-
-            var rows:Node[][] = [];
-            for (var i = 0; i < entries.length; i++) {
-                var entry = entries[i];
-                rows.push([
-                    renderAny(entry[0], root),
-                    wrap('=>'),
-                    renderAny(entry[1], root)
-                ]);
-            }
-            return  createTable(rows);
-        });
-    }
-
-    function renderUnknown() {
-        return bold('unknown type');
-    }
-
-    function renderObject(x, root):Node {
-        var object = root['objects'][x[1]];
-        var result = document.createDocumentFragment();
-        result.appendChild(keyword('new'));
-        result.appendChild(wrap(object['class']));
-
-        function body() {
-            var properties:Array<any> = object['properties'];
-            var rows:Node[][] = [];
-            for (var i = 0; i < properties.length; i++) {
-                var property = properties[i];
-                var variable = renderVariable(property['name']);
-                var value = renderAny(property['value'], root);
-                rows.push([
-                    collect([keyword(property['access']), variable]),
-                    wrap('='),
-                    value
-                ]);
-            }
-            return createTable(rows);
-        }
-
-        return expandable2(result, body);
-    }
-
-    function renderStack(stack:any[], root):Node {
-        return expandable2(bold('stack trace'), function () {
-            var rows:Node[][] = [];
-
-            for (var x = 0; x < stack.length; x++) {
-                var container = document.createDocumentFragment();
-                var div1 = document.createElement('div');
-                div1.appendChild(wrap('#' + String(x + 1)));
-                div1.appendChild(renderLocation(stack[x]['location']));
-                container.appendChild(div1);
-
-                var div2 = document.createElement('div');
-                div2.style.marginLeft = '4em';
-                div2.style.marginBottom = '1em';
-                div2.appendChild(renderFunctionCall(stack[x], root));
-                container.appendChild(div2);
-
-                rows.push([container]);
-            }
-
-            rows.push([collect([
-                wrap('#' + String(x + 1)),
-                expandable2(wrap('{main}'), function () {
-                    return italics('n/a');
+            return {
+                hash:       object['hash'],
+                className:  object['class'],
+                properties: objectProps.map(function (x) {
+                    return {
+                        name:      x['name'],
+                        value:     parseValue(x['value']),
+                        className: x['class'],
+                        access:    x['access']
+                    };
                 })
-            ])]);
-
-            return createTable(rows);
-        }, false);
-    }
-
-    function renderFunctionCall(call:any, root):Node {
-        var result = document.createDocumentFragment();
-        var prefix = '';
-        if (call['object']) {
-            result.appendChild(renderObject(call['object'], root));
-            prefix += '->';
-        } else if (call['class']) {
-            prefix += call['class'];
-            prefix += call['isStatic'] ? '::' : '->';
+            };
         }
 
-        result.appendChild(wrap(prefix + call['function'] + '('));
+        function parseValue(x:any):Value {
+            return {
+                acceptVisitor: function <T> (v:ValueVisitor<T>):T {
+                    if (typeof x === 'string')
+                        return v.visitString(x);
 
-        for (var i = 0; i < call['args'].length; i++) {
-            if (i != 0)
-                result.appendChild(wrap(','));
+                    if (typeof x === 'number')
+                        if (x % 1 === 0)
+                            return v.visitInt(x);
+                        else
+                            return v.visitFloat(x);
 
-            result.appendChild(renderAny(call['args'][i], root));
+                    if (typeof x === 'boolean')
+                        return v.visitBool(x);
+
+                    if (x === null)
+                        return v.visitNull();
+
+                    if (x[0] === 'float')
+                        if (x[1] === 'inf' || x[1] === '+inf')
+                            return v.visitFloat(Infinity);
+                        else if (x[1] === '-inf')
+                            return v.visitFloat(-Infinity);
+                        else if (x[1] === 'nan')
+                            return v.visitFloat(NaN);
+                        else
+                            return v.visitFloat(x[1]);
+
+                    if (x[0] === 'array') {
+                        var arrayEntries:any[] = root['arrays'][x[1]]['entries'];
+
+                        return v.visitArray(arrayEntries.map(function (x) {
+                            return {
+                                key:   parseValue(x[0]),
+                                value: parseValue(x[1])
+                            };
+                        }));
+                    }
+
+                    if (x[0] === 'unknown')
+                        return v.visitUnknown();
+
+                    if (x[0] === 'object') {
+                        return v.visitObject(parseObject(x));
+                    }
+
+                    if (x[0] === 'exception')
+                        return v.visitException(parseException(x[1]));
+
+                    if (x[0] === 'resource')
+                        return v.visitResource(x[1]['type'], x[1]['id']);
+
+                    throw { message: "not goord" };
+                }
+            };
         }
 
-        result.appendChild(wrap(')'));
-
-        return result;
+        return parseValue(root['root']);
     }
 
-    function renderVariable(name:string):Node {
-        function red(v:string) {
-            var result = wrap(v);
-            result.style.color = '#800';
+    function render(v:Value):Node {
+        function renderArray(entries:ValueArrayEntry[]):Node {
+            return expandable2(keyword('array'), function () {
+                if (entries.length == 0)
+                    return italics('empty');
+
+                return createTable(entries.map(function (x) {
+                    return [
+                        render(x.key),
+                        wrap('=>'),
+                        render(x.value)
+                    ];
+                }));
+            });
+        }
+
+        function renderUnknown() {
+            return bold('unknown type');
+        }
+
+        function renderObject(object:ValueObject):Node {
+            return expandable2(collect([keyword('new'), wrap(object.className)]), function () {
+                return createTable(object.properties.map(function (property) {
+                    var variable = renderVariable(property.name);
+                    var value = render(property.value);
+                    return [
+                        collect([keyword(property.access), variable]),
+                        wrap('='),
+                        value
+                    ];
+                }));
+            });
+        }
+
+        function renderStack(stack:ValueExceptionStackFrame[]):Node {
+            return expandable2(bold('stack trace'), function () {
+                var rows:Node[][] = [];
+
+                for (var x = 0; x < stack.length; x++) {
+                    var container = document.createDocumentFragment();
+                    var div1 = document.createElement('div');
+                    div1.appendChild(wrap('#' + String(x + 1)));
+                    div1.appendChild(renderLocation(stack[x].location));
+                    container.appendChild(div1);
+
+                    var div2 = document.createElement('div');
+                    div2.style.marginLeft = '4em';
+                    div2.style.marginBottom = '1em';
+                    div2.appendChild(renderFunctionCall(stack[x]));
+                    container.appendChild(div2);
+
+                    rows.push([container]);
+                }
+
+                rows.push([collect([
+                    wrap('#' + String(x + 1)),
+                    expandable2(wrap('{main}'), function () {
+                        return italics('n/a');
+                    })
+                ])]);
+
+                return createTable(rows);
+            }, false);
+        }
+
+        function renderFunctionCall(call:ValueExceptionStackFrame):Node {
+            var result = document.createDocumentFragment();
+            var prefix = '';
+            if (call.object) {
+                result.appendChild(renderObject(call.object));
+                prefix += '->';
+            } else if (call.className) {
+                prefix += call.className;
+                prefix += call.isStatic ? '::' : '->';
+            }
+
+            result.appendChild(wrap(prefix + call.functionName + '('));
+
+            for (var i = 0; i < call.args.length; i++) {
+                if (i != 0)
+                    result.appendChild(wrap(','));
+
+                result.appendChild(render(call.args[i]));
+            }
+
+            result.appendChild(wrap(')'));
+
             return result;
         }
 
-        if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name)) {
-            return red('$' + name);
-        } else {
-            return collect([red('$\{'), renderString(name), red('}')])
+        function renderVariable(name:string):Node {
+            function red(v:string) {
+                var result = wrap(v);
+                result.style.color = '#800';
+                return result;
+            }
+
+            if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name)) {
+                return red('$' + name);
+            } else {
+                return collect([red('$\{'), renderString(name), red('}')])
+            }
         }
-    }
 
-    function renderLocals(locals, root):Node {
-        return expandable2(bold('local variables'), function () {
-            var rows = [];
+        function renderLocals(locals:ValueVariable[]):Node {
+            return expandable2(bold('local variables'), function () {
+                if (!(locals instanceof Array))
+                    return italics('n/a');
 
-            if (locals instanceof Array) {
-                if (!locals) {
-                    rows.push([italics('none')]);
-                } else {
-                    for (var i = 0; i < locals.length; i++) {
-                        var local = locals[i];
-                        var name = local['name'];
-                        rows.push([
-                            renderVariable(name),
-                            wrap('='),
-                            renderAny(local['value'], root)
-                        ]);
+                if (locals.length == 0)
+                    return italics('none');
+
+                return createTable(locals.map(function (local) {
+                    return [
+                        renderVariable(local.name),
+                        wrap('='),
+                        render(local.value)
+                    ];
+                }));
+            }, false);
+        }
+
+        function renderGlobals(globals:ValueExceptionGlobals) {
+            return expandable2(bold('global variables'), function () {
+                if (!globals)
+                    return italics('n/a');
+
+                var staticVariables = globals.staticVariables;
+                var staticProperties = globals.staticProperties;
+                var globalVariables = globals.globalVariables;
+                var rows = [];
+
+                for (var i = 0; i < staticVariables.length; i++) {
+                    var v = staticVariables[i];
+                    var s:string = '';
+
+                    if (v.className)
+                        s += v.className + '::';
+
+                    s += v.functionName + '()::';
+
+                    rows.push([
+                        collect([wrap(s), keyword('static'), renderVariable(v.name)]),
+                        wrap('='),
+                        render(v.value)
+                    ]);
+                }
+
+                for (var i = 0; i < staticProperties.length; i++) {
+                    var p = staticProperties[i];
+                    var pieces = document.createDocumentFragment();
+                    pieces.appendChild(wrap(p.className + '::'));
+                    pieces.appendChild(keyword(p.access));
+                    pieces.appendChild(keyword('static'));
+                    pieces.appendChild(renderVariable(p.name));
+
+                    rows.push([pieces, wrap('='), render(p.value)]);
+                }
+
+                for (var i = 0; i < globalVariables.length; i++) {
+                    var pieces = document.createDocumentFragment();
+                    var v2 = globalVariables[i];
+                    var superglobals = ['_SERVER', '_GET', '_POST', '_FILES', '_REQUEST', '_COOKIE', '_ENV', '_SESSION'];
+                    if (superglobals.indexOf(v2.name) == -1)
+                        pieces.appendChild(keyword('global'));
+                    pieces.appendChild(renderVariable(v2.name));
+
+                    rows.push([pieces, wrap('='), render(v2.value)]);
+
+                }
+
+                return createTable(rows);
+            }, false);
+        }
+
+        function renderException(x:ValueException):Node {
+            if (!x)
+                return italics('none');
+
+            return expandable2(collect([keyword('new'), wrap(x.className)]), function () {
+                var table = createTable([
+                    [bold('code'), wrap(x.code)],
+                    [bold('message'), wrap(x.message)],
+                    [bold('location'), renderLocation(x.location)],
+                    [bold('previous'), renderException(x.previous)]
+                ]);
+                return collect([
+                    table,
+                    block(renderLocals(x.locals)),
+                    block(renderStack(x.stack)),
+                    block(renderGlobals(x.globals))
+                ]);
+            });
+        }
+
+        function renderLocation(location:ValueExceptionLocation):Node {
+            var wrapper = document.createDocumentFragment();
+            var file = location.file;
+            var line = location.line;
+            wrapper.appendChild(wrap(file));
+            wrapper.appendChild(renderInt(line));
+
+            return expandable2(wrapper, function () {
+                var sourceCode = location.source;
+
+                if (!sourceCode)
+                    return italics('n/a');
+
+                var codeLines = document.createDocumentFragment();
+
+                for (var codeLine in sourceCode) {
+                    if (!sourceCode.hasOwnProperty(codeLine))
+                        continue;
+
+                    var lineNumber = document.createElement('span');
+                    lineNumber.appendChild(document.createTextNode(String(codeLine)));
+                    lineNumber.style.width = '3em';
+                    lineNumber.style.borderRightWidth = '0.125em';
+                    lineNumber.style.borderRightStyle = 'solid';
+                    lineNumber.style.borderRightColor = 'black';
+                    lineNumber.style.display = 'inline-block';
+
+                    var row = document.createElement('div');
+                    row.appendChild(lineNumber);
+                    row.appendChild(document.createTextNode(sourceCode[codeLine]));
+                    if (codeLine == line)
+                        row.style.backgroundColor = '#fbb';
+
+                    codeLines.appendChild(row);
+                }
+
+                var inner = wrapNode(codeLines, false);
+                inner.style.backgroundColor = '#def';
+                inner.style.padding = '0.25em';
+                return inner;
+            });
+        }
+
+        function renderString(x:string):Node {
+            function renderString2(x:string):{
+                length:number;
+                result:Node;
+            } {
+                var result = document.createElement('span');
+                result.style.color = '#080';
+                result.style.backgroundColor = '#dFd';
+                result.style.fontWeight = 'bold';
+                result.style.display = 'inline';
+
+                var translate = {
+                    '\\': '\\\\',
+                    '$':  '\\$',
+                    '\r': '\\r',
+                    '\v': '\\v',
+                    '\f': '\\f',
+                    '"':  '\\"'
+                };
+
+                var length = 0;
+
+                var buffer:string = '"';
+
+                function flush() {
+                    if (buffer.length > 0)
+                        result.appendChild(document.createTextNode(buffer));
+
+                    buffer = "";
+                }
+
+                for (var i = 0; i < x.length; i++) {
+                    var char:string = x.charAt(i);
+                    var code:number = x.charCodeAt(i);
+
+                    function escaped(x:string):Node {
+                        var box = document.createElement('span');
+                        box.appendChild(document.createTextNode(x));
+                        box.style.color = '#008';
+                        box.style.fontWeight = 'bold';
+                        return box;
+                    }
+
+                    if (translate[char] !== undefined) {
+                        flush();
+                        result.appendChild(escaped(translate[char]));
+                        length += 2;
+                    } else if ((code >= 32 && code <= 126) || char === '\n' || char === '\t') {
+                        buffer += char;
+                        length += 1;
+                    } else {
+                        flush();
+                        result.appendChild(escaped('\\x' + (code < 10 ? '0' + code.toString(16) : code.toString(16))));
+                        length += 4;
                     }
                 }
-            } else {
-                rows.push([italics('n/a')]);
+
+                buffer += '"';
+
+                flush();
+
+                return { result: wrapNode(result), length: length };
             }
 
-            return createTable(rows);
-        }, false);
-    }
+            var threshold = 200;
 
-    function renderGlobals(globals, root) {
-        return expandable2(bold('global variables'), function () {
-            if (!globals)
-                return italics('n/a');
+            if (x.length > threshold)
+                return expandable2(keyword('string'), function () {
+                    return renderString2(x).result;
+                });
 
-            var staticVariables = globals['staticVariables'];
-            var staticProperties = globals['staticProperties'];
-            var globalVariables = globals['globalVariables'];
-            var rows = [];
+            var result = renderString2(x);
 
-            for (var i = 0; i < staticVariables.length; i++) {
-                var v = staticVariables[i];
-                var pieces = document.createDocumentFragment();
-                if (v['class']) {
-                    pieces.appendChild(wrap(v['class']));
-                    pieces.appendChild(wrap('::'));
-                }
-                pieces.appendChild(wrap(v['function']));
-                pieces.appendChild(wrap('()'));
-                pieces.appendChild(wrap('::'));
-                pieces.appendChild(keyword('static'));
-                pieces.appendChild(renderVariable(v['name']));
+            if (result.length > threshold)
+                return expandable2(keyword('string'), function () {
+                    return result.result;
+                });
 
-                rows.push([ pieces, wrap('='), renderAny(v['value'], root) ]);
-            }
+            return result.result;
+        }
 
-            for (var i = 0; i < staticProperties.length; i++) {
-                var p = staticProperties[i];
-                var pieces = document.createDocumentFragment();
-                pieces.appendChild(wrap(p['class']));
-                pieces.appendChild(wrap('::'));
-                pieces.appendChild(keyword(p['access']));
-                pieces.appendChild(keyword('static'));
-                pieces.appendChild(renderVariable(p['name']));
+        function renderInt(x:number):Node {
+            var result = wrap(String(x));
+            result.style.color = '#00F';
+            return result;
+        }
 
-                rows.push([pieces, wrap('='), renderAny(p['value'], root)]);
-            }
+        function renderFloat(x:number):Node {
+            var str = x % 1 == 0 ? String(x) + '.0' : String(x);
+            var result = wrap(str);
+            result.style.color = '#00F';
+            return result;
+        }
 
-            for (var i = 0; i < globalVariables.length; i++) {
-                var pieces = document.createDocumentFragment();
-                var v = globalVariables[i];
-                var superglobals = ['_SERVER', '_GET', '_POST', '_FILES', '_REQUEST', '_COOKIE', '_ENV', '_SESSION'];
-                if (superglobals.indexOf(v['name']) == -1)
-                    pieces.appendChild(keyword('global'));
-                pieces.appendChild(renderVariable(v['name']));
+        function renderBool(x:boolean):Node {
+            return keyword(x ? 'true' : 'false');
+        }
 
-                rows.push([pieces, wrap('='), renderAny(v['value'], root)]);
+        function renderNull():Node {
+            return keyword('null');
+        }
 
-            }
-
-            return createTable(rows);
-        }, false);
-    }
-
-    function renderException(x, root):Node {
-        if (!x)
-            return italics('none');
-
-        return expandable2(collect([keyword('new'), wrap(x['class'])]), function () {
-            var table = createTable([
-                [bold('code'), wrap(x['code'])],
-                [bold('message'), wrap(x['message'])],
-                [bold('location'), renderLocation(x['location'])],
-                [bold('previous'), renderException(x['preivous'], root)]
-            ]);
-            return collect([
-                table,
-                block(renderLocals(x['locals'], root)),
-                block(renderStack(x['stack'], root)),
-                block(renderGlobals(x['globals'], root))
-            ]);
+        return v.acceptVisitor({
+            visitString:    renderString,
+            visitBool:      renderBool,
+            visitNull:      renderNull,
+            visitUnknown:   renderUnknown,
+            visitInt:       renderInt,
+            visitFloat:     renderFloat,
+            visitResource:  function (type:string) {
+                return collect([keyword('resource'), wrap(type)]);
+            },
+            visitObject:    renderObject,
+            visitArray:     renderArray,
+            visitException: renderException
         });
-    }
-
-    function renderLocation(location):Node {
-        var wrapper = document.createDocumentFragment();
-        var file = location['file'];
-        var line = location['line'];
-        wrapper.appendChild(wrap(file));
-        wrapper.appendChild(renderInt(line));
-
-        return expandable2(wrapper, function () {
-            var sourceCode = location['sourceCode'];
-
-            if (!sourceCode)
-                return italics('n/a');
-
-            var codeLines = document.createDocumentFragment();
-
-            for (var codeLine in sourceCode) {
-                if (!sourceCode.hasOwnProperty(codeLine))
-                    continue;
-
-                var lineNumber = document.createElement('span');
-                lineNumber.appendChild(document.createTextNode(String(codeLine)));
-                lineNumber.style.width = '3em';
-                lineNumber.style.borderRightWidth = '0.125em';
-                lineNumber.style.borderRightStyle = 'solid';
-                lineNumber.style.borderRightColor = 'black';
-                lineNumber.style.display = 'inline-block';
-
-                var row = document.createElement('div');
-                row.appendChild(lineNumber);
-                row.appendChild(document.createTextNode(sourceCode[codeLine]));
-                if (codeLine == line)
-                    row.style.backgroundColor = '#fbb';
-
-                codeLines.appendChild(row);
-            }
-
-            var inner = wrapNode(codeLines, false);
-            inner.style.backgroundColor = '#def';
-            inner.style.padding = '0.25em';
-            return inner;
-        });
-    }
-
-    function renderAny(root, v):Node {
-        if (typeof root === 'string')
-            return renderString(root);
-        else if (typeof root === 'number')
-            if (root % 1 === 0)
-                return renderInt(root);
-            else
-                return renderFloat(root);
-        else if (typeof root === 'boolean')
-            return renderBool(root);
-        else if (root === null)
-            return renderNull();
-        else if (root[0] === 'float')
-            if (root[1] === 'inf' || root[1] === '+inf')
-                return renderFloat(Infinity);
-            else if (root[1] === '-inf')
-                return renderFloat(-Infinity);
-            else if (root[1] === 'nan')
-                return renderFloat(NaN);
-            else
-                return renderFloat(root[1]);
-        else if (root[0] === 'array')
-            return renderArray(root, v);
-        else if (root[0] === 'unknown')
-            return renderUnknown();
-        else if (root[0] === 'object')
-            return renderObject(root, v);
-        else if (root[0] === 'exception')
-            return renderException(root[1], v);
-        else if (root[0] === 'resource')
-            return collect([keyword('resource'), wrap(root[1]['type'])]);
-        else
-            throw { message: "not goord" };
-    }
-
-    function renderWhole(v):Node {
-        return renderAny(v['root'], v);
     }
 
     function start() {
@@ -519,7 +706,7 @@ module PrettyPrinter {
         function onchange() {
             var parsedJSON = JSON.parse(text.value);
             text.value = JSON.stringify(parsedJSON, undefined, 4);
-            var rendered:Node = renderWhole(parsedJSON);
+            var rendered:Node = render(parse(text.value));
             container.innerHTML = '';
             container.appendChild(rendered);
         }
