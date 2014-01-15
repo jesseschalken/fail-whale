@@ -484,8 +484,8 @@ module PrettyPrinter {
         body.appendChild(container);
 
         function onchange() {
-            var json:string = text.value;
-            var parsedJSON = JSON.parse(json);
+            var parsedJSON = JSON.parse(text.value);
+            text.value = JSON.stringify(parsedJSON, undefined, 4);
             var rendered:Node = renderWhole(parsedJSON);
             container.innerHTML = '';
             container.appendChild(rendered);
