@@ -41,7 +41,11 @@ module PrettyPrinter {
         return x;
     }
 
-    function expandable(content:{head:Node; body:() => Node}):Node {
+    function expandable(content:{
+        head:Node;
+        body:() => Node;
+        open:boolean;
+    }):Node {
         var container = document.createElement('div');
         var head = document.createElement('div');
         head.style.backgroundColor = '#eee';
@@ -63,18 +67,26 @@ module PrettyPrinter {
         body.style.borderTopWidth = '0.125em';
         body.style.borderTopStyle = 'dashed';
         body.style.borderTopColor = '#888';
-        var open = false;
+        var open = content.open;
 
-        head.addEventListener('click', function () {
-            if (open) {
+        function refresh() {
+            if (body.innerHTML.length > 0)
                 body.innerHTML = '';
+
+            if (body.parentNode == container)
                 container.removeChild(body);
-            } else {
+
+            if (open) {
                 body.appendChild(content.body());
                 container.appendChild(body);
             }
+        }
 
+        refresh();
+
+        head.addEventListener('click', function () {
             open = !open;
+            refresh();
         });
 
         return container;
@@ -362,7 +374,8 @@ module PrettyPrinter {
                             render(x.value)
                         ];
                     }));
-                }
+                },
+                open: false
             }));
         }
 
@@ -381,7 +394,8 @@ module PrettyPrinter {
                             render(property.value)
                         ];
                     }));
-                }
+                },
+                open: false
             }));
         }
 
@@ -410,7 +424,8 @@ module PrettyPrinter {
                 head: text('{main}'),
                 body: function () {
                     return notice('n/a');
-                }
+                },
+                open: false
             })));
 
             rows.appendChild(div1);
@@ -539,22 +554,23 @@ module PrettyPrinter {
                         return createTable([
                             [bold('code'), text(x.code)],
                             [bold('message'), text(x.message)],
-                            [bold('location'), renderLocation(x.location)],
+                            [bold('location'), renderLocation(x.location, true)],
                             [bold('previous'), renderException(x.previous)]
                         ]);
                     }
 
                     return collect([
-                        block(expandable({head: bold('exception'), body: renderInfo})),
-                        block(expandable({head: bold('locals'), body: function () { return renderLocals(x.locals); }})),
-                        block(expandable({head: bold('stack'), body: function () { return renderStack(x.stack); }})),
-                        block(expandable({head: bold('globals'), body: function () { return renderGlobals(x.globals); }}))
+                        block(expandable({open: true, head: bold('exception'), body: renderInfo})),
+                        block(expandable({open: true, head: bold('locals'), body: function () { return renderLocals(x.locals); }})),
+                        block(expandable({open: true, head: bold('stack'), body: function () { return renderStack(x.stack); }})),
+                        block(expandable({open: true, head: bold('globals'), body: function () { return renderGlobals(x.globals); }}))
                     ]);
-                }
+                },
+                open: true
             }));
         }
 
-        function renderLocation(location:ValueExceptionLocation):Node {
+        function renderLocation(location:ValueExceptionLocation, open:boolean=false):Node {
             return inlineBlock(expandable({
                 head: collect([text(location.file + ':'), renderNumber(location.line)]),
                 body: function () {
@@ -562,7 +578,8 @@ module PrettyPrinter {
                         return italics('n/a');
 
                     var inner = document.createElement('div');
-                    inner.style.backgroundColor = '#def';
+                    inner.style.backgroundColor = '#444';
+                    inner.style.color = '#ccc';
                     inner.style.padding = '0.25em';
 
                     for (var codeLine in location.source) {
@@ -573,17 +590,26 @@ module PrettyPrinter {
                         lineNumber.style.width = '3em';
                         lineNumber.style.borderRightWidth = '0.125em';
                         lineNumber.style.borderRightStyle = 'solid';
-                        lineNumber.style.borderRightColor = 'black';
+                        lineNumber.style.borderRightColor = '#ccc';
+                        lineNumber.style.paddingRight = '0.25em';
+                        lineNumber.style.marginRight = '0.25em';
+                        lineNumber.style.textAlign = 'right';
+                        lineNumber.style.color = '#888';
 
                         var row = block(collect([lineNumber, text(location.source[codeLine])]));
-                        if (codeLine == location.line)
+                        if (codeLine == location.line) {
                             row.style.backgroundColor = '#fbb';
+                            row.style.color = '#800';
+                            lineNumber.style.color = '#c44';
+                            lineNumber.style.borderRightColor = '#400';
+                        }
 
                         inner.appendChild(row);
                     }
 
                     return inner;
-                }
+                },
+                open: open
             }));
         }
 
@@ -642,7 +668,7 @@ module PrettyPrinter {
             }
 
             if (visualLength > 200 || x.indexOf("\n") != -1) {
-                return inlineBlock(expandable({head: keyword('string'), body: doRender}));
+                return inlineBlock(expandable({open: false, head: keyword('string'), body: doRender}));
             } else {
                 return doRender();
             }
