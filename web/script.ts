@@ -601,7 +601,7 @@ module PrettyPrinter {
                             row.style.backgroundColor = '#fbb';
                             row.style.color = '#800';
                             lineNumber.style.color = '#c44';
-                            lineNumber.style.borderRightColor = '#400';
+                            lineNumber.style.borderRightColor = '#800';
                         }
 
                         inner.appendChild(row);
