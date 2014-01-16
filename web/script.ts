@@ -711,11 +711,9 @@ module PrettyPrinter {
         body.appendChild(container);
 
         function onchange() {
-            var parsedJSON = JSON.parse(text.value);
-            text.value = JSON.stringify(parsedJSON, undefined, 4);
-            var rendered:Node = render(parse(text.value));
+            text.value = JSON.stringify(JSON.parse(text.value), undefined, 4);
             container.innerHTML = '';
-            container.appendChild(rendered);
+            container.appendChild(render(parse(text.value)));
         }
 
         text.addEventListener('change', onchange);
