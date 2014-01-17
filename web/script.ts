@@ -1,5 +1,9 @@
 module PrettyPrinter {
 
+    var padding = '0.25em';
+    var borderRadius = '0.25em';
+    var borderWidth = '0.125em';
+
     function inlineBlock(inner:Node):HTMLElement {
         var s = document.createElement('div');
         s.style.display = 'inline-block';
@@ -30,7 +34,7 @@ module PrettyPrinter {
     function notice(text:string):Node {
         var wrapped = wrap(text);
         wrapped.style.fontStyle = 'italic';
-        wrapped.style.padding = '0.25em';
+        wrapped.style.padding = padding;
         return wrapped;
     }
 
@@ -50,7 +54,11 @@ module PrettyPrinter {
         var head = document.createElement('div');
         head.style.backgroundColor = '#eee';
         head.style.cursor = 'pointer';
-        head.style.padding = '0.25em';
+        head.style.padding = padding;
+        head.style.borderRadius = borderRadius;
+        head.style.borderStyle = 'solid';
+        head.style.borderColor = '#ccc';
+        head.style.borderWidth = borderWidth;
         head.addEventListener('mouseenter', function () {
             head.style.backgroundColor = '#ddd';
         });
@@ -62,24 +70,29 @@ module PrettyPrinter {
         });
         head.appendChild(content.head);
         container.appendChild(head);
-        container.style.backgroundColor = '#fff';
         var body = document.createElement('div');
-        body.style.borderTopWidth = '0.125em';
-        body.style.borderTopStyle = 'dashed';
-        body.style.borderTopColor = '#888';
+        body.style.backgroundColor = '#fff';
+        body.style.borderRadius = borderRadius;
+        body.style.borderColor = '#ccc';
+        body.style.borderWidth = borderWidth;
+        body.style.borderStyle = 'solid';
+        body.style.borderTopWidth = '0';
+        body.style.borderTopLeftRadius = '0';
+        body.style.borderTopRightRadius = '0';
+
+        container.appendChild(body);
+
         var open = content.open;
 
         function refresh() {
-            if (body.innerHTML.length > 0)
-                body.innerHTML = '';
-
-            if (body.parentNode == container)
-                container.removeChild(body);
-
-            if (open) {
+            if (open && body.innerHTML.length == 0)
                 body.appendChild(content.body());
-                container.appendChild(body);
-            }
+
+            body.style.display = open ? 'block' : 'none';
+            head.style.borderBottomStyle = open ? 'dashed' : 'solid';
+            head.style.borderBottomColor = open ? '#888' : '#ccc';
+            head.style.borderBottomRightRadius = open ? '0' : borderRadius;
+            head.style.borderBottomLeftRadius = open ? '0' : borderRadius;
         }
 
         refresh();
@@ -102,7 +115,7 @@ module PrettyPrinter {
             table.appendChild(row);
             for (var y = 0; y < data[x].length; y++) {
                 var td = document.createElement('td');
-                td.style.padding = '0.25em';
+                td.style.padding = padding;
                 td.appendChild(data[x][y]);
                 row.appendChild(td);
             }
@@ -401,7 +414,7 @@ module PrettyPrinter {
 
         function renderStack(stack:ValueExceptionStackFrame[]):Node {
             var rows = document.createElement('div');
-            rows.style.padding = '0.25em';
+            rows.style.padding = padding;
 
             for (var x = 0; x < stack.length; x++) {
                 var div1 = document.createElement('div');
@@ -559,28 +572,28 @@ module PrettyPrinter {
                         ]);
                     }
 
-                    return collect([
-                        block(expandable({open: true, head: bold('exception'), body: renderInfo})),
-                        block(expandable({open: true, head: bold('locals'), body: function () { return renderLocals(x.locals); }})),
-                        block(expandable({open: true, head: bold('stack'), body: function () { return renderStack(x.stack); }})),
-                        block(expandable({open: true, head: bold('globals'), body: function () { return renderGlobals(x.globals); }}))
+                    return createTable([
+                        [block(expandable({open: true, head: bold('exception'), body: renderInfo}))],
+                        [block(expandable({open: true, head: bold('locals'), body: function () { return renderLocals(x.locals); }}))],
+                        [block(expandable({open: true, head: bold('stack'), body: function () { return renderStack(x.stack); }}))],
+                        [block(expandable({open: true, head: bold('globals'), body: function () { return renderGlobals(x.globals); }}))]
                     ]);
                 },
                 open: true
             }));
         }
 
-        function renderLocation(location:ValueExceptionLocation, open:boolean=false):Node {
+        function renderLocation(location:ValueExceptionLocation, open:boolean = false):Node {
             return inlineBlock(expandable({
                 head: collect([text(location.file + ':'), renderNumber(location.line)]),
                 body: function () {
                     if (!location.source)
                         return italics('n/a');
-
+                    
                     var inner = document.createElement('div');
                     inner.style.backgroundColor = '#444';
                     inner.style.color = '#ccc';
-                    inner.style.padding = '0.25em';
+                    inner.style.padding = padding;
 
                     for (var codeLine in location.source) {
                         if (!location.source.hasOwnProperty(codeLine))
@@ -588,11 +601,11 @@ module PrettyPrinter {
 
                         var lineNumber = wrap(String(codeLine));
                         lineNumber.style.width = '3em';
-                        lineNumber.style.borderRightWidth = '0.125em';
+                        lineNumber.style.borderRightWidth = borderWidth;
                         lineNumber.style.borderRightStyle = 'solid';
                         lineNumber.style.borderRightColor = '#ccc';
-                        lineNumber.style.paddingRight = '0.25em';
-                        lineNumber.style.marginRight = '0.25em';
+                        lineNumber.style.paddingRight = padding;
+                        lineNumber.style.marginRight = padding;
                         lineNumber.style.textAlign = 'right';
                         lineNumber.style.color = '#888';
 
@@ -600,6 +613,7 @@ module PrettyPrinter {
                         if (codeLine == location.line) {
                             row.style.backgroundColor = '#fbb';
                             row.style.color = '#800';
+                            row.style.borderRadius = borderRadius;
                             lineNumber.style.color = '#c44';
                             lineNumber.style.borderRightColor = '#800';
                         }
