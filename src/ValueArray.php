@@ -40,6 +40,8 @@ class ValueArray extends Value {
 
     function entries() { return $this->entries; }
 
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitArray($this); }
+
     function subValues() {
         $x = parent::subValues();
 

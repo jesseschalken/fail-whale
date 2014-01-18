@@ -173,6 +173,8 @@ s;
 
         return $schema;
     }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitException($this); }
 }
 
 class ValueExceptionGlobalState implements JSONSerializable {

@@ -2,6 +2,28 @@
 
 namespace ErrorHandler;
 
+interface ValueVisitor {
+    function visitObject(ValueObject $o);
+
+    function visitArray(ValueArray $a);
+
+    function visitException(ValueException $e);
+
+    function visitString(ValueString $s);
+
+    function visitInt(ValueInt $i);
+
+    function visitNull(ValueNull $n);
+
+    function visitUnknown(ValueUnknown $u);
+
+    function visitFloat(ValueFloat $f);
+
+    function visitResource(ValueResource $r);
+
+    function visitBool(ValueBool $b);
+}
+
 abstract class Value implements JSONSerializable {
     private static $nextID = 0;
 
@@ -118,6 +140,8 @@ abstract class Value implements JSONSerializable {
      * @return self[]
      */
     function subValues() { return array(); }
+
+    abstract function acceptVisitor(ValueVisitor $visitor);
 }
 
 class ValueBool extends Value {
@@ -132,12 +156,14 @@ class ValueBool extends Value {
     function renderImpl(PrettyPrinter $settings) { return $settings->text($this->bool ? 'true' : 'false'); }
 
     function toJSON(JSONSerialize $s) { return $this->bool; }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitBool($this); }
 }
 
 class ValueFloat extends Value {
     /**
      * @param JSONUnserialize $s
-     * @param mixed                    $x2
+     * @param mixed           $x2
      *
      * @return self
      */
@@ -183,6 +209,8 @@ class ValueFloat extends Value {
 
         return array('float', $float);
     }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitFloat($this); }
 }
 
 class ValueInt extends Value {
@@ -197,6 +225,8 @@ class ValueInt extends Value {
     function renderImpl(PrettyPrinter $settings) { return $settings->text("$this->int"); }
 
     function toJSON(JSONSerialize $s) { return $this->int; }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitInt($this); }
 }
 
 class ValueNull extends Value {
@@ -205,6 +235,8 @@ class ValueNull extends Value {
     function renderImpl(PrettyPrinter $settings) { return $settings->text('null'); }
 
     function toJSON(JSONSerialize $s) { return null; }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull($this); }
 }
 
 class ValueResource extends Value {
@@ -241,6 +273,8 @@ class ValueResource extends Value {
 
         return $schema;
     }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitResource($this); }
 }
 
 class ValueString extends Value {
@@ -255,6 +289,8 @@ class ValueString extends Value {
     function renderImpl(PrettyPrinter $settings) { return $settings->renderString($this->string); }
 
     function toJSON(JSONSerialize $s) { return $this->string; }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitString($this); }
 }
 
 class ValueUnknown extends Value {
@@ -265,6 +301,8 @@ class ValueUnknown extends Value {
     }
 
     function toJSON(JSONSerialize $s) { return array('unknown'); }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitUnknown($this); }
 }
 
 

@@ -80,6 +80,8 @@ class ValueObject extends Value {
 
         return $schema;
     }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitObject($this); }
 }
 
 class ValueObjectProperty extends ValueVariable {
