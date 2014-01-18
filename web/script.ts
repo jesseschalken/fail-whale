@@ -451,7 +451,7 @@ module PrettyPrinter {
             div1.appendChild(inlineBlock(expandable({
                 head: text('{main}'),
                 body: function () {
-                    return notice('n/a');
+                    return notice('no source code');
                 },
                 open: false
             })));
@@ -477,7 +477,7 @@ module PrettyPrinter {
 
         function renderLocals(locals:ValueVariable[]):Node {
             if (!(locals instanceof Array))
-                return notice('n/a');
+                return notice('not available');
 
             if (locals.length == 0)
                 return notice('none');
@@ -493,7 +493,7 @@ module PrettyPrinter {
 
         function renderGlobals(globals:ValueExceptionGlobals) {
             if (!globals)
-                return notice('n/a');
+                return notice('not available');
 
             var staticVariables = globals.staticVariables;
             var staticProperties = globals.staticProperties;
@@ -578,7 +578,7 @@ module PrettyPrinter {
                 head:  collect([text(location.file + ':'), renderNumber(location.line)]),
                 body:  function () {
                     if (!location.source)
-                        return notice('n/a');
+                        return notice('no source code');
 
                     var inner = document.createDocumentFragment();
 
