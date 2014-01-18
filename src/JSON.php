@@ -40,7 +40,7 @@ final class JSONUnserialize {
         $self       = new self;
         $self->root = JSON::parse($parse);
 
-        return Value::fromJSON($self, $parse['root']);
+        return Value::fromJSON($self, $self->root['root']);
     }
 
     /** @var ValueObject[] */
