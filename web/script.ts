@@ -1,7 +1,8 @@
 module PrettyPrinter {
-
+    
+    var fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
+    var fontSize = '10pt';
     var padding = '0.25em';
-    var borderRadius = '0.25em';
     var borderWidth = '0.125em';
 
     function inlineBlock(inner:Node):HTMLElement {
@@ -51,14 +52,11 @@ module PrettyPrinter {
         open:boolean;
     }):Node {
         var container = document.createElement('div');
+
         var head = document.createElement('div');
         head.style.backgroundColor = '#eee';
         head.style.cursor = 'pointer';
         head.style.padding = padding;
-        head.style.borderRadius = borderRadius;
-        head.style.borderStyle = 'solid';
-        head.style.borderColor = '#ccc';
-        head.style.borderWidth = borderWidth;
         head.addEventListener('mouseenter', function () {
             head.style.backgroundColor = '#ddd';
         });
@@ -70,18 +68,14 @@ module PrettyPrinter {
         });
         head.appendChild(content.head);
         container.appendChild(head);
+
         var body = document.createElement('div');
-        body.style.backgroundColor = '#fff';
-        body.style.borderRadius = borderRadius;
-        body.style.borderColor = '#ccc';
-        body.style.borderWidth = borderWidth;
-        body.style.borderStyle = 'solid';
-        body.style.borderTopWidth = '0';
-        body.style.borderTopLeftRadius = '0';
-        body.style.borderTopRightRadius = '0';
-
+        body.style.backgroundColor = 'white';
+        body.style.borderTopColor = '#888';
+        body.style.borderTopWidth = borderWidth;
+        body.style.borderTopStyle = 'dashed';
         container.appendChild(body);
-
+        
         var open = content.open;
 
         function refresh() {
@@ -89,10 +83,6 @@ module PrettyPrinter {
                 body.appendChild(content.body());
 
             body.style.display = open ? 'block' : 'none';
-            head.style.borderBottomStyle = open ? 'dashed' : 'solid';
-            head.style.borderBottomColor = open ? '#888' : '#ccc';
-            head.style.borderBottomRightRadius = open ? '0' : borderRadius;
-            head.style.borderBottomLeftRadius = open ? '0' : borderRadius;
         }
 
         refresh();
@@ -110,14 +100,14 @@ module PrettyPrinter {
         table.style.borderSpacing = '0';
         table.style.padding = '0';
 
-        for (var x = 0; x < data.length; x++) {
-            var row = document.createElement('tr');
-            table.appendChild(row);
-            for (var y = 0; y < data[x].length; y++) {
+        for (var i = 0; i < data.length; i++) {
+            var tr = document.createElement('tr');
+            table.appendChild(tr);
+            for (var j = 0; j < data[i].length; j++) {
                 var td = document.createElement('td');
                 td.style.padding = padding;
-                td.appendChild(data[x][y]);
-                row.appendChild(td);
+                td.appendChild(data[i][j]);
+                tr.appendChild(td);
             }
         }
 
@@ -132,7 +122,7 @@ module PrettyPrinter {
 
     function keyword(word:string) {
         var box = wrap(word);
-        box.style.color = '#008';
+        box.style.color = '#009';
         box.style.fontWeight = 'bold';
         return box;
     }
@@ -413,6 +403,31 @@ module PrettyPrinter {
         }
 
         function renderStack(stack:ValueExceptionStackFrame[]):Node {
+            function renderFunctionCall(call:ValueExceptionStackFrame):Node {
+                var result = document.createDocumentFragment();
+                var prefix = '';
+                if (call.object) {
+                    result.appendChild(renderObject(call.object));
+                    prefix += '->';
+                } else if (call.className) {
+                    prefix += call.className;
+                    prefix += call.isStatic ? '::' : '->';
+                }
+
+                result.appendChild(text(prefix + call.functionName + '('));
+
+                for (var i = 0; i < call.args.length; i++) {
+                    if (i != 0)
+                        result.appendChild(text(', '));
+
+                    result.appendChild(render(call.args[i]));
+                }
+
+                result.appendChild(text(')'));
+
+                return result;
+            }
+
             var rows = document.createElement('div');
             rows.style.padding = padding;
 
@@ -446,35 +461,10 @@ module PrettyPrinter {
             return rows;
         }
 
-        function renderFunctionCall(call:ValueExceptionStackFrame):Node {
-            var result = document.createDocumentFragment();
-            var prefix = '';
-            if (call.object) {
-                result.appendChild(renderObject(call.object));
-                prefix += '->';
-            } else if (call.className) {
-                prefix += call.className;
-                prefix += call.isStatic ? '::' : '->';
-            }
-
-            result.appendChild(text(prefix + call.functionName + '('));
-
-            for (var i = 0; i < call.args.length; i++) {
-                if (i != 0)
-                    result.appendChild(text(', '));
-
-                result.appendChild(render(call.args[i]));
-            }
-
-            result.appendChild(text(')'));
-
-            return result;
-        }
-
         function renderVariable(name:string):Node {
             function red(v:string) {
                 var result = wrap(v);
-                result.style.color = '#800';
+                result.style.color = '#900';
                 return result;
             }
 
@@ -572,11 +562,11 @@ module PrettyPrinter {
                         ]);
                     }
 
-                    return createTable([
-                        [block(expandable({open: true, head: bold('exception'), body: renderInfo}))],
-                        [block(expandable({open: true, head: bold('locals'), body: function () { return renderLocals(x.locals); }}))],
-                        [block(expandable({open: true, head: bold('stack'), body: function () { return renderStack(x.stack); }}))],
-                        [block(expandable({open: true, head: bold('globals'), body: function () { return renderGlobals(x.globals); }}))]
+                    return collect([
+                        block(expandable({open: true, head: bold('exception'), body: renderInfo})),
+                        block(expandable({open: true, head: bold('locals'), body: function () { return renderLocals(x.locals); }})),
+                        block(expandable({open: true, head: bold('stack'), body: function () { return renderStack(x.stack); }})),
+                        block(expandable({open: true, head: bold('globals'), body: function () { return renderGlobals(x.globals); }}))
                     ]);
                 },
                 open: true
@@ -585,15 +575,12 @@ module PrettyPrinter {
 
         function renderLocation(location:ValueExceptionLocation, open:boolean = false):Node {
             return inlineBlock(expandable({
-                head: collect([text(location.file + ':'), renderNumber(location.line)]),
-                body: function () {
+                head:  collect([text(location.file + ':'), renderNumber(location.line)]),
+                body:  function () {
                     if (!location.source)
                         return italics('n/a');
-                    
-                    var inner = document.createElement('div');
-                    inner.style.backgroundColor = '#444';
-                    inner.style.color = '#ccc';
-                    inner.style.padding = padding;
+
+                    var inner = document.createDocumentFragment();
 
                     for (var codeLine in location.source) {
                         if (!location.source.hasOwnProperty(codeLine))
@@ -603,35 +590,40 @@ module PrettyPrinter {
                         lineNumber.style.width = '3em';
                         lineNumber.style.borderRightWidth = borderWidth;
                         lineNumber.style.borderRightStyle = 'solid';
-                        lineNumber.style.borderRightColor = '#ccc';
+                        lineNumber.style.borderRightColor = '#999';
                         lineNumber.style.paddingRight = padding;
                         lineNumber.style.marginRight = padding;
                         lineNumber.style.textAlign = 'right';
-                        lineNumber.style.color = '#888';
+                        lineNumber.style.color = '#999';
 
                         var row = block(collect([lineNumber, text(location.source[codeLine])]));
                         if (codeLine == location.line) {
-                            row.style.backgroundColor = '#fbb';
-                            row.style.color = '#800';
-                            row.style.borderRadius = borderRadius;
-                            lineNumber.style.color = '#c44';
-                            lineNumber.style.borderRightColor = '#800';
+                            row.style.backgroundColor = '#f99';
+                            row.style.color = '#600';
+                            row.style.borderRadius = padding;
+                            lineNumber.style.color = '#933';
+                            lineNumber.style.borderRightColor = '#933';
                         }
 
                         inner.appendChild(row);
                     }
 
-                    return inner;
+                    var wrapper = block(inner);
+                    wrapper.style.padding = padding;
+                    wrapper.style.backgroundColor = '#333';
+                    wrapper.style.color = '#ccc';
+
+                    return  wrapper;
                 },
-                open: open
+                open:  open
             }));
         }
 
         function renderString(x:string):Node {
             function doRender():Node {
                 var span = document.createElement('span');
-                span.style.color = '#080';
-                span.style.backgroundColor = '#dFd';
+                span.style.color = '#060';
+                span.style.backgroundColor = '#cfc';
                 span.style.fontWeight = 'bold';
 
                 var translate = {
@@ -697,7 +689,7 @@ module PrettyPrinter {
                 return collect([text('-'), keyword('INF')]);
 
             var result = wrap(float && x % 1 == 0 ? String(x) + '.0' : String(x));
-            result.style.color = '#00F';
+            result.style.color = '#00f';
             return result;
         }
 
@@ -715,14 +707,26 @@ module PrettyPrinter {
         });
     }
 
-    function start() {
-        var body = document.getElementsByTagName('body')[0];
+    export function UI() {
         var text = document.createElement('textarea');
-        body.appendChild(text);
-        text.style.width = '800px';
-        text.style.height = '500px';
+        text.style.display = 'block';
+        text.style.width = '100%';
+        text.style.height = '40em';
+        text.style.margin = '0';
+        text.style.padding = '0';
+        text.style.marginTop = '1em';
+        text.style.boxSizing = 'border-box';
+        text.style['MozBoxSizing'] = 'border-box';
+        text.style.fontFamily = fontFamily;
+        text.style.fontSize = fontSize;
+        text.style.whiteSpace = 'pre';
+        text.style.border = 'none';
+        text.style.wordWrap = 'normal';
+
         var container = document.createElement('div');
-        body.appendChild(container);
+        container.style.whiteSpace = 'pre';
+        container.style.fontFamily = fontFamily;
+        container.style.fontSize = fontSize;
 
         function onchange() {
             text.value = JSON.stringify(JSON.parse(text.value), undefined, 4);
@@ -734,7 +738,10 @@ module PrettyPrinter {
 
         text.value = "{\"root\":[\"exception\",{\"class\":\"MuhMockException\",\"code\":\"Dummy exception code\",\"message\":\"This is a dummy exception message.\\n\\nlololool\",\"location\":{\"line\":9000,\"file\":\"\\/path\\/to\\/muh\\/file\",\"sourceCode\":null},\"previous\":null,\"stack\":[{\"function\":\"aFunction\",\"class\":\"DummyClass1\",\"isStatic\":null,\"location\":{\"line\":1928,\"file\":\"\\/path\\/to\\/muh\\/file\",\"sourceCode\":null},\"object\":[\"object\",0],\"args\":[[\"object\",1]]},{\"function\":\"aFunction\",\"class\":null,\"isStatic\":null,\"location\":{\"line\":1928,\"file\":\"\\/path\\/to\\/muh\\/file\",\"sourceCode\":null},\"object\":null,\"args\":[[\"object\",2]]}],\"locals\":[{\"name\":\"lol\",\"value\":8},{\"name\":\"foo\",\"value\":\"bar\"}],\"globals\":{\"staticProperties\":[{\"name\":\"blahProperty\",\"value\":null,\"class\":\"BlahClass\",\"access\":\"private\",\"isDefault\":false}],\"globalVariables\":[{\"name\":\"lol global\",\"value\":null},{\"name\":\"blahVariable\",\"value\":null}],\"staticVariables\":[{\"name\":\"public\",\"value\":null,\"class\":null,\"function\":\"BlahAnotherClass\"},{\"name\":\"lolStatic\",\"value\":null,\"class\":\"BlahYetAnotherClass\",\"function\":\"blahMethod\"}]}}],\"arrays\":[],\"objects\":[{\"class\":\"ErrorHandler\\\\DummyClass1\",\"hash\":\"0000000058b5388000000000367cf886\",\"properties\":[{\"name\":\"private1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"private\",\"isDefault\":true},{\"name\":\"protected1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"protected\",\"isDefault\":true},{\"name\":\"public1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"public\",\"isDefault\":true}]},{\"class\":\"ErrorHandler\\\\DummyClass2\",\"hash\":\"0000000058b5388300000000367cf886\",\"properties\":[{\"name\":\"private2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"private\",\"isDefault\":true},{\"name\":\"protected2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"protected\",\"isDefault\":true},{\"name\":\"public2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"public\",\"isDefault\":true},{\"name\":\"private1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"private\",\"isDefault\":true},{\"name\":\"protected1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"protected\",\"isDefault\":true},{\"name\":\"public1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"public\",\"isDefault\":true}]},{\"class\":\"ErrorHandler\\\\DummyClass2\",\"hash\":\"0000000058b5388a00000000367cf886\",\"properties\":[{\"name\":\"private2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"private\",\"isDefault\":true},{\"name\":\"protected2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"protected\",\"isDefault\":true},{\"name\":\"public2\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass2\",\"access\":\"public\",\"isDefault\":true},{\"name\":\"private1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"private\",\"isDefault\":true},{\"name\":\"protected1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"protected\",\"isDefault\":true},{\"name\":\"public1\",\"value\":null,\"class\":\"ErrorHandler\\\\DummyClass1\",\"access\":\"public\",\"isDefault\":true}]}]}";
         onchange();
-    }
 
-    document.addEventListener('DOMContentLoaded', start);
+        var body = document.createDocumentFragment();
+        body.appendChild(container);
+        body.appendChild(text);
+        return body;
+    }
 }

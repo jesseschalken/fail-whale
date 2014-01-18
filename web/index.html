@@ -4,18 +4,14 @@
     <title></title>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <script src="script.js"></script>
-    <style type="text/css">
-        body {
-            white-space: pre;
-            font-family: 'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace;
-            font-size: 10pt;
-            color: #000000;
-            display: block;
-            background: white;
-            border: none;
-            width: 100%;
-        }
-    </style>
+    <script type="text/javascript">
+        document.addEventListener('DOMContentLoaded', function () {
+            var body = document.getElementsByTagName('body')[0];
+
+            body.innerHTML = '';
+            body.appendChild(PrettyPrinter.UI());
+        });
+    </script>
 </head>
 <body></body>
 </html>
