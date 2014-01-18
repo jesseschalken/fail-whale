@@ -578,7 +578,7 @@ module PrettyPrinter {
                 head:  collect([text(location.file + ':'), renderNumber(location.line)]),
                 body:  function () {
                     if (!location.source)
-                        return italics('n/a');
+                        return notice('n/a');
 
                     var inner = document.createDocumentFragment();
 
