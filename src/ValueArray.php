@@ -53,10 +53,6 @@ class ValueArray extends Value {
         return $x;
     }
 
-    function renderImpl(PrettyPrinter $settings) {
-        return $settings->renderArray($this);
-    }
-
     function toJSON(JSONSerialize $s) {
         $index =& $s->arrayIndexes[$this->id()];
 

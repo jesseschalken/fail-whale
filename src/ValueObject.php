@@ -52,10 +52,6 @@ class ValueObject extends Value {
 
     function properties() { return $this->properties; }
 
-    function renderImpl(PrettyPrinter $settings) {
-        return $settings->renderObject($this);
-    }
-
     function toJSON(JSONSerialize $s) {
         $id =& $s->objectIndexes[$this->id()];
 

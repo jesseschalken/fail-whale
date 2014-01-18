@@ -138,10 +138,6 @@ s;
 
     function sourceCode() { return $this->location->sourceCode(); }
 
-    function renderImpl(PrettyPrinter $settings) {
-        return $settings->renderExceptionWithGlobals($this);
-    }
-
     function toJSON(JSONSerialize $s) {
         return array('exception', $this->schema()->toJSON($s));
     }

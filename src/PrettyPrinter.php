@@ -2,7 +2,7 @@
 
 namespace ErrorHandler;
 
-final class PrettyPrinter {
+final class PrettyPrinter implements ValueVisitor {
     private $escapeTabsInStrings = false;
     private $maxArrayEntries = INF;
     private $maxObjectProperties = INF;
@@ -44,14 +44,14 @@ final class PrettyPrinter {
 
         $this->valuesReferable[$id] = true;
 
-        $result = $v->renderImpl($this);
+        $result = $v->acceptVisitor($this);
 
         unset($this->valuesReferable[$id]);
 
         return $result;
     }
 
-    function renderArray(ValueArray $array) {
+    function visitArray(ValueArray $array) {
         if ($array->entries() === array())
             return $this->text("array()");
 
@@ -181,7 +181,7 @@ final class PrettyPrinter {
         return $text->addLine("#$i {main}");
     }
 
-    function renderExceptionWithGlobals(ValueException $exception) {
+    function visitException(ValueException $exception) {
         $text = $this->renderException($exception);
 
         if ($this->showExceptionGlobalVariables && $exception->globals() !== null) {
@@ -193,7 +193,7 @@ final class PrettyPrinter {
         return $text;
     }
 
-    function renderObject(ValueObject $object) {
+    function visitObject(ValueObject $object) {
         $properties = $object->properties();
         $class      = $object->className();
 
@@ -292,6 +292,37 @@ final class PrettyPrinter {
 
     private function renderTable($rows) {
         return PrettyPrinterText::renderTable($rows, "\n");
+    }
+
+    function visitString(ValueString $s) {
+        return $this->renderString($s->string());
+    }
+
+    function visitInt(ValueInt $i) {
+        return $this->text("{$i->int()}");
+    }
+
+    function visitNull(ValueNull $n) {
+        return $this->text('null');
+    }
+
+    function visitUnknown(ValueUnknown $u) {
+        return $this->text('unknown type');
+    }
+
+    function visitFloat(ValueFloat $f) {
+        $float = $f->float();
+        $int   = (int)$float;
+
+        return $this->text("$int" === "$float" ? "$float.0" : "$float");
+    }
+
+    function visitResource(ValueResource $r) {
+        return $this->text("{$r->type()}");
+    }
+
+    function visitBool(ValueBool $b) {
+        return $this->text($b->bool() ? 'true' : 'false');
     }
 }
 
