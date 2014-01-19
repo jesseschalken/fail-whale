@@ -28,33 +28,6 @@ abstract class Value implements JSONSerializable {
     private static $nextID = 0;
 
     /**
-     * @param Introspection $i
-     * @param               $x
-     *
-     * @return self
-     */
-    static function introspect(Introspection $i, &$x) {
-        if (is_string($x))
-            return new ValueString($x);
-        else if (is_int($x))
-            return new ValueInt($x);
-        else if (is_bool($x))
-            return new ValueBool($x);
-        else if (is_null($x))
-            return new ValueNull;
-        else if (is_float($x))
-            return new ValueFloat($x);
-        else if (is_array($x))
-            return ValueArray::introspect($i, $x);
-        else if (is_object($x))
-            return ValueObject::introspect($i, $x);
-        else if (is_resource($x))
-            return ValueResource::introspect($i, $x);
-        else
-            return new ValueUnknown;
-    }
-
-    /**
      * @param JSONUnserialize $s
      * @param                 $v
      *
@@ -108,7 +81,7 @@ abstract class Value implements JSONSerializable {
 
     private $id;
 
-    protected function __construct() {
+    function __construct() {
         $this->id = self::$nextID++;
     }
 
@@ -227,14 +200,6 @@ class ValueNull extends Value {
 }
 
 class ValueResource extends Value {
-    static function introspect(Introspection $i, &$x) {
-        $self       = new self;
-        $self->type = get_resource_type($x);
-        $self->id   = (int)$x;
-
-        return $self;
-    }
-
     static function fromJSON(JSONUnserialize $s, $x) {
         $self = new self;
         $self->schema()->fromJSON($s, $x[1]);
@@ -248,8 +213,12 @@ class ValueResource extends Value {
     function toJSON(JSONSerialize $s) {
         return array('resource', $this->schema()->toJSON($s));
     }
-    
+
     function type() { return $this->type; }
+
+    function setType($type) { $this->type = $type; }
+
+    function setId($id) { $this->id = $id; }
 
     private function schema() {
         $schema = new JSONSchema;

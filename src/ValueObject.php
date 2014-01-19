@@ -3,23 +3,6 @@
 namespace ErrorHandler;
 
 class ValueObject extends Value {
-    static function introspect(Introspection $i, &$x) {
-        $hash = spl_object_hash($x);
-        $self =& $i->objectCache[$hash];
-
-        if ($self !== null)
-            return $self;
-
-        $i->objects[] = $x;
-
-        $self             = new self;
-        $self->hash       = $hash;
-        $self->class      = get_class($x);
-        $self->properties = ValueObjectProperty::introspectObjectProperties($i, $x);
-
-        return $self;
-    }
-
     static function fromJSON(JSONUnserialize $s, $x) {
         if ($x === null)
             return null;
@@ -65,6 +48,12 @@ class ValueObject extends Value {
         return array('object', $id);
     }
 
+    function setHash($hash) { $this->hash = $hash; }
+
+    function setClass($class) { $this->class = $class; }
+
+    function addProperty(ValueObjectProperty $p) { $this->properties[] = $p; }
+
     private function schema() {
         $schema = new JSONSchema;
         $schema->bind('class', $this->class);
@@ -96,55 +85,17 @@ class ValueObjectProperty extends ValueVariable {
         return $globals;
     }
 
-    /**
-     * @param Introspection $i
-     * @param object        $object
-     *
-     * @return self[]
-     */
-    static function introspectObjectProperties(Introspection $i, $object) {
-        $properties = array();
-
-        for ($reflection = new \ReflectionObject($object);
-             $reflection !== false;
-             $reflection = $reflection->getParentClass()) {
-            foreach ($reflection->getProperties() as $property) {
-                if (!$property->isStatic() && $property->class === $reflection->name) {
-                    $properties[] = self::introspectObjectProperty($i, $property, $object);
-                }
-            }
-        }
-
-        return $properties;
-    }
-
     static protected function create() { return new self; }
-
-    protected static function introspectObjectProperty(Introspection $i, \ReflectionProperty $p, $object = null) {
-        $p->setAccessible(true);
-
-        $self            = static::introspect($i, $p->name, ref_new($p->getValue($object)));
-        $self->class     = $p->class;
-        $self->access    = self::accessAsString($p);
-        $self->isDefault = $p->isDefault();
-
-        return $self;
-    }
-    
-    private static function accessAsString(\ReflectionProperty $property) {
-        if ($property->isPublic())
-            return 'public';
-        else if ($property->isPrivate())
-            return 'private';
-        else if ($property->isProtected())
-            return 'protected';
-        else
-            throw new \Exception("This thing is not protected, public, nor private? Huh?");
-    }
 
     private $class;
     private $access;
     private $isDefault;
+
+    function setClass($x) { $this->class = $x; }
+
+    function setIsDefault($x) { $this->isDefault = $x; }
+
+    function setAccess($x) { $this->access = $x; }
 
     function access() { return $this->access; }
 
@@ -165,20 +116,6 @@ class ValueObjectProperty extends ValueVariable {
 }
 
 class ValueObjectPropertyStatic extends ValueObjectProperty {
-    static function introspectStaticProperties(Introspection $i) {
-        $globals = array();
-
-        foreach (get_declared_classes() as $class) {
-            $reflection = new \ReflectionClass($class);
-
-            foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
-                $globals[] = self::introspectObjectProperty($i, $property);
-            }
-        }
-
-        return $globals;
-    }
-
     static protected function create() { return new self; }
 
     function renderPrefix(PrettyPrinter $settings) {

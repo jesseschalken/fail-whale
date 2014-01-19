@@ -3,25 +3,6 @@
 namespace ErrorHandler;
 
 class ValueArray extends Value {
-    static function introspect(Introspection $i, &$x) {
-        foreach ($i->arrayCache as $entry)
-            if ($entry->isSame($x))
-                return $entry->result();
-
-        $self = IntrospectionArrayCacheEntry::add($i, new self, $x);
-
-        $self->isAssociative = array_is_associative($x);
-
-        $index = 0;
-        foreach ($x as $k => &$v) {
-            $self->entries[$index] = new ValueArrayEntry;
-            $self->entries[$index]->introspectImpl($i, $k, $v);
-            $index++;
-        }
-
-        return $self;
-    }
-
     static function fromJSON(JSONUnserialize $s, $x) {
         $self =& $s->finishedArrays[$x[1]];
         if ($self === null) {
@@ -66,6 +47,14 @@ class ValueArray extends Value {
         return array('array', $index);
     }
 
+    function setIsAssociative($isAssociative) {
+        $this->isAssociative = $isAssociative;
+    }
+
+    function addEntry(Value $k, Value $v) {
+        $this->entries[] = new ValueArrayEntry($k, $v);
+    }
+
     private function schema() {
         $schema = new JSONSchema;
         $schema->bind('isAssociative', $this->isAssociative);
@@ -79,10 +68,7 @@ class ValueArray extends Value {
 
 class ValueArrayEntry implements JSONSerializable {
     static function fromJSON(JSONUnserialize $s, $x) {
-        $self = new self;
-        $self->schema()->fromJSON($s, $x);
-
-        return $self;
+        return new self(Value::fromJSON($s, $x[0]), Value::fromJSON($s, $x[1]));
     }
 
     /** @var Value */
@@ -90,23 +76,17 @@ class ValueArrayEntry implements JSONSerializable {
     /** @var Value */
     private $value;
 
+    function __construct(Value $key, Value $value) {
+        $this->key   = $key;
+        $this->value = $value;
+    }
+
     function key() { return $this->key; }
 
     function value() { return $this->value; }
 
-    function introspectImpl(Introspection $i, $k, &$v) {
-        $this->key   = Value::introspect($i, $k);
-        $this->value = Value::introspect($i, $v);
-    }
-
-    function toJSON(JSONSerialize $s) { return $this->schema()->toJSON($s); }
-
-    private function schema() {
-        $schema = new JSONSchema;
-        $schema->bindObject(0, $this->key, function ($j, $v) { return Value::fromJSON($j, $v); });
-        $schema->bindObject(1, $this->value, function ($j, $v) { return Value::fromJSON($j, $v); });
-
-        return $schema;
+    function toJSON(JSONSerialize $s) {
+        return array($this->key->toJSON($s), $this->value->toJSON($s));
     }
 }
 

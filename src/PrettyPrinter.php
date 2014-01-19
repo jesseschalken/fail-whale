@@ -29,11 +29,13 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     function prettyPrintException(\Exception $e) {
-        return Introspection::introspectException($e)->toJsonFromJson()->render($this)->toString();
+        $i = new Introspection;
+        return $i->introspectException($e)->toJsonFromJson()->render($this)->toString();
     }
 
     function prettyPrintRef(&$ref) {
-        return Introspection::introspectRef($ref)->toJsonFromJson()->render($this)->toString();
+        $i = new Introspection;
+        return $i->introspectRef($ref)->toJsonFromJson()->render($this)->toString();
     }
 
     function render(Value $v) {
@@ -85,7 +87,7 @@ final class PrettyPrinter implements ValueVisitor {
      *
      * @return PrettyPrinterText
      */
-    function renderException(ValueException $e) {
+    private function renderException(ValueException $e) {
         $text = $this->text("{$e->className()} {$e->code()} in {$e->file()}:{$e->line()}\n");
         $text->addLine();
         $text->addLines($this->text($e->message())->indent(2));
@@ -124,7 +126,7 @@ final class PrettyPrinter implements ValueVisitor {
      *
      * @return PrettyPrinterText
      */
-    function renderSourceCode($code, $line) {
+    private function renderSourceCode($code, $line) {
         $rows = array();
 
         foreach ($code as $codeLine => $codeText) {
@@ -143,7 +145,7 @@ final class PrettyPrinter implements ValueVisitor {
      *
      * @return PrettyPrinterText
      */
-    function renderVariables(array $variables, $noneText, $max) {
+    private function renderVariables(array $variables, $noneText, $max) {
         if (count($variables) == 0)
             return $this->text($noneText);
 
@@ -154,7 +156,7 @@ final class PrettyPrinter implements ValueVisitor {
                 break;
 
             $rows[] = array(
-                $variable->render($this),
+                $variable->renderPrefix($this)->appendLines($this->renderVariable($variable->name())),
                 $variable->value()->render($this)->wrap(' = ', ';'),
             );
         }
@@ -167,7 +169,7 @@ final class PrettyPrinter implements ValueVisitor {
         return $result;
     }
 
-    function renderExceptionStack(ValueException $exception) {
+    private function renderExceptionStack(ValueException $exception) {
         $text = $this->text();
         $i    = 1;
 
@@ -212,7 +214,7 @@ final class PrettyPrinter implements ValueVisitor {
      *
      * @return PrettyPrinterText
      */
-    function renderString($string) {
+    private function renderString($string) {
         $characterEscapeCache = array(
             "\\" => '\\\\',
             "\$" => '\$',
@@ -247,7 +249,7 @@ final class PrettyPrinter implements ValueVisitor {
      *
      * @return PrettyPrinterText
      */
-    function renderVariable($name) {
+    private function renderVariable($name) {
         if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name))
             return $this->text("$$name");
 
