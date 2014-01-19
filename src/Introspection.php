@@ -56,7 +56,7 @@ class Introspection {
 
         $result->setIsAssociative(array_is_associative($x));
 
-        foreach ($x as $k => &$v)
+        foreach (ref_new($x) as $k => &$v)
             $result->addEntry($this->introspect($k), $this->introspectRef($v));
 
         return $result;

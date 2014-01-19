@@ -24,6 +24,64 @@ interface ValueVisitor {
     function visitBool(ValueBool $b);
 }
 
+class FindSubValues implements ValueVisitor {
+    function visitObject(ValueObject $o) {
+        $x = array();
+
+        foreach ($o->properties() as $p)
+            $x[] = $p->value();
+
+        return $x;
+    }
+
+    function visitArray(ValueArray $a) {
+        $x = array();
+
+        foreach ($a->entries() as $kvPair) {
+            $x[] = $kvPair->key();
+            $x[] = $kvPair->value();
+        }
+
+        return $x;
+    }
+
+    function visitException(ValueException $e) {
+        $x = array();
+
+        if ($e->locals() !== null)
+            foreach ($e->locals() as $local)
+                $x[] = $local->value();
+
+        if ($e->globals() !== null)
+            foreach ($e->globals()->variables() as $global)
+                $x[] = $global->value();
+
+        foreach ($e->stack() as $frame)
+            foreach ($frame->subValues() as $c)
+                $x[] = $c;
+
+        if ($e->previous() !== null)
+            foreach ($this->visitException($e->previous()) as $c)
+                $x[] = $c;
+
+        return $x;
+    }
+
+    function visitString(ValueString $s) { return array(); }
+
+    function visitInt(ValueInt $i) { return array(); }
+
+    function visitNull(ValueNull $n) { return array(); }
+
+    function visitUnknown(ValueUnknown $u) { return array(); }
+
+    function visitFloat(ValueFloat $f) { return array(); }
+
+    function visitResource(ValueResource $r) { return array(); }
+
+    function visitBool(ValueBool $b) { return array(); }
+}
+
 abstract class Value implements JSONSerializable {
     private static $nextID = 0;
 
@@ -102,11 +160,6 @@ abstract class Value implements JSONSerializable {
 
     function id() { return $this->id; }
 
-    /**
-     * @return self[]
-     */
-    function subValues() { return array(); }
-
     abstract function acceptVisitor(ValueVisitor $visitor);
 }
 
@@ -118,7 +171,7 @@ class ValueBool extends Value {
 
         $this->bool = $x;
     }
-    
+
     function bool() { return $this->bool; }
 
     function toJSON(JSONSerialize $s) { return $this->bool; }
@@ -183,7 +236,7 @@ class ValueInt extends Value {
 
         $this->int = $x;
     }
-    
+
     function int() { return $this->int; }
 
     function toJSON(JSONSerialize $s) { return $this->int; }
@@ -239,7 +292,7 @@ class ValueString extends Value {
 
         $this->string = $x;
     }
-    
+
     function string() { return $this->string; }
 
     function toJSON(JSONSerialize $s) { return $this->string; }

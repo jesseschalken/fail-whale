@@ -67,28 +67,6 @@ s;
     /** @var ValueExceptionCodeLocation */
     private $location;
 
-    function subValues() {
-        $x = parent::subValues();
-
-        if ($this->locals !== null)
-            foreach ($this->locals as $local)
-                $x[] = $local->value();
-
-        if ($this->globals !== null)
-            foreach ($this->globals->variables() as $global)
-                $x[] = $global->value();
-
-        foreach ($this->stack as $frame)
-            foreach ($frame->subValues() as $c)
-                $x[] = $c;
-
-        if ($this->previous !== null)
-            foreach ($this->previous->subValues() as $c)
-                $x[] = $c;
-
-        return $x;
-    }
-
     function className() { return $this->class; }
 
     function code() { return $this->code; }

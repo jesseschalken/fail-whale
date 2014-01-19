@@ -22,15 +22,6 @@ class ValueObject extends Value {
     /** @var ValueObjectProperty[] */
     private $properties = array();
 
-    function subValues() {
-        $x = parent::subValues();
-
-        foreach ($this->properties as $p)
-            $x[] = $p->value();
-
-        return $x;
-    }
-
     function className() { return $this->class; }
 
     function properties() { return $this->properties; }

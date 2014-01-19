@@ -23,17 +23,6 @@ class ValueArray extends Value {
 
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitArray($this); }
 
-    function subValues() {
-        $x = parent::subValues();
-
-        foreach ($this->entries as $kvPair) {
-            $x[] = $kvPair->key();
-            $x[] = $kvPair->value();
-        }
-
-        return $x;
-    }
-
     function toJSON(JSONSerialize $s) {
         $index =& $s->arrayIndexes[$this->id()];
 
