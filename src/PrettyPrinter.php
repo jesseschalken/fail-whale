@@ -30,11 +30,13 @@ final class PrettyPrinter implements ValueVisitor {
 
     function prettyPrintException(\Exception $e) {
         $i = new Introspection;
+
         return $i->introspectException($e)->toJsonFromJson()->render($this)->toString();
     }
 
     function prettyPrintRef(&$ref) {
         $i = new Introspection;
+
         return $i->introspectRef($ref)->toJsonFromJson()->render($this)->toString();
     }
 
@@ -199,14 +201,15 @@ final class PrettyPrinter implements ValueVisitor {
         $properties = $object->properties();
         $class      = $object->className();
 
-        if ($properties === array())
+        if ($properties === array()) {
             return $this->text("new $class {}");
-        elseif ($this->maxObjectProperties == 0)
+        } elseif ($this->maxObjectProperties == 0) {
             return $this->text("new $class {...}");
-        else
+        } else {
             return $this->renderVariables($properties, '', $this->maxObjectProperties)
                         ->setHasEndingNewline(false)
                         ->indent(2)->wrapLines("new $class {", "}");
+        }
     }
 
     /**
@@ -252,8 +255,8 @@ final class PrettyPrinter implements ValueVisitor {
     private function renderVariable($name) {
         if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name))
             return $this->text("$$name");
-
-        return $this->renderString($name)->wrap('${', '}');
+		else
+			return $this->renderString($name)->wrap('${', '}');
     }
 
     function setEscapeTabsInStrings($escapeTabsInStrings) {
@@ -342,8 +345,9 @@ class PrettyPrinterText {
         foreach (self::flipArray($rows) as $colNo => $column) {
             $width = 0;
 
-            foreach ($column as $cell)
+            foreach ($column as $cell) {
                 $width = max($width, $cell->width());
+            }
 
             $columnWidths[$colNo] = $width;
         }
@@ -357,8 +361,9 @@ class PrettyPrinterText {
             foreach ($cells as $column => $cell) {
                 $cell = clone $cell;
 
-                if ($column !== $lastColumn)
+                if ($column !== $lastColumn) {
                     $cell->padWidth($columnWidths[$column]);
+                }
 
                 $row->appendLines($cell);
             }
@@ -372,9 +377,11 @@ class PrettyPrinterText {
     private static function flipArray(array $x) {
         $result = array();
 
-        foreach ($x as $k1 => $v1)
-            foreach ($v1 as $k2 => $v2)
+        foreach ($x as $k1 => $v1) {
+            foreach ($v1 as $k2 => $v2) {
                 $result[$k2][$k1] = $v2;
+            }
+        }
 
         return $result;
     }
@@ -385,15 +392,17 @@ class PrettyPrinterText {
         $this->newLineChar = $newLineChar;
         $this->lines       = explode($this->newLineChar, $text);
 
-        if ($this->hasEndingNewLine = $this->lines[count($this->lines) - 1] === "")
+        if ($this->hasEndingNewLine = $this->lines[count($this->lines) - 1] === "") {
             array_pop($this->lines);
+        }
     }
 
     function toString() {
         $text = join($this->newLineChar, $this->lines);
 
-        if ($this->hasEndingNewLine && $this->lines)
+        if ($this->hasEndingNewLine && $this->lines) {
             $text .= $this->newLineChar;
+        }
 
         return $text;
     }
@@ -413,8 +422,9 @@ class PrettyPrinterText {
      * @return self
      */
     function addLines(self $add) {
-        foreach ($add->lines as $line)
+        foreach ($add->lines as $line) {
             $this->lines[] = $line;
+        }
 
         return $this;
     }
@@ -435,11 +445,13 @@ class PrettyPrinterText {
     function appendLines(self $append) {
         $space = str_repeat(' ', $this->width());
 
-        foreach ($append->lines as $k => $line)
-            if ($k === 0 && $this->lines)
+        foreach ($append->lines as $k => $line) {
+            if ($k === 0 && $this->lines) {
                 $this->lines[count($this->lines) - 1] .= $line;
-            else
+            } else {
                 $this->lines[] = $space . $line;
+            }
+        }
 
         return $this;
     }
@@ -454,9 +466,11 @@ class PrettyPrinterText {
     function indent($times = 1) {
         $space = str_repeat('  ', $times);
 
-        foreach ($this->lines as $k => $line)
-            if ($line !== '')
+        foreach ($this->lines as $k => $line) {
+            if ($line !== '') {
                 $this->lines[$k] = $space . $line;
+            }
+        }
 
         return $this;
     }

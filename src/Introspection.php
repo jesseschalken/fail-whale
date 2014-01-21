@@ -9,19 +9,19 @@ class Introspection {
         if (is_string($x))
             return new ValueString($x);
         else if (is_int($x))
-            return new ValueInt($x);
+          return new ValueInt($x);
         else if (is_bool($x))
-            return new ValueBool($x);
+          return new ValueBool($x);
         else if (is_null($x))
-            return new ValueNull;
+          return new ValueNull;
         else if (is_float($x))
-            return new ValueFloat($x);
+          return new ValueFloat($x);
         else if (is_array($x))
-            return $this->introspectArray($x);
+          return $this->introspectArray($x);
         else if (is_object($x))
-            return $this->introspectObject($x);
+          return $this->introspectObject($x);
         else if (is_resource($x))
-            return $this->introspectResource($x);
+          return $this->introspectResource($x);
         else
             return new ValueUnknown;
     }
@@ -43,9 +43,11 @@ class Introspection {
     private $arrayCache = array();
 
     private function introspectArray(array &$x) {
-        foreach ($this->arrayCache as $entry)
-            if (ref_equal($entry->array, $x))
+        foreach ($this->arrayCache as $entry) {
+            if (ref_equal($entry->array, $x)) {
                 return $entry->result;
+            }
+        }
 
         $result = new ValueArray;
 
@@ -56,8 +58,9 @@ class Introspection {
 
         $result->setIsAssociative(array_is_associative($x));
 
-        foreach (ref_new($x) as $k => &$v)
+        foreach ($x as $k => &$v) {
             $result->addEntry($this->introspect($k), $this->introspectRef($v));
+        }
 
         return $result;
     }
@@ -113,7 +116,7 @@ class Introspection {
 
     private function introspectResource($x) {
         $result = new ValueResource;
-        $result->setId((int)$x);
+        $result->setResourceId((int)$x);
         $result->setType(get_resource_type($x));
 
         return $result;
@@ -283,8 +286,9 @@ class Introspection {
             if (isset($frame['args'])) {
                 $args = array();
 
-                foreach ($frame['args'] as &$arg)
+                foreach ($frame['args'] as &$arg) {
                     $args[] = $this->introspectRef($arg);
+                }
 
                 $stackFrame->setArgs($args);
             }

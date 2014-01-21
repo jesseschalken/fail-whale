@@ -2,11 +2,7 @@
 
 namespace ErrorHandler;
 
-interface JSONSerializable {
-    function toJSON(JSONSerialize $s);
-}
-
-final class JSONSerialize {
+final class JSONUnparse implements ValueVisitor {
     /**
      * @param Value $v
      *
@@ -14,23 +10,207 @@ final class JSONSerialize {
      */
     static function toJSON(Value $v) {
         $self               = new self;
-        $self->root['root'] = $v->toJSON($self);
+        $self->root['root'] = $v->acceptVisitor($self);
 
         return JSON::stringify($self->root);
     }
 
-    public $root = array(
+    private $root = array(
         'root'    => null,
         'arrays'  => array(),
         'objects' => array(),
     );
-    public $objectIndexes = array();
-    public $arrayIndexes = array();
+    private $objectIndexes = array();
+    private $arrayIndexes = array();
 
     private function __construct() { }
+
+    function visitObject(ValueObject $o = null) {
+        if ($o === null)
+            return null;
+
+        $id =& $this->objectIndexes[$o->id()];
+
+        if ($id === null) {
+            $id = count($this->root['objects']);
+
+            $json =& $this->root['objects'][$id];
+            $json = array(
+                'class'      => $o->className(),
+                'hash'       => $o->getHash(),
+                'properties' => array(),
+            );
+
+            foreach ($o->properties() as $p) {
+                $json['properties'][] = array(
+                    'name'      => $p->name(),
+                    'value'     => $p->value()->acceptVisitor($this),
+                    'class'     => $p->className(),
+                    'access'    => $p->access(),
+                    'isDefault' => $p->isDefault(),
+                );
+            }
+        }
+
+        return array('object', $id);
+    }
+
+    function visitArray(ValueArray $a) {
+        $index =& $this->arrayIndexes[$a->id()];
+
+        if ($index === null) {
+            $index = count($this->root['arrays']);
+
+            $json =& $this->root['arrays'][$index];
+            $json = array(
+                'isAssociative' => $a->isAssociative(),
+                'entries'       => array(),
+            );
+
+            foreach ($a->entries() as $entry) {
+                $json['entries'][] = array(
+                    $entry->key()->acceptVisitor($this),
+                    $entry->value()->acceptVisitor($this),
+                );
+            }
+        }
+
+        return array('array', $index);
+    }
+
+    function visitException(ValueException $e) {
+        $result = array(
+            'class'    => $e->className(),
+            'code'     => $e->code(),
+            'message'  => $e->message(),
+            'previous' => $e->previous() === null ? null : $this->visitException($e->previous()),
+            'location' => $this->locationToJson($e->location()),
+            'stack'    => array(),
+            'locals'   => array(),
+            'globals'  => $this->globalsToJson($e->globals()),
+        );
+
+        if ($e->locals() === null) {
+            $result['locals'] = null;
+        } else {
+            foreach ($e->locals() as $var) {
+                $result['locals'][] = array(
+                    'name'  => $var->name(),
+                    'value' => $var->value()->acceptVisitor($this),
+                );
+            }
+        }
+
+        foreach ($e->stack() as $frame) {
+            $json = array(
+                'function' => $frame->getFunction(),
+                'class'    => $frame->getClass(),
+                'isStatic' => $frame->getIsStatic(),
+                'location' => $this->locationToJson($frame->getLocation()),
+                'object'   => $this->visitObject($frame->getObject()),
+                'args'     => array(),
+            );
+
+            if ($frame->getArgs() === null) {
+                $json['args'] = null;
+            } else {
+                foreach ($frame->getArgs() as $arg) {
+                    $json['args'][] = $arg->acceptVisitor($this);
+                }
+            }
+
+            $result['stack'][] = $json;
+        }
+
+        return array('exception', $result);
+    }
+
+    function visitString(ValueString $s) { return $s->string(); }
+
+    function visitInt(ValueInt $i) { return $i->int(); }
+
+    function visitNull(ValueNull $n) { return null; }
+
+    function visitUnknown(ValueUnknown $u) { return array('unknown'); }
+
+    function visitFloat(ValueFloat $f) {
+        $result = $f->float();
+
+        if ($result === INF)
+            $float = '+inf';
+        else if ($result === -INF)
+            $float = '-inf';
+        else if (is_nan($result))
+            $float = 'nan';
+        else
+            $float = $result;
+
+        return array('float', $float);
+    }
+
+    function visitResource(ValueResource $r) {
+        $result = array(
+            'type' => $r->getType(),
+            'id'   => $r->getResourceId(),
+        );
+
+        return array('resource', $result);
+    }
+
+    function visitBool(ValueBool $b) { return $b->bool(); }
+
+    private function locationToJson(ValueExceptionCodeLocation $location = null) {
+        if ($location === null)
+            return null;
+
+        return array(
+            'file'       => $location->file(),
+            'line'       => $location->line(),
+            'sourceCode' => $location->sourceCode(),
+        );
+    }
+
+    private function globalsToJson(ValueExceptionGlobalState $globals = null) {
+        if ($globals === null)
+            return null;
+
+        $result = array(
+            'staticProperties' => array(),
+            'staticVariables'  => array(),
+            'globalVariables'  => array(),
+        );
+
+        foreach ($globals->getStaticProperties() as $p) {
+            $result['staticProperties'][] = array(
+                'name'      => $p->name(),
+                'value'     => $p->value()->acceptVisitor($this),
+                'class'     => $p->className(),
+                'access'    => $p->access(),
+                'isDefault' => $p->isDefault(),
+            );
+        }
+
+        foreach ($globals->getStaticVariables() as $v) {
+            $result['staticVariables'][] = array(
+                'name'     => $v->name(),
+                'value'    => $v->value()->acceptVisitor($this),
+                'function' => $v->getFunction(),
+                'class'    => $v->getClass(),
+            );
+        }
+
+        foreach ($globals->getGlobalVariables() as $v) {
+            $result['globalVariables'][] = array(
+                'name'  => $v->name(),
+                'value' => $v->value()->acceptVisitor($this),
+            );
+        }
+
+        return $result;
+    }
 }
 
-final class JSONUnserialize {
+final class JSONParse {
     /**
      * @param string $parse
      *
@@ -40,92 +220,225 @@ final class JSONUnserialize {
         $self       = new self;
         $self->root = JSON::parse($parse);
 
-        return Value::fromJSON($self, $self->root['root']);
+        return $self->parseValue($self->root['root']);
     }
 
     /** @var ValueObject[] */
-    public $finishedObjects = array();
+    private $finishedObjects = array();
     /** @var ValueArray[] */
-    public $finishedArrays = array();
-    public $root;
+    private $finishedArrays = array();
+    private $root;
 
-    private function __construct() { }
-}
+    private function parseValue($v) {
+        if (is_float($v)) {
+            return new ValueFloat($v);
+        } else if (is_int($v)) {
+            return new ValueInt($v);
+        } else if (is_bool($v)) {
+            return new ValueBool($v);
+        } else if (is_null($v)) {
+            return new ValueNull;
+        } else if (is_string($v)) {
+            return new ValueString($v);
+        } else {
+            switch ($v[0]) {
+                case 'object':
+                    return $this->parseObject($v);
+                case '-inf':
+                case '+inf':
+                case 'nan':
+                case 'float':
+                    return $this->parseFloat($v[1]);
+                case 'array':
+                    return $this->parseArray($v[1]);
+                case 'exception':
+                    return $this->parseException($v);
+                case 'resource':
+                    return $this->parseResource($v[1]);
+                case 'unknown':
+                    return new ValueUnknown;
+                case 'null':
+                    return new ValueNull;
+                case 'int':
+                    return new ValueInt($v[1]);
+                case 'bool':
+                    return new ValueBool($v[1]);
+                case 'string':
+                    return new ValueString($v[1]);
+                default:
+                    throw new Exception("Unknown type: {$v[0]}");
+            }
+        }
+    }
 
-final class JSONSchema {
-    /** @var callable[] */
-    private $getters = array();
-    /** @var callable[] */
-    private $setters = array();
+    private function parseException($x) {
+        if ($x === null)
+            return null;
 
-    function toJSON(JSONSerialize $s) {
-        $result = array();
+        $e = $x[1];
 
-        foreach ($this->getters as $k => $p)
-            $result[$k] = $p($s);
+        $result = new ValueException;
+        $result->setClass($e['class']);
+        $result->setCode($e['code']);
+        $result->setMessage($e['message']);
+        $result->setLocation($this->parseLocation($e['location']));
+        $result->setPrevious($this->parseException($e['previous']));
+
+        $stack = array();
+
+        foreach ($e['stack'] as $s) {
+            $frame = new ValueExceptionStackFrame;
+            $frame->setObject($this->parseObject($s['object']));
+            $frame->setLocation($this->parseLocation($s['location']));
+            $frame->setClass($s['class']);
+            $frame->setFunction($s['function']);
+            $frame->setIsStatic($s['isStatic']);
+            $args = array();
+
+            if ($s['args'] === null) {
+                $args = null;
+            } else {
+                foreach ($s['args'] as $arg) {
+                    $args[] = $this->parseValue($arg);
+                }
+            }
+
+            $frame->setArgs($args);
+            $stack[] = $frame;
+        }
+
+        $result->setStack($stack);
+
+        if ($e['locals'] !== null) {
+            $locals = array();
+
+            foreach ($e['locals'] as $local) {
+                $var = new ValueVariable;
+                $var->setName($local['name']);
+                $var->setValue($this->parseValue($local['value']));
+                $locals[] = $var;
+            }
+
+            $result->setLocals($locals);
+        }
+
+        if ($e['globals'] !== null) {
+            $staticProperties = array();
+            $staticVariables  = array();
+            $globalVariables  = array();
+
+            foreach ($e['globals']['staticProperties'] as $p) {
+                $p2 = new ValueObjectPropertyStatic;
+                $p2->setClass($p['class']);
+                $p2->setName($p['name']);
+                $p2->setAccess($p['access']);
+                $p2->setValue($this->parseValue($p['value']));
+                $p2->setIsDefault($p['isDefault']);
+                $staticProperties[] = $p2;
+            }
+
+            foreach ($e['globals']['staticVariables'] as $v) {
+                $v2 = new ValueVariableStatic;
+                $v2->setClass($v['class']);
+                $v2->setName($v['name']);
+                $v2->setFunction($v['function']);
+                $v2->setValue($this->parseValue($v['value']));
+                $staticVariables[] = $v2;
+            }
+
+            foreach ($e['globals']['globalVariables'] as $v) {
+                $v2 = new ValueGlobalVariable;
+                $v2->setName($v['name']);
+                $v2->setValue($this->parseValue($v['value']));
+                $globalVariables[] = $v2;
+            }
+
+            $globals = new ValueExceptionGlobalState;
+            $globals->setStaticProperties($staticProperties);
+            $globals->setStaticVariables($staticVariables);
+            $globals->setGlobalVariables($globalVariables);
+            $result->setGlobals($globals);
+        }
 
         return $result;
     }
 
-    function fromJSON(JSONUnserialize $s, $x) {
-        foreach ($this->setters as $k => $p)
-            $p($s, $x[$k]);
+    private function parseResource($x1) {
+        $result = new ValueResource;
+        $result->setResourceId($x1['id']);
+        $result->setType($x1['type']);
+
+        return $result;
     }
 
-    /**
-     * @param string $property
-     * @param mixed  $ref
-     */
-    function bind($property, &$ref) {
-        /** @noinspection PhpUnusedParameterInspection */
-        $this->getters[$property] = function (JSONSerialize $s) use (&$ref) { return $ref; };
-        /** @noinspection PhpUnusedParameterInspection */
-        $this->setters[$property] = function (JSONUnserialize $s, $x) use (&$ref) { $ref = $x; };
-    }
+    private function parseArray($x) {
+        $self =& $this->finishedArrays[$x];
+        if ($self === null) {
+            $x1   = $this->root['arrays'][$x];
+            $self = new ValueArray;
+            $self->setIsAssociative($x1['isAssociative']);
 
-    /**
-     * @param string           $property
-     * @param JSONSerializable $ref
-     * @param callable         $fromJSON
-     */
-    function bindObject($property, JSONSerializable &$ref = null, \Closure $fromJSON) {
-        $this->getters[$property] = function (JSONSerialize $s) use (&$ref) {
-            return $ref === null ? null : $ref->toJSON($s);
-        };
-
-        $this->setters[$property] = function (JSONUnserialize $s, $x) use (&$ref, $fromJSON) {
-            $ref = $fromJSON($s, $x);
-        };
-    }
-
-    /**
-     * @param string                  $property
-     * @param JSONSerializable[]|null $ref
-     * @param callable                $fromJSON
-     */
-    function bindObjectList($property, array &$ref = null, \Closure $fromJSON) {
-        $this->getters[$property] = function (JSONSerialize $s) use (&$ref) {
-            if ($ref === null) {
-                return null;
-            } else {
-                $result = array();
-                foreach ($ref as $k => $v)
-                    $result[$k] = $v->toJSON($s);
-
-                return $result;
+            foreach ($x1['entries'] as $e) {
+                $self->addEntry($this->parseValue($e[0]),
+                                $this->parseValue($e[1]));
             }
-        };
+        }
 
-        $this->setters[$property] = function (JSONUnserialize $s, $x) use (&$ref, $fromJSON) {
-            if ($x === null) {
-                $ref = null;
-            } else {
-                $ref = array();
+        return $self;
+    }
 
-                foreach ($x as $k => $v)
-                    $ref[$k] = $fromJSON($s, $v);
+    private function parseObject($x) {
+        if ($x === null)
+            return null;
+
+        $id   = $x[1];
+        $self =& $this->finishedObjects[$id];
+
+        if ($self === null) {
+            $x1 = $this->root['objects'][$id];
+
+            $self = new ValueObject;
+            $self->setClass($x1['class']);
+            $self->setHash($x1['hash']);
+
+            foreach ($x1['properties'] as $p) {
+                $p2 = new ValueObjectProperty;
+                $p2->setName($p['name']);
+                $p2->setValue($this->parseValue($p['value']));
+                $p2->setClass($p['class']);
+                $p2->setAccess($p['access']);
+                $self->addProperty($p2);
             }
-        };
+        }
+
+        return $self;
+    }
+
+    private function parseFloat($x) {
+        if ($x === '+inf')
+            $result = INF;
+        else if ($x === '-inf')
+            $result = -INF;
+        else if ($x === 'nan')
+            $result = NAN;
+        else
+            $result = (float)$x;
+
+        return new ValueFloat($result);
+    }
+
+    private function __construct() { }
+
+    private function parseLocation($location) {
+        if ($location === null)
+            return null;
+
+        $result = new ValueExceptionCodeLocation;
+        $result->setFile($location['file']);
+        $result->setLine($location['line']);
+        $result->setSourceCode($location['sourceCode']);
+
+        return $result;
     }
 }
 
@@ -138,8 +451,9 @@ final class JSON {
     static function stringify($value) {
         $flags = 0;
 
-        if (defined('JSON_PRETTY_PRINT'))
+        if (defined('JSON_PRETTY_PRINT')) {
             $flags |= JSON_PRETTY_PRINT;
+        }
 
         $result = json_encode(self::prepare($value), $flags);
 
@@ -168,17 +482,20 @@ final class JSON {
      * @throws \Exception
      */
     private static function prepare($value) {
-        if (is_string($value))
+        if (is_string($value)) {
             return utf8_encode($value);
+        }
 
-        if (is_float($value) || is_int($value) || is_null($value) || is_bool($value))
+        if (is_float($value) || is_int($value) || is_null($value) || is_bool($value)) {
             return $value;
+        }
 
         if (is_array($value)) {
             $result = array();
 
-            foreach ($value as $k => $v)
+            foreach ($value as $k => $v) {
                 $result[self::prepare($k)] = self::prepare($v);
+            }
 
             return $result;
         }
@@ -187,8 +504,9 @@ final class JSON {
     }
 
     private static function checkError() {
-        if (json_last_error() !== JSON_ERROR_NONE)
+        if (json_last_error() !== JSON_ERROR_NONE) {
             throw new \Exception("JSON Error", json_last_error());
+        }
     }
 
     /**
@@ -198,17 +516,20 @@ final class JSON {
      * @return mixed
      */
     private static function unprepare($result) {
-        if (is_string($result))
+        if (is_string($result)) {
             return utf8_decode($result);
+        }
 
-        if (is_float($result) || is_int($result) || is_null($result) || is_bool($result))
+        if (is_float($result) || is_int($result) || is_null($result) || is_bool($result)) {
             return $result;
+        }
 
         if (is_array($result)) {
             $result2 = array();
 
-            foreach ($result as $k => $v)
+            foreach ($result as $k => $v) {
                 $result2[self::unprepare($k)] = self::unprepare($v);
+            }
 
             return $result2;
         }

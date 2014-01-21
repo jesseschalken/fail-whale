@@ -86,9 +86,9 @@ function simple_handler() {
 function output($title, $body) {
     while (ob_get_level() > 0 && ob_end_clean()) ;
 
-    if (PHP_SAPI === 'cli')
+    if (PHP_SAPI === 'cli') {
         fwrite(STDERR, $body);
-    else {
+    } else {
         if (!headers_sent()) {
             header('HTTP/1.1 500 Internal Server Error', true, 500);
             header("Content-Type: text/html; charset=UTF-8", true);
@@ -163,9 +163,11 @@ function array_get2(array $a, $k1, $k2, $default = null) {
 function array_is_associative(array $a) {
     $i = 0;
 
-    foreach ($a as $k => $v)
-        if ($k !== $i++)
+    foreach ($a as $k => $v) {
+        if ($k !== $i++) {
             return true;
+        }
+    }
 
     return false;
 }
