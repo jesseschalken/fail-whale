@@ -310,21 +310,20 @@ final class PrettyPrinter implements ValueVisitor {
         return $this->renderString($s->string());
     }
 
-    function visitInt(ValueInt $i) {
-        return $this->text("{$i->int()}");
+    function visitInt($int) {
+        return $this->text("$int");
     }
 
-    function visitNull(ValueNull $n) {
+    function visitNull() {
         return $this->text('null');
     }
 
-    function visitUnknown(ValueUnknown $u) {
+    function visitUnknown() {
         return $this->text('unknown type');
     }
 
-    function visitFloat(ValueFloat $f) {
-        $float = $f->float();
-        $int   = (int)$float;
+    function visitFloat($float) {
+        $int = (int)$float;
 
         return $this->text("$int" === "$float" ? "$float.0" : "$float");
     }
@@ -333,8 +332,8 @@ final class PrettyPrinter implements ValueVisitor {
         return $this->text("{$r->type()}");
     }
 
-    function visitBool(ValueBool $b) {
-        return $this->text($b->bool() ? 'true' : 'false');
+    function visitBool($bool) {
+        return $this->text($bool ? 'true' : 'false');
     }
 
     private function renderExceptionStackFrameArgs(ValueExceptionStackFrame $frame) {

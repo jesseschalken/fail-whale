@@ -12,9 +12,6 @@ class ValueObject extends Value {
 
     function properties() { return $this->properties; }
 
-    function toJSON(JSONUnparse $s) {
-    }
-
     function setHash($hash) { $this->hash = $hash; }
 
     function setClass($class) { $this->class = $class; }

@@ -127,37 +127,35 @@ final class JSONUnparse implements ValueVisitor {
 
     function visitString(ValueString $s) { return $s->string(); }
 
-    function visitInt(ValueInt $i) { return $i->int(); }
+    function visitInt($int) { return $int; }
 
-    function visitNull(ValueNull $n) { return null; }
+    function visitNull() { return null; }
 
-    function visitUnknown(ValueUnknown $u) { return array('unknown'); }
+    function visitUnknown() { return array('unknown'); }
 
-    function visitFloat(ValueFloat $f) {
-        $result = $f->float();
-
-        if ($result === INF)
-            $float = '+inf';
-        else if ($result === -INF)
-            $float = '-inf';
-        else if (is_nan($result))
-            $float = 'nan';
+    function visitFloat($float) {
+        if ($float === INF)
+            $json = '+inf';
+        else if ($float === -INF)
+            $json = '-inf';
+        else if (is_nan($float))
+            $json = 'nan';
         else
-            $float = $result;
+            $json = $float;
 
-        return array('float', $float);
+        return array('float', $json);
     }
 
     function visitResource(ValueResource $r) {
-        $result = array(
+        $json = array(
             'type' => $r->getType(),
             'id'   => $r->getResourceId(),
         );
 
-        return array('resource', $result);
+        return array('resource', $json);
     }
 
-    function visitBool(ValueBool $b) { return $b->bool(); }
+    function visitBool($bool) { return $bool; }
 
     private function locationToJson(ValueExceptionCodeLocation $location = null) {
         if ($location === null)
@@ -174,14 +172,14 @@ final class JSONUnparse implements ValueVisitor {
         if ($globals === null)
             return null;
 
-        $result = array(
+        $json = array(
             'staticProperties' => array(),
             'staticVariables'  => array(),
             'globalVariables'  => array(),
         );
 
         foreach ($globals->getStaticProperties() as $p) {
-            $result['staticProperties'][] = array(
+            $json['staticProperties'][] = array(
                 'name'      => $p->name(),
                 'value'     => $p->value()->acceptVisitor($this),
                 'class'     => $p->className(),
@@ -191,7 +189,7 @@ final class JSONUnparse implements ValueVisitor {
         }
 
         foreach ($globals->getStaticVariables() as $v) {
-            $result['staticVariables'][] = array(
+            $json['staticVariables'][] = array(
                 'name'     => $v->name(),
                 'value'    => $v->value()->acceptVisitor($this),
                 'function' => $v->getFunction(),
@@ -200,13 +198,13 @@ final class JSONUnparse implements ValueVisitor {
         }
 
         foreach ($globals->getGlobalVariables() as $v) {
-            $result['globalVariables'][] = array(
+            $json['globalVariables'][] = array(
                 'name'  => $v->name(),
                 'value' => $v->value()->acceptVisitor($this),
             );
         }
 
-        return $result;
+        return $json;
     }
 }
 

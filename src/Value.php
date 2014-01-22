@@ -11,17 +11,32 @@ interface ValueVisitor {
 
     function visitString(ValueString $s);
 
-    function visitInt(ValueInt $i);
+    /**
+     * @param int $int
+     *
+     * @return mixed
+     */
+    function visitInt($int);
 
-    function visitNull(ValueNull $n);
+    function visitNull();
 
-    function visitUnknown(ValueUnknown $u);
+    function visitUnknown();
 
-    function visitFloat(ValueFloat $f);
+    /**
+     * @param float $float
+     *
+     * @return mixed
+     */
+    function visitFloat($float);
 
     function visitResource(ValueResource $r);
 
-    function visitBool(ValueBool $b);
+    /**
+     * @param bool $bool
+     *
+     * @return mixed
+     */
+    function visitBool($bool);
 }
 
 class FindSubValues implements ValueVisitor {
@@ -84,17 +99,17 @@ class FindSubValues implements ValueVisitor {
 
     function visitString(ValueString $s) { return array(); }
 
-    function visitInt(ValueInt $i) { return array(); }
+    function visitInt($int) { return array(); }
 
-    function visitNull(ValueNull $n) { return array(); }
+    function visitNull() { return array(); }
 
-    function visitUnknown(ValueUnknown $u) { return array(); }
+    function visitUnknown() { return array(); }
 
-    function visitFloat(ValueFloat $f) { return array(); }
+    function visitFloat($float) { return array(); }
 
     function visitResource(ValueResource $r) { return array(); }
 
-    function visitBool(ValueBool $b) { return array(); }
+    function visitBool($bool) { return array(); }
 }
 
 abstract class Value {
@@ -130,7 +145,7 @@ class ValueBool extends Value {
 
     function bool() { return $this->bool; }
 
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitBool($this); }
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitBool($this->bool); }
 }
 
 class ValueFloat extends Value {
@@ -142,7 +157,7 @@ class ValueFloat extends Value {
         $this->float = $x;
     }
 
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitFloat($this); }
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitFloat($this->float); }
 
     function float() { return $this->float; }
 }
@@ -158,13 +173,13 @@ class ValueInt extends Value {
 
     function int() { return $this->int; }
 
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitInt($this); }
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitInt($this->int); }
 }
 
 class ValueNull extends Value {
     function __construct() { parent::__construct(); }
 
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull($this); }
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull(); }
 }
 
 class ValueResource extends Value {
@@ -201,7 +216,7 @@ class ValueString extends Value {
 class ValueUnknown extends Value {
     function __construct() { parent::__construct(); }
 
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitUnknown($this); }
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitUnknown(); }
 }
 
 
