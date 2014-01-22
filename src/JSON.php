@@ -148,8 +148,8 @@ final class JSONUnparse implements ValueVisitor {
 
     function visitResource(ValueResource $r) {
         $json = array(
-            'type' => $r->getType(),
-            'id'   => $r->getResourceId(),
+            'type' => $r->resourceType(),
+            'id'   => $r->resourceID(),
         );
 
         return array('resource', $json);
@@ -362,11 +362,7 @@ final class JSONParse {
     }
 
     private function parseResource($x1) {
-        $result = new ValueResource;
-        $result->setResourceId($x1['id']);
-        $result->setType($x1['type']);
-
-        return $result;
+        return new ValueResource($x1['type'], $x1['id']);
     }
 
     private function parseArray($x) {

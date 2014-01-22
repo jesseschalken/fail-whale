@@ -329,7 +329,7 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     function visitResource(ValueResource $r) {
-        return $this->text("{$r->type()}");
+        return $this->text("{$r->resourceType()}");
     }
 
     function visitBool($bool) {

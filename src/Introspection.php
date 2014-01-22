@@ -115,11 +115,7 @@ class Introspection {
     }
 
     private function introspectResource($x) {
-        $result = new ValueResource;
-        $result->setResourceId((int)$x);
-        $result->setType(get_resource_type($x));
-
-        return $result;
+        return new ValueResource(get_resource_type($x),(int) $x);
     }
 
     /**

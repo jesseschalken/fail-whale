@@ -183,18 +183,16 @@ class ValueNull extends Value {
 }
 
 class ValueResource extends Value {
-    private $type;
-    private $id;
+    private $type, $id;
 
-    function type() { return $this->type; }
+    function __construct($type, $id) {
+        $this->type = $type;
+        $this->id   = $id;
+    }
 
-    function setType($type) { $this->type = $type; }
+    function resourceType() { return $this->type; }
 
-    function getType() { return $this->type; }
-
-    function setResourceId($id) { $this->id = $id; }
-
-    function getResourceId() { return $this->id; }
+    function resourceID() { return $this->id; }
 
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitResource($this); }
 }
