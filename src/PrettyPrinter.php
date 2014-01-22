@@ -31,13 +31,13 @@ final class PrettyPrinter implements ValueVisitor {
     function prettyPrintException(\Exception $e) {
         $i = new Introspection;
 
-        return $i->introspectException($e)->toJsonFromJson()->render($this)->toString();
+        return $this->render($i->introspectException($e)->toJsonFromJson())->toString();
     }
 
     function prettyPrintRef(&$ref) {
         $i = new Introspection;
 
-        return $i->introspectRef($ref)->toJsonFromJson()->render($this)->toString();
+        return $this->render($i->introspectRef($ref)->toJsonFromJson())->toString();
     }
 
     function render(Value $v) {
@@ -65,8 +65,8 @@ final class PrettyPrinter implements ValueVisitor {
             if ((count($rows) + 1) > $this->maxArrayEntries)
                 break;
 
-            $key   = $keyValuePair->key()->render($this);
-            $value = $keyValuePair->value()->render($this);
+            $key   = $this->render($keyValuePair->key());
+            $value = $this->render($keyValuePair->value());
 
             if (count($rows) != count($array->entries()) - 1)
                 $value->append(',');
@@ -159,7 +159,7 @@ final class PrettyPrinter implements ValueVisitor {
 
             $rows[] = array(
                 $variable->renderPrefix($this)->appendLines($this->renderVariable($variable->name())),
-                $variable->value()->render($this)->wrap(' = ', ';'),
+                $this->render($variable->value())->wrap(' = ', ';'),
             );
         }
 
@@ -177,12 +177,19 @@ final class PrettyPrinter implements ValueVisitor {
 
         foreach ($exception->stack() as $frame) {
             $text->addLine("#$i {$frame->location()}");
-            $text->addLines($frame->render($this)->append(';')->indent(3));
+            $text->addLines($this->renderExceptionStackFrame($frame)->append(';')->indent(3));
             $text->addLine();
             $i++;
         }
 
         return $text->addLine("#$i {main}");
+    }
+
+    private function renderExceptionStackFrame(ValueExceptionStackFrame $frame) {
+        $prefix = $this->renderExceptionStackFramePrefix($frame);
+        $args   = $this->renderExceptionStackFrameArgs($frame);
+
+        return $prefix->append($frame->getFunction())->appendLines($args);
     }
 
     function visitException(ValueException $exception) {
@@ -255,8 +262,8 @@ final class PrettyPrinter implements ValueVisitor {
     private function renderVariable($name) {
         if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name))
             return $this->text("$$name");
-		else
-			return $this->renderString($name)->wrap('${', '}');
+        else
+            return $this->renderString($name)->wrap('${', '}');
     }
 
     function setEscapeTabsInStrings($escapeTabsInStrings) {
@@ -328,6 +335,46 @@ final class PrettyPrinter implements ValueVisitor {
 
     function visitBool(ValueBool $b) {
         return $this->text($b->bool() ? 'true' : 'false');
+    }
+
+    private function renderExceptionStackFrameArgs(ValueExceptionStackFrame $frame) {
+        if ($frame->getArgs() === null)
+            return $this->text("( ? )");
+
+        if ($frame->getArgs() === array())
+            return $this->text("()");
+
+        $pretties    = array();
+        $isMultiLine = false;
+
+        foreach ($frame->getArgs() as $arg) {
+            $pretty      = $this->render($arg);
+            $isMultiLine = $isMultiLine || $pretty->count() > 1;
+            $pretties[]  = $pretty;
+        }
+
+        $result = $this->text();
+
+        foreach ($pretties as $k => $pretty) {
+            if ($k !== 0)
+                $result->append(', ');
+
+            if ($isMultiLine)
+                $result->addLines($pretty);
+            else
+                $result->appendLines($pretty);
+        }
+
+        return $result->wrap("( ", " )");
+    }
+
+    private function renderExceptionStackFramePrefix(ValueExceptionStackFrame $frame) {
+        if ($frame->getObject() !== null)
+            return $this->render($frame->getObject())->append('->');
+        else if ($frame->getClass() !== null)
+            return $this->text($frame->getClass() . ($frame->getIsStatic() ? "::" : "->"));
+        else
+            return $this->text();
     }
 }
 

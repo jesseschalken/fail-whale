@@ -68,9 +68,6 @@ s;
 
     function sourceCode() { return $this->location->sourceCode(); }
 
-    function toJSON(JSONUnparse $s) {
-    }
-
     function setClass($class) { $this->class = $class; }
 
     /**
@@ -349,53 +346,6 @@ class ValueExceptionStackFrame {
     function line() { return $this->location === null ? null : $this->location->line(); }
 
     function location() { return $this->location === null ? '[internal function]' : "{$this->file()}:{$this->line()}"; }
-
-    function renderArgs(PrettyPrinter $settings) {
-        if ($this->args === null)
-            return $settings->text("( ? )");
-
-        if ($this->args === array())
-            return $settings->text("()");
-
-        $pretties    = array();
-        $isMultiLine = false;
-
-        foreach ($this->args as $arg) {
-            $pretty      = $arg->render($settings);
-            $isMultiLine = $isMultiLine || $pretty->count() > 1;
-            $pretties[]  = $pretty;
-        }
-
-        $result = $settings->text();
-
-        foreach ($pretties as $k => $pretty) {
-            if ($k !== 0)
-                $result->append(', ');
-
-            if ($isMultiLine)
-                $result->addLines($pretty);
-            else
-                $result->appendLines($pretty);
-        }
-
-        return $result->wrap("( ", " )");
-    }
-
-    function render(PrettyPrinter $settings) {
-        return $this->prefix($settings)
-                    ->append($this->function)
-                    ->appendLines($this->renderArgs($settings));
-    }
-
-    function prefix(PrettyPrinter $settings) {
-        if ($this->object !== null)
-            return $this->object->render($settings)->append('->');
-
-        if ($this->class !== null)
-            return $settings->text($this->isStatic ? "$this->class::" : "$this->class->");
-
-        return $settings->text();
-    }
 
     function setClass($class) { $this->class = $class; }
 

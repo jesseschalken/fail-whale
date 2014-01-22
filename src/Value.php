@@ -114,13 +114,6 @@ abstract class Value {
         return JSONParse::fromJSON(JSONUnparse::toJSON($this));
     }
 
-    /**
-     * @param PrettyPrinter $settings
-     *
-     * @return PrettyPrinterText
-     */
-    final function render(PrettyPrinter $settings) { return $settings->render($this); }
-
     function id() { return $this->id; }
 
     abstract function acceptVisitor(ValueVisitor $visitor);
