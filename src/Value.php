@@ -177,8 +177,6 @@ class ValueInt extends Value {
 }
 
 class ValueNull extends Value {
-    function __construct() { parent::__construct(); }
-
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull(); }
 }
 
@@ -212,8 +210,6 @@ class ValueString extends Value {
 }
 
 class ValueUnknown extends Value {
-    function __construct() { parent::__construct(); }
-
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitUnknown(); }
 }
 
