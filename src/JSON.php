@@ -200,6 +200,60 @@ final class JSONUnparse implements ValueVisitor {
     }
 }
 
+class JSONValue extends Value {
+    function acceptVisitor(ValueVisitor $visitor) {
+        $v = $this->json;
+
+        if (is_float($v)) {
+            return $visitor->visitFloat($v);
+        } else if (is_int($v)) {
+            return $visitor->visitInt($v);
+        } else if (is_bool($v)) {
+            return $visitor->visitBool($v);
+        } else if (is_null($v)) {
+            return $visitor->visitNull();
+        } else if (is_string($v)) {
+            return $visitor->visitString(new ValueString($v));
+        } else {
+            switch ($v[0]) {
+                case 'object':
+                    return $visitor->visitObject($this->parser->parseObject($v));
+                case '-inf':
+                case '+inf':
+                case 'nan':
+                case 'float':
+                    return $visitor->visitFloat($this->parser->parseFloat($v[1]));
+                case 'array':
+                    return $visitor->visitArray($this->parser->parseArray($v[1]));
+                case 'exception':
+                    return $visitor->visitException($this->parser->parseException($v));
+                case 'resource':
+                    return $visitor->visitResource($this->parser->parseResource($v[1]));
+                case 'unknown':
+                    return $visitor->visitUnknown();
+                case 'null':
+                    return $visitor->visitNull();
+                case 'int':
+                    return $visitor->visitInt($v[1]);
+                case 'bool':
+                    return $visitor->visitBool($v[1]);
+                case 'string':
+                    return $visitor->visitString(new ValueString($v[1]));
+                default:
+                    throw new Exception("Unknown type: {$v[0]}");
+            }
+        }
+    }
+
+    private $json;
+    private $parser;
+
+    function __construct($json, JSONParse $parser) {
+        $this->json   = $json;
+        $this->parser = $parser;
+    }
+}
+
 final class JSONParse {
     /**
      * @param string $parse
@@ -220,48 +274,10 @@ final class JSONParse {
     private $root;
 
     private function parseValue($v) {
-        if (is_float($v)) {
-            return new ValueFloat($v);
-        } else if (is_int($v)) {
-            return new ValueInt($v);
-        } else if (is_bool($v)) {
-            return new ValueBool($v);
-        } else if (is_null($v)) {
-            return new ValueNull;
-        } else if (is_string($v)) {
-            return new ValueString($v);
-        } else {
-            switch ($v[0]) {
-                case 'object':
-                    return $this->parseObject($v);
-                case '-inf':
-                case '+inf':
-                case 'nan':
-                case 'float':
-                    return $this->parseFloat($v[1]);
-                case 'array':
-                    return $this->parseArray($v[1]);
-                case 'exception':
-                    return $this->parseException($v);
-                case 'resource':
-                    return $this->parseResource($v[1]);
-                case 'unknown':
-                    return new ValueUnknown;
-                case 'null':
-                    return new ValueNull;
-                case 'int':
-                    return new ValueInt($v[1]);
-                case 'bool':
-                    return new ValueBool($v[1]);
-                case 'string':
-                    return new ValueString($v[1]);
-                default:
-                    throw new Exception("Unknown type: {$v[0]}");
-            }
-        }
+        return new JSONValue($v, $this);
     }
 
-    private function parseException($x) {
+    function parseException($x) {
         if ($x === null)
             return null;
 
@@ -353,11 +369,11 @@ final class JSONParse {
         return $result;
     }
 
-    private function parseResource($x1) {
+    function parseResource($x1) {
         return new ValueResource($x1['type'], $x1['id']);
     }
 
-    private function parseArray($x) {
+    function parseArray($x) {
         $self =& $this->finishedArrays[$x];
         if ($self === null) {
             $x1   = $this->root['arrays'][$x];
@@ -374,7 +390,7 @@ final class JSONParse {
         return $self;
     }
 
-    private function parseObject($x) {
+    function parseObject($x) {
         if ($x === null)
             return null;
 
@@ -402,7 +418,7 @@ final class JSONParse {
         return $self;
     }
 
-    private function parseFloat($x) {
+    function parseFloat($x) {
         if ($x === '+inf')
             $result = INF;
         else if ($x === '-inf')
@@ -412,7 +428,7 @@ final class JSONParse {
         else
             $result = (float)$x;
 
-        return new ValueFloat($result);
+        return $result;
     }
 
     private function __construct() { }
