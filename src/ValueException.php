@@ -16,7 +16,33 @@ interface ExceptionHasLocalVariables {
     function getLocalVariables();
 }
 
-class ValueException extends Value {
+interface ValueException {
+    /** @return string */
+    function className();
+
+    /** @return string */
+    function code();
+
+    /** @return string */
+    function message();
+
+    /** @return self|null */
+    function previous();
+
+    /** @return ValueExceptionCodeLocation */
+    function location();
+
+    /** @return ValueExceptionGlobalState */
+    function globals();
+
+    /** @return ValueVariable[]|null */
+    function locals();
+
+    /** @return ValueExceptionStackFrame[] */
+    function stack();
+}
+
+class MutableValueException extends Value implements ValueException {
     static function mock(Introspection $param) {
         $self           = new self;
         $self->class    = 'MuhMockException';
@@ -41,7 +67,7 @@ s;
     private $locals;
     private $code;
     private $message;
-    /** @var self|null */
+    /** @var MutableValueException|null */
     private $previous;
     /** @var ValueExceptionGlobalState|null */
     private $globals;
@@ -85,7 +111,7 @@ s;
     function setMessage($message) { $this->message = $message; }
 
     /**
-     * @param \ErrorHandler\ValueException|null $previous
+     * @param \ErrorHandler\MutableValueException|null $previous
      */
     function setPrevious($previous) { $this->previous = $previous; }
 

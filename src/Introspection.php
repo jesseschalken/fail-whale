@@ -16,7 +16,7 @@ class Introspection {
         return $result;
     }
 
-    function mockException() { return ValueException::mock($this); }
+    function mockException() { return MutableValueException::mock($this); }
 
     /** @var ValueObject[] */
     private $objectCache = array();
@@ -106,7 +106,7 @@ class Introspection {
     /**
      * @param \Exception $e
      *
-     * @return ValueException|null
+     * @return MutableValueException|null
      */
     private function introspectImplNoGlobals(\Exception $e = null) {
         if ($e === null)
@@ -115,7 +115,7 @@ class Introspection {
         $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
         $frames = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
 
-        $result = new ValueException;
+        $result = new MutableValueException;
         $result->setClass(get_class($e));
         $result->setCode($e->getCode());
         $result->setMessage($e->getMessage());

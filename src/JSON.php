@@ -283,7 +283,7 @@ final class JSONParse {
 
         $e = $x[1];
 
-        $result = new ValueException;
+        $result = new MutableValueException;
         $result->setClass($e['class']);
         $result->setCode($e['code']);
         $result->setMessage($e['message']);

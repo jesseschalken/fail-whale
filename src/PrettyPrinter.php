@@ -95,14 +95,16 @@ final class PrettyPrinter implements ValueVisitor {
      * @return PrettyPrinterText
      */
     private function renderException(ValueException $e) {
-        $text = $this->text("{$e->className()} {$e->code()} in {$e->file()}:{$e->line()}\n");
+        $location = $e->location();
+
+        $text = $this->text("{$e->className()} {$e->code()} in {$location->file()}:{$location->line()}\n");
         $text->addLine();
         $text->addLines($this->text($e->message())->indent(2));
         $text->addLine();
 
-        if ($this->showExceptionSourceCode && $e->sourceCode() !== null) {
+        if ($this->showExceptionSourceCode && $location->sourceCode() !== null) {
             $text->addLine("source code:");
-            $text->addLines($this->renderSourceCode($e->sourceCode(), $e->line())->indent());
+            $text->addLines($this->renderSourceCode($location->sourceCode(), $location->line())->indent());
             $text->addLine();
         }
 
