@@ -47,52 +47,6 @@ abstract class Value {
     abstract function acceptVisitor(ValueVisitor $visitor);
 }
 
-class ValueBool extends Value {
-    private $bool;
-
-    function __construct($x) {
-        assert(is_bool($x));
-
-        $this->bool = $x;
-    }
-
-    function bool() { return $this->bool; }
-
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitBool($this->bool); }
-}
-
-class ValueFloat extends Value {
-    private $float;
-
-    function __construct($x) {
-        assert(is_float($x));
-
-        $this->float = $x;
-    }
-
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitFloat($this->float); }
-
-    function float() { return $this->float; }
-}
-
-class ValueInt extends Value {
-    private $int;
-
-    function __construct($x) {
-        assert(is_int($x));
-
-        $this->int = $x;
-    }
-
-    function int() { return $this->int; }
-
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitInt($this->int); }
-}
-
-class ValueNull extends Value {
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull(); }
-}
-
 class ValueResource extends Value {
     private $type, $id;
 
@@ -121,9 +75,3 @@ class ValueString extends Value {
 
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitString($this); }
 }
-
-class ValueUnknown extends Value {
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitUnknown(); }
-}
-
-
