@@ -40,23 +40,9 @@ interface ValueVisitor {
 }
 
 abstract class Value {
-    private static $nextID = 0;
-
-    private $id;
-
-    function __construct() {
-        $this->id = self::$nextID++;
-    }
-
-    function __clone() {
-        $this->id = self::$nextID++;
-    }
-
     function toJsonFromJson() {
         return JSONParse::fromJSON(JSONUnparse::toJSON($this));
     }
-
-    function id() { return $this->id; }
 
     abstract function acceptVisitor(ValueVisitor $visitor);
 }

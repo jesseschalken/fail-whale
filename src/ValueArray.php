@@ -6,6 +6,7 @@ class ValueArray extends Value {
     private $isAssociative;
     /** @var ValueArrayEntry[] */
     private $entries = array();
+    private $id;
 
     function isAssociative() { return $this->isAssociative; }
 
@@ -20,6 +21,10 @@ class ValueArray extends Value {
     function addEntry(Value $k, Value $v) {
         $this->entries[] = new ValueArrayEntry($k, $v);
     }
+
+    function setID($id) { $this->id = $id; }
+
+    function id() { return $this->id; }
 }
 
 class ValueArrayEntry {

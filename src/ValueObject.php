@@ -7,6 +7,7 @@ class ValueObject extends Value {
     private $class;
     /** @var ValueObjectProperty[] */
     private $properties = array();
+    private $id;
 
     function className() { return $this->class; }
 
@@ -21,6 +22,10 @@ class ValueObject extends Value {
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitObject($this); }
 
     function getHash() { return $this->hash; }
+
+    function id() { return $this->id; }
+
+    function setId($id) { $this->id = $id; }
 }
 
 class ValueObjectProperty extends ValueVariable {

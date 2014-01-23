@@ -11,8 +11,9 @@ final class PrettyPrinter implements ValueVisitor {
     private $showExceptionLocalVariables = true;
     private $showExceptionStackTrace = true;
     private $splitMultiLineStrings = true;
-    private $valuesReferable = array();
     private $showExceptionSourceCode = true;
+    private $arraysRendered = array();
+    private $objectsRendered = array();
 
     function text($text = '') { return new PrettyPrinterText($text, "\n"); }
 
@@ -35,27 +36,29 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     function prettyPrintRef(&$ref) {
+        $this->arraysRendered  = array();
+        $this->objectsRendered = array();
+
         $i = new Introspection;
 
         return $this->render($i->introspectRef($ref)->toJsonFromJson())->toString();
     }
 
-    function render(Value $v) {
-        $id = $v->id();
-
-        if (isset($this->valuesReferable[$id]))
-            return $this->text('*recursion*');
-
-        $this->valuesReferable[$id] = true;
-
-        $result = $v->acceptVisitor($this);
-
-        unset($this->valuesReferable[$id]);
-
-        return $result;
-    }
+    /**
+     * @param Value $v
+     *
+     * @return PrettyPrinterText
+     */
+    function render(Value $v) { return $v->acceptVisitor($this); }
 
     function visitArray(ValueArray $array) {
+        $rendered =& $this->arraysRendered[$array->id()];
+
+        if ($rendered)
+            return $this->text('*recursion*');
+        
+        $rendered = true;
+
         if ($array->entries() === array())
             return $this->text("array()");
 
@@ -75,6 +78,8 @@ final class PrettyPrinter implements ValueVisitor {
                 ? array($key, $value->prepend(' => '))
                 : array($value);
         }
+
+        $rendered = false;
 
         $result = $this->renderTable($rows);
 
@@ -205,18 +210,29 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     function visitObject(ValueObject $object) {
+        $rendered =& $this->objectsRendered[$object->id()];
+
+        if ($rendered)
+            return $this->text('*recursion*');
+
+        $rendered = true;
+
         $properties = $object->properties();
         $class      = $object->className();
 
         if ($properties === array()) {
-            return $this->text("new $class {}");
+            $result = $this->text("new $class {}");
         } elseif ($this->maxObjectProperties == 0) {
-            return $this->text("new $class {...}");
+            $result = $this->text("new $class {...}");
         } else {
-            return $this->renderVariables($properties, '', $this->maxObjectProperties)
+            $result = $this->renderVariables($properties, '', $this->maxObjectProperties)
                         ->setHasEndingNewline(false)
                         ->indent(2)->wrapLines("new $class {", "}");
         }
+        
+        $rendered = false;
+        
+        return $result;
     }
 
     /**

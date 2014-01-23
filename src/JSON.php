@@ -20,8 +20,6 @@ final class JSONUnparse implements ValueVisitor {
         'arrays'  => array(),
         'objects' => array(),
     );
-    private $objectIndexes = array();
-    private $arrayIndexes = array();
 
     private function __construct() { }
 
@@ -29,12 +27,9 @@ final class JSONUnparse implements ValueVisitor {
         if ($o === null)
             return null;
 
-        $id =& $this->objectIndexes[$o->id()];
+        $json =& $this->root['objects'][$o->id()];
 
-        if ($id === null) {
-            $id = count($this->root['objects']);
-
-            $json =& $this->root['objects'][$id];
+        if ($json === null) {
             $json = array(
                 'class'      => $o->className(),
                 'hash'       => $o->getHash(),
@@ -52,16 +47,13 @@ final class JSONUnparse implements ValueVisitor {
             }
         }
 
-        return array('object', $id);
+        return array('object', $o->id());
     }
 
     function visitArray(ValueArray $a) {
-        $index =& $this->arrayIndexes[$a->id()];
+        $json =& $this->root['arrays'][$a->id()];
 
-        if ($index === null) {
-            $index = count($this->root['arrays']);
-
-            $json =& $this->root['arrays'][$index];
+        if ($json === null) {
             $json = array(
                 'isAssociative' => $a->isAssociative(),
                 'entries'       => array(),
@@ -75,7 +67,7 @@ final class JSONUnparse implements ValueVisitor {
             }
         }
 
-        return array('array', $index);
+        return array('array', $a->id());
     }
 
     function visitException(ValueException $e) {
@@ -371,6 +363,7 @@ final class JSONParse {
             $x1   = $this->root['arrays'][$x];
             $self = new ValueArray;
             $self->setIsAssociative($x1['isAssociative']);
+            $self->setID($x);
 
             foreach ($x1['entries'] as $e) {
                 $self->addEntry($this->parseValue($e[0]),
@@ -394,6 +387,7 @@ final class JSONParse {
             $self = new ValueObject;
             $self->setClass($x1['class']);
             $self->setHash($x1['hash']);
+            $self->setId($id);
 
             foreach ($x1['properties'] as $p) {
                 $p2 = new ValueObjectProperty;

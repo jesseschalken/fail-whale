@@ -55,7 +55,8 @@ class Introspection {
         $entry->array       =& $x;
         $entry->result      = $result;
         $this->arrayCache[] = $entry;
-
+        
+        $result->setID(count($this->arrayCache));
         $result->setIsAssociative(array_is_associative($x));
 
         foreach ($x as $k => &$v) {
@@ -75,6 +76,7 @@ class Introspection {
         $this->objects[] = $x;
 
         $result = new ValueObject;
+        $result->setId(count($this->objectCache));
         $result->setHash($hash);
         $result->setClass(get_class($x));
 
