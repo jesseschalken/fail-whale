@@ -6,24 +6,7 @@ class Introspection {
     function introspect($x) { return self::introspectRef($x); }
 
     function introspectRef(&$x) {
-        if (is_string($x))
-            return new ValueString($x);
-        else if (is_int($x))
-          return new ValueInt($x);
-        else if (is_bool($x))
-          return new ValueBool($x);
-        else if (is_null($x))
-          return new ValueNull;
-        else if (is_float($x))
-          return new ValueFloat($x);
-        else if (is_array($x))
-          return $this->introspectArray($x);
-        else if (is_object($x))
-          return $this->introspectObject($x);
-        else if (is_resource($x))
-          return $this->introspectResource($x);
-        else
-            return new ValueUnknown;
+        return new IntrospectionValue($x, $this);
     }
 
     function introspectException(\Exception $e) {
@@ -42,7 +25,7 @@ class Introspection {
     /** @var IntrospectionArrayCacheEntry[] */
     private $arrayCache = array();
 
-    private function introspectArray(array &$x) {
+    function introspectArray(array &$x) {
         foreach ($this->arrayCache as $entry) {
             if (ref_equal($entry->array, $x)) {
                 return $entry->result;
@@ -55,7 +38,7 @@ class Introspection {
         $entry->array       =& $x;
         $entry->result      = $result;
         $this->arrayCache[] = $entry;
-        
+
         $result->setID(count($this->arrayCache));
         $result->setIsAssociative(array_is_associative($x));
 
@@ -66,7 +49,7 @@ class Introspection {
         return $result;
     }
 
-    private function introspectObject($x) {
+    function introspectObject($x) {
         $hash   = spl_object_hash($x);
         $result =& $this->objectCache[$hash];
 
@@ -116,8 +99,8 @@ class Introspection {
             throw new \Exception("This thing is not protected, public, nor private? Huh?");
     }
 
-    private function introspectResource($x) {
-        return new ValueResource(get_resource_type($x),(int) $x);
+    function introspectResource($x) {
+        return new ValueResource(get_resource_type($x), (int)$x);
     }
 
     /**
@@ -295,6 +278,39 @@ class Introspection {
         }
 
         return $result;
+    }
+}
+
+class IntrospectionValue extends Value {
+    private $x;
+    private $i;
+
+    function __construct(&$x, Introspection $i) {
+        $this->x =& $x;
+        $this->i = $i;
+    }
+
+    function acceptVisitor(ValueVisitor $visitor) {
+        $x =& $this->x;
+
+        if (is_string($x))
+            return $visitor->visitString(new ValueString($x));
+        else if (is_int($x))
+            return $visitor->visitInt($x);
+        else if (is_bool($x))
+            return $visitor->visitBool($x);
+        else if (is_null($x))
+            return $visitor->visitNull();
+        else if (is_float($x))
+            return $visitor->visitFloat($x);
+        else if (is_array($x))
+            return $visitor->visitArray($this->i->introspectArray($x));
+        else if (is_object($x))
+            return $visitor->visitObject($this->i->introspectObject($x));
+        else if (is_resource($x))
+            return $visitor->visitResource($this->i->introspectResource($x));
+        else
+            return $visitor->visitUnknown();
     }
 }
 

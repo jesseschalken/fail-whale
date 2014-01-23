@@ -304,7 +304,7 @@ class ValueExceptionStackFrame {
         $self->function = 'aFunction';
         $self->args     = array($param->introspect(new DummyClass2));
         $self->location = ValueExceptionCodeLocation::mock('/path/to/muh/file', 1928);
-        $self->object   = $param->introspect(new DummyClass1);
+        $self->object   = $param->introspectObject(new DummyClass1);
         $self->class    = 'DummyClass1';
 
         $stack[] = $self;
