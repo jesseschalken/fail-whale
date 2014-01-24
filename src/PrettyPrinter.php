@@ -51,7 +51,7 @@ final class PrettyPrinter implements ValueVisitor {
      */
     function render(Value $v) { return $v->acceptVisitor($this); }
 
-    function visitArray(ValueArray $array) {
+    function visitArray(MutableValueArray $array) {
         $rendered =& $this->arraysRendered[$array->id()];
 
         if ($rendered)
@@ -148,7 +148,7 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     /**
-     * @param ValueVariable[] $variables
+     * @param MutableValueVariable[] $variables
      * @param string          $noneText
      * @param float           $max
      *
@@ -213,7 +213,7 @@ final class PrettyPrinter implements ValueVisitor {
         return $text;
     }
 
-    function visitObject(ValueObject $object) {
+    function visitObject(MutableValueObject $object) {
         $rendered =& $this->objectsRendered[$object->id()];
 
         if ($rendered)

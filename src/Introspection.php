@@ -15,7 +15,7 @@ class Introspection {
 
     function mockException() { return MutableValueException::mock($this); }
 
-    /** @var ValueObject[] */
+    /** @var MutableValueObject[] */
     private $objectCache = array();
     /** @var object[] Just to keep a reference to the objects, because if they get GC'd their hash can get re-used */
     private $objects = array();
@@ -29,7 +29,7 @@ class Introspection {
             }
         }
 
-        $result = new ValueArray;
+        $result = new MutableValueArray;
 
         $entry              = new IntrospectionArrayCacheEntry;
         $entry->array       =& $x;
@@ -55,7 +55,7 @@ class Introspection {
 
         $this->objects[] = $x;
 
-        $result = new ValueObject;
+        $result = new MutableValueObject;
         $result->setId(count($this->objectCache));
         $result->setHash($hash);
         $result->setClass(get_class($x));
@@ -65,7 +65,7 @@ class Introspection {
              $reflection = $reflection->getParentClass()) {
             foreach ($reflection->getProperties() as $property) {
                 if (!$property->isStatic() && $property->class === $reflection->name) {
-                    $result->addProperty($this->introspectObjectProperty($property, $x, new ValueObjectProperty));
+                    $result->addProperty($this->introspectObjectProperty($property, $x, new MutableValueObjectProperty));
                 }
             }
         }
@@ -73,7 +73,7 @@ class Introspection {
         return $result;
     }
 
-    private function introspectObjectProperty(\ReflectionProperty $p, $object = null, ValueObjectProperty $result) {
+    private function introspectObjectProperty(\ReflectionProperty $p, $object = null, MutableValueObjectProperty $result) {
         $p->setAccessible(true);
 
         $result->setName($p->name);
@@ -148,7 +148,7 @@ class Introspection {
                 $staticVariables = $method->getStaticVariables();
 
                 foreach ($staticVariables as $variableName => &$varValue) {
-                    $v = new ValueVariableStatic;
+                    $v = new MutableValueVariableStatic;
                     $v->setName($variableName);
                     $v->setValue($this->introspectRef($varValue));
                     $v->setClass($method->class);
@@ -165,7 +165,7 @@ class Introspection {
                 $staticVariables = $reflection->getStaticVariables();
 
                 foreach ($staticVariables as $propertyName => &$varValue) {
-                    $v = new ValueVariableStatic;
+                    $v = new MutableValueVariableStatic;
                     $v->setName($propertyName);
                     $v->setValue($this->introspectRef($varValue));
                     $v->setFunction($function);
@@ -255,7 +255,7 @@ class IntrospectionException implements ValueException, Value {
 
         $result = array();
         foreach ($locals as $key => &$value) {
-            $variable = new ValueVariable;
+            $variable = new MutableValueVariable;
             $variable->setName($key);
             $variable->setValue($this->i->introspectRef($value));
             $result[] = $variable;
@@ -354,6 +354,6 @@ class IntrospectionValue implements Value {
 class IntrospectionArrayCacheEntry {
     /** @var array */
     public $array;
-    /** @var ValueArray */
+    /** @var MutableValueArray */
     public $result;
 }

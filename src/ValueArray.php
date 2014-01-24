@@ -2,9 +2,28 @@
 
 namespace ErrorHandler;
 
-class ValueArray implements Value {
+interface ValueArray {
+    /** @return bool */
+    function isAssociative();
+
+    /** @return int */
+    function id();
+
+    /** @return ValueArrayEntry[] */
+    function entries();
+}
+
+interface ValueArrayEntry {
+    /** @return Value */
+    function key();
+
+    /** @return Value */
+    function value();
+}
+
+class MutableValueArray implements Value, ValueArray {
     private $isAssociative;
-    /** @var ValueArrayEntry[] */
+    /** @var MutableValueArrayEntry[] */
     private $entries = array();
     private $id;
 
@@ -19,7 +38,7 @@ class ValueArray implements Value {
     }
 
     function addEntry(Value $k, Value $v) {
-        $this->entries[] = new ValueArrayEntry($k, $v);
+        $this->entries[] = new MutableValueArrayEntry($k, $v);
     }
 
     function setID($id) { $this->id = $id; }
@@ -27,7 +46,7 @@ class ValueArray implements Value {
     function id() { return $this->id; }
 }
 
-class ValueArrayEntry {
+class MutableValueArrayEntry implements ValueArrayEntry {
     /** @var Value */
     private $key;
     /** @var Value */

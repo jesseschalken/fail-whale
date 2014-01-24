@@ -23,7 +23,7 @@ final class JSONUnparse implements ValueVisitor {
 
     private function __construct() { }
 
-    function visitObject(ValueObject $o = null) {
+    function visitObject(MutableValueObject $o = null) {
         if ($o === null)
             return null;
 
@@ -50,7 +50,7 @@ final class JSONUnparse implements ValueVisitor {
         return array('object', $o->id());
     }
 
-    function visitArray(ValueArray $a) {
+    function visitArray(MutableValueArray $a) {
         $json =& $this->root['arrays'][$a->id()];
 
         if ($json === null) {
@@ -271,9 +271,9 @@ final class JSONParse {
         return $self->parseValue($self->root['root']);
     }
 
-    /** @var ValueObject[] */
+    /** @var MutableValueObject[] */
     private $finishedObjects = array();
-    /** @var ValueArray[] */
+    /** @var MutableValueArray[] */
     private $finishedArrays = array();
     private $root;
 
@@ -323,7 +323,7 @@ final class JSONParse {
             $locals = array();
 
             foreach ($e['locals'] as $local) {
-                $var = new ValueVariable;
+                $var = new MutableValueVariable;
                 $var->setName($local['name']);
                 $var->setValue($this->parseValue($local['value']));
                 $locals[] = $var;
@@ -348,7 +348,7 @@ final class JSONParse {
             }
 
             foreach ($e['globals']['staticVariables'] as $v) {
-                $v2 = new ValueVariableStatic;
+                $v2 = new MutableValueVariableStatic;
                 $v2->setClass($v['class']);
                 $v2->setName($v['name']);
                 $v2->setFunction($v['function']);
@@ -381,7 +381,7 @@ final class JSONParse {
         $self =& $this->finishedArrays[$x];
         if ($self === null) {
             $x1   = $this->root['arrays'][$x];
-            $self = new ValueArray;
+            $self = new MutableValueArray;
             $self->setIsAssociative($x1['isAssociative']);
             $self->setID($x);
 
@@ -404,13 +404,13 @@ final class JSONParse {
         if ($self === null) {
             $x1 = $this->root['objects'][$id];
 
-            $self = new ValueObject;
+            $self = new MutableValueObject;
             $self->setClass($x1['class']);
             $self->setHash($x1['hash']);
             $self->setId($id);
 
             foreach ($x1['properties'] as $p) {
-                $p2 = new ValueObjectProperty;
+                $p2 = new MutableValueObjectProperty;
                 $p2->setName($p['name']);
                 $p2->setValue($this->parseValue($p['value']));
                 $p2->setClass($p['class']);

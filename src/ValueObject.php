@@ -2,10 +2,24 @@
 
 namespace ErrorHandler;
 
-class ValueObject implements Value {
+interface ValueObject {
+    /** @return string */
+    function className();
+
+    /** @return ValueObjectProperty[] */
+    function properties();
+
+    /** @return string */
+    function getHash();
+
+    /** @return int */
+    function id();
+}
+
+class MutableValueObject implements Value, ValueObject {
     private $hash;
     private $class;
-    /** @var ValueObjectProperty[] */
+    /** @var MutableValueObjectProperty[] */
     private $properties = array();
     private $id;
 
@@ -17,7 +31,7 @@ class ValueObject implements Value {
 
     function setClass($class) { $this->class = $class; }
 
-    function addProperty(ValueObjectProperty $p) { $this->properties[] = $p; }
+    function addProperty(MutableValueObjectProperty $p) { $this->properties[] = $p; }
 
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitObject($this); }
 
@@ -28,11 +42,11 @@ class ValueObject implements Value {
     function setId($id) { $this->id = $id; }
 }
 
-class ValueObjectProperty extends ValueVariable {
+class MutableValueObjectProperty extends MutableValueVariable implements ValueObjectProperty {
     /**
      * @param Introspection $i
      *
-     * @return self[]
+     * @return MutableValueObjectProperty[]
      */
     static function mockStatic(Introspection $i) {
         $self            = static::introspect($i, 'blahProperty', ref_new());
@@ -67,7 +81,7 @@ class ValueObjectProperty extends ValueVariable {
     function isDefault() { return $this->isDefault; }
 }
 
-class ValueObjectPropertyStatic extends ValueObjectProperty {
+class ValueObjectPropertyStatic extends MutableValueObjectProperty {
     static protected function create() { return new self; }
 
     function renderPrefix(PrettyPrinter $settings) {

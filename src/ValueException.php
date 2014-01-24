@@ -53,7 +53,7 @@ lololool
 s;
         $self->code     = 'Dummy exception code';
         $self->location = ValueExceptionCodeLocation::mock('/path/to/muh/file', 9000);
-        $self->locals   = ValueVariable::mockLocals($param);
+        $self->locals   = MutableValueVariable::mockLocals($param);
         $self->stack    = MutableValueExceptionStackFrame::mock($param);
         $self->globals  = ValueExceptionGlobalState::mock($param);
 
@@ -63,7 +63,7 @@ s;
     private $class;
     /** @var MutableValueExceptionStackFrame[] */
     private $stack = array();
-    /** @var ValueVariable[]|null */
+    /** @var MutableValueVariable[]|null */
     private $locals;
     private $code;
     private $message;
@@ -102,7 +102,7 @@ s;
     function setStack($stack) { $this->stack = $stack; }
 
     /**
-     * @param \ErrorHandler\ValueVariable[]|null $locals
+     * @param \ErrorHandler\MutableValueVariable[]|null $locals
      */
     function setLocals($locals) { $this->locals = $locals; }
 
@@ -135,7 +135,7 @@ class ValueExceptionGlobalState {
         $self                   = new self;
         $self->staticProperties = ValueObjectPropertyStatic::mockStatic($i);
         $self->globalVariables  = ValueGlobalVariable::mockGlobals($i);
-        $self->staticVariables  = ValueVariableStatic::mockStatics($i);
+        $self->staticVariables  = MutableValueVariableStatic::mockStatics($i);
 
         return $self;
     }
@@ -144,10 +144,10 @@ class ValueExceptionGlobalState {
     private $staticProperties = array();
     /** @var ValueGlobalVariable[] */
     private $globalVariables = array();
-    /** @var ValueVariableStatic[] */
+    /** @var MutableValueVariableStatic[] */
     private $staticVariables = array();
 
-    /** @return ValueVariable[] */
+    /** @return MutableValueVariable[] */
     function variables() {
         return array_merge($this->staticProperties,
                            $this->globalVariables,
@@ -205,7 +205,34 @@ class ValueExceptionCodeLocation {
     function setFile($file) { $this->file = $file; }
 }
 
-class ValueVariable {
+interface ValueVariable {
+    /** @return string */
+    function name();
+
+    /** @return Value */
+    function value();
+}
+
+interface ValueVariableStatic {
+    /** @return string */
+    function getFunction();
+
+    /** @return string|null */
+    function getClass();
+}
+
+interface ValueObjectProperty {
+    /** @return string */
+    function access();
+
+    /** @return string */
+    function className();
+
+    /** @return bool */
+    function isDefault();
+}
+
+class MutableValueVariable implements ValueVariable {
     static function mockLocals(Introspection $i) {
         $locals[] = self::introspect($i, 'lol', ref_new(8));
         $locals[] = self::introspect($i, 'foo', ref_new('bar'));
@@ -248,7 +275,7 @@ class ValueVariable {
     function setName($name) { $this->name = $name; }
 }
 
-class ValueGlobalVariable extends ValueVariable {
+class ValueGlobalVariable extends MutableValueVariable {
     static function mockGlobals(Introspection $param) {
         $globals[] = self::introspect($param, 'lol global', ref_new());
         $globals[] = self::introspect($param, 'blahVariable', ref_new());
@@ -276,11 +303,11 @@ class ValueGlobalVariable extends ValueVariable {
     }
 }
 
-class ValueVariableStatic extends ValueVariable {
+class MutableValueVariableStatic extends MutableValueVariable {
     /**
      * @param Introspection $i
      *
-     * @return self[]
+     * @return MutableValueVariableStatic[]
      */
     static function mockStatics(Introspection $i) {
         $self           = self::introspect($i, 'public', ref_new());
@@ -333,7 +360,7 @@ interface ValueExceptionStackFrame {
     /** @return ValueExceptionCodeLocation|null */
     function getLocation();
 
-    /** @return ValueObject|null */
+    /** @return MutableValueObject|null */
     function getObject();
 }
 
@@ -381,7 +408,7 @@ class MutableValueExceptionStackFrame implements ValueExceptionStackFrame {
     private $function;
     /** @var Value[]|null */
     private $args;
-    /** @var ValueObject|null */
+    /** @var MutableValueObject|null */
     private $object;
     private $isStatic;
     /** @var ValueExceptionCodeLocation */
