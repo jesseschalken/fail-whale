@@ -2,7 +2,7 @@
 
 namespace ErrorHandler;
 
-class ValueArray extends Value {
+class ValueArray implements Value {
     private $isAssociative;
     /** @var ValueArrayEntry[] */
     private $entries = array();

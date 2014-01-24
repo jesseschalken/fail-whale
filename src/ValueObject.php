@@ -2,7 +2,7 @@
 
 namespace ErrorHandler;
 
-class ValueObject extends Value {
+class ValueObject implements Value {
     private $hash;
     private $class;
     /** @var ValueObjectProperty[] */

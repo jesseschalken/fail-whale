@@ -10,10 +10,7 @@ class Introspection {
     }
 
     function introspectException(\Exception $e) {
-        $result = $this->introspectImplNoGlobals($e);
-        $result->setGlobals($this->introspectGlobals());
-
-        return $result;
+        return new IntrospectionException($this, $e);
     }
 
     function mockException() { return MutableValueException::mock($this); }
@@ -103,31 +100,7 @@ class Introspection {
         return new ValueResource(get_resource_type($x), (int)$x);
     }
 
-    /**
-     * @param \Exception $e
-     *
-     * @return MutableValueException|null
-     */
-    private function introspectImplNoGlobals(\Exception $e = null) {
-        if ($e === null)
-            return null;
-
-        $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
-        $frames = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
-
-        $result = new MutableValueException;
-        $result->setClass(get_class($e));
-        $result->setCode($e->getCode());
-        $result->setMessage($e->getMessage());
-        $result->setLocation($this->introspectCodeLocation($e->getFile(), $e->getLine()));
-        $result->setLocals($this->introspectLocals($locals));
-        $result->setStack($this->introspectStack($frames));
-        $result->setPrevious($this->introspectImplNoGlobals($e->getPrevious()));
-
-        return $result;
-    }
-
-    private function introspectGlobals() {
+    function introspectGlobals() {
         $result = new ValueExceptionGlobalState;
         $result->setStaticProperties($this->introspectStaticProperties());
         $result->setGlobalVariables($this->introspectGlobalVariables());
@@ -143,7 +116,7 @@ class Introspection {
             $reflection = new \ReflectionClass($class);
 
             foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
-                $globals[] = $this->introspectObjectProperty($property, new ValueObjectPropertyStatic);
+                $globals[] = $this->introspectObjectProperty($property, null, new ValueObjectPropertyStatic);
             }
         }
 
@@ -226,7 +199,7 @@ class Introspection {
         return $results;
     }
 
-    private function introspectCodeLocation($file, $line) {
+    function introspectCodeLocation($file, $line) {
         if ($file === null)
             return null;
 
@@ -237,8 +210,46 @@ class Introspection {
 
         return $result;
     }
+}
 
-    private function introspectLocals($locals) {
+class IntrospectionException implements ValueException, Value {
+    private $i;
+    private $e;
+    private $includeGlobals;
+
+    function __construct(Introspection $i, \Exception $e = null, $includeGlobals = true) {
+        $this->i = $i;
+        $this->e = $e;
+
+        $this->includeGlobals = $includeGlobals;
+    }
+
+    function className() { return get_class($this->e); }
+
+    function code() { return $this->e->getCode(); }
+
+    function message() { return $this->e->getMessage(); }
+
+    function previous() {
+        $previous = $this->e->getPrevious();
+
+        return $previous instanceof \Exception ? new self($this->i, $previous, false) : null;
+    }
+
+    function location() {
+        return $this->i->introspectCodeLocation($this->e->getFile(), $this->e->getLine());
+    }
+
+    function globals() {
+        if (!$this->includeGlobals)
+            return null;
+
+        return $this->i->introspectGlobals();
+    }
+
+    function locals() {
+        $locals = $this->e instanceof ExceptionHasLocalVariables ? $this->e->getLocalVariables() : null;
+
         if ($locals === null)
             return null;
 
@@ -246,29 +257,31 @@ class Introspection {
         foreach ($locals as $key => &$value) {
             $variable = new ValueVariable;
             $variable->setName($key);
-            $variable->setValue($this->introspectRef($value));
+            $variable->setValue($this->i->introspectRef($value));
             $result[] = $variable;
         }
 
         return $result;
     }
 
-    private function introspectStack($frames) {
+    function stack() {
+        $frames = $this->e instanceof ExceptionHasFullTrace ? $this->e->getFullTrace() : $this->e->getTrace();
+
         $result = array();
 
         foreach ($frames as $frame) {
             $stackFrame = new ValueExceptionStackFrame;
             $stackFrame->setFunction(array_get($frame, 'function'));
-            $stackFrame->setLocation($this->introspectCodeLocation(array_get($frame, 'file'), array_get($frame, 'line')));
+            $stackFrame->setLocation($this->i->introspectCodeLocation(array_get($frame, 'file'), array_get($frame, 'line')));
             $stackFrame->setClass(array_get($frame, 'class'));
             $stackFrame->setIsStatic(isset($frame['type']) ? $frame['type'] === '::' : null);
-            $stackFrame->setObject(isset($frame['object']) ? $this->introspectObject($frame['object']) : null);
+            $stackFrame->setObject(isset($frame['object']) ? $this->i->introspectObject($frame['object']) : null);
 
             if (isset($frame['args'])) {
                 $args = array();
 
                 foreach ($frame['args'] as &$arg) {
-                    $args[] = $this->introspectRef($arg);
+                    $args[] = $this->i->introspectRef($arg);
                 }
 
                 $stackFrame->setArgs($args);
@@ -279,9 +292,13 @@ class Introspection {
 
         return $result;
     }
+
+    function acceptVisitor(ValueVisitor $visitor) {
+        return $visitor->visitException($this);
+    }
 }
 
-class IntrospectionValue extends Value {
+class IntrospectionValue implements Value {
     private $x;
     private $i;
 

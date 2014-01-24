@@ -200,7 +200,11 @@ final class JSONUnparse implements ValueVisitor {
     }
 }
 
-class JSONValue extends Value {
+class JSONValue implements Value {
+    static function fromValue(Value $v) {
+        return JSONParse::fromJSON(JSONUnparse::toJSON($v));
+    }
+
     function acceptVisitor(ValueVisitor $visitor) {
         $v = $this->json;
 

@@ -42,7 +42,7 @@ interface ValueException {
     function stack();
 }
 
-class MutableValueException extends Value implements ValueException {
+class MutableValueException implements Value, ValueException {
     static function mock(Introspection $param) {
         $self           = new self;
         $self->class    = 'MuhMockException';

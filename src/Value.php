@@ -39,15 +39,11 @@ interface ValueVisitor {
     function visitBool($bool);
 }
 
-abstract class Value {
-    function toJsonFromJson() {
-        return JSONParse::fromJSON(JSONUnparse::toJSON($this));
-    }
-
-    abstract function acceptVisitor(ValueVisitor $visitor);
+interface Value {
+    function acceptVisitor(ValueVisitor $visitor);
 }
 
-class ValueResource extends Value {
+class ValueResource implements Value {
     private $type, $id;
 
     function __construct($type, $id) {
@@ -62,7 +58,7 @@ class ValueResource extends Value {
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitResource($this); }
 }
 
-class ValueString extends Value {
+class ValueString implements Value {
     private $string;
 
     function __construct($x) {

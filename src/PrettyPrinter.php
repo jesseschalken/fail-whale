@@ -32,7 +32,7 @@ final class PrettyPrinter implements ValueVisitor {
     function prettyPrintException(\Exception $e) {
         $i = new Introspection;
 
-        return $this->render($i->introspectException($e)->toJsonFromJson())->toString();
+        return $this->render(JSONValue::fromValue($i->introspectException($e)))->toString();
     }
 
     function prettyPrintRef(&$ref) {
@@ -41,7 +41,7 @@ final class PrettyPrinter implements ValueVisitor {
 
         $i = new Introspection;
 
-        return $this->render($i->introspectRef($ref)->toJsonFromJson())->toString();
+        return $this->render(JSONValue::fromValue($i->introspectRef($ref)))->toString();
     }
 
     /**
