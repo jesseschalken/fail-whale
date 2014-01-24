@@ -266,28 +266,10 @@ class IntrospectionException implements ValueException, Value {
 
     function stack() {
         $frames = $this->e instanceof ExceptionHasFullTrace ? $this->e->getFullTrace() : $this->e->getTrace();
-
         $result = array();
 
         foreach ($frames as $frame) {
-            $stackFrame = new MutableValueExceptionStackFrame;
-            $stackFrame->setFunction(array_get($frame, 'function'));
-            $stackFrame->setLocation($this->i->introspectCodeLocation(array_get($frame, 'file'), array_get($frame, 'line')));
-            $stackFrame->setClass(array_get($frame, 'class'));
-            $stackFrame->setIsStatic(isset($frame['type']) ? $frame['type'] === '::' : null);
-            $stackFrame->setObject(isset($frame['object']) ? $this->i->introspectObject($frame['object']) : null);
-
-            if (isset($frame['args'])) {
-                $args = array();
-
-                foreach ($frame['args'] as &$arg) {
-                    $args[] = $this->i->introspectRef($arg);
-                }
-
-                $stackFrame->setArgs($args);
-            }
-
-            $result[] = $stackFrame;
+            $result[] = new IntrospectionStackFrame($this->i, $frame);
         }
 
         return $result;
@@ -295,6 +277,44 @@ class IntrospectionException implements ValueException, Value {
 
     function acceptVisitor(ValueVisitor $visitor) {
         return $visitor->visitException($this);
+    }
+}
+
+class IntrospectionStackFrame implements ValueExceptionStackFrame {
+    private $i;
+    private $frame;
+
+    function __construct(Introspection $i, array $frame) {
+        $this->i     = $i;
+        $this->frame = $frame;
+    }
+
+    function getFunction() { return array_get($this->frame, 'function'); }
+
+    function getLocation() {
+        return $this->i->introspectCodeLocation(array_get($this->frame, 'file'), array_get($this->frame, 'line'));
+    }
+
+    function getClass() { return array_get($this->frame, 'class'); }
+
+    function getIsStatic() { return isset($this->frame['type']) ? $this->frame['type'] === '::' : null; }
+
+    function getObject() {
+        return isset($this->frame['object']) ? $this->i->introspectObject($this->frame['object']) : null;
+    }
+
+    function getArgs() {
+        if (isset($this->frame['args'])) {
+            $args = array();
+
+            foreach ($this->frame['args'] as &$arg) {
+                $args[] = $this->i->introspectRef($arg);
+            }
+
+            return $args;
+        } else {
+            return null;
+        }
     }
 }
 

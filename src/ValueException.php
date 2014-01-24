@@ -318,7 +318,7 @@ class ValueVariableStatic extends ValueVariable {
 }
 
 interface ValueExceptionStackFrame {
-    /** @return Value[] */
+    /** @return Value[]|null */
     function getArgs();
 
     /** @return string */
