@@ -54,14 +54,14 @@ s;
         $self->code     = 'Dummy exception code';
         $self->location = ValueExceptionCodeLocation::mock('/path/to/muh/file', 9000);
         $self->locals   = ValueVariable::mockLocals($param);
-        $self->stack    = ValueExceptionStackFrame::mock($param);
+        $self->stack    = MutableValueExceptionStackFrame::mock($param);
         $self->globals  = ValueExceptionGlobalState::mock($param);
 
         return $self;
     }
 
     private $class;
-    /** @var ValueExceptionStackFrame[] */
+    /** @var MutableValueExceptionStackFrame[] */
     private $stack = array();
     /** @var ValueVariable[]|null */
     private $locals;
@@ -97,7 +97,7 @@ s;
     function setClass($class) { $this->class = $class; }
 
     /**
-     * @param \ErrorHandler\ValueExceptionStackFrame[] $stack
+     * @param \ErrorHandler\MutableValueExceptionStackFrame[] $stack
      */
     function setStack($stack) { $this->stack = $stack; }
 
@@ -317,11 +317,31 @@ class ValueVariableStatic extends ValueVariable {
     function getClass() { return $this->class; }
 }
 
-class ValueExceptionStackFrame {
+interface ValueExceptionStackFrame {
+    /** @return Value[] */
+    function getArgs();
+
+    /** @return string */
+    function getFunction();
+
+    /** @return string|null */
+    function getClass();
+
+    /** @return bool|null */
+    function getIsStatic();
+
+    /** @return ValueExceptionCodeLocation|null */
+    function getLocation();
+
+    /** @return ValueObject|null */
+    function getObject();
+}
+
+class MutableValueExceptionStackFrame implements ValueExceptionStackFrame {
     /**
      * @param Introspection $param
      *
-     * @return self[]
+     * @return MutableValueExceptionStackFrame[]
      */
     static function mock(Introspection $param) {
         $stack = array();

@@ -183,7 +183,9 @@ final class PrettyPrinter implements ValueVisitor {
         $i    = 1;
 
         foreach ($exception->stack() as $frame) {
-            $text->addLine("#$i {$frame->location()}");
+            $location = $frame->getLocation();
+            $location = $location === null ? '[internal function]' : "{$location->file()}:{$location->line()}";
+            $text->addLine("#$i {$location}");
             $text->addLines($this->renderExceptionStackFrame($frame)->append(';')->indent(3));
             $text->addLine();
             $i++;

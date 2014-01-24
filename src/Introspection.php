@@ -270,7 +270,7 @@ class IntrospectionException implements ValueException, Value {
         $result = array();
 
         foreach ($frames as $frame) {
-            $stackFrame = new ValueExceptionStackFrame;
+            $stackFrame = new MutableValueExceptionStackFrame;
             $stackFrame->setFunction(array_get($frame, 'function'));
             $stackFrame->setLocation($this->i->introspectCodeLocation(array_get($frame, 'file'), array_get($frame, 'line')));
             $stackFrame->setClass(array_get($frame, 'class'));

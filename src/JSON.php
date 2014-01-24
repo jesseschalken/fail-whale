@@ -297,7 +297,7 @@ final class JSONParse {
         $stack = array();
 
         foreach ($e['stack'] as $s) {
-            $frame = new ValueExceptionStackFrame;
+            $frame = new MutableValueExceptionStackFrame;
             $frame->setObject($this->parseObject($s['object']));
             $frame->setLocation($this->parseLocation($s['location']));
             $frame->setClass($s['class']);
