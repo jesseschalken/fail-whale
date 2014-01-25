@@ -441,7 +441,7 @@ final class JSONParse {
         if ($location === null)
             return null;
 
-        $result = new ValueExceptionCodeLocation;
+        $result = new MutableValueExceptionCodeLocation;
         $result->setFile($location['file']);
         $result->setLine($location['line']);
         $result->setSourceCode($location['sourceCode']);

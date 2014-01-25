@@ -3,15 +3,11 @@
 namespace ErrorHandler;
 
 class Introspection {
-    function introspect($x) { return self::introspectRef($x); }
+    function introspect($x) { return $this->introspectRef($x); }
 
-    function introspectRef(&$x) {
-        return new IntrospectionValue($x, $this);
-    }
+    function introspectRef(&$x) { return new IntrospectionValue($x, $this); }
 
-    function introspectException(\Exception $e) {
-        return new IntrospectionException($this, $e);
-    }
+    function introspectException(\Exception $e) { return new IntrospectionException($this, $e); }
 
     function mockException() { return MutableValueException::mock($this); }
 
@@ -44,16 +40,32 @@ class Introspection {
 
         return $id;
     }
+}
 
-    function introspectResource($x) {
-        return new MutableValueResource(get_resource_type($x), (int)$x);
+class IntrospectionCodeLocation implements ValueExceptionCodeLocation {
+    static function create($file, $line) {
+        if (is_scalar($file) && is_scalar($line)) {
+            $self       = new self;
+            $self->file = "$file";
+            $self->line = (int)$line;
+
+            return $self;
+        } else {
+            return null;
+        }
     }
 
-    private function introspectSourceCode($file, $line) {
-        if ($file === null)
-            return null;
+    private function __construct() { }
 
-        $contents = @file_get_contents($file);
+    private $file;
+    private $line;
+
+    function line() { return $this->line; }
+
+    function file() { return $this->file; }
+
+    function sourceCode() {
+        $contents = @file_get_contents($this->file);
 
         if (!is_string($contents))
             return null;
@@ -61,26 +73,13 @@ class Introspection {
         $lines   = explode("\n", $contents);
         $results = array();
 
-        foreach (range($line - 5, $line + 5) as $lineToScan) {
+        foreach (range($this->line - 5, $this->line + 5) as $lineToScan) {
             if (isset($lines[$lineToScan])) {
                 $results[$lineToScan] = $lines[$lineToScan - 1];
             }
         }
 
         return $results;
-    }
-
-    function introspectCodeLocation($file, $line) {
-        if (is_scalar($file) && is_scalar($line)) {
-            $result = new ValueExceptionCodeLocation;
-            $result->setFile("$file");
-            $result->setLine((int)$line);
-            $result->setSourceCode($this->introspectSourceCode($file, $line));
-
-            return $result;
-        } else {
-            return null;
-        }
     }
 }
 
@@ -93,7 +92,7 @@ class IntrospectionResource implements ValueResource {
 
     function resourceType() { return get_resource_type($this->resource); }
 
-    function resourceID() { return (int) $this->resource; }
+    function resourceID() { return (int)$this->resource; }
 }
 
 class IntrospectionObject implements ValueObject {
@@ -191,7 +190,7 @@ class IntrospectionException implements ValueException, Value {
         $file = $this->exception->getFile();
         $line = $this->exception->getLine();
 
-        return $this->introspection->introspectCodeLocation($file, $line);
+        return IntrospectionCodeLocation::create($file, $line);
     }
 
     function globals() {
@@ -347,13 +346,13 @@ class IntrospectionStaticVariable implements ValueVariableStatic {
             foreach ($reflection->getMethods() as $method) {
                 $staticVariables = $method->getStaticVariables();
 
-                foreach ($staticVariables as $variableName => &$varValue) {
-                    $v           = new self;
-                    $v->name     = $variableName;
-                    $v->value    = $i->introspectRef($varValue);
-                    $v->class    = $method->class;
-                    $v->function = $method->getName();
-                    $globals[]   = $v;
+                foreach ($staticVariables as $name => &$value) {
+                    $variable           = new self;
+                    $variable->name     = $name;
+                    $variable->value    = $i->introspectRef($value);
+                    $variable->class    = $method->class;
+                    $variable->function = $method->getName();
+                    $globals[]          = $variable;
                 }
             }
         }
@@ -363,12 +362,12 @@ class IntrospectionStaticVariable implements ValueVariableStatic {
                 $reflection      = new \ReflectionFunction($function);
                 $staticVariables = $reflection->getStaticVariables();
 
-                foreach ($staticVariables as $propertyName => &$varValue) {
-                    $v           = new self;
-                    $v->name     = $propertyName;
-                    $v->value    = $i->introspectRef($varValue);
-                    $v->function = $function;
-                    $globals[]   = $v;
+                foreach ($staticVariables as $name => &$value2) {
+                    $variable           = new self;
+                    $variable->name     = $name;
+                    $variable->value    = $i->introspectRef($value2);
+                    $variable->function = $function;
+                    $globals[]          = $variable;
                 }
             }
         }
@@ -411,7 +410,7 @@ class IntrospectionStackFrame implements ValueExceptionStackFrame {
         $file = array_get($this->frame, 'file');
         $line = array_get($this->frame, 'line');
 
-        return $this->introspection->introspectCodeLocation($file, $line);
+        return IntrospectionCodeLocation::create($file, $line);
     }
 
     function getClass() {

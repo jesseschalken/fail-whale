@@ -52,7 +52,7 @@ This is a dummy exception message.
 lololool
 s;
         $self->code     = 'Dummy exception code';
-        $self->location = ValueExceptionCodeLocation::mock('/path/to/muh/file', 9000);
+        $self->location = MutableValueExceptionCodeLocation::mock('/path/to/muh/file', 9000);
         $self->locals   = MutableValueVariable::mockLocals($param);
         $self->stack    = MutableValueExceptionStackFrame::mock($param);
         $self->globals  = MutableValueExceptionGlobalState::mock($param);
@@ -71,7 +71,7 @@ s;
     private $previous;
     /** @var MutableValueExceptionGlobalState|null */
     private $globals;
-    /** @var ValueExceptionCodeLocation */
+    /** @var MutableValueExceptionCodeLocation */
     private $location;
 
     function className() { return $this->class; }
@@ -121,7 +121,7 @@ s;
     function setGlobals($globals) { $this->globals = $globals; }
 
     /**
-     * @param \ErrorHandler\ValueExceptionCodeLocation $location
+     * @param \ErrorHandler\MutableValueExceptionCodeLocation $location
      */
     function setLocation($location) { $this->location = $location; }
 
@@ -178,13 +178,24 @@ class MutableValueExceptionGlobalState implements ValueExceptionGlobalState {
     function getStaticVariables() { return $this->staticVariables; }
 }
 
-class ValueExceptionCodeLocation {
+interface ValueExceptionCodeLocation {
+    /** @return int */
+    function line();
+
+    /** @return string */
+    function file();
+
+    /** @return string[]|null */
+    function sourceCode();
+}
+
+class MutableValueExceptionCodeLocation implements ValueExceptionCodeLocation {
     /**
      * @param string        $file
      * @param int           $line
      * @param string[]|null $sourceCode
      *
-     * @return ValueExceptionCodeLocation
+     * @return MutableValueExceptionCodeLocation
      */
     static function mock($file, $line, array $sourceCode = null) {
         $self             = new self;
@@ -387,7 +398,7 @@ class MutableValueExceptionStackFrame implements ValueExceptionStackFrame {
         $self           = new self;
         $self->function = 'aFunction';
         $self->args     = array($param->introspect(new DummyClass2));
-        $self->location = ValueExceptionCodeLocation::mock('/path/to/muh/file', 1928);
+        $self->location = MutableValueExceptionCodeLocation::mock('/path/to/muh/file', 1928);
         $self->object   = new IntrospectionObject($param, new DummyClass1);
         $self->class    = 'DummyClass1';
 
@@ -396,7 +407,7 @@ class MutableValueExceptionStackFrame implements ValueExceptionStackFrame {
         $self           = new self;
         $self->function = 'aFunction';
         $self->args     = array($param->introspect(new DummyClass2));
-        $self->location = ValueExceptionCodeLocation::mock('/path/to/muh/file', 1928);
+        $self->location = MutableValueExceptionCodeLocation::mock('/path/to/muh/file', 1928);
 
         $stack[] = $self;
 
@@ -422,7 +433,7 @@ class MutableValueExceptionStackFrame implements ValueExceptionStackFrame {
     /** @var MutableValueObject|null */
     private $object;
     private $isStatic;
-    /** @var ValueExceptionCodeLocation */
+    /** @var MutableValueExceptionCodeLocation */
     private $location;
 
     function file() { return $this->location === null ? null : $this->location->file(); }
