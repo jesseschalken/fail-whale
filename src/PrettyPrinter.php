@@ -228,14 +228,15 @@ final class PrettyPrinter implements ValueVisitor {
 
             if ($globals !== null) {
                 $superGlobals = array(
-                    '_POST',
+                    'GLOBALS',
+                    '_SERVER',
                     '_GET',
-                    '_SESSION',
-                    '_COOKIE',
+                    '_POST',
                     '_FILES',
+                    '_COOKIE',
+                    '_SESSION',
                     '_REQUEST',
                     '_ENV',
-                    '_SERVER',
                 );
 
                 $variables = array();

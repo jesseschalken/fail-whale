@@ -45,140 +45,8 @@ class Introspection {
         return $id;
     }
 
-    function introspectArray(array &$x) {
-        $result = new MutableValueArray;
-        $result->setID($this->arrayID($x));
-        $result->setIsAssociative(array_is_associative($x));
-
-        foreach ($x as $k => &$v) {
-            $result->addEntry($this->introspect($k), $this->introspectRef($v));
-        }
-
-        return $result;
-    }
-
-    function introspectObject($x) {
-        $result = new MutableValueObject;
-        $result->setId($this->objectID($x));
-        $result->setHash(spl_object_hash($x));
-        $result->setClass(get_class($x));
-
-        for ($reflection = new \ReflectionObject($x);
-             $reflection !== false;
-             $reflection = $reflection->getParentClass()) {
-            foreach ($reflection->getProperties() as $property) {
-                if (!$property->isStatic() && $property->class === $reflection->name) {
-                    $result->addProperty($this->introspectObjectProperty($property, $x, new MutableValueObjectProperty));
-                }
-            }
-        }
-
-        return $result;
-    }
-
-    private function introspectObjectProperty(\ReflectionProperty $p, $object = null, MutableValueObjectProperty $result) {
-        $p->setAccessible(true);
-
-        $result->setName($p->name);
-        $result->setValue($this->introspect($p->getValue($object)));
-        $result->setClass($p->class);
-        $result->setAccess($this->accessAsString($p));
-        $result->setIsDefault($p->isDefault());
-
-        return $result;
-    }
-
-    private function accessAsString(\ReflectionProperty $property) {
-        if ($property->isPublic())
-            return 'public';
-        else if ($property->isPrivate())
-            return 'private';
-        else if ($property->isProtected())
-            return 'protected';
-        else
-            throw new \Exception("This thing is not protected, public, nor private? Huh?");
-    }
-
     function introspectResource($x) {
         return new ValueResource(get_resource_type($x), (int)$x);
-    }
-
-    function introspectGlobals() {
-        $result = new MutableValueExceptionGlobalState;
-        $result->setStaticProperties($this->introspectStaticProperties());
-        $result->setGlobalVariables($this->introspectGlobalVariables());
-        $result->setStaticVariables($this->introspectStaticVariables());
-
-        return $result;
-    }
-
-    private function introspectStaticProperties() {
-        $globals = array();
-
-        foreach (get_declared_classes() as $class) {
-            $reflection = new \ReflectionClass($class);
-
-            foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
-                $globals[] = $this->introspectObjectProperty($property, null, new ValueObjectPropertyStatic);
-            }
-        }
-
-        return $globals;
-    }
-
-    private function introspectGlobalVariables() {
-        $globals = array();
-
-        foreach ($GLOBALS as $variableName => &$globalValue) {
-            if ($variableName !== 'GLOBALS') {
-                $variable = new ValueGlobalVariable;
-                $variable->setName($variableName);
-                $variable->setValue($this->introspectRef($globalValue));
-                $globals [] = $variable;
-            }
-        }
-
-        return $globals;
-    }
-
-    private function introspectStaticVariables() {
-        $globals = array();
-
-        foreach (get_declared_classes() as $class) {
-            $reflection = new \ReflectionClass($class);
-
-            foreach ($reflection->getMethods() as $method) {
-                $staticVariables = $method->getStaticVariables();
-
-                foreach ($staticVariables as $variableName => &$varValue) {
-                    $v = new MutableValueVariableStatic;
-                    $v->setName($variableName);
-                    $v->setValue($this->introspectRef($varValue));
-                    $v->setClass($method->class);
-                    $v->setFunction($method->getName());
-
-                    $globals[] = $v;
-                }
-            }
-        }
-
-        foreach (get_defined_functions() as $section) {
-            foreach ($section as $function) {
-                $reflection      = new \ReflectionFunction($function);
-                $staticVariables = $reflection->getStaticVariables();
-
-                foreach ($staticVariables as $propertyName => &$varValue) {
-                    $v = new MutableValueVariableStatic;
-                    $v->setName($propertyName);
-                    $v->setValue($this->introspectRef($varValue));
-                    $v->setFunction($function);
-
-                    $globals[] = $v;
-                }
-            }
-        }
-
-        return $globals;
     }
 
     private function introspectSourceCode($file, $line) {
@@ -216,71 +84,121 @@ class Introspection {
     }
 }
 
+class IntrospectionObject implements ValueObject {
+    private $introspection;
+    private $object;
+
+    function __construct(Introspection $introspection, $object) {
+        $this->introspection = $introspection;
+        $this->object        = $object;
+    }
+
+    function className() { return get_class($this->object); }
+
+    function properties() {
+        return IntrospectionObjectProperty::objectProperties($this->introspection, $this->object);
+    }
+
+    function getHash() { return spl_object_hash($this->object); }
+
+    function id() { return $this->introspection->objectID($this->object); }
+}
+
+class IntrospectionArray implements ValueArray {
+    private $introspection;
+    private $array;
+
+    function __construct(Introspection $introspection, array &$array) {
+        $this->introspection = $introspection;
+        $this->array         =& $array;
+    }
+
+    function isAssociative() { return array_is_associative($this->array); }
+
+    function id() { return $this->introspection->arrayID($this->array); }
+
+    function entries() { return IntrospectionArrayKeyValuePair::introspect($this->introspection, $this->array); }
+}
+
+class IntrospectionArrayKeyValuePair implements ValueArrayEntry {
+    static function introspect(Introspection $introspection, array &$array) {
+        $entries = array();
+
+        foreach ($array as $key => &$value) {
+            $entry        = new self;
+            $entry->key   = $introspection->introspect($key);
+            $entry->value = $introspection->introspectRef($value);
+            $entries[]    = $entry;
+        }
+
+        return $entries;
+    }
+
+    private $key;
+    private $value;
+
+    private function __construct() { }
+
+    function key() { return $this->key; }
+
+    function value() { return $this->value; }
+}
+
 class IntrospectionException implements ValueException, Value {
-    private $i;
-    private $e;
+    private $introspection;
+    private $exception;
     private $includeGlobals;
 
-    function __construct(Introspection $i, \Exception $e = null, $includeGlobals = true) {
-        $this->i = $i;
-        $this->e = $e;
-
+    function __construct(Introspection $introspection, \Exception $exception, $includeGlobals = true) {
+        $this->introspection  = $introspection;
+        $this->exception      = $exception;
         $this->includeGlobals = $includeGlobals;
     }
 
-    function className() { return get_class($this->e); }
+    function className() { return get_class($this->exception); }
 
     function code() {
-        $code = $this->e->getCode();
+        $code = $this->exception->getCode();
 
         return is_scalar($code) ? "$code" : '';
     }
 
     function message() {
-        $message = $this->e->getMessage();
+        $message = $this->exception->getMessage();
 
         return is_scalar($message) ? "$message" : '';
     }
 
     function previous() {
-        $previous = $this->e->getPrevious();
+        $previous = $this->exception->getPrevious();
 
-        return $previous instanceof \Exception ? new self($this->i, $previous, false) : null;
+        return $previous instanceof \Exception ? new self($this->introspection, $previous, false) : null;
     }
 
     function location() {
-        $file = $this->e->getFile();
-        $line = $this->e->getLine();
+        $file = $this->exception->getFile();
+        $line = $this->exception->getLine();
 
-        return $this->i->introspectCodeLocation($file, $line);
+        return $this->introspection->introspectCodeLocation($file, $line);
     }
 
     function globals() {
         if (!$this->includeGlobals)
             return null;
 
-        return $this->i->introspectGlobals();
+        return new IntrospectionGlobals($this->introspection);
     }
 
     function locals() {
-        $locals = $this->e instanceof ExceptionHasLocalVariables ? $this->e->getLocalVariables() : null;
+        $locals = $this->exception instanceof ExceptionHasLocalVariables ? $this->exception->getLocalVariables() : null;
 
-        if (!is_array($locals))
-            return null;
-
-        $result = array();
-        foreach ($locals as $key => &$value) {
-            $variable = new MutableValueVariable;
-            $variable->setName($key);
-            $variable->setValue($this->i->introspectRef($value));
-            $result[] = $variable;
-        }
-
-        return $result;
+        return is_array($locals) ? IntrospectionVariable::introspect($this->introspection, $locals) : null;
     }
 
     function stack() {
-        $frames = $this->e instanceof ExceptionHasFullTrace ? $this->e->getFullTrace() : $this->e->getTrace();
+        $frames = $this->exception instanceof ExceptionHasFullTrace
+            ? $this->exception->getFullTrace()
+            : $this->exception->getTrace();
 
         if (!is_array($frames))
             return array();
@@ -289,7 +207,7 @@ class IntrospectionException implements ValueException, Value {
 
         foreach ($frames as $frame) {
             $frame    = is_array($frame) ? $frame : array();
-            $result[] = new IntrospectionStackFrame($this->i, $frame);
+            $result[] = new IntrospectionStackFrame($this->introspection, $frame);
         }
 
         return $result;
@@ -300,13 +218,175 @@ class IntrospectionException implements ValueException, Value {
     }
 }
 
+class IntrospectionGlobals implements ValueExceptionGlobalState {
+    private $introspection;
+
+    function __construct(Introspection $introspection) {
+        $this->introspection = $introspection;
+    }
+
+    function getStaticProperties() { return IntrospectionObjectProperty::staticProperties($this->introspection); }
+
+    function getStaticVariables() { return IntrospectionStaticVariable::all($this->introspection); }
+
+    function getGlobalVariables() { return IntrospectionVariable::introspect($this->introspection, $GLOBALS); }
+}
+
+class IntrospectionVariable implements ValueVariable {
+    static function introspect(Introspection $introspection, array &$variables) {
+        $results = array();
+
+        foreach ($variables as $name => &$value) {
+            $self        = new self;
+            $self->name  = $name;
+            $self->value = $introspection->introspectRef($value);
+            $results[]   = $self;
+        }
+
+        return $results;
+    }
+
+    private function __construct() { }
+
+    private $name;
+    private $value;
+
+    function name() { return $this->name; }
+
+    function value() { return $this->value; }
+}
+
+class IntrospectionObjectProperty implements ValueObjectProperty {
+    static function staticProperties(Introspection $introspection) {
+        $results = array();
+
+        foreach (get_declared_classes() as $class) {
+            $reflection = new \ReflectionClass($class);
+
+            foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
+                $self                = new self;
+                $self->introspection = $introspection;
+                $self->property      = $property;
+                $results[]           = $self;
+            }
+        }
+
+        return $results;
+    }
+
+    static function objectProperties(Introspection $introspection, $object) {
+        $results = array();
+
+        for ($reflection = new \ReflectionObject($object);
+             $reflection !== false;
+             $reflection = $reflection->getParentClass()) {
+            foreach ($reflection->getProperties() as $property) {
+                if (!$property->isStatic() && $property->class === $reflection->name) {
+                    $self                = new self;
+                    $self->introspection = $introspection;
+                    $self->property      = $property;
+                    $self->object        = $object;
+                    $results[]           = $self;
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /** @var \ErrorHandler\Introspection */
+    private $introspection;
+    /** @var \ReflectionProperty */
+    private $property;
+    /** @var object */
+    private $object;
+
+    private function __construct() { }
+
+    function name() { return $this->property->name; }
+
+    function value() {
+        $this->property->setAccessible(true);
+
+        return $this->introspection->introspect($this->property->getValue($this->object));
+    }
+
+    function access() {
+        if ($this->property->isPrivate())
+            return 'private';
+        else if ($this->property->isProtected())
+            return 'protected';
+        else
+            return 'public';
+    }
+
+    function className() { return $this->property->class; }
+
+    function isDefault() { return $this->property->isDefault(); }
+}
+
+class IntrospectionStaticVariable implements ValueVariableStatic {
+    static function all(Introspection $i) {
+        $globals = array();
+
+        foreach (get_declared_classes() as $class) {
+            $reflection = new \ReflectionClass($class);
+
+            foreach ($reflection->getMethods() as $method) {
+                $staticVariables = $method->getStaticVariables();
+
+                foreach ($staticVariables as $variableName => &$varValue) {
+                    $v           = new self;
+                    $v->name     = $variableName;
+                    $v->value    = $i->introspectRef($varValue);
+                    $v->class    = $method->class;
+                    $v->function = $method->getName();
+                    $globals[]   = $v;
+                }
+            }
+        }
+
+        foreach (get_defined_functions() as $section) {
+            foreach ($section as $function) {
+                $reflection      = new \ReflectionFunction($function);
+                $staticVariables = $reflection->getStaticVariables();
+
+                foreach ($staticVariables as $propertyName => &$varValue) {
+                    $v           = new self;
+                    $v->name     = $propertyName;
+                    $v->value    = $i->introspectRef($varValue);
+                    $v->function = $function;
+                    $globals[]   = $v;
+                }
+            }
+        }
+
+        return $globals;
+    }
+
+    private $function;
+    private $name;
+    private $value;
+    private $class;
+
+    private function __construct() { }
+
+    function name() { return $this->name; }
+
+    function value() { return $this->value; }
+
+    function getFunction() { return $this->function; }
+
+    function getClass() { return $this->class; }
+}
+
 class IntrospectionStackFrame implements ValueExceptionStackFrame {
-    private $i;
+    private $introspection;
     private $frame;
 
-    function __construct(Introspection $i, array $frame) {
-        $this->i     = $i;
-        $this->frame = $frame;
+    function __construct(Introspection $introspection, array $frame) {
+        $this->introspection = $introspection;
+        $this->frame         = $frame;
     }
 
     function getFunction() {
@@ -319,7 +399,7 @@ class IntrospectionStackFrame implements ValueExceptionStackFrame {
         $file = array_get($this->frame, 'file');
         $line = array_get($this->frame, 'line');
 
-        return $this->i->introspectCodeLocation($file, $line);
+        return $this->introspection->introspectCodeLocation($file, $line);
     }
 
     function getClass() {
@@ -337,7 +417,7 @@ class IntrospectionStackFrame implements ValueExceptionStackFrame {
     function getObject() {
         $object = array_get($this->frame, 'object');
 
-        return is_object($object) ? $this->i->introspectObject($object) : null;
+        return is_object($object) ? new IntrospectionObject($this->introspection, $object) : null;
     }
 
     function getArgs() {
@@ -347,7 +427,7 @@ class IntrospectionStackFrame implements ValueExceptionStackFrame {
             $result = array();
 
             foreach ($args as &$arg) {
-                $result[] = $this->i->introspectRef($arg);
+                $result[] = $this->introspection->introspectRef($arg);
             }
 
             return $result;
@@ -358,41 +438,35 @@ class IntrospectionStackFrame implements ValueExceptionStackFrame {
 }
 
 class IntrospectionValue implements Value {
-    private $x;
-    private $i;
+    private $value;
+    private $introspection;
 
-    function __construct(&$x, Introspection $i) {
-        $this->x =& $x;
-        $this->i = $i;
+    function __construct(&$value, Introspection $introspection) {
+        $this->value         =& $value;
+        $this->introspection = $introspection;
     }
 
     function acceptVisitor(ValueVisitor $visitor) {
-        $x =& $this->x;
+        $value =& $this->value;
 
-        if (is_string($x))
-            return $visitor->visitString(new ValueString($x));
-        else if (is_int($x))
-            return $visitor->visitInt($x);
-        else if (is_bool($x))
-            return $visitor->visitBool($x);
-        else if (is_null($x))
+        if (is_string($value))
+            return $visitor->visitString(new ValueString($value));
+        else if (is_int($value))
+            return $visitor->visitInt($value);
+        else if (is_bool($value))
+            return $visitor->visitBool($value);
+        else if (is_null($value))
             return $visitor->visitNull();
-        else if (is_float($x))
-            return $visitor->visitFloat($x);
-        else if (is_array($x))
-            return $visitor->visitArray($this->i->introspectArray($x));
-        else if (is_object($x))
-            return $visitor->visitObject($this->i->introspectObject($x));
-        else if (is_resource($x))
-            return $visitor->visitResource($this->i->introspectResource($x));
+        else if (is_float($value))
+            return $visitor->visitFloat($value);
+        else if (is_array($value))
+            return $visitor->visitArray(new IntrospectionArray($this->introspection, $value));
+        else if (is_object($value))
+            return $visitor->visitObject(new IntrospectionObject($this->introspection, $value));
+        else if (is_resource($value))
+            return $visitor->visitResource($this->introspection->introspectResource($value));
         else
             return $visitor->visitUnknown();
     }
 }
 
-class IntrospectionArrayCacheEntry {
-    /** @var array */
-    public $array;
-    /** @var MutableValueArray */
-    public $result;
-}

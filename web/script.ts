@@ -532,7 +532,17 @@ module PrettyPrinter {
             for (var i = 0; i < globalVariables.length; i++) {
                 var pieces = document.createDocumentFragment();
                 var v2 = globalVariables[i];
-                var superglobals = ['_SERVER', '_GET', '_POST', '_FILES', '_REQUEST', '_COOKIE', '_ENV', '_SESSION'];
+                var superglobals = [
+                    'GLOBALS',
+                    '_SERVER',
+                    '_GET',
+                    '_POST',
+                    '_FILES',
+                    '_COOKIE',
+                    '_SESSION',
+                    '_REQUEST',
+                    '_ENV'
+                ];
                 if (superglobals.indexOf(v2.name) == -1) {
                     pieces.appendChild(keyword('global'));
                     pieces.appendChild(text(' '));
