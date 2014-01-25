@@ -108,7 +108,9 @@ final class PrettyPrinter implements ValueVisitor {
         if ($this->showExceptionSourceCode) {
             $sourceCode = $location->sourceCode();
 
-            $t = $sourceCode === null ? 'not available' : $this->renderSourceCode($sourceCode, $location->line());
+            $t = $sourceCode === null
+                ? $this->text('not available')
+                : $this->renderSourceCode($sourceCode, $location->line());
 
             $text->addLine("source code:");
             $text->addLines($t->indent());

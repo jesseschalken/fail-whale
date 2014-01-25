@@ -15,28 +15,39 @@ class Introspection {
 
     function mockException() { return MutableValueException::mock($this); }
 
-    /** @var MutableValueObject[] */
-    private $objectCache = array();
     /** @var object[] Just to keep a reference to the objects, because if they get GC'd their hash can get re-used */
     private $objects = array();
-    /** @var IntrospectionArrayCacheEntry[] */
-    private $arrayCache = array();
+    private $arrayIDs = array();
+    private $objectIDs = array();
 
-    function introspectArray(array &$x) {
-        foreach ($this->arrayCache as $entry) {
-            if (ref_equal($entry->array, $x)) {
-                return $entry->result;
+    function arrayID(array &$array) {
+        foreach ($this->arrayIDs as $id => &$array2) {
+            if (ref_equal($array2, $array)) {
+                return $id;
             }
         }
 
+        $id = count($this->arrayIDs);
+
+        $this->arrayIDs[$id] =& $array;
+
+        return $id;
+    }
+
+    function objectID($object) {
+        $id =& $this->objectIDs[spl_object_hash($object)];
+        if ($id === null) {
+            $id = count($this->objectIDs) - 1;
+
+            $this->objects[] = $object;
+        }
+
+        return $id;
+    }
+
+    function introspectArray(array &$x) {
         $result = new MutableValueArray;
-
-        $entry              = new IntrospectionArrayCacheEntry;
-        $entry->array       =& $x;
-        $entry->result      = $result;
-        $this->arrayCache[] = $entry;
-
-        $result->setID(count($this->arrayCache));
+        $result->setID($this->arrayID($x));
         $result->setIsAssociative(array_is_associative($x));
 
         foreach ($x as $k => &$v) {
@@ -47,17 +58,9 @@ class Introspection {
     }
 
     function introspectObject($x) {
-        $hash   = spl_object_hash($x);
-        $result =& $this->objectCache[$hash];
-
-        if ($result !== null)
-            return $result;
-
-        $this->objects[] = $x;
-
         $result = new MutableValueObject;
-        $result->setId(count($this->objectCache));
-        $result->setHash($hash);
+        $result->setId($this->objectID($x));
+        $result->setHash(spl_object_hash($x));
         $result->setClass(get_class($x));
 
         for ($reflection = new \ReflectionObject($x);
