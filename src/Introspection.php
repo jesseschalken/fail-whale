@@ -46,7 +46,7 @@ class Introspection {
     }
 
     function introspectResource($x) {
-        return new ValueResource(get_resource_type($x), (int)$x);
+        return new MutableValueResource(get_resource_type($x), (int)$x);
     }
 
     private function introspectSourceCode($file, $line) {
@@ -82,6 +82,18 @@ class Introspection {
             return null;
         }
     }
+}
+
+class IntrospectionResource implements ValueResource {
+    private $resource;
+
+    function __construct($resource) {
+        $this->resource = $resource;
+    }
+
+    function resourceType() { return get_resource_type($this->resource); }
+
+    function resourceID() { return (int) $this->resource; }
 }
 
 class IntrospectionObject implements ValueObject {
@@ -464,7 +476,7 @@ class IntrospectionValue implements Value {
         else if (is_object($value))
             return $visitor->visitObject(new IntrospectionObject($this->introspection, $value));
         else if (is_resource($value))
-            return $visitor->visitResource($this->introspection->introspectResource($value));
+            return $visitor->visitResource(new IntrospectionResource($value));
         else
             return $visitor->visitUnknown();
     }

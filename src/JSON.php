@@ -374,7 +374,7 @@ final class JSONParse {
     }
 
     function parseResource($x1) {
-        return new ValueResource($x1['type'], $x1['id']);
+        return new MutableValueResource($x1['type'], $x1['id']);
     }
 
     function parseArray($x) {

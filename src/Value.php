@@ -43,7 +43,15 @@ interface Value {
     function acceptVisitor(ValueVisitor $visitor);
 }
 
-class ValueResource implements Value {
+interface ValueResource {
+    /** @return string */
+    function resourceType();
+
+    /** @return int */
+    function resourceID();
+}
+
+class MutableValueResource implements Value, ValueResource {
     private $type, $id;
 
     function __construct($type, $id) {
