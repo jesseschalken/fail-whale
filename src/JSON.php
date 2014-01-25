@@ -363,7 +363,7 @@ final class JSONParse {
                 $globalVariables[] = $v2;
             }
 
-            $globals = new ValueExceptionGlobalState;
+            $globals = new MutableValueExceptionGlobalState;
             $globals->setStaticProperties($staticProperties);
             $globals->setStaticVariables($staticVariables);
             $globals->setGlobalVariables($globalVariables);

@@ -55,7 +55,7 @@ s;
         $self->location = ValueExceptionCodeLocation::mock('/path/to/muh/file', 9000);
         $self->locals   = MutableValueVariable::mockLocals($param);
         $self->stack    = MutableValueExceptionStackFrame::mock($param);
-        $self->globals  = ValueExceptionGlobalState::mock($param);
+        $self->globals  = MutableValueExceptionGlobalState::mock($param);
 
         return $self;
     }
@@ -69,7 +69,7 @@ s;
     private $message;
     /** @var MutableValueException|null */
     private $previous;
-    /** @var ValueExceptionGlobalState|null */
+    /** @var MutableValueExceptionGlobalState|null */
     private $globals;
     /** @var ValueExceptionCodeLocation */
     private $location;
@@ -116,7 +116,7 @@ s;
     function setPrevious($previous) { $this->previous = $previous; }
 
     /**
-     * @param \ErrorHandler\ValueExceptionGlobalState|null $globals
+     * @param \ErrorHandler\MutableValueExceptionGlobalState|null $globals
      */
     function setGlobals($globals) { $this->globals = $globals; }
 
@@ -130,7 +130,18 @@ s;
     function location() { return $this->location; }
 }
 
-class ValueExceptionGlobalState {
+interface ValueExceptionGlobalState {
+    /** @return ValueObjectProperty[] */
+    function getStaticProperties();
+
+    /** @return ValueVariableStatic[] */
+    function getStaticVariables();
+
+    /** @return ValueVariable[] */
+    function getGlobalVariables();
+}
+
+class MutableValueExceptionGlobalState implements ValueExceptionGlobalState {
     static function mock(Introspection $i) {
         $self                   = new self;
         $self->staticProperties = ValueObjectPropertyStatic::mockStatic($i);

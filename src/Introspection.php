@@ -104,7 +104,7 @@ class Introspection {
     }
 
     function introspectGlobals() {
-        $result = new ValueExceptionGlobalState;
+        $result = new MutableValueExceptionGlobalState;
         $result->setStaticProperties($this->introspectStaticProperties());
         $result->setGlobalVariables($this->introspectGlobalVariables());
         $result->setStaticVariables($this->introspectStaticVariables());
