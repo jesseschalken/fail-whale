@@ -140,11 +140,11 @@ class ValueExceptionGlobalState {
         return $self;
     }
 
-    /** @var ValueObjectPropertyStatic[] */
+    /** @var ValueObjectProperty[] */
     private $staticProperties = array();
-    /** @var ValueGlobalVariable[] */
+    /** @var ValueVariable[] */
     private $globalVariables = array();
-    /** @var MutableValueVariableStatic[] */
+    /** @var ValueVariableStatic[] */
     private $staticVariables = array();
 
     /** @return MutableValueVariable[] */
@@ -213,7 +213,7 @@ interface ValueVariable {
     function value();
 }
 
-interface ValueVariableStatic {
+interface ValueVariableStatic extends ValueVariable {
     /** @return string */
     function getFunction();
 
@@ -221,7 +221,7 @@ interface ValueVariableStatic {
     function getClass();
 }
 
-interface ValueObjectProperty {
+interface ValueObjectProperty extends ValueVariable {
     /** @return string */
     function access();
 
@@ -360,7 +360,7 @@ interface ValueExceptionStackFrame {
     /** @return ValueExceptionCodeLocation|null */
     function getLocation();
 
-    /** @return MutableValueObject|null */
+    /** @return ValueObject|null */
     function getObject();
 }
 

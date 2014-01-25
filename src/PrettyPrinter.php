@@ -51,30 +51,33 @@ final class PrettyPrinter implements ValueVisitor {
      */
     function render(Value $v) { return $v->acceptVisitor($this); }
 
-    function visitArray(MutableValueArray $array) {
+    function visitArray(ValueArray $array) {
         $rendered =& $this->arraysRendered[$array->id()];
 
         if ($rendered)
             return $this->text('*recursion*');
-        
+
         $rendered = true;
 
-        if ($array->entries() === array())
+        $entries       = $array->entries();
+        $isAssociative = $array->isAssociative();
+
+        if ($entries === array())
             return $this->text("array()");
 
         $rows = array();
 
-        foreach ($array->entries() as $keyValuePair) {
+        foreach ($entries as $keyValuePair) {
             if ((count($rows) + 1) > $this->maxArrayEntries)
                 break;
 
             $key   = $this->render($keyValuePair->key());
             $value = $this->render($keyValuePair->value());
 
-            if (count($rows) != count($array->entries()) - 1)
+            if (count($rows) != count($entries) - 1)
                 $value->append(',');
 
-            $rows[] = $array->isAssociative()
+            $rows[] = $isAssociative
                 ? array($key, $value->prepend(' => '))
                 : array($value);
         }
@@ -83,7 +86,7 @@ final class PrettyPrinter implements ValueVisitor {
 
         $result = $this->renderTable($rows);
 
-        if (count($rows) < count($array->entries()))
+        if (count($rows) < count($entries))
             $result->addLine('...');
 
         return $result->setHasEndingNewline(false)->wrap("array( ", " )");
@@ -102,15 +105,28 @@ final class PrettyPrinter implements ValueVisitor {
         $text->addLines($this->text($e->message())->indent(2));
         $text->addLine();
 
-        if ($this->showExceptionSourceCode && $location->sourceCode() !== null) {
+        if ($this->showExceptionSourceCode) {
+            $sourceCode = $location->sourceCode();
+
+            $t = $sourceCode === null ? 'not available' : $this->renderSourceCode($sourceCode, $location->line());
+
             $text->addLine("source code:");
-            $text->addLines($this->renderSourceCode($location->sourceCode(), $location->line())->indent());
+            $text->addLines($t->indent());
             $text->addLine();
         }
 
-        if ($this->showExceptionLocalVariables && $e->locals() !== null) {
+        if ($this->showExceptionLocalVariables) {
+            $locals = $e->locals();
+
+            if ($locals === null) {
+                $t = $this->text('not available');
+            } else {
+                $prefixes = array_fill(0, count($locals), '');
+                $t        = $this->renderVariables($locals, 'none', INF, $prefixes);
+            }
+
             $text->addLine("local variables:");
-            $text->addLines($this->renderVariables($e->locals(), 'none', INF)->indent());
+            $text->addLines($t->indent());
             $text->addLine();
         }
 
@@ -120,11 +136,11 @@ final class PrettyPrinter implements ValueVisitor {
             $text->addLine();
         }
 
-        if ($e->previous() !== null) {
-            $text->addLine("previous exception:");
-            $text->addLines($this->renderException($e->previous())->indent(2));
-            $text->addLine();
-        }
+        $previous = $e->previous() === null ? $this->text('none') : $this->renderException($e->previous());
+
+        $text->addLine("previous exception:");
+        $text->addLines($previous->indent(2));
+        $text->addLine();
 
         return $text;
     }
@@ -148,24 +164,25 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     /**
-     * @param MutableValueVariable[] $variables
+     * @param ValueVariable[] $variables
      * @param string          $noneText
      * @param float           $max
+     * @param string[]        $prefixes
      *
      * @return PrettyPrinterText
      */
-    private function renderVariables(array $variables, $noneText, $max) {
+    private function renderVariables(array $variables, $noneText, $max, array $prefixes) {
         if (count($variables) == 0)
             return $this->text($noneText);
 
         $rows = array();
 
-        foreach ($variables as $variable) {
+        foreach ($variables as $k => $variable) {
             if ((count($rows) + 1) > $max)
                 break;
 
             $rows[] = array(
-                $variable->renderPrefix($this)->appendLines($this->renderVariable($variable->name())),
+                $this->text($prefixes[$k])->appendLines($this->renderVariable($variable->name())),
                 $this->render($variable->value())->wrap(' = ', ';'),
             );
         }
@@ -204,16 +221,56 @@ final class PrettyPrinter implements ValueVisitor {
     function visitException(ValueException $exception) {
         $text = $this->renderException($exception);
 
-        if ($this->showExceptionGlobalVariables && $exception->globals() !== null) {
+        if ($this->showExceptionGlobalVariables) {
+            $globals = $exception->globals();
+
+            if ($globals !== null) {
+                $superGlobals = array(
+                    '_POST',
+                    '_GET',
+                    '_SESSION',
+                    '_COOKIE',
+                    '_FILES',
+                    '_REQUEST',
+                    '_ENV',
+                    '_SERVER',
+                );
+
+                $variables = array();
+                $prefixes  = array();
+
+                foreach ($globals->getStaticProperties() as $p) {
+                    $variables[] = $p;
+                    $prefixes[]  = "{$p->access()} static {$p->className()}::";
+                }
+
+                foreach ($globals->getStaticVariables() as $p) {
+                    $class       = $p->getClass();
+                    $function    = $p->getFunction();
+                    $function    = $class === null ? $function : "$class::$function";
+                    $prefixes[]  = "function $function()::static ";
+                    $variables[] = $p;
+                }
+
+                foreach ($globals->getGlobalVariables() as $v) {
+                    $variables[] = $v;
+                    $prefixes[]  = in_array($v->name(), $superGlobals) ? '' : 'global ';
+                }
+
+                $t = $this->renderVariables($variables, 'none', INF, $prefixes);
+            } else {
+                $t = $this->text('not available');
+            }
+
             $text->addLine("global variables:");
-            $text->addLines($this->renderVariables($exception->globals()->variables(), 'none', INF)->indent());
+            $text->addLines($t->indent());
             $text->addLine();
         }
 
         return $text;
     }
 
-    function visitObject(MutableValueObject $object) {
+    function visitObject(ValueObject $object) {
         $rendered =& $this->objectsRendered[$object->id()];
 
         if ($rendered)
@@ -229,13 +286,19 @@ final class PrettyPrinter implements ValueVisitor {
         } elseif ($this->maxObjectProperties == 0) {
             $result = $this->text("new $class {...}");
         } else {
-            $result = $this->renderVariables($properties, '', $this->maxObjectProperties)
-                        ->setHasEndingNewline(false)
-                        ->indent(2)->wrapLines("new $class {", "}");
+            $prefixes = array();
+
+            foreach ($properties as $prop) {
+                $prefixes[] = "{$prop->access()} ";
+            }
+
+            $result = $this->renderVariables($properties, '', $this->maxObjectProperties, $prefixes)
+                           ->setHasEndingNewline(false)
+                           ->indent(2)->wrapLines("new $class {", "}");
         }
-        
+
         $rendered = false;
-        
+
         return $result;
     }
 
@@ -357,16 +420,18 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     private function renderExceptionStackFrameArgs(ValueExceptionStackFrame $frame) {
-        if ($frame->getArgs() === null)
+        $args = $frame->getArgs();
+
+        if ($args === null)
             return $this->text("( ? )");
 
-        if ($frame->getArgs() === array())
+        if ($args === array())
             return $this->text("()");
 
         $pretties    = array();
         $isMultiLine = false;
 
-        foreach ($frame->getArgs() as $arg) {
+        foreach ($args as $arg) {
             $pretty      = $this->render($arg);
             $isMultiLine = $isMultiLine || $pretty->count() > 1;
             $pretties[]  = $pretty;
@@ -389,7 +454,7 @@ final class PrettyPrinter implements ValueVisitor {
 
     private function renderExceptionStackFramePrefix(ValueExceptionStackFrame $frame) {
         if ($frame->getObject() !== null)
-            return $this->render($frame->getObject())->append('->');
+            return $this->visitObject($frame->getObject())->append('->');
         else if ($frame->getClass() !== null)
             return $this->text($frame->getClass() . ($frame->getIsStatic() ? "::" : "->"));
         else

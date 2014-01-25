@@ -3,9 +3,9 @@
 namespace ErrorHandler;
 
 interface ValueVisitor {
-    function visitObject(MutableValueObject $o);
+    function visitObject(ValueObject $object);
 
-    function visitArray(MutableValueArray $a);
+    function visitArray(ValueArray $array);
 
     function visitException(ValueException $e);
 

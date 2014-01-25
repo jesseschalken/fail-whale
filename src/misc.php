@@ -149,11 +149,11 @@ function ref_get(&$v) { return $v; }
 
 function ref_set(&$x, $v) { $x = $v; }
 
-function array_get(array $a, $k, $default = null) {
-    return array_key_exists($k, $a) ? $a[$k] : $default;
+function array_get($a, $k, $default = null) {
+    return isset($a[$k]) ? $a[$k] : $default;
 }
 
-function array_get2(array $a, $k1, $k2, $default = null) {
+function array_get2($a, $k1, $k2, $default = null) {
     $a = array_get($a, $k1, array());
     $a = array_get($a, $k2, $default);
 

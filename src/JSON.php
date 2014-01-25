@@ -23,20 +23,17 @@ final class JSONUnparse implements ValueVisitor {
 
     private function __construct() { }
 
-    function visitObject(MutableValueObject $o = null) {
-        if ($o === null)
-            return null;
-
-        $json =& $this->root['objects'][$o->id()];
+    function visitObject(ValueObject $object) {
+        $json =& $this->root['objects'][$object->id()];
 
         if ($json === null) {
             $json = array(
-                'class'      => $o->className(),
-                'hash'       => $o->getHash(),
+                'class'      => $object->className(),
+                'hash'       => $object->getHash(),
                 'properties' => array(),
             );
 
-            foreach ($o->properties() as $p) {
+            foreach ($object->properties() as $p) {
                 $json['properties'][] = array(
                     'name'      => $p->name(),
                     'value'     => $p->value()->acceptVisitor($this),
@@ -47,19 +44,19 @@ final class JSONUnparse implements ValueVisitor {
             }
         }
 
-        return array('object', $o->id());
+        return array('object', $object->id());
     }
 
-    function visitArray(MutableValueArray $a) {
-        $json =& $this->root['arrays'][$a->id()];
+    function visitArray(ValueArray $array) {
+        $json =& $this->root['arrays'][$array->id()];
 
         if ($json === null) {
             $json = array(
-                'isAssociative' => $a->isAssociative(),
+                'isAssociative' => $array->isAssociative(),
                 'entries'       => array(),
             );
 
-            foreach ($a->entries() as $entry) {
+            foreach ($array->entries() as $entry) {
                 $json['entries'][] = array(
                     $entry->key()->acceptVisitor($this),
                     $entry->value()->acceptVisitor($this),
@@ -67,7 +64,7 @@ final class JSONUnparse implements ValueVisitor {
             }
         }
 
-        return array('array', $a->id());
+        return array('array', $array->id());
     }
 
     function visitException(ValueException $e) {
@@ -94,19 +91,22 @@ final class JSONUnparse implements ValueVisitor {
         }
 
         foreach ($e->stack() as $frame) {
-            $json = array(
+            $object = $frame->getObject();
+            $json   = array(
                 'function' => $frame->getFunction(),
                 'class'    => $frame->getClass(),
                 'isStatic' => $frame->getIsStatic(),
                 'location' => $this->locationToJson($frame->getLocation()),
-                'object'   => $this->visitObject($frame->getObject()),
+                'object'   => $object === null ? null : $this->visitObject($object),
                 'args'     => array(),
             );
 
-            if ($frame->getArgs() === null) {
+            $args = $frame->getArgs();
+
+            if ($args === null) {
                 $json['args'] = null;
             } else {
-                foreach ($frame->getArgs() as $arg) {
+                foreach ($args as $arg) {
                     $json['args'][] = $arg->acceptVisitor($this);
                 }
             }
