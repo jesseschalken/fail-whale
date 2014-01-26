@@ -67,22 +67,22 @@ final class JSONUnparse implements ValueVisitor {
         return array('array', $array->id());
     }
 
-    function visitException(ValueException $e) {
+    function visitException(ValueException $exception) {
         $result = array(
-            'class'    => $e->className(),
-            'code'     => $e->code(),
-            'message'  => $e->message(),
-            'previous' => $e->previous() === null ? null : $this->visitException($e->previous()),
-            'location' => $this->locationToJson($e->location()),
+            'class'    => $exception->className(),
+            'code'     => $exception->code(),
+            'message'  => $exception->message(),
+            'previous' => $exception->previous() === null ? null : $this->visitException($exception->previous()),
+            'location' => $this->locationToJson($exception->location()),
             'stack'    => array(),
             'locals'   => array(),
-            'globals'  => $this->globalsToJson($e->globals()),
+            'globals'  => $this->globalsToJson($exception->globals()),
         );
 
-        if ($e->locals() === null) {
+        if ($exception->locals() === null) {
             $result['locals'] = null;
         } else {
-            foreach ($e->locals() as $var) {
+            foreach ($exception->locals() as $var) {
                 $result['locals'][] = array(
                     'name'  => $var->name(),
                     'value' => $var->value()->acceptVisitor($this),
@@ -90,7 +90,7 @@ final class JSONUnparse implements ValueVisitor {
             }
         }
 
-        foreach ($e->stack() as $frame) {
+        foreach ($exception->stack() as $frame) {
             $object = $frame->getObject();
             $json   = array(
                 'function' => $frame->getFunction(),
@@ -117,7 +117,7 @@ final class JSONUnparse implements ValueVisitor {
         return array('exception', $result);
     }
 
-    function visitString(ValueString $s) { return $s->string(); }
+    function visitString($string) { return $string; }
 
     function visitInt($int) { return $int; }
 
@@ -429,7 +429,7 @@ class JSONValue extends JSONParse implements Value {
         } else if (is_null($json)) {
             return $visitor->visitNull();
         } else if (is_string($json)) {
-            return $visitor->visitString(new ValueString($json));
+            return $visitor->visitString($json);
         } else {
             switch ($json[0]) {
                 case 'object':
@@ -454,7 +454,7 @@ class JSONValue extends JSONParse implements Value {
                 case 'bool':
                     return $visitor->visitBool($json[1]);
                 case 'string':
-                    return $visitor->visitString(new ValueString($json[1]));
+                    return $visitor->visitString($json[1]);
                 default:
                     throw new Exception("Unknown type: {$json[0]}");
             }

@@ -7,9 +7,14 @@ interface ValueVisitor {
 
     function visitArray(ValueArray $array);
 
-    function visitException(ValueException $e);
+    function visitException(ValueException $exception);
 
-    function visitString(ValueString $s);
+    /**
+     * @param string $string
+     *
+     * @return mixed
+     */
+    function visitString($string);
 
     /**
      * @param int $int
@@ -51,16 +56,3 @@ interface ValueResource {
     function resourceID();
 }
 
-class ValueString implements Value {
-    private $string;
-
-    function __construct($x) {
-        assert(is_string($x));
-
-        $this->string = $x;
-    }
-
-    function string() { return $this->string; }
-
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitString($this); }
-}

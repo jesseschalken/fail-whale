@@ -392,8 +392,8 @@ final class PrettyPrinter implements ValueVisitor {
         return PrettyPrinterText::renderTable($rows, "\n");
     }
 
-    function visitString(ValueString $s) {
-        return $this->renderString($s->string());
+    function visitString($string) {
+        return $this->renderString($string);
     }
 
     function visitInt($int) {

@@ -92,7 +92,7 @@ class MockLocal1 implements ValueVariable, Value {
 }
 
 class MockLocal2 implements ValueVariable, Value {
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitString(new ValueString('bar')); }
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitString('bar'); }
 
     function name() { return 'foo'; }
 

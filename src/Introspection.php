@@ -461,7 +461,7 @@ class IntrospectionValue implements Value {
         $value =& $this->value;
 
         if (is_string($value))
-            return $visitor->visitString(new ValueString($value));
+            return $visitor->visitString($value);
         else if (is_int($value))
             return $visitor->visitInt($value);
         else if (is_bool($value))
