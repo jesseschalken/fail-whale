@@ -54,7 +54,7 @@ class Introspection {
     }
 }
 
-class IntrospectionCodeLocation implements ValueExceptionCodeLocation {
+class IntrospectionCodeLocation implements Value\CodeLocation {
     static function create($file, $line) {
         if (is_scalar($file) && is_scalar($line)) {
             $self       = new self;
@@ -95,19 +95,19 @@ class IntrospectionCodeLocation implements ValueExceptionCodeLocation {
     }
 }
 
-class IntrospectionResource implements ValueResource {
+class IntrospectionResource implements Value\Resource {
     private $resource;
 
     function __construct($resource) {
         $this->resource = $resource;
     }
 
-    function resourceType() { return get_resource_type($this->resource); }
+    function type() { return get_resource_type($this->resource); }
 
-    function resourceID() { return (int)$this->resource; }
+    function id() { return (int)$this->resource; }
 }
 
-class IntrospectionObject implements ValueObject {
+class IntrospectionObject implements Value\Object1 {
     private $introspection;
     private $object;
 
@@ -122,12 +122,12 @@ class IntrospectionObject implements ValueObject {
         return IntrospectionObjectProperty::objectProperties($this->introspection, $this->object);
     }
 
-    function getHash() { return spl_object_hash($this->object); }
+    function hash() { return spl_object_hash($this->object); }
 
     function id() { return $this->introspection->objectID($this->object); }
 }
 
-class IntrospectionArray implements ValueArray {
+class IntrospectionArray implements Value\Array1 {
     private $introspection;
     private $array;
 
@@ -143,7 +143,7 @@ class IntrospectionArray implements ValueArray {
     function entries() { return IntrospectionArrayKeyValuePair::introspect($this->introspection, $this->array); }
 }
 
-class IntrospectionArrayKeyValuePair implements ValueArrayEntry {
+class IntrospectionArrayKeyValuePair implements Value\ArrayEntry {
     static function introspect(Introspection $introspection, array &$array) {
         $entries = array();
 
@@ -167,7 +167,7 @@ class IntrospectionArrayKeyValuePair implements ValueArrayEntry {
     function value() { return $this->value; }
 }
 
-class IntrospectionException implements ValueException, Value {
+class IntrospectionException implements Value\Exception, Value\Value {
     private $introspection;
     private $exception;
     private $includeGlobals;
@@ -236,26 +236,26 @@ class IntrospectionException implements ValueException, Value {
         return $result;
     }
 
-    function acceptVisitor(ValueVisitor $visitor) {
+    function acceptVisitor(Value\Visitor $visitor) {
         return $visitor->visitException($this);
     }
 }
 
-class IntrospectionGlobals implements ValueExceptionGlobalState {
+class IntrospectionGlobals implements Value\Globals {
     private $introspection;
 
     function __construct(Introspection $introspection) {
         $this->introspection = $introspection;
     }
 
-    function getStaticProperties() { return IntrospectionObjectProperty::staticProperties($this->introspection); }
+    function staticProperties() { return IntrospectionObjectProperty::staticProperties($this->introspection); }
 
-    function getStaticVariables() { return IntrospectionStaticVariable::all($this->introspection); }
+    function staticVariables() { return IntrospectionStaticVariable::all($this->introspection); }
 
-    function getGlobalVariables() { return IntrospectionVariable::introspect($this->introspection, $GLOBALS); }
+    function globalVariables() { return IntrospectionVariable::introspect($this->introspection, $GLOBALS); }
 }
 
-class IntrospectionVariable implements ValueVariable {
+class IntrospectionVariable implements Value\Variable {
     static function introspect(Introspection $introspection, array &$variables) {
         $results = array();
 
@@ -279,7 +279,7 @@ class IntrospectionVariable implements ValueVariable {
     function value() { return $this->value; }
 }
 
-class IntrospectionObjectProperty implements ValueObjectProperty {
+class IntrospectionObjectProperty implements Value\ObjectProperty {
     static function staticProperties(Introspection $introspection) {
         $results = array();
 
@@ -348,7 +348,7 @@ class IntrospectionObjectProperty implements ValueObjectProperty {
     function isDefault() { return $this->property->isDefault(); }
 }
 
-class IntrospectionStaticVariable implements ValueVariableStatic {
+class IntrospectionStaticVariable implements Value\StaticVariable {
     static function all(Introspection $i) {
         $globals = array();
 
@@ -398,12 +398,12 @@ class IntrospectionStaticVariable implements ValueVariableStatic {
 
     function value() { return $this->value; }
 
-    function getFunction() { return $this->function; }
+    function functionName() { return $this->function; }
 
-    function getClass() { return $this->class; }
+    function className() { return $this->class; }
 }
 
-class IntrospectionStackFrame implements ValueExceptionStackFrame {
+class IntrospectionStackFrame implements Value\StackFrame {
     private $introspection;
     private $frame;
 
@@ -412,38 +412,38 @@ class IntrospectionStackFrame implements ValueExceptionStackFrame {
         $this->frame         = $frame;
     }
 
-    function getFunction() {
+    function functionName() {
         $function = array_get($this->frame, 'function');
 
         return is_scalar($function) ? "$function" : null;
     }
 
-    function getLocation() {
+    function location() {
         $file = array_get($this->frame, 'file');
         $line = array_get($this->frame, 'line');
 
         return IntrospectionCodeLocation::create($file, $line);
     }
 
-    function getClass() {
+    function className() {
         $class = array_get($this->frame, 'class');
 
         return is_scalar($class) ? "$class" : null;
     }
 
-    function getIsStatic() {
+    function isStatic() {
         $type = array_get($this->frame, 'type');
 
         return $type === '::' ? true : ($type === '->' ? false : null);
     }
 
-    function getObject() {
+    function object() {
         $object = array_get($this->frame, 'object');
 
         return is_object($object) ? new IntrospectionObject($this->introspection, $object) : null;
     }
 
-    function getArgs() {
+    function arguments() {
         $args = array_get($this->frame, 'args');
 
         if (is_array($args)) {
@@ -460,7 +460,7 @@ class IntrospectionStackFrame implements ValueExceptionStackFrame {
     }
 }
 
-class IntrospectionValue implements Value {
+class IntrospectionValue implements Value\Value {
     private $value;
     private $introspection;
 
@@ -469,7 +469,7 @@ class IntrospectionValue implements Value {
         $this->introspection = $introspection;
     }
 
-    function acceptVisitor(ValueVisitor $visitor) {
+    function acceptVisitor(Value\Visitor $visitor) {
         $value =& $this->value;
 
         if (is_string($value))

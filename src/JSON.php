@@ -2,13 +2,13 @@
 
 namespace ErrorHandler;
 
-final class JSONUnparse implements ValueVisitor {
+final class JSONUnparse implements Value\Visitor {
     /**
-     * @param Value $v
+     * @param Value\Value $v
      *
      * @return string
      */
-    static function toJSON(Value $v) {
+    static function toJSON(Value\Value $v) {
         $self               = new self;
         $self->root['root'] = $v->acceptVisitor($self);
 
@@ -23,13 +23,13 @@ final class JSONUnparse implements ValueVisitor {
 
     private function __construct() { }
 
-    function visitObject(ValueObject $object) {
+    function visitObject(Value\Object1 $object) {
         $json =& $this->root['objects'][$object->id()];
 
         if ($json === null) {
             $json = array(
                 'class'      => $object->className(),
-                'hash'       => $object->getHash(),
+                'hash'       => $object->hash(),
                 'properties' => array(),
             );
 
@@ -47,7 +47,7 @@ final class JSONUnparse implements ValueVisitor {
         return array('object', $object->id());
     }
 
-    function visitArray(ValueArray $array) {
+    function visitArray(Value\Array1 $array) {
         $json =& $this->root['arrays'][$array->id()];
 
         if ($json === null) {
@@ -67,7 +67,7 @@ final class JSONUnparse implements ValueVisitor {
         return array('array', $array->id());
     }
 
-    function visitException(ValueException $exception) {
+    function visitException(Value\Exception $exception) {
         $result = array(
             'class'    => $exception->className(),
             'code'     => $exception->code(),
@@ -91,17 +91,17 @@ final class JSONUnparse implements ValueVisitor {
         }
 
         foreach ($exception->stack() as $frame) {
-            $object = $frame->getObject();
+            $object = $frame->object();
             $json   = array(
-                'function' => $frame->getFunction(),
-                'class'    => $frame->getClass(),
-                'isStatic' => $frame->getIsStatic(),
-                'location' => $this->locationToJson($frame->getLocation()),
+                'function' => $frame->functionName(),
+                'class'    => $frame->className(),
+                'isStatic' => $frame->isStatic(),
+                'location' => $this->locationToJson($frame->location()),
                 'object'   => $object === null ? null : $this->visitObject($object),
                 'args'     => array(),
             );
 
-            $args = $frame->getArgs();
+            $args = $frame->arguments();
 
             if ($args === null) {
                 $json['args'] = null;
@@ -138,10 +138,10 @@ final class JSONUnparse implements ValueVisitor {
         return array('float', $json);
     }
 
-    function visitResource(ValueResource $r) {
+    function visitResource(Value\Resource $r) {
         $json = array(
-            'type' => $r->resourceType(),
-            'id'   => $r->resourceID(),
+            'type' => $r->type(),
+            'id'   => $r->id(),
         );
 
         return array('resource', $json);
@@ -149,7 +149,7 @@ final class JSONUnparse implements ValueVisitor {
 
     function visitBool($bool) { return $bool; }
 
-    private function locationToJson(ValueExceptionCodeLocation $location = null) {
+    private function locationToJson(Value\CodeLocation $location = null) {
         if ($location === null)
             return null;
 
@@ -160,7 +160,7 @@ final class JSONUnparse implements ValueVisitor {
         );
     }
 
-    private function globalsToJson(ValueExceptionGlobalState $globals = null) {
+    private function globalsToJson(Value\Globals $globals = null) {
         if ($globals === null)
             return null;
 
@@ -170,7 +170,7 @@ final class JSONUnparse implements ValueVisitor {
             'globalVariables'  => array(),
         );
 
-        foreach ($globals->getStaticProperties() as $p) {
+        foreach ($globals->staticProperties() as $p) {
             $json['staticProperties'][] = array(
                 'name'      => $p->name(),
                 'value'     => $p->value()->acceptVisitor($this),
@@ -180,16 +180,16 @@ final class JSONUnparse implements ValueVisitor {
             );
         }
 
-        foreach ($globals->getStaticVariables() as $v) {
+        foreach ($globals->staticVariables() as $v) {
             $json['staticVariables'][] = array(
                 'name'     => $v->name(),
                 'value'    => $v->value()->acceptVisitor($this),
-                'function' => $v->getFunction(),
-                'class'    => $v->getClass(),
+                'function' => $v->functionName(),
+                'class'    => $v->className(),
             );
         }
 
-        foreach ($globals->getGlobalVariables() as $v) {
+        foreach ($globals->globalVariables() as $v) {
             $json['globalVariables'][] = array(
                 'name'  => $v->name(),
                 'value' => $v->value()->acceptVisitor($this),
@@ -210,7 +210,7 @@ abstract class JSONParse {
     }
 }
 
-class JSONCodeLocation extends JSONParse implements ValueExceptionCodeLocation {
+class JSONCodeLocation extends JSONParse implements Value\CodeLocation {
     function line() { return $this->json['line']; }
 
     function file() { return $this->json['file']; }
@@ -218,7 +218,7 @@ class JSONCodeLocation extends JSONParse implements ValueExceptionCodeLocation {
     function sourceCode() { return $this->json['sourceCode']; }
 }
 
-class JSONException extends JSONParse implements ValueException {
+class JSONException extends JSONParse implements Value\Exception {
     function className() { return $this->json[1]['class']; }
 
     function code() { return $this->json[1]['code']; }
@@ -260,8 +260,8 @@ class JSONException extends JSONParse implements ValueException {
     }
 }
 
-class JSONStackFrame extends JSONParse implements ValueExceptionStackFrame {
-    function getArgs() {
+class JSONStackFrame extends JSONParse implements Value\StackFrame {
+    function arguments() {
         $args = $this->json['args'];
         $root = $this->root;
 
@@ -273,27 +273,27 @@ class JSONStackFrame extends JSONParse implements ValueExceptionStackFrame {
         }, $args);
     }
 
-    function getFunction() { return $this->json['function']; }
+    function functionName() { return $this->json['function']; }
 
-    function getClass() { return $this->json['class']; }
+    function className() { return $this->json['class']; }
 
-    function getIsStatic() { return $this->json['isStatic']; }
+    function isStatic() { return $this->json['isStatic']; }
 
-    function getLocation() {
+    function location() {
         $location = $this->json['location'];
 
         return $location === null ? null : new JSONCodeLocation($this->root, $location);
     }
 
-    function getObject() {
+    function object() {
         $object = $this->json['object'];
 
         return $object === null ? null : new JSONObject($this->root, $object);
     }
 }
 
-class JSONGlobals extends JSONParse implements ValueExceptionGlobalState {
-    function getStaticProperties() {
+class JSONGlobals extends JSONParse implements Value\Globals {
+    function staticProperties() {
         $root = $this->root;
 
         return array_map(function ($json) use ($root) {
@@ -301,7 +301,7 @@ class JSONGlobals extends JSONParse implements ValueExceptionGlobalState {
         }, $this->json['staticProperties']);
     }
 
-    function getStaticVariables() {
+    function staticVariables() {
         $root = $this->root;
 
         return array_map(function ($json) use ($root) {
@@ -309,7 +309,7 @@ class JSONGlobals extends JSONParse implements ValueExceptionGlobalState {
         }, $this->json['staticVariables']);
     }
 
-    function getGlobalVariables() {
+    function globalVariables() {
         $root = $this->root;
 
         return array_map(function ($json) use ($root) {
@@ -318,29 +318,29 @@ class JSONGlobals extends JSONParse implements ValueExceptionGlobalState {
     }
 }
 
-class JSONVariable extends JSONParse implements ValueVariable {
+class JSONVariable extends JSONParse implements Value\Variable {
     function name() { return $this->json['name']; }
 
     function value() { return new JSONValue($this->root, $this->json['value']); }
 }
 
-class JSONStaticVariable extends JSONParse implements ValueVariableStatic {
+class JSONStaticVariable extends JSONParse implements Value\StaticVariable {
     function name() { return $this->json['name']; }
 
     function value() { return new JSONValue($this->root, $this->json['value']); }
 
-    function getFunction() { return $this->json['function']; }
+    function functionName() { return $this->json['function']; }
 
-    function getClass() { return $this->json['class']; }
+    function className() { return $this->json['class']; }
 }
 
-class JSONResource extends JSONParse implements ValueResource {
-    function resourceType() { return $this->json['type']; }
+class JSONResource extends JSONParse implements Value\Resource {
+    function type() { return $this->json['type']; }
 
-    function resourceID() { return $this->json['id']; }
+    function id() { return $this->json['id']; }
 }
 
-class JSONObject extends JSONParse implements ValueObject {
+class JSONObject extends JSONParse implements Value\Object1 {
     function className() {
         $json = $this->root['objects'][$this->json[1]];
 
@@ -358,7 +358,7 @@ class JSONObject extends JSONParse implements ValueObject {
         return $result;
     }
 
-    function getHash() {
+    function hash() {
         $json = $this->root['objects'][$this->json[1]];
 
         return $json['hash'];
@@ -367,7 +367,7 @@ class JSONObject extends JSONParse implements ValueObject {
     function id() { return $this->json[1]; }
 }
 
-class JSONObjectProperty extends JSONParse implements ValueObjectProperty {
+class JSONObjectProperty extends JSONParse implements Value\ObjectProperty {
     function name() { return $this->json['name']; }
 
     function value() { return new JSONValue($this->root, $this->json['value']); }
@@ -379,7 +379,7 @@ class JSONObjectProperty extends JSONParse implements ValueObjectProperty {
     function isDefault() { return $this->json['isDefault']; }
 }
 
-class JSONArray extends JSONParse implements ValueArray {
+class JSONArray extends JSONParse implements Value\Array1 {
     function isAssociative() {
         $json = $this->root['arrays'][$this->json[1]];
 
@@ -400,24 +400,24 @@ class JSONArray extends JSONParse implements ValueArray {
     }
 }
 
-class JSONArrayEntry extends JSONParse implements ValueArrayEntry {
+class JSONArrayEntry extends JSONParse implements Value\ArrayEntry {
     function key() { return new JSONValue($this->root, $this->json[0]); }
 
     function value() { return new JSONValue($this->root, $this->json[1]); }
 }
 
-class JSONValue extends JSONParse implements Value {
+class JSONValue extends JSONParse implements Value\Value {
     static function parse($json) {
         $root = JSON::parse($json);
 
         return new self($root, $root['root']);
     }
 
-    static function fromValue(Value $v) {
+    static function fromValue(Value\Value $v) {
         return JSONValue::parse(JSONUnparse::toJSON($v));
     }
 
-    function acceptVisitor(ValueVisitor $visitor) {
+    function acceptVisitor(Value\Visitor $visitor) {
         $json = $this->json;
 
         if (is_float($json)) {

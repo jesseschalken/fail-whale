@@ -2,14 +2,14 @@
 
 namespace ErrorHandler;
 
-class MockException implements Value, ValueException {
+class MockException implements Value\Value, Value\Exception {
     private $introspection;
 
     function __construct(Introspection $introspection) {
         $this->introspection = $introspection;
     }
 
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitException($this); }
+    function acceptVisitor(Value\Visitor $visitor) { return $visitor->visitException($this); }
 
     function className() { return 'MuhMockException'; }
 
@@ -39,83 +39,83 @@ s;
     }
 }
 
-class MockStackFrame1 implements ValueExceptionStackFrame {
+class MockStackFrame1 implements Value\StackFrame {
     private $introspection;
 
     function __construct(Introspection $introspection) {
         $this->introspection = $introspection;
     }
 
-    function getArgs() {
+    function arguments() {
         return array($this->introspection->introspect(new DummyClass1));
     }
 
-    function getFunction() { return 'aFunction'; }
+    function functionName() { return 'aFunction'; }
 
-    function getClass() { return 'DummyClass1'; }
+    function className() { return 'DummyClass1'; }
 
-    function getIsStatic() { return false; }
+    function isStatic() { return false; }
 
-    function getLocation() { return new MockLocation; }
+    function location() { return new MockLocation; }
 
-    function getObject() { return new IntrospectionObject($this->introspection, new DummyClass1); }
+    function object() { return new IntrospectionObject($this->introspection, new DummyClass1); }
 }
 
-class MockStackFrame2 implements ValueExceptionStackFrame {
+class MockStackFrame2 implements Value\StackFrame {
     private $introspection;
 
     function __construct(Introspection $introspection) {
         $this->introspection = $introspection;
     }
 
-    function getArgs() {
+    function arguments() {
         return array($this->introspection->introspect(new DummyClass2));
     }
 
-    function getFunction() { return 'aFunction'; }
+    function functionName() { return 'aFunction'; }
 
-    function getClass() { return null; }
+    function className() { return null; }
 
-    function getIsStatic() { return null; }
+    function isStatic() { return null; }
 
-    function getLocation() { return new MockLocation; }
+    function location() { return new MockLocation; }
 
-    function getObject() { return null; }
+    function object() { return null; }
 }
 
-class MockLocal1 implements ValueVariable, Value {
+class MockLocal1 implements Value\Variable, Value\Value {
     function name() { return 'lol'; }
 
     function value() { return $this; }
 
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitInt(8); }
+    function acceptVisitor(Value\Visitor $visitor) { return $visitor->visitInt(8); }
 }
 
-class MockLocal2 implements ValueVariable, Value {
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitString('bar'); }
+class MockLocal2 implements Value\Variable, Value\Value {
+    function acceptVisitor(Value\Visitor $visitor) { return $visitor->visitString('bar'); }
 
     function name() { return 'foo'; }
 
     function value() { return $this; }
 }
 
-class MockGlobal1 implements ValueVariable, Value {
+class MockGlobal1 implements Value\Variable, Value\Value {
     function name() { return 'globalVariable'; }
 
     function value() { return $this; }
 
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitInt(-2734); }
+    function acceptVisitor(Value\Visitor $visitor) { return $visitor->visitInt(-2734); }
 }
 
-class MockGlobal2 implements ValueVariable, Value {
+class MockGlobal2 implements Value\Variable, Value\Value {
     function name() { return '_SESSION'; }
 
     function value() { return $this; }
 
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitBool(true); }
+    function acceptVisitor(Value\Visitor $visitor) { return $visitor->visitBool(true); }
 }
 
-class MockLocation implements ValueExceptionCodeLocation {
+class MockLocation implements Value\CodeLocation {
     function line() { return 9000; }
 
     function file() { return '/path/to/muh/file'; }
@@ -123,22 +123,22 @@ class MockLocation implements ValueExceptionCodeLocation {
     function sourceCode() { return null; }
 }
 
-class MockGlobalState implements ValueExceptionGlobalState {
-    function getStaticProperties() {
+class MockGlobalState implements Value\Globals {
+    function staticProperties() {
         return array(new MockStaticProperty1);
     }
 
-    function getStaticVariables() {
+    function staticVariables() {
         return array(new MockStaticVariable1, new MockStaticVariable2);
     }
 
-    function getGlobalVariables() {
+    function globalVariables() {
         return array(new MockGlobal1, new MockGlobal2);
     }
 }
 
-class MockStaticProperty1 implements ValueObjectProperty, Value {
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull(); }
+class MockStaticProperty1 implements Value\ObjectProperty, Value\Value {
+    function acceptVisitor(Value\Visitor $visitor) { return $visitor->visitNull(); }
 
     function name() { return 'blahProperty'; }
 
@@ -151,28 +151,28 @@ class MockStaticProperty1 implements ValueObjectProperty, Value {
     function isDefault() { return false; }
 }
 
-class MockStaticVariable1 implements ValueVariableStatic, Value {
+class MockStaticVariable1 implements Value\StaticVariable, Value\Value {
     function name() { return 'variable name'; }
 
     function value() { return $this; }
 
-    function getFunction() { return 'blahFunction'; }
+    function functionName() { return 'blahFunction'; }
 
-    function getClass() { return null; }
+    function className() { return null; }
 
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull(); }
+    function acceptVisitor(Value\Visitor $visitor) { return $visitor->visitNull(); }
 }
 
-class MockStaticVariable2 implements ValueVariableStatic, Value {
+class MockStaticVariable2 implements Value\StaticVariable, Value\Value {
     function name() { return 'lolStatic'; }
 
     function value() { return $this; }
 
-    function getFunction() { return 'blahMethod'; }
+    function functionName() { return 'blahMethod'; }
 
-    function getClass() { return 'BlahAnotherClass'; }
+    function className() { return 'BlahAnotherClass'; }
 
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull(); }
+    function acceptVisitor(Value\Visitor $visitor) { return $visitor->visitNull(); }
 }
 
 class DummyClass1 {

@@ -2,7 +2,9 @@
 
 namespace ErrorHandler;
 
-final class PrettyPrinter implements ValueVisitor {
+use ErrorHandler\Value as Value;
+
+final class PrettyPrinter implements Value\Visitor {
     private $escapeTabsInStrings = false;
     private $maxArrayEntries = INF;
     private $maxObjectProperties = INF;
@@ -45,13 +47,13 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     /**
-     * @param Value $v
+     * @param Value\Value $v
      *
      * @return PrettyPrinterText
      */
-    function render(Value $v) { return $v->acceptVisitor($this); }
+    function render(Value\Value $v) { return $v->acceptVisitor($this); }
 
-    function visitArray(ValueArray $array) {
+    function visitArray(Value\Array1 $array) {
         $rendered =& $this->arraysRendered[$array->id()];
 
         if ($rendered)
@@ -93,11 +95,11 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     /**
-     * @param ValueException $e
+     * @param Value\Exception $e
      *
      * @return PrettyPrinterText
      */
-    private function renderException(ValueException $e) {
+    private function renderException(Value\Exception $e) {
         $location = $e->location();
 
         $text = $this->text("{$e->className()} {$e->code()} in {$location->file()}:{$location->line()}\n");
@@ -166,7 +168,7 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     /**
-     * @param ValueVariable[] $variables
+     * @param Value\Variable[] $variables
      * @param string          $noneText
      * @param float           $max
      * @param string[]        $prefixes
@@ -197,12 +199,12 @@ final class PrettyPrinter implements ValueVisitor {
         return $result;
     }
 
-    private function renderExceptionStack(ValueException $exception) {
+    private function renderExceptionStack(Value\Exception $exception) {
         $text = $this->text();
         $i    = 1;
 
         foreach ($exception->stack() as $frame) {
-            $location = $frame->getLocation();
+            $location = $frame->location();
             $location = $location === null ? '[internal function]' : "{$location->file()}:{$location->line()}";
             $text->addLine("#$i {$location}");
             $text->addLines($this->renderExceptionStackFrame($frame)->append(';')->indent(3));
@@ -213,14 +215,14 @@ final class PrettyPrinter implements ValueVisitor {
         return $text->addLine("#$i {main}");
     }
 
-    private function renderExceptionStackFrame(ValueExceptionStackFrame $frame) {
+    private function renderExceptionStackFrame(Value\StackFrame $frame) {
         $prefix = $this->renderExceptionStackFramePrefix($frame);
         $args   = $this->renderExceptionStackFrameArgs($frame);
 
-        return $prefix->append($frame->getFunction())->appendLines($args);
+        return $prefix->append($frame->functionName())->appendLines($args);
     }
 
-    function visitException(ValueException $exception) {
+    function visitException(Value\Exception $exception) {
         $text = $this->renderException($exception);
 
         if ($this->showExceptionGlobalVariables) {
@@ -242,20 +244,20 @@ final class PrettyPrinter implements ValueVisitor {
                 $variables = array();
                 $prefixes  = array();
 
-                foreach ($globals->getStaticProperties() as $p) {
+                foreach ($globals->staticProperties() as $p) {
                     $variables[] = $p;
                     $prefixes[]  = "{$p->access()} static {$p->className()}::";
                 }
 
-                foreach ($globals->getStaticVariables() as $p) {
-                    $class       = $p->getClass();
-                    $function    = $p->getFunction();
+                foreach ($globals->staticVariables() as $p) {
+                    $class       = $p->className();
+                    $function    = $p->functionName();
                     $function    = $class === null ? $function : "$class::$function";
                     $prefixes[]  = "function $function()::static ";
                     $variables[] = $p;
                 }
 
-                foreach ($globals->getGlobalVariables() as $v) {
+                foreach ($globals->globalVariables() as $v) {
                     $variables[] = $v;
                     $prefixes[]  = in_array($v->name(), $superGlobals) ? '' : 'global ';
                 }
@@ -273,7 +275,7 @@ final class PrettyPrinter implements ValueVisitor {
         return $text;
     }
 
-    function visitObject(ValueObject $object) {
+    function visitObject(Value\Object1 $object) {
         $rendered =& $this->objectsRendered[$object->id()];
 
         if ($rendered)
@@ -414,16 +416,16 @@ final class PrettyPrinter implements ValueVisitor {
         return $this->text("$int" === "$float" ? "$float.0" : "$float");
     }
 
-    function visitResource(ValueResource $r) {
-        return $this->text("{$r->resourceType()}");
+    function visitResource(Value\Resource $r) {
+        return $this->text("{$r->type()}");
     }
 
     function visitBool($bool) {
         return $this->text($bool ? 'true' : 'false');
     }
 
-    private function renderExceptionStackFrameArgs(ValueExceptionStackFrame $frame) {
-        $args = $frame->getArgs();
+    private function renderExceptionStackFrameArgs(Value\StackFrame $frame) {
+        $args = $frame->arguments();
 
         if ($args === null)
             return $this->text("( ? )");
@@ -455,11 +457,11 @@ final class PrettyPrinter implements ValueVisitor {
         return $result->wrap("( ", " )");
     }
 
-    private function renderExceptionStackFramePrefix(ValueExceptionStackFrame $frame) {
-        if ($frame->getObject() !== null)
-            return $this->visitObject($frame->getObject())->append('->');
-        else if ($frame->getClass() !== null)
-            return $this->text($frame->getClass() . ($frame->getIsStatic() ? "::" : "->"));
+    private function renderExceptionStackFramePrefix(Value\StackFrame $frame) {
+        if ($frame->object() !== null)
+            return $this->visitObject($frame->object())->append('->');
+        else if ($frame->className() !== null)
+            return $this->text($frame->className() . ($frame->isStatic() ? "::" : "->"));
         else
             return $this->text();
     }

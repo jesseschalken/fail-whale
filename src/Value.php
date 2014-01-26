@@ -1,13 +1,13 @@
 <?php
 
-namespace ErrorHandler;
+namespace ErrorHandler\Value;
 
-interface ValueVisitor {
-    function visitObject(ValueObject $object);
+interface Visitor {
+    function visitObject(Object1 $object);
 
-    function visitArray(ValueArray $array);
+    function visitArray(Array1 $array);
 
-    function visitException(ValueException $exception);
+    function visitException(Exception $exception);
 
     /**
      * @param string $string
@@ -34,7 +34,7 @@ interface ValueVisitor {
      */
     function visitFloat($float);
 
-    function visitResource(ValueResource $r);
+    function visitResource(Resource $r);
 
     /**
      * @param bool $bool
@@ -45,32 +45,32 @@ interface ValueVisitor {
 }
 
 interface Value {
-    function acceptVisitor(ValueVisitor $visitor);
+    function acceptVisitor(Visitor $visitor);
 }
 
-interface ValueResource {
+interface Resource {
     /** @return string */
-    function resourceType();
-
-    /** @return int */
-    function resourceID();
-}
-
-interface ValueObject {
-    /** @return string */
-    function className();
-
-    /** @return ValueObjectProperty[] */
-    function properties();
-
-    /** @return string */
-    function getHash();
+    function type();
 
     /** @return int */
     function id();
 }
 
-interface ValueException {
+interface Object1 {
+    /** @return string */
+    function className();
+
+    /** @return ObjectProperty[] */
+    function properties();
+
+    /** @return string */
+    function hash();
+
+    /** @return int */
+    function id();
+}
+
+interface Exception {
     /** @return string */
     function className();
 
@@ -83,31 +83,31 @@ interface ValueException {
     /** @return self|null */
     function previous();
 
-    /** @return ValueExceptionCodeLocation */
+    /** @return CodeLocation */
     function location();
 
-    /** @return ValueExceptionGlobalState */
+    /** @return Globals */
     function globals();
 
-    /** @return ValueVariable[]|null */
+    /** @return Variable[]|null */
     function locals();
 
-    /** @return ValueExceptionStackFrame[] */
+    /** @return StackFrame[] */
     function stack();
 }
 
-interface ValueExceptionGlobalState {
-    /** @return ValueObjectProperty[] */
-    function getStaticProperties();
+interface Globals {
+    /** @return ObjectProperty[] */
+    function staticProperties();
 
-    /** @return ValueVariableStatic[] */
-    function getStaticVariables();
+    /** @return StaticVariable[] */
+    function staticVariables();
 
-    /** @return ValueVariable[] */
-    function getGlobalVariables();
+    /** @return Variable[] */
+    function globalVariables();
 }
 
-interface ValueExceptionCodeLocation {
+interface CodeLocation {
     /** @return int */
     function line();
 
@@ -118,7 +118,7 @@ interface ValueExceptionCodeLocation {
     function sourceCode();
 }
 
-interface ValueVariable {
+interface Variable {
     /** @return string */
     function name();
 
@@ -126,15 +126,15 @@ interface ValueVariable {
     function value();
 }
 
-interface ValueVariableStatic extends ValueVariable {
+interface StaticVariable extends Variable {
     /** @return string */
-    function getFunction();
+    function functionName();
 
     /** @return string|null */
-    function getClass();
+    function className();
 }
 
-interface ValueObjectProperty extends ValueVariable {
+interface ObjectProperty extends Variable {
     /** @return string */
     function access();
 
@@ -145,38 +145,38 @@ interface ValueObjectProperty extends ValueVariable {
     function isDefault();
 }
 
-interface ValueExceptionStackFrame {
+interface StackFrame {
     /** @return Value[]|null */
-    function getArgs();
+    function arguments();
 
     /** @return string */
-    function getFunction();
+    function functionName();
 
     /** @return string|null */
-    function getClass();
+    function className();
 
     /** @return bool|null */
-    function getIsStatic();
+    function isStatic();
 
-    /** @return ValueExceptionCodeLocation|null */
-    function getLocation();
+    /** @return CodeLocation|null */
+    function location();
 
-    /** @return ValueObject|null */
-    function getObject();
+    /** @return Object1|null */
+    function object();
 }
 
-interface ValueArray {
+interface Array1 {
     /** @return bool */
     function isAssociative();
 
     /** @return int */
     function id();
 
-    /** @return ValueArrayEntry[] */
+    /** @return ArrayEntry[] */
     function entries();
 }
 
-interface ValueArrayEntry {
+interface ArrayEntry {
     /** @return Value */
     function key();
 
