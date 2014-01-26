@@ -9,8 +9,6 @@ class Introspection {
 
     function introspectException(\Exception $e) { return new IntrospectionException($this, $e); }
 
-    function mockException() { return MutableValueException::mock($this); }
-
     /** @var object[] Just to keep a reference to the objects, because if they get GC'd their hash can get re-used */
     private $objects = array();
     private $arrayIDs = array();
