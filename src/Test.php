@@ -308,7 +308,8 @@ s
 
     function testException() {
         $i         = new Introspection;
-        $exception = JSONValue::fromValue(new MockException($i));
+        $exception = new MockException($i);
+        $exception = JSONParse::parse(JSONSerialize::serialize($exception));
 
         self::assertEquals(self::pp()->render($exception)->toString(), <<<'s'
 MuhMockException Dummy exception code in /the/path/to/muh/file:9000

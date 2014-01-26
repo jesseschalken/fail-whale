@@ -8,7 +8,7 @@ final class JSONSerialize implements ValueVisitor {
      *
      * @return string
      */
-    static function toJSON(Value $v) {
+    static function serialize(Value $v) {
         $self               = new self;
         $self->root['root'] = $v->acceptVisitor($self);
 
@@ -205,6 +205,17 @@ final class JSONSerialize implements ValueVisitor {
 }
 
 abstract class JSONParse {
+    /**
+     * @param string $json
+     *
+     * @return Value
+     */
+    static function parse($json) {
+        $root = JSON::parse($json);
+
+        return new JSONValue($root, $root['root']);
+    }
+
     protected $root;
     protected $json;
 
@@ -428,16 +439,6 @@ class JSONArrayEntry extends JSONParse implements ValueArrayEntry {
 }
 
 class JSONValue extends JSONParse implements Value {
-    static function parse($json) {
-        $root = JSON::parse($json);
-
-        return new self($root, $root['root']);
-    }
-
-    static function fromValue(Value $v) {
-        return JSONValue::parse(JSONSerialize::toJSON($v));
-    }
-
     function acceptVisitor(ValueVisitor $visitor) {
         $json = $this->json;
 
@@ -501,17 +502,12 @@ final class JSON {
      * @return string
      */
     static function stringify($value) {
-        $flags = 0;
-
-        if (defined('JSON_PRETTY_PRINT')) {
-            $flags |= JSON_PRETTY_PRINT;
-        }
-
-        $result = json_encode(self::prepare($value), $flags);
+        $value = self::translateStrings($value, function ($x) { return utf8_encode($x); });
+        $json  = json_encode($value, defined('JSON_PRETTY_PRINT') ? JSON_PRETTY_PRINT : 0);
 
         self::checkError();
 
-        return $result;
+        return $json;
     }
 
     /**
@@ -520,77 +516,51 @@ final class JSON {
      * @return mixed
      */
     static function parse($json) {
-        $result = json_decode($json, true);
+        $value = json_decode($json, true);
 
         self::checkError();
 
-        return self::unprepare($result);
+        $value = self::translateStrings($value, function ($x) { return utf8_decode($x); });
+
+        return $value;
     }
 
     /**
-     * @param mixed $value
+     * @param mixed    $value
+     * @param callable $f
      *
-     * @return mixed
      * @throws \Exception
+     * @return mixed
      */
-    private static function prepare($value) {
+    private static function translateStrings($value, \Closure $f) {
         if (is_string($value)) {
-            return utf8_encode($value);
-        }
-
-        if (is_float($value) || is_int($value) || is_null($value) || is_bool($value)) {
+            return $f($value);
+        } else if (is_float($value) ||
+                   is_int($value) ||
+                   is_null($value) ||
+                   is_bool($value)
+        ) {
             return $value;
-        }
-
-        if (is_array($value)) {
+        } else if (is_array($value)) {
             $result = array();
 
             foreach ($value as $k => $v) {
-                $result[self::prepare($k)] = self::prepare($v);
+                $k = self::translateStrings($k, $f);
+                $v = self::translateStrings($v, $f);
+
+                $result[$k] = $v;
             }
 
             return $result;
+        } else {
+            throw new \Exception("Invalid JSON value");
         }
-
-        throw new \Exception("Invalid JSON value");
     }
 
     private static function checkError() {
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new \Exception("JSON Error", json_last_error());
         }
-    }
-
-    /**
-     * @param mixed $result
-     *
-     * @throws \Exception
-     * @return mixed
-     */
-    private static function unprepare($result) {
-        if (is_string($result)) {
-            return utf8_decode($result);
-        }
-
-        if (is_float($result) ||
-            is_int($result) ||
-            is_null($result) ||
-            is_bool($result)
-        ) {
-            return $result;
-        }
-
-        if (is_array($result)) {
-            $result2 = array();
-
-            foreach ($result as $k => $v) {
-                $result2[self::unprepare($k)] = self::unprepare($v);
-            }
-
-            return $result2;
-        }
-
-        throw new \Exception("Invalid JSON value");
     }
 }
 
