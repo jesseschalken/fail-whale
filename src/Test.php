@@ -2,6 +2,9 @@
 
 namespace ErrorHandler;
 
+use ErrorHandler\Introspection\Introspection;
+use ErrorHandler\Introspection\Object1;
+
 class MockException implements Value\Value, Value\Exception {
     private $introspection;
 
@@ -58,7 +61,7 @@ class MockStackFrame1 implements Value\StackFrame {
 
     function location() { return new MockLocation; }
 
-    function object() { return new IntrospectionObject($this->introspection, new DummyClass1); }
+    function object() { return new Object1($this->introspection, new DummyClass1); }
 }
 
 class MockStackFrame2 implements Value\StackFrame {

@@ -2,6 +2,7 @@
 
 namespace ErrorHandler;
 
+use ErrorHandler\Introspection\Introspection;
 use ErrorHandler\Value as Value;
 
 final class PrettyPrinter implements Value\Visitor {

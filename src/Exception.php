@@ -2,6 +2,20 @@
 
 namespace ErrorHandler;
 
+interface ExceptionHasFullTrace {
+    /**
+     * @return array
+     */
+    function getFullTrace();
+}
+
+interface ExceptionHasLocalVariables {
+    /**
+     * @return array|null
+     */
+    function getLocalVariables();
+}
+
 class AssertionFailedException extends \LogicException implements ExceptionHasFullTrace {
     private $expression, $fullStackTrace;
 
