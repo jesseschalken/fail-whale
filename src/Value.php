@@ -51,21 +51,6 @@ interface ValueResource {
     function resourceID();
 }
 
-class MutableValueResource implements Value, ValueResource {
-    private $type, $id;
-
-    function __construct($type, $id) {
-        $this->type = $type;
-        $this->id   = $id;
-    }
-
-    function resourceType() { return $this->type; }
-
-    function resourceID() { return $this->id; }
-
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitResource($this); }
-}
-
 class ValueString implements Value {
     private $string;
 

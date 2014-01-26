@@ -430,7 +430,7 @@ class MutableValueExceptionStackFrame implements ValueExceptionStackFrame {
     private $function;
     /** @var Value[]|null */
     private $args;
-    /** @var MutableValueObject|null */
+    /** @var ValueObject|null */
     private $object;
     private $isStatic;
     /** @var MutableValueExceptionCodeLocation */

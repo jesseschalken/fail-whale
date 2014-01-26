@@ -16,32 +16,6 @@ interface ValueObject {
     function id();
 }
 
-class MutableValueObject implements Value, ValueObject {
-    private $hash;
-    private $class;
-    /** @var MutableValueObjectProperty[] */
-    private $properties = array();
-    private $id;
-
-    function className() { return $this->class; }
-
-    function properties() { return $this->properties; }
-
-    function setHash($hash) { $this->hash = $hash; }
-
-    function setClass($class) { $this->class = $class; }
-
-    function addProperty(MutableValueObjectProperty $p) { $this->properties[] = $p; }
-
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitObject($this); }
-
-    function getHash() { return $this->hash; }
-
-    function id() { return $this->id; }
-
-    function setId($id) { $this->id = $id; }
-}
-
 class MutableValueObjectProperty extends MutableValueVariable implements ValueObjectProperty {
     /**
      * @param Introspection $i
