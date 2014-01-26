@@ -27,21 +27,21 @@ final class JSONUnparse implements Value\Visitor {
         $json =& $this->root['objects'][$object->id()];
 
         if ($json === null) {
+            $that = $this;
+            $json = array();
             $json = array(
                 'class'      => $object->className(),
                 'hash'       => $object->hash(),
-                'properties' => array(),
+                'properties' => array_map(function (Value\ObjectProperty $p) use ($that) {
+                    return array(
+                        'name'      => $p->name(),
+                        'value'     => $p->value()->acceptVisitor($that),
+                        'class'     => $p->className(),
+                        'access'    => $p->access(),
+                        'isDefault' => $p->isDefault(),
+                    );
+                }, $object->properties()),
             );
-
-            foreach ($object->properties() as $p) {
-                $json['properties'][] = array(
-                    'name'      => $p->name(),
-                    'value'     => $p->value()->acceptVisitor($this),
-                    'class'     => $p->className(),
-                    'access'    => $p->access(),
-                    'isDefault' => $p->isDefault(),
-                );
-            }
         }
 
         return array('object', $object->id());
@@ -51,68 +51,58 @@ final class JSONUnparse implements Value\Visitor {
         $json =& $this->root['arrays'][$array->id()];
 
         if ($json === null) {
+            $that = $this;
+            $json = array();
             $json = array(
                 'isAssociative' => $array->isAssociative(),
-                'entries'       => array(),
+                'entries'       => array_map(function (Value\ArrayEntry $entry) use ($that) {
+                    return array(
+                        $entry->key()->acceptVisitor($that),
+                        $entry->value()->acceptVisitor($that),
+                    );
+                }, $array->entries()),
             );
-
-            foreach ($array->entries() as $entry) {
-                $json['entries'][] = array(
-                    $entry->key()->acceptVisitor($this),
-                    $entry->value()->acceptVisitor($this),
-                );
-            }
         }
 
         return array('array', $array->id());
     }
 
     function visitException(Value\Exception $exception) {
+        $locals = $exception->locals();
+        $that   = $this;
         $result = array(
             'class'    => $exception->className(),
             'code'     => $exception->code(),
             'message'  => $exception->message(),
             'previous' => $exception->previous() === null ? null : $this->visitException($exception->previous()),
             'location' => $this->locationToJson($exception->location()),
-            'stack'    => array(),
-            'locals'   => array(),
+            'stack'    => array_map(function (Value\StackFrame $frame) use ($that) {
+                $object = $frame->object();
+                $args   = $frame->arguments();
+
+                return array(
+                    'function' => $frame->functionName(),
+                    'class'    => $frame->className(),
+                    'isStatic' => $frame->isStatic(),
+                    'location' => $that->locationToJson($frame->location()),
+                    'object'   => $object === null ? null : $that->visitObject($object),
+                    'args'     => $args === null
+                            ? null
+                            : array_map(function (Value\Value $arg) use ($that) {
+                                return $arg->acceptVisitor($that);
+                            }, $args),
+                );
+            }, $exception->stack()),
+            'locals'   => $locals === null
+                    ? null
+                    : array_map(function (Value\Variable $var) use ($that) {
+                        return array(
+                            'name'  => $var->name(),
+                            'value' => $var->value()->acceptVisitor($that),
+                        );
+                    }, $locals),
             'globals'  => $this->globalsToJson($exception->globals()),
         );
-
-        if ($exception->locals() === null) {
-            $result['locals'] = null;
-        } else {
-            foreach ($exception->locals() as $var) {
-                $result['locals'][] = array(
-                    'name'  => $var->name(),
-                    'value' => $var->value()->acceptVisitor($this),
-                );
-            }
-        }
-
-        foreach ($exception->stack() as $frame) {
-            $object = $frame->object();
-            $json   = array(
-                'function' => $frame->functionName(),
-                'class'    => $frame->className(),
-                'isStatic' => $frame->isStatic(),
-                'location' => $this->locationToJson($frame->location()),
-                'object'   => $object === null ? null : $this->visitObject($object),
-                'args'     => array(),
-            );
-
-            $args = $frame->arguments();
-
-            if ($args === null) {
-                $json['args'] = null;
-            } else {
-                foreach ($args as $arg) {
-                    $json['args'][] = $arg->acceptVisitor($this);
-                }
-            }
-
-            $result['stack'][] = $json;
-        }
 
         return array('exception', $result);
     }
@@ -164,39 +154,33 @@ final class JSONUnparse implements Value\Visitor {
         if ($globals === null)
             return null;
 
-        $json = array(
-            'staticProperties' => array(),
-            'staticVariables'  => array(),
-            'globalVariables'  => array(),
+        $that = $this;
+
+        return array(
+            'staticProperties' => array_map(function (Value\ObjectProperty $p) use ($that) {
+                return array(
+                    'name'      => $p->name(),
+                    'value'     => $p->value()->acceptVisitor($that),
+                    'class'     => $p->className(),
+                    'access'    => $p->access(),
+                    'isDefault' => $p->isDefault(),
+                );
+            }, $globals->staticProperties()),
+            'staticVariables'  => array_map(function (Value\StaticVariable $v) use ($that) {
+                return array(
+                    'name'     => $v->name(),
+                    'value'    => $v->value()->acceptVisitor($that),
+                    'function' => $v->functionName(),
+                    'class'    => $v->className(),
+                );
+            }, $globals->staticVariables()),
+            'globalVariables'  => array_map(function (Value\Variable $v) use ($that) {
+                return array(
+                    'name'  => $v->name(),
+                    'value' => $v->value()->acceptVisitor($that),
+                );
+            }, $globals->globalVariables()),
         );
-
-        foreach ($globals->staticProperties() as $p) {
-            $json['staticProperties'][] = array(
-                'name'      => $p->name(),
-                'value'     => $p->value()->acceptVisitor($this),
-                'class'     => $p->className(),
-                'access'    => $p->access(),
-                'isDefault' => $p->isDefault(),
-            );
-        }
-
-        foreach ($globals->staticVariables() as $v) {
-            $json['staticVariables'][] = array(
-                'name'     => $v->name(),
-                'value'    => $v->value()->acceptVisitor($this),
-                'function' => $v->functionName(),
-                'class'    => $v->className(),
-            );
-        }
-
-        foreach ($globals->globalVariables() as $v) {
-            $json['globalVariables'][] = array(
-                'name'  => $v->name(),
-                'value' => $v->value()->acceptVisitor($this),
-            );
-        }
-
-        return $json;
     }
 }
 
