@@ -2,6 +2,179 @@
 
 namespace ErrorHandler;
 
+class MockException implements Value, ValueException {
+    private $introspection;
+
+    function __construct(Introspection $introspection) {
+        $this->introspection = $introspection;
+    }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitException($this); }
+
+    function className() { return 'MuhMockException'; }
+
+    function code() { return 'Dummy exception code'; }
+
+    function message() {
+        return <<<'s'
+This is a dummy exception message.
+
+lololool
+s;
+    }
+
+    function previous() { return null; }
+
+    function location() { return new MockLocation; }
+
+    function globals() { return new MockGlobalState; }
+
+    function locals() { return array(new MockLocal1, new MockLocal2); }
+
+    function stack() {
+        return array(
+            new MockStackFrame1($this->introspection),
+            new MockStackFrame2($this->introspection),
+        );
+    }
+}
+
+class MockStackFrame1 implements ValueExceptionStackFrame {
+    private $introspection;
+
+    function __construct(Introspection $introspection) {
+        $this->introspection = $introspection;
+    }
+
+    function getArgs() {
+        return array($this->introspection->introspect(new DummyClass1));
+    }
+
+    function getFunction() { return 'aFunction'; }
+
+    function getClass() { return 'DummyClass1'; }
+
+    function getIsStatic() { return false; }
+
+    function getLocation() { return new MockLocation; }
+
+    function getObject() { return new IntrospectionObject($this->introspection, new DummyClass1); }
+}
+
+class MockStackFrame2 implements ValueExceptionStackFrame {
+    private $introspection;
+
+    function __construct(Introspection $introspection) {
+        $this->introspection = $introspection;
+    }
+
+    function getArgs() {
+        return array($this->introspection->introspect(new DummyClass2));
+    }
+
+    function getFunction() { return 'aFunction'; }
+
+    function getClass() { return null; }
+
+    function getIsStatic() { return null; }
+
+    function getLocation() { return new MockLocation; }
+
+    function getObject() { return null; }
+}
+
+class MockLocal1 implements ValueVariable, Value {
+    function name() { return 'lol'; }
+
+    function value() { return $this; }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitInt(8); }
+}
+
+class MockLocal2 implements ValueVariable, Value {
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitString(new ValueString('bar')); }
+
+    function name() { return 'foo'; }
+
+    function value() { return $this; }
+}
+
+class MockGlobal1 implements ValueVariable, Value {
+    function name() { return 'globalVariable'; }
+
+    function value() { return $this; }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitInt(-2734); }
+}
+
+class MockGlobal2 implements ValueVariable, Value {
+    function name() { return '_SESSION'; }
+
+    function value() { return $this; }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitBool(true); }
+}
+
+class MockLocation implements ValueExceptionCodeLocation {
+    function line() { return 9000; }
+
+    function file() { return '/path/to/muh/file'; }
+
+    function sourceCode() { return null; }
+}
+
+class MockGlobalState implements ValueExceptionGlobalState {
+    function getStaticProperties() {
+        return array(new MockStaticProperty1);
+    }
+
+    function getStaticVariables() {
+        return array(new MockStaticVariable1, new MockStaticVariable2);
+    }
+
+    function getGlobalVariables() {
+        return array(new MockGlobal1, new MockGlobal2);
+    }
+}
+
+class MockStaticProperty1 implements ValueObjectProperty, Value {
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull(); }
+
+    function name() { return 'blahProperty'; }
+
+    function value() { return $this; }
+
+    function access() { return 'private'; }
+
+    function className() { return 'BlahClass'; }
+
+    function isDefault() { return false; }
+}
+
+class MockStaticVariable1 implements ValueVariableStatic, Value {
+    function name() { return 'variable name'; }
+
+    function value() { return $this; }
+
+    function getFunction() { return 'blahFunction'; }
+
+    function getClass() { return null; }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull(); }
+}
+
+class MockStaticVariable2 implements ValueVariableStatic, Value {
+    function name() { return 'lolStatic'; }
+
+    function value() { return $this; }
+
+    function getFunction() { return 'blahMethod'; }
+
+    function getClass() { return 'BlahAnotherClass'; }
+
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull(); }
+}
+
 class DummyClass1 {
     private static /** @noinspection PhpUnusedPrivateFieldInspection */
         $privateStatic1;
@@ -134,8 +307,8 @@ s
     }
 
     function testException() {
-        $i = new Introspection;
-        $exception = JSONValue::fromValue($i->mockException());
+        $i         = new Introspection;
+        $exception = JSONValue::fromValue(new MockException($i));
 
         self::assertEquals(self::pp()->render($exception)->toString(), <<<'s'
 MuhMockException Dummy exception code in /the/path/to/muh/file:9000
