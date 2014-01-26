@@ -2,10 +2,7 @@
 
 namespace ErrorHandler;
 
-use ErrorHandler\Introspection\Introspection;
-use ErrorHandler\Value as Value;
-
-final class PrettyPrinter implements Value\Visitor {
+final class PrettyPrinter implements ValueVisitor {
     private $escapeTabsInStrings = false;
     private $maxArrayEntries = INF;
     private $maxObjectProperties = INF;
@@ -48,13 +45,13 @@ final class PrettyPrinter implements Value\Visitor {
     }
 
     /**
-     * @param Value\Value $v
+     * @param Value $v
      *
      * @return PrettyPrinterText
      */
-    function render(Value\Value $v) { return $v->acceptVisitor($this); }
+    function render(Value $v) { return $v->acceptVisitor($this); }
 
-    function visitArray(Value\Array1 $array) {
+    function visitArray(ValueArray $array) {
         $rendered =& $this->arraysRendered[$array->id()];
 
         if ($rendered)
@@ -96,11 +93,11 @@ final class PrettyPrinter implements Value\Visitor {
     }
 
     /**
-     * @param Value\Exception $e
+     * @param ValueException $e
      *
      * @return PrettyPrinterText
      */
-    private function renderException(Value\Exception $e) {
+    private function renderException(ValueException $e) {
         $location = $e->location();
 
         $text = $this->text("{$e->className()} {$e->code()} in {$location->file()}:{$location->line()}\n");
@@ -169,7 +166,7 @@ final class PrettyPrinter implements Value\Visitor {
     }
 
     /**
-     * @param Value\Variable[] $variables
+     * @param ValueVariable[] $variables
      * @param string          $noneText
      * @param float           $max
      * @param string[]        $prefixes
@@ -200,7 +197,7 @@ final class PrettyPrinter implements Value\Visitor {
         return $result;
     }
 
-    private function renderExceptionStack(Value\Exception $exception) {
+    private function renderExceptionStack(ValueException $exception) {
         $text = $this->text();
         $i    = 1;
 
@@ -216,14 +213,14 @@ final class PrettyPrinter implements Value\Visitor {
         return $text->addLine("#$i {main}");
     }
 
-    private function renderExceptionStackFrame(Value\StackFrame $frame) {
+    private function renderExceptionStackFrame(ValueStackFrame $frame) {
         $prefix = $this->renderExceptionStackFramePrefix($frame);
         $args   = $this->renderExceptionStackFrameArgs($frame);
 
         return $prefix->append($frame->functionName())->appendLines($args);
     }
 
-    function visitException(Value\Exception $exception) {
+    function visitException(ValueException $exception) {
         $text = $this->renderException($exception);
 
         if ($this->showExceptionGlobalVariables) {
@@ -276,7 +273,7 @@ final class PrettyPrinter implements Value\Visitor {
         return $text;
     }
 
-    function visitObject(Value\Object1 $object) {
+    function visitObject(ValueObject $object) {
         $rendered =& $this->objectsRendered[$object->id()];
 
         if ($rendered)
@@ -417,7 +414,7 @@ final class PrettyPrinter implements Value\Visitor {
         return $this->text("$int" === "$float" ? "$float.0" : "$float");
     }
 
-    function visitResource(Value\Resource $r) {
+    function visitResource(ValueResource $r) {
         return $this->text("{$r->type()}");
     }
 
@@ -425,7 +422,7 @@ final class PrettyPrinter implements Value\Visitor {
         return $this->text($bool ? 'true' : 'false');
     }
 
-    private function renderExceptionStackFrameArgs(Value\StackFrame $frame) {
+    private function renderExceptionStackFrameArgs(ValueStackFrame $frame) {
         $args = $frame->arguments();
 
         if ($args === null)
@@ -458,7 +455,7 @@ final class PrettyPrinter implements Value\Visitor {
         return $result->wrap("( ", " )");
     }
 
-    private function renderExceptionStackFramePrefix(Value\StackFrame $frame) {
+    private function renderExceptionStackFramePrefix(ValueStackFrame $frame) {
         if ($frame->object() !== null)
             return $this->visitObject($frame->object())->append('->');
         else if ($frame->className() !== null)

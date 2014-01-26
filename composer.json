@@ -11,7 +11,6 @@
         "phpunit/phpunit": "3.7.*"
     },
     "autoload": {
-        "classmap": [ "src/" ],
-        "files": ["src/misc.php"]
+        "classmap": [ "src/" ]
     }
 }

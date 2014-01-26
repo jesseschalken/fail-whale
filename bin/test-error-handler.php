@@ -5,7 +5,7 @@ namespace ErrorHandler;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-set_exception_handler(simple_handler());
+ErrorHandler::register(ErrorHandler::simpleHandler());
 
 ini_set('display_errors', 1);
 
