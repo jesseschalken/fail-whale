@@ -2,6 +2,20 @@
 
 namespace ErrorHandler;
 
+interface ExceptionHasFullTrace {
+    /**
+     * @return array
+     */
+    function getFullTrace();
+}
+
+interface ExceptionHasLocalVariables {
+    /**
+     * @return array|null
+     */
+    function getLocalVariables();
+}
+
 class Introspection {
     function introspect($x) { return $this->introspectRef($x); }
 
