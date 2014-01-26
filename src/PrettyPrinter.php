@@ -153,7 +153,7 @@ final class PrettyPrinter implements ValueVisitor {
      *
      * @return PrettyPrinterText
      */
-    private function renderSourceCode($code, $line) {
+    private function renderSourceCode(array $code, $line) {
         $rows = array();
 
         foreach ($code as $codeLine => $codeText) {
