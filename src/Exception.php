@@ -32,7 +32,7 @@ class ErrorException extends \ErrorException implements ExceptionHasFullTrace, E
     function __construct($severity, $message, $file, $line, array $localVariables = null, array $stackTrace) {
         parent::__construct($message, 0, $severity, $file, $line);
 
-        $errorConstants = array(
+        $constants = array(
             E_ERROR             => 'E_ERROR',
             E_WARNING           => 'E_WARNING',
             E_PARSE             => 'E_PARSE',
@@ -52,7 +52,7 @@ class ErrorException extends \ErrorException implements ExceptionHasFullTrace, E
 
         $this->localVariables = $localVariables;
         $this->stackTrace     = $stackTrace;
-        $this->code           = array_get($errorConstants, $severity, 'E_?');
+        $this->code           = isset($constants[$severity]) ? $constants[$severity] : 'E_?';
     }
 
     function getFullTrace() { return $this->stackTrace; }
@@ -71,7 +71,7 @@ class Exception extends \Exception implements ExceptionHasFullTrace {
     function __construct($message = "", $code = 0, \Exception $previous = null) {
         $trace = debug_backtrace();
 
-        for ($i = 0; array_get2($trace, $i, 'object') === $this; $i++) ;
+        for ($i = 0; isset($trace[$i]['object']) && $trace[$i]['object'] === $this; $i++) ;
 
         $this->stackTrace = array_slice($trace, $i);
 

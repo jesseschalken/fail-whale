@@ -30,7 +30,7 @@ class Introspection {
 
     function arrayID(array &$array) {
         foreach ($this->arrayIDs as $id => &$array2) {
-            if (ref_equal($array2, $array)) {
+            if (self::refEqual($array2, $array)) {
                 return $id;
             }
         }
@@ -51,6 +51,15 @@ class Introspection {
         }
 
         return $id;
+    }
+    
+    private static function refEqual(&$x, &$y) {
+        $xOld   = $x;
+        $x      = new \stdClass;
+        $result = $x === $y;
+        $x      = $xOld;
+
+        return $result;
     }
 }
 
@@ -136,7 +145,17 @@ class IntrospectionArray implements Value\Array1 {
         $this->array         =& $array;
     }
 
-    function isAssociative() { return array_is_associative($this->array); }
+    function isAssociative() {
+        $i = 0;
+
+        foreach ($this->array as $k => $v) {
+            if ($k !== $i++) {
+                return true;
+            }
+        }
+
+        return false;
+    }
 
     function id() { return $this->introspection->arrayID($this->array); }
 
@@ -413,38 +432,36 @@ class IntrospectionStackFrame implements Value\StackFrame {
     }
 
     function functionName() {
-        $function = array_get($this->frame, 'function');
+        $function = $this->key('function');
 
         return is_scalar($function) ? "$function" : null;
     }
 
     function location() {
-        $file = array_get($this->frame, 'file');
-        $line = array_get($this->frame, 'line');
-
-        return IntrospectionCodeLocation::create($file, $line);
+        return IntrospectionCodeLocation::create($this->key('file'),
+                                                 $this->key('line'));
     }
 
     function className() {
-        $class = array_get($this->frame, 'class');
+        $class = $this->key('class');
 
         return is_scalar($class) ? "$class" : null;
     }
 
     function isStatic() {
-        $type = array_get($this->frame, 'type');
+        $type = $this->key('type');
 
         return $type === '::' ? true : ($type === '->' ? false : null);
     }
 
     function object() {
-        $object = array_get($this->frame, 'object');
+        $object = $this->key('object');
 
         return is_object($object) ? new IntrospectionObject($this->introspection, $object) : null;
     }
 
     function arguments() {
-        $args = array_get($this->frame, 'args');
+        $args = $this->key('args');
 
         if (is_array($args)) {
             $result = array();
@@ -457,6 +474,10 @@ class IntrospectionStackFrame implements Value\StackFrame {
         } else {
             return null;
         }
+    }
+
+    private function key($key) {
+        return isset($this->frame[$key]) ? $this->frame[$key] : null;
     }
 }
 
