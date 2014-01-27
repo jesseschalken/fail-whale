@@ -317,6 +317,9 @@ module PrettyPrinter {
                     if (x === null)
                         return v.visitNull();
 
+                    if (x[0] === 'string-ref')
+                        return v.visitString(root['strings'][x[1]]);
+
                     if (x[0] === 'float')
                         if (x[1] === 'inf' || x[1] === '+inf')
                             return v.visitFloat(Infinity);

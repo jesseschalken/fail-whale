@@ -20,7 +20,10 @@ class JSONSerialize implements ValueVisitor {
         'root'    => null,
         'arrays'  => array(),
         'objects' => array(),
+        'strings' => array(),
     );
+
+    private $stringIDs = array();
 
     private function __construct() { }
 
@@ -141,7 +144,20 @@ class JSONSerialize implements ValueVisitor {
         return array('exception', $result);
     }
 
-    function visitString($string) { return $string; }
+    function visitString($string) {
+        if (strlen($string) > 100) {
+            $id =& $this->stringIDs[$string];
+            if ($id === null) {
+                $id = count($this->stringIDs);
+
+                $this->root['strings'][$id] = $string;
+            }
+
+            return array('string-ref', $id);
+        } else {
+            return $string;
+        }
+    }
 
     function visitInt($int) { return $int; }
 
@@ -470,6 +486,8 @@ class JSONValue extends JSONParse implements Value {
                     return $visitor->visitBool($json[1]);
                 case 'string':
                     return $visitor->visitString($json[1]);
+                case 'string-ref':
+                    return $visitor->visitString($this->root['strings'][$json[1]]);
                 default:
                     throw new Exception("Unknown type: {$json[0]}");
             }

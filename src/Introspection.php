@@ -19,8 +19,8 @@ class Introspection {
         return new IntrospectionException($this, $e);
     }
 
-    private static $nextObjectID = 1;
-    private static $nextArrayID = 1;
+    private $nextObjectID = 1;
+    private $nextArrayID = 1;
     /** @var object[] Just to keep a reference to the objects, because if they get GC'd their hash can get re-used */
     private $objects = array();
     private $arrayIDs = array();
@@ -43,7 +43,7 @@ class Introspection {
     function objectID($object) {
         $id =& $this->objectIDs[spl_object_hash($object)];
         if ($id === null) {
-            $id = self::$nextObjectID++;
+            $id = $this->nextObjectID++;
 
             $this->objects[] = $object;
         }
@@ -61,7 +61,7 @@ class Introspection {
     }
 
     function newArrayID() {
-        return self::$nextArrayID++;
+        return $this->nextArrayID++;
     }
 }
 
