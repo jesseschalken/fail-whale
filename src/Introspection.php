@@ -3,25 +3,37 @@
 namespace ErrorHandler;
 
 class Introspection {
-    function introspect($x) { return $this->introspectRef($x); }
+    function introspect($x) {
+        return new IntrospectionValue($x, $this);
+    }
 
-    function introspectRef(&$x) { return new IntrospectionValue($x, $this); }
+    function introspectRef(&$x) {
+        if (is_array($x)) {
+            return new IntrospectionArray($this, $x, $this->arrayID($x));
+        } else {
+            return new IntrospectionValue($x, $this);
+        }
+    }
 
-    function introspectException(\Exception $e) { return new IntrospectionException($this, $e); }
+    function introspectException(\Exception $e) {
+        return new IntrospectionException($this, $e);
+    }
 
+    private static $nextObjectID = 1;
+    private static $nextArrayID = 1;
     /** @var object[] Just to keep a reference to the objects, because if they get GC'd their hash can get re-used */
     private $objects = array();
     private $arrayIDs = array();
     private $objectIDs = array();
 
-    function arrayID(array &$array) {
+    private function arrayID(array &$array) {
         foreach ($this->arrayIDs as $id => &$array2) {
             if (self::refEqual($array2, $array)) {
                 return $id;
             }
         }
 
-        $id = count($this->arrayIDs);
+        $id = $this->newArrayID();
 
         $this->arrayIDs[$id] =& $array;
 
@@ -31,7 +43,7 @@ class Introspection {
     function objectID($object) {
         $id =& $this->objectIDs[spl_object_hash($object)];
         if ($id === null) {
-            $id = count($this->objectIDs) - 1;
+            $id = self::$nextObjectID++;
 
             $this->objects[] = $object;
         }
@@ -46,6 +58,10 @@ class Introspection {
         $x      = $xOld;
 
         return $result;
+    }
+
+    function newArrayID() {
+        return self::$nextArrayID++;
     }
 }
 
@@ -122,13 +138,15 @@ class IntrospectionObject implements ValueObject {
     function id() { return $this->introspection->objectID($this->object); }
 }
 
-class IntrospectionArray implements ValueArray {
+class IntrospectionArray implements ValueArray, Value {
     private $introspection;
     private $array;
+    private $id;
 
-    function __construct(Introspection $introspection, array &$array) {
+    function __construct(Introspection $introspection, array $array, $id) {
         $this->introspection = $introspection;
-        $this->array         =& $array;
+        $this->array         = $array;
+        $this->id            = $id;
     }
 
     function isAssociative() {
@@ -143,9 +161,13 @@ class IntrospectionArray implements ValueArray {
         return false;
     }
 
-    function id() { return $this->introspection->arrayID($this->array); }
+    function id() { return $this->id; }
 
     function entries() { return IntrospectionArrayEntry::introspect($this->introspection, $this->array); }
+
+    function acceptVisitor(ValueVisitor $visitor) {
+        return $visitor->visitArray($this);
+    }
 }
 
 class IntrospectionArrayEntry implements ValueArrayEntry {
@@ -471,13 +493,13 @@ class IntrospectionValue implements Value {
     private $value;
     private $introspection;
 
-    function __construct(&$value, Introspection $introspection) {
-        $this->value         =& $value;
+    function __construct($value, Introspection $introspection) {
+        $this->value         = $value;
         $this->introspection = $introspection;
     }
 
     function acceptVisitor(ValueVisitor $visitor) {
-        $value =& $this->value;
+        $value = $this->value;
 
         if (is_string($value))
             return $visitor->visitString($value);
@@ -490,7 +512,7 @@ class IntrospectionValue implements Value {
         else if (is_float($value))
             return $visitor->visitFloat($value);
         else if (is_array($value))
-            return $visitor->visitArray(new IntrospectionArray($this->introspection, $value));
+            return $visitor->visitArray(new IntrospectionArray($this->introspection, $value, $this->introspection->newArrayID()));
         else if (is_object($value))
             return $visitor->visitObject(new IntrospectionObject($this->introspection, $value));
         else if (is_resource($value))
