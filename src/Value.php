@@ -49,138 +49,214 @@ interface Value {
 }
 
 interface ValueResource {
-    /** @return string */
+    /**
+     * @return string
+     */
     function type();
 
-    /** @return int */
+    /**
+     * @return int
+     */
     function id();
 }
 
 interface ValueObject {
-    /** @return string */
+    /**
+     * @return string
+     */
     function className();
 
-    /** @return ValueObjectProperty[] */
+    /**
+     * @return ValueObjectProperty[]
+     */
     function properties();
 
-    /** @return string */
+    /**
+     * @return string
+     */
     function hash();
 
-    /** @return int */
+    /**
+     * @return int
+     */
     function id();
 }
 
 interface ValueException {
-    /** @return string */
+    /**
+     * @return string
+     */
     function className();
 
-    /** @return string */
+    /**
+     * @return string
+     */
     function code();
 
-    /** @return string */
+    /**
+     * @return string
+     */
     function message();
 
-    /** @return self|null */
+    /**
+     * @return self|null
+     */
     function previous();
 
-    /** @return ValueCodeLocation */
+    /**
+     * @return ValueCodeLocation
+     */
     function location();
 
-    /** @return ValueGlobals */
+    /**
+     * @return ValueGlobals|null
+     */
     function globals();
 
-    /** @return ValueVariable[]|null */
+    /**
+     * @return ValueVariable[]|null
+     */
     function locals();
 
-    /** @return ValueStackFrame[] */
+    /**
+     * @return ValueStackFrame[]
+     */
     function stack();
 }
 
 interface ValueGlobals {
-    /** @return ValueObjectProperty[] */
+    /**
+     * @return ValueObjectProperty[]
+     */
     function staticProperties();
 
-    /** @return ValueStaticVariable[] */
+    /**
+     * @return ValueStaticVariable[]
+     */
     function staticVariables();
 
-    /** @return ValueVariable[] */
+    /**
+     * @return ValueVariable[]
+     */
     function globalVariables();
 }
 
 interface ValueCodeLocation {
-    /** @return int */
+    /**
+     * @return int
+     */
     function line();
 
-    /** @return string */
+    /**
+     * @return string
+     */
     function file();
 
-    /** @return string[]|null */
+    /**
+     * @return string[]|null
+     */
     function sourceCode();
 }
 
 interface ValueVariable {
-    /** @return string */
+    /**
+     * @return string
+     */
     function name();
 
-    /** @return Value */
+    /**
+     * @return Value
+     */
     function value();
 }
 
 interface ValueStaticVariable extends ValueVariable {
-    /** @return string */
+    /**
+     * @return string
+     */
     function functionName();
 
-    /** @return string|null */
+    /**
+     * @return string|null
+     */
     function className();
 }
 
 interface ValueObjectProperty extends ValueVariable {
-    /** @return string */
+    /**
+     * @return string
+     */
     function access();
 
-    /** @return string */
+    /**
+     * @return string
+     */
     function className();
 
-    /** @return bool */
+    /**
+     * @return bool
+     */
     function isDefault();
 }
 
 interface ValueStackFrame {
-    /** @return Value[]|null */
+    /**
+     * @return Value[]|null
+     */
     function arguments();
 
-    /** @return string */
+    /**
+     * @return string
+     */
     function functionName();
 
-    /** @return string|null */
+    /**
+     * @return string|null
+     */
     function className();
 
-    /** @return bool|null */
+    /**
+     * @return bool|null
+     */
     function isStatic();
 
-    /** @return ValueCodeLocation|null */
+    /**
+     * @return ValueCodeLocation|null
+     */
     function location();
 
-    /** @return ValueObject|null */
+    /**
+     * @return ValueObject|null
+     */
     function object();
 }
 
 interface ValueArray {
-    /** @return bool */
+    /**
+     * @return bool
+     */
     function isAssociative();
 
-    /** @return int */
+    /**
+     * @return int
+     */
     function id();
 
-    /** @return ValueArrayEntry[] */
+    /**
+     * @return ValueArrayEntry[]
+     */
     function entries();
 }
 
 interface ValueArrayEntry {
-    /** @return Value */
+    /**
+     * @return Value
+     */
     function key();
 
-    /** @return Value */
+    /**
+     * @return Value
+     */
     function value();
 }
 
