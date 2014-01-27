@@ -38,7 +38,7 @@ class Introspection {
 
         return $id;
     }
-    
+
     private static function refEqual(&$x, &$y) {
         $xOld   = $x;
         $x      = new \stdClass;

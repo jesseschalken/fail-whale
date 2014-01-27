@@ -2,17 +2,18 @@
 
 namespace ErrorHandler;
 
-final class JSONSerialize implements ValueVisitor {
+class JSONSerialize implements ValueVisitor {
     /**
      * @param Value $v
      *
      * @return string
      */
     static function serialize(Value $v) {
-        $self               = new self;
+        $self = new self;
+
         $self->root['root'] = $v->acceptVisitor($self);
 
-        return JSON::stringify($self->root);
+        return JSON::encode($self->root);
     }
 
     private $root = array(
@@ -34,13 +35,7 @@ final class JSONSerialize implements ValueVisitor {
                 'hash'       => $object->hash(),
                 'properties' => array_map(
                     function (ValueObjectProperty $p) use ($that) {
-                        return array(
-                            'name'      => $p->name(),
-                            'value'     => $p->value()->acceptVisitor($that),
-                            'class'     => $p->className(),
-                            'access'    => $p->access(),
-                            'isDefault' => $p->isDefault(),
-                        );
+                        return $that->serializeObjectProperty($p);
                     },
                     $object->properties()
                 ),
@@ -83,8 +78,8 @@ final class JSONSerialize implements ValueVisitor {
             'class'    => $exception->className(),
             'code'     => $exception->code(),
             'message'  => $exception->message(),
-            'previous' => $previous === null ? null : $this->visitException($previous),
-            'location' => $this->locationToJson($exception->location()),
+            'previous' => $previous instanceof ValueException ? $this->visitException($previous) : null,
+            'location' => $this->serializeCodeLocation($exception->location()),
             'stack'    => array_map(
                 function (ValueStackFrame $frame) use ($that) {
                     $object = $frame->object();
@@ -94,67 +89,53 @@ final class JSONSerialize implements ValueVisitor {
                         'function' => $frame->functionName(),
                         'class'    => $frame->className(),
                         'isStatic' => $frame->isStatic(),
-                        'location' => $that->locationToJson($frame->location()),
-                        'object'   => $object === null ? null : $that->visitObject($object),
-                        'args'     => $args === null
-                                ? null
-                                : array_map(
+                        'location' => $that->serializeCodeLocation($frame->location()),
+                        'object'   => $object instanceof ValueObject ? $that->visitObject($object) : null,
+                        'args'     => is_array($args)
+                                ? array_map(
                                     function (Value $arg) use ($that) {
                                         return $arg->acceptVisitor($that);
                                     },
                                     $args
-                                ),
+                                )
+                                : null,
                     );
                 },
                 $exception->stack()
             ),
-            'locals'   => $locals === null
-                    ? null
-                    : array_map(
+            'locals'   => is_array($locals)
+                    ? array_map(
                         function (ValueVariable $var) use ($that) {
-                            return array(
-                                'name'  => $var->name(),
-                                'value' => $var->value()->acceptVisitor($that),
-                            );
+                            return $that->serializeVariable($var);
                         },
                         $locals
-                    ),
-            'globals'  => $globals === null
-                    ? null
-                    : array(
+                    )
+                    : null,
+            'globals'  => $globals instanceof ValueGlobals
+                    ? array(
                         'staticProperties' => array_map(
                             function (ValueObjectProperty $p) use ($that) {
-                                return array(
-                                    'name'      => $p->name(),
-                                    'value'     => $p->value()->acceptVisitor($that),
-                                    'class'     => $p->className(),
-                                    'access'    => $p->access(),
-                                    'isDefault' => $p->isDefault(),
-                                );
+                                return $that->serializeObjectProperty($p);
                             },
                             $globals->staticProperties()
                         ),
                         'staticVariables'  => array_map(
                             function (ValueStaticVariable $v) use ($that) {
                                 return array(
-                                    'name'     => $v->name(),
-                                    'value'    => $v->value()->acceptVisitor($that),
-                                    'function' => $v->functionName(),
-                                    'class'    => $v->className(),
-                                );
+                                           'function' => $v->functionName(),
+                                           'class'    => $v->className(),
+                                       ) + $that->serializeVariable($v);
                             },
                             $globals->staticVariables()
                         ),
                         'globalVariables'  => array_map(
                             function (ValueVariable $v) use ($that) {
-                                return array(
-                                    'name'  => $v->name(),
-                                    'value' => $v->value()->acceptVisitor($that),
-                                );
+                                return $that->serializeVariable($v);
                             },
                             $globals->globalVariables()
                         ),
-                    ),
+                    )
+                    : null,
         );
 
         return array('exception', $result);
@@ -192,14 +173,28 @@ final class JSONSerialize implements ValueVisitor {
 
     function visitBool($bool) { return $bool; }
 
-    private function locationToJson(ValueCodeLocation $location = null) {
-        if ($location === null)
-            return null;
+    function serializeCodeLocation(ValueCodeLocation $location = null) {
+        return $location instanceof ValueCodeLocation
+            ? array(
+                'file'       => $location->file(),
+                'line'       => $location->line(),
+                'sourceCode' => $location->sourceCode(),
+            )
+            : null;
+    }
 
+    function serializeObjectProperty(ValueObjectProperty $p) {
         return array(
-            'file'       => $location->file(),
-            'line'       => $location->line(),
-            'sourceCode' => $location->sourceCode(),
+                   'class'     => $p->className(),
+                   'access'    => $p->access(),
+                   'isDefault' => $p->isDefault(),
+               ) + $this->serializeVariable($p);
+    }
+
+    function serializeVariable(ValueVariable $v) {
+        return array(
+            'name'  => $v->name(),
+            'value' => $v->value()->acceptVisitor($this),
         );
     }
 }
@@ -211,7 +206,7 @@ abstract class JSONParse {
      * @return Value
      */
     static function parse($json) {
-        $root = JSON::parse($json);
+        $root = JSON::decode($json);
 
         return new JSONValue($root, $root['root']);
     }
@@ -243,7 +238,7 @@ class JSONException extends JSONParse implements ValueException {
     function previous() {
         $previous = $this->json['previous'];
 
-        return $previous === null ? null : new self($this->root, $previous[1]);
+        return $previous ? new self($this->root, $previous[1]) : null;
     }
 
     function location() { return new JSONCodeLocation($this->root, $this->json['location']); }
@@ -251,14 +246,14 @@ class JSONException extends JSONParse implements ValueException {
     function globals() {
         $globals = $this->json['globals'];
 
-        return $globals === null ? null : new JSONGlobals($this->root, $globals);
+        return $globals ? new JSONGlobals($this->root, $globals) : null;
     }
 
     function locals() {
         $root   = $this->root;
         $locals = $this->json['locals'];
 
-        if ($locals === null)
+        if (!is_array($locals))
             return null;
 
         return array_map(
@@ -286,12 +281,15 @@ class JSONStackFrame extends JSONParse implements ValueStackFrame {
         $args = $this->json['args'];
         $root = $this->root;
 
-        if ($args === null)
+        if (!is_array($args))
             return null;
 
-        return array_map(function ($json) use ($root) {
-            return new JSONValue($root, $json);
-        }, $args);
+        return array_map(
+            function ($json) use ($root) {
+                return new JSONValue($root, $json);
+            },
+            $args
+        );
     }
 
     function functionName() { return $this->json['function']; }
@@ -303,13 +301,13 @@ class JSONStackFrame extends JSONParse implements ValueStackFrame {
     function location() {
         $location = $this->json['location'];
 
-        return $location === null ? null : new JSONCodeLocation($this->root, $location);
+        return $location ? new JSONCodeLocation($this->root, $location) : null;
     }
 
     function object() {
         $object = $this->json['object'];
 
-        return $object === null ? null : new JSONObject($this->root, $object[1]);
+        return $object ? new JSONObject($this->root, $object[1]) : null;
     }
 }
 
@@ -354,11 +352,7 @@ class JSONVariable extends JSONParse implements ValueVariable {
     function value() { return new JSONValue($this->root, $this->json['value']); }
 }
 
-class JSONStaticVariable extends JSONParse implements ValueStaticVariable {
-    function name() { return $this->json['name']; }
-
-    function value() { return new JSONValue($this->root, $this->json['value']); }
-
+class JSONStaticVariable extends JSONVariable implements ValueStaticVariable {
     function functionName() { return $this->json['function']; }
 
     function className() { return $this->json['class']; }
@@ -382,13 +376,14 @@ class JSONObject extends JSONParse implements ValueObject {
     function className() { return $this->json['class']; }
 
     function properties() {
-        $result = array();
+        $root = $this->root;
 
-        foreach ($this->json['properties'] as $property) {
-            $result[] = new JSONObjectProperty($this->root, $property);
-        }
-
-        return $result;
+        return array_map(
+            function ($property) use ($root) {
+                return new JSONObjectProperty($root, $property);
+            },
+            $this->json['properties']
+        );
     }
 
     function hash() { return $this->json['hash']; }
@@ -396,11 +391,7 @@ class JSONObject extends JSONParse implements ValueObject {
     function id() { return $this->id; }
 }
 
-class JSONObjectProperty extends JSONParse implements ValueObjectProperty {
-    function name() { return $this->json['name']; }
-
-    function value() { return new JSONValue($this->root, $this->json['value']); }
-
+class JSONObjectProperty extends JSONVariable implements ValueObjectProperty {
     function access() { return $this->json['access']; }
 
     function className() { return $this->json['class']; }
@@ -422,13 +413,14 @@ class JSONArray extends JSONParse implements ValueArray {
     function id() { return $this->id; }
 
     function entries() {
-        $result = array();
+        $root = $this->root;
 
-        foreach ($this->json['entries'] as $entry) {
-            $result[] = new JSONArrayEntry($this->root, $entry);
-        }
-
-        return $result;
+        return array_map(
+            function ($entry) use ($root) {
+                return new JSONArrayEntry($root, $entry);
+            },
+            $this->json['entries']
+        );
     }
 }
 
@@ -459,6 +451,7 @@ class JSONValue extends JSONParse implements Value {
                 case '-inf':
                 case '+inf':
                 case 'nan':
+                    return $visitor->visitFloat($this->parseFloat($json[0]));
                 case 'float':
                     return $visitor->visitFloat($this->parseFloat($json[1]));
                 case 'array':
@@ -495,13 +488,16 @@ class JSONValue extends JSONParse implements Value {
     }
 }
 
+/**
+ * Provides versions of json_encode and json_decode which work with arbitrary byte strings, not just valid UTF-8 ones.
+ */
 final class JSON {
     /**
      * @param mixed $value
      *
      * @return string
      */
-    static function stringify($value) {
+    static function encode($value) {
         $value = self::translateStrings($value, function ($x) { return utf8_encode($x); });
         $json  = json_encode($value, defined('JSON_PRETTY_PRINT') ? JSON_PRETTY_PRINT : 0);
 
@@ -515,7 +511,7 @@ final class JSON {
      *
      * @return mixed
      */
-    static function parse($json) {
+    static function decode($json) {
         $value = json_decode($json, true);
 
         self::checkError();

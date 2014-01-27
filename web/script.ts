@@ -164,9 +164,6 @@ module PrettyPrinter {
         };
     }
 
-    interface ValueStaticProperty extends ValueObjectProperty {
-    }
-
     interface ValueStaticVariable extends ValueVariable {
         className: string;
         functionName: string;
@@ -178,7 +175,7 @@ module PrettyPrinter {
     }
 
     interface ValueExceptionGlobals {
-        staticProperties: ValueStaticProperty[];
+        staticProperties: ValueObjectProperty[];
         staticVariables: ValueStaticVariable[];
         globalVariables: ValueVariable[];
     }

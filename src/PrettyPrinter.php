@@ -114,7 +114,7 @@ final class PrettyPrinter implements ValueVisitor {
         if ($this->showExceptionSourceCode) {
             $sourceCode = $location->sourceCode();
 
-            $t = $sourceCode === null
+            $t = !$sourceCode
                 ? $this->text('not available')
                 : $this->renderSourceCode($sourceCode, $location->line());
 
@@ -126,7 +126,7 @@ final class PrettyPrinter implements ValueVisitor {
         if ($this->showExceptionLocalVariables) {
             $locals = $e->locals();
 
-            if ($locals === null) {
+            if (!is_array($locals)) {
                 $t = $this->text('not available');
             } else {
                 $prefixes = array_fill(0, count($locals), '');
@@ -144,7 +144,8 @@ final class PrettyPrinter implements ValueVisitor {
             $text->addLine();
         }
 
-        $previous = $e->previous() === null ? $this->text('none') : $this->renderException($e->previous());
+        $previous = $e->previous();
+        $previous = $previous instanceof ValueException ? $this->renderException($previous) : $this->text('none');
 
         $text->addLine("previous exception:");
         $text->addLines($previous->indent(2));
@@ -209,7 +210,9 @@ final class PrettyPrinter implements ValueVisitor {
 
         foreach ($exception->stack() as $frame) {
             $location = $frame->location();
-            $location = $location === null ? '[internal function]' : "{$location->file()}:{$location->line()}";
+            $location = $location instanceof ValueCodeLocation
+                ? "{$location->file()}:{$location->line()}"
+                : '[internal function]';
             $text->addLine("#$i {$location}");
             $text->addLines($this->renderExceptionStackFrame($frame)->append(';')->indent(3));
             $text->addLine();
@@ -232,7 +235,7 @@ final class PrettyPrinter implements ValueVisitor {
         if ($this->showExceptionGlobalVariables) {
             $globals = $exception->globals();
 
-            if ($globals !== null) {
+            if ($globals instanceof ValueGlobals) {
                 $superGlobals = array(
                     'GLOBALS',
                     '_SERVER',
@@ -256,7 +259,7 @@ final class PrettyPrinter implements ValueVisitor {
                 foreach ($globals->staticVariables() as $p) {
                     $class       = $p->className();
                     $function    = $p->functionName();
-                    $function    = $class === null ? $function : "$class::$function";
+                    $function    = $class ? "$class::$function" : $function;
                     $prefixes[]  = "function $function()::static ";
                     $variables[] = $p;
                 }
@@ -431,7 +434,7 @@ final class PrettyPrinter implements ValueVisitor {
     private function renderExceptionStackFrameArgs(ValueStackFrame $frame) {
         $args = $frame->arguments();
 
-        if ($args === null)
+        if (!is_array($args))
             return $this->text("( ? )");
 
         if ($args === array())
@@ -462,10 +465,13 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     private function renderExceptionStackFramePrefix(ValueStackFrame $frame) {
-        if ($frame->object() !== null)
-            return $this->visitObject($frame->object())->append('->');
-        else if ($frame->className() !== null)
-            return $this->text($frame->className() . ($frame->isStatic() ? "::" : "->"));
+        $object    = $frame->object();
+        $className = $frame->className();
+
+        if ($object instanceof ValueObject)
+            return $this->visitObject($object)->append('->');
+        else if ($className)
+            return $this->text($className . ($frame->isStatic() ? "::" : "->"));
         else
             return $this->text();
     }
