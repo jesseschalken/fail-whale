@@ -106,6 +106,7 @@ module PrettyPrinter {
             for (var j = 0; j < data[i].length; j++) {
                 var td = document.createElement('td');
                 td.style.padding = padding;
+                td.style.verticalAlign = 'baseline';
                 td.appendChild(data[i][j]);
                 tr.appendChild(td);
             }
