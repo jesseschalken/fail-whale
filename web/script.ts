@@ -465,7 +465,7 @@ module PrettyPrinter {
         function renderVariable(name:string):Node {
             function red(v:string) {
                 var result = wrap(v);
-                result.style.color = '#900';
+                result.style.color = '#600';
                 return result;
             }
 
