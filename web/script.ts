@@ -59,9 +59,11 @@ module PrettyPrinter {
         head.style.padding = padding;
         head.addEventListener('mouseenter', function () {
             head.style.backgroundColor = '#ddd';
+            body.style.borderColor = '#ddd';
         });
         head.addEventListener('mouseleave', function () {
             head.style.backgroundColor = '#eee';
+            body.style.borderColor = '#eee';
         });
         head.addEventListener('mousedown', function (e) {
             e.preventDefault();
@@ -69,20 +71,30 @@ module PrettyPrinter {
         head.appendChild(content.head);
         container.appendChild(head);
 
-        var body = document.createElement('div');
+        var body = document.createElement('table');
+        body.style.borderSpacing = '0';
+        body.style.padding = '0';
         body.style.backgroundColor = 'white';
-        body.style.borderTopColor = '#888';
-        body.style.borderTopWidth = borderWidth;
-        body.style.borderTopStyle = 'dashed';
+        body.style.borderColor = '#eee';
+        body.style.borderWidth = borderWidth;
+        body.style.borderTopWidth = '0px';
+        body.style.borderStyle = 'solid';
+        body.style.width = '100%';
         container.appendChild(body);
         
         var open = content.open;
 
         function refresh() {
-            if (open && body.innerHTML.length == 0)
-                body.appendChild(content.body());
+            if (open && body.innerHTML.length == 0) {
+                var td = document.createElement('td');
+                var tr = document.createElement('tr');
+                td.style.padding = '0';
+                td.appendChild(content.body());
+                tr.appendChild(td);
+                body.appendChild(tr);
+            }
 
-            body.style.display = open ? 'block' : 'none';
+            body.style.display = open ? 'table' : 'none';
         }
 
         refresh();
@@ -123,7 +135,7 @@ module PrettyPrinter {
 
     function keyword(word:string) {
         var box = wrap(word);
-        box.style.color = '#009';
+        box.style.color = '#008';
         box.style.fontWeight = 'bold';
         return box;
     }
@@ -234,12 +246,12 @@ module PrettyPrinter {
                 message:   e['message'],
                 code:      e['code'],
                 location:  parseLocation(e['location']),
-                locals:    locals.map(function (x) {
+                locals:    locals instanceof Array ? locals.map(function (x) {
                     return {
                         name:  x['name'],
                         value: parseValue(x['value'])
                     };
-                }),
+                }) : null,
                 globals:   {
                     staticProperties: staticProps.map(function (x) {
                         return {
@@ -385,13 +397,20 @@ module PrettyPrinter {
 
         function renderObject(object:ValueObject):Node {
             return inlineBlock(expandable({
-                head: collect([keyword('new'), text(' ' + object.className)]),
+                head: collect([keyword('object'), text(' ' + object.className)]),
                 body: function () {
+                    if (object.properties.length == 0)
+                        return notice('empty');
+
                     return createTable(object.properties.map(function (property) {
+                        var prefix = '';
+                        if (property.className != object.className)
+                            prefix = property.className + '::';
+
                         return [
                             collect([
                                 keyword(property.access),
-                                text(' '),
+                                text(' ' + prefix),
                                 renderVariable(property.name)
                             ]),
                             text('='),
@@ -429,37 +448,29 @@ module PrettyPrinter {
                 return result;
             }
 
-            var rows = document.createElement('div');
-            rows.style.padding = padding;
+            var rows:Node[][] = [];
 
             for (var x = 0; x < stack.length; x++) {
-                var div1 = document.createElement('div');
-                div1.appendChild(text('#' + String(x + 1) + ' '));
-                div1.appendChild(renderLocation(stack[x].location));
-
-                var div2 = document.createElement('div');
-                div2.style.marginTop = '0.5em';
-                div2.style.marginLeft = '4em';
-                div2.style.marginBottom = '1em';
-                div2.appendChild(renderFunctionCall(stack[x]));
-
-                rows.appendChild(div1);
-                rows.appendChild(div2);
+                rows.push([
+                    text('#' + String(x + 1)),
+                    renderLocation(stack[x].location),
+                    renderFunctionCall(stack[x])
+                ]);
             }
 
-            var div1 = document.createElement('div');
-            div1.appendChild(text('#' + String(x + 1) + ' '));
-            div1.appendChild(inlineBlock(expandable({
-                head: text('{main}'),
-                body: function () {
-                    return notice('no source code');
-                },
-                open: false
-            })));
+            rows.push([
+                text('#' + String(x + 1)),
+                inlineBlock(expandable({
+                    head: text('{main}'),
+                    body: function () {
+                        return notice('no source code');
+                    },
+                    open: false
+                })),
+                collect([])
+            ]);
 
-            rows.appendChild(div1);
-
-            return rows;
+            return createTable(rows);
         }
 
         function renderVariable(name:string):Node {
@@ -501,35 +512,6 @@ module PrettyPrinter {
             var globalVariables = globals.globalVariables;
             var rows = [];
 
-            for (var i = 0; i < staticVariables.length; i++) {
-                var v = staticVariables[i];
-                var s:string = '';
-
-                if (v.className)
-                    s += v.className + '::';
-
-                s += v.functionName + '()::';
-
-                rows.push([
-                    collect([text(s), keyword('static'), text(' '), renderVariable(v.name)]),
-                    text('='),
-                    render(v.value)
-                ]);
-            }
-
-            for (var i = 0; i < staticProperties.length; i++) {
-                var p = staticProperties[i];
-                var pieces = document.createDocumentFragment();
-                pieces.appendChild(text(p.className + '::'));
-                pieces.appendChild(keyword(p.access));
-                pieces.appendChild(text(' '));
-                pieces.appendChild(keyword('static'));
-                pieces.appendChild(text(' '));
-                pieces.appendChild(renderVariable(p.name));
-
-                rows.push([pieces, text('='), render(p.value)]);
-            }
-
             for (var i = 0; i < globalVariables.length; i++) {
                 var pieces = document.createDocumentFragment();
                 var v2 = globalVariables[i];
@@ -554,6 +536,37 @@ module PrettyPrinter {
 
             }
 
+            for (var i = 0; i < staticProperties.length; i++) {
+                var p = staticProperties[i];
+                var pieces = document.createDocumentFragment();
+                pieces.appendChild(keyword(p.access));
+                pieces.appendChild(text(' '));
+                pieces.appendChild(text(p.className + '::'));
+                pieces.appendChild(renderVariable(p.name));
+
+                rows.push([pieces, text('='), render(p.value)]);
+            }
+
+            for (var i = 0; i < staticVariables.length; i++) {
+                var v = staticVariables[i];
+                var pieces = document.createDocumentFragment();
+                pieces.appendChild(keyword('function'));
+                pieces.appendChild(text(' '));
+
+                if (v.className) {
+                    pieces.appendChild(text(v.className + '::'));
+                }
+
+                pieces.appendChild(text(v.functionName + '()::'));
+                pieces.appendChild(renderVariable(v.name));
+
+                rows.push([
+                    pieces,
+                    text('='),
+                    render(v.value)
+                ]);
+            }
+
             return createTable(rows);
         }
 
@@ -562,7 +575,7 @@ module PrettyPrinter {
                 return italics('none');
 
             return inlineBlock(expandable({
-                head: collect([keyword('new'), text(' ' + x.className)]),
+                head: collect([keyword('exception'), text(' ' + x.className)]),
                 body: function () {
                     function renderInfo() {
                         return createTable([
@@ -573,12 +586,23 @@ module PrettyPrinter {
                         ]);
                     }
 
-                    return collect([
+                    var parts = collect([
                         block(expandable({open: true, head: bold('exception'), body: renderInfo})),
-                        block(expandable({open: true, head: bold('locals'), body: function () { return renderLocals(x.locals); }})),
-                        block(expandable({open: true, head: bold('stack'), body: function () { return renderStack(x.stack); }})),
-                        block(expandable({open: true, head: bold('globals'), body: function () { return renderGlobals(x.globals); }}))
+                        block(expandable({open: true, head: bold('locals'), body: function () {
+                            return renderLocals(x.locals);
+                        }})),
+                        block(expandable({open: true, head: bold('stack'), body: function () {
+                            return renderStack(x.stack);
+                        }})),
+                        block(expandable({open: true, head: bold('globals'), body: function () {
+                            return renderGlobals(x.globals);
+                        }}))
                     ]);
+                    
+                    var body = document.createElement('div');
+                    body.appendChild(parts);
+                    body.style.padding = padding;
+                    return body;
                 },
                 open: true
             }));
@@ -599,21 +623,20 @@ module PrettyPrinter {
 
                         var lineNumber = wrap(String(codeLine));
                         lineNumber.style.width = '3em';
-                        lineNumber.style.borderRightWidth = borderWidth;
-                        lineNumber.style.borderRightStyle = 'solid';
-                        lineNumber.style.borderRightColor = '#999';
                         lineNumber.style.paddingRight = padding;
                         lineNumber.style.marginRight = padding;
                         lineNumber.style.textAlign = 'right';
                         lineNumber.style.color = '#999';
 
-                        var row = block(collect([lineNumber, text(location.source[codeLine])]));
+                        var code = wrap(location.source[codeLine]);
+                        code.style.minWidth = '60em';
+
+                        var row = block(collect([lineNumber, code]));
                         if (codeLine == location.line) {
                             row.style.backgroundColor = '#f99';
-                            row.style.color = '#600';
+                            row.style.color = '#300';
                             row.style.borderRadius = padding;
                             lineNumber.style.color = '#933';
-                            lineNumber.style.borderRightColor = '#933';
                         }
 
                         inner.appendChild(row);
@@ -622,7 +645,7 @@ module PrettyPrinter {
                     var wrapper = block(inner);
                     wrapper.style.padding = padding;
                     wrapper.style.backgroundColor = '#333';
-                    wrapper.style.color = '#ccc';
+                    wrapper.style.color = '#eee';
 
                     return  wrapper;
                 },
@@ -633,9 +656,9 @@ module PrettyPrinter {
         function renderString(x:string):Node {
             function doRender():Node {
                 var span = document.createElement('span');
-                span.style.color = '#060';
-                span.style.backgroundColor = '#cfc';
+                span.style.color = '#080';
                 span.style.fontWeight = 'bold';
+                span.style.display = 'inline-block';
 
                 var translate = {
                     '\\': '\\\\',
@@ -673,7 +696,7 @@ module PrettyPrinter {
 
                 span.appendChild(document.createTextNode(buffer + '"'));
 
-                return inlineBlock(span);
+                return span;
             }
 
             var visualLength = 0;
@@ -717,6 +740,15 @@ module PrettyPrinter {
             visitException: renderException
         });
     }
+    
+    export function renderJSON(json:string) {
+        var container = document.createElement('div');
+        container.style.whiteSpace = 'pre';
+        container.style.fontFamily = fontFamily;
+        container.style.fontSize = fontSize;
+        container.appendChild(render(parse(json)));
+        return container;
+    }
 
     export function UI() {
         var text = document.createElement('textarea');
@@ -735,14 +767,11 @@ module PrettyPrinter {
         text.style.wordWrap = 'normal';
 
         var container = document.createElement('div');
-        container.style.whiteSpace = 'pre';
-        container.style.fontFamily = fontFamily;
-        container.style.fontSize = fontSize;
 
         function onchange() {
             text.value = JSON.stringify(JSON.parse(text.value), undefined, 4);
             container.innerHTML = '';
-            container.appendChild(render(parse(text.value)));
+            container.appendChild(renderJSON(text.value));
         }
 
         text.addEventListener('change', onchange);

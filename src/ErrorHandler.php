@@ -71,14 +71,54 @@ class ErrorHandler {
 
     static function simpleHandler() {
         return function (\Exception $e) {
+	        if (PHP_SAPI === 'cli') {
             $pp = new PrettyPrinter;
             $pp->setMaxStringLength(100);
             $pp->setMaxArrayEntries(10);
             $pp->setMaxObjectProperties(10);
 
             ErrorHandler::output('error', $pp->prettyPrintException($e));
+	        } else {
+		        while (ob_get_level() > 0 && ob_end_clean()) ;
+
+		        if (!headers_sent()) {
+			        header('HTTP/1.1 500 Internal Server Error', true, 500);
+			        header("Content-Type: text/html; charset=UTF-8", true);
+		        }
+
+		        $introspection = new Introspection;
+		        $exception = $introspection->introspectException( $e );
+		        $json = JSONSerialize::serialize( $exception );
+?>
+		        <!DOCTYPE html>
+		        <html>
+		        <head>
+			        <title></title>
+			        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+			        <script><?= file_get_contents( __DIR__ . '/../web/script.js' ) ?></script>
+			        <script type="text/javascript">
+				        document.addEventListener('DOMContentLoaded', function () {
+					        var body  = document.getElementsByTagName('body')[0];
+					        var json = document.getElementById( 'the-json' ).textContent;
+					        var expectedLength = <?= (int) strlen( $json ) ?>;
+					        var value = PrettyPrinter.renderJSON( json );
+
+					        body.innerHTML = '';
+					        body.appendChild( value);
+				        });
+			        </script>
+		        </head>
+		        <body><pre id="the-json"><?= ErrorHandler::htmlspecialchars( $json ) ?></pre></body>
+		        </html>
+<?php
+	        }
         };
     }
+	
+	static function htmlspecialchars( $text ) {
+			$result = htmlspecialchars( $text, ENT_COMPAT, "UTF-8" );
+		return $result;
+	}
 
     /**
      * @param string $title

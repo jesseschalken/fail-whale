@@ -314,10 +314,12 @@ class IntrospectionObjectProperty implements ValueObjectProperty {
             $reflection = new \ReflectionClass($class);
 
             foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
-                $self                = new self;
-                $self->introspection = $introspection;
-                $self->property      = $property;
-                $results[]           = $self;
+	            if ($property->class === $reflection->name) {
+	                $self                = new self;
+	                $self->introspection = $introspection;
+	                $self->property      = $property;
+	                $results[]           = $self;
+	            }
             }
         }
 
@@ -383,6 +385,9 @@ class IntrospectionStaticVariable implements ValueStaticVariable {
             $reflection = new \ReflectionClass($class);
 
             foreach ($reflection->getMethods() as $method) {
+	            if ($method->class !== $reflection->name)
+		            continue;
+
                 $staticVariables = $method->getStaticVariables();
 
                 foreach ($staticVariables as $name => &$value) {
