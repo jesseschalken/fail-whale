@@ -1,5 +1,5 @@
 module PrettyPrinter {
-    
+
     var fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
     var fontSize = '10pt';
     var padding = '0.25em';
@@ -81,7 +81,7 @@ module PrettyPrinter {
         body.style.borderStyle = 'solid';
         body.style.width = '100%';
         container.appendChild(body);
-        
+
         var open = content.open;
 
         function refresh() {
@@ -598,7 +598,7 @@ module PrettyPrinter {
                             return renderGlobals(x.globals);
                         }}))
                     ]);
-                    
+
                     var body = document.createElement('div');
                     body.appendChild(parts);
                     body.style.padding = padding;
@@ -610,8 +610,8 @@ module PrettyPrinter {
 
         function renderLocation(location:ValueExceptionLocation, open:boolean = false):Node {
             return inlineBlock(expandable({
-                head:  collect([text(location.file + ':'), renderNumber(location.line)]),
-                body:  function () {
+                head: collect([text(location.file + ':'), renderNumber(location.line)]),
+                body: function () {
                     if (!location.source)
                         return notice('no source code');
 
@@ -649,7 +649,7 @@ module PrettyPrinter {
 
                     return  wrapper;
                 },
-                open:  open
+                open: open
             }));
         }
 
@@ -740,7 +740,7 @@ module PrettyPrinter {
             visitException: renderException
         });
     }
-    
+
     export function renderJSON(json:string) {
         var container = document.createElement('div');
         container.style.whiteSpace = 'pre';
