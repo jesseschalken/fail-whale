@@ -2,23 +2,19 @@
 
 namespace ErrorHandler;
 
-final class PrettyPrinter implements ValueVisitor {
-    private $escapeTabsInStrings = false;
-    private $maxArrayEntries = INF;
-    private $maxObjectProperties = INF;
-    private $maxStringLength = INF;
-    private $showExceptionGlobalVariables = true;
-    private $showExceptionLocalVariables = true;
-    private $showExceptionStackTrace = true;
-    private $splitMultiLineStrings = true;
-    private $showExceptionSourceCode = true;
-    private $arraysRendered = array();
-    private $objectsRendered = array();
-
-    function text($text = '') { return new PrettyPrinterText($text, "\n"); }
+final class PrettyPrinter {
+    public $escapeTabsInStrings = false;
+    public $maxArrayEntries = INF;
+    public $maxObjectProperties = INF;
+    public $maxStringLength = INF;
+    public $showExceptionGlobalVariables = true;
+    public $showExceptionLocalVariables = true;
+    public $showExceptionStackTrace = true;
+    public $splitMultiLineStrings = true;
+    public $showExceptionSourceCode = true;
 
     function assertPrettyIs($value, $expectedPretty) {
-        $this->assertPrettyRefIs($value, $expectedPretty);
+        \PHPUnit_Framework_TestCase::assertEquals($expectedPretty, $this->prettyPrint($value));
     }
 
     function assertPrettyRefIs(&$ref, $expectedPretty) {
@@ -26,36 +22,35 @@ final class PrettyPrinter implements ValueVisitor {
     }
 
     function prettyPrint($value) {
-        return $this->prettyPrintRef($value);
+        return Value::introspect($value)->toString($this);
     }
 
-    function prettyPrintException(\Exception $e) {
-        $i = new Introspection;
-
-        $value = $i->introspectException($e);
-        $value = JSONParse::parse(JSONSerialize::serialize($value));
-
-        return $this->render($value)->toString();
+    function prettyPrintException(\Exception $exception) {
+        return Value::introspectException($exception)->toString($this);
     }
 
     function prettyPrintRef(&$ref) {
-        $this->arraysRendered  = array();
-        $this->objectsRendered = array();
+        return Value::introspectRef($ref)->toString($this);
+    }
+}
 
-        $i = new Introspection;
+class PrettyPrinterVisitor implements ValueVisitor {
+    private $settings;
+    private $arraysRendered = array();
+    private $objectsRendered = array();
 
-        $value = $i->introspectRef($ref);
-        $value = JSONParse::parse(JSONSerialize::serialize($value));
-
-        return $this->render($value)->toString();
+    function __construct(PrettyPrinter $settings) {
+        $this->settings = $settings;
     }
 
+    private function text($text = '') { return new PrettyPrinterText($text, "\n"); }
+
     /**
-     * @param Value $v
+     * @param ValueImpl $v
      *
      * @return PrettyPrinterText
      */
-    function render(Value $v) { return $v->acceptVisitor($this); }
+    private function render(ValueImpl $v) { return $v->acceptVisitor($this); }
 
     function visitArray(ValueArray $array) {
         $rendered =& $this->arraysRendered[$array->id()];
@@ -74,7 +69,7 @@ final class PrettyPrinter implements ValueVisitor {
         $rows = array();
 
         foreach ($entries as $keyValuePair) {
-            if ((count($rows) + 1) > $this->maxArrayEntries)
+            if ((count($rows) + 1) > $this->settings->maxArrayEntries)
                 break;
 
             $key   = $this->render($keyValuePair->key());
@@ -111,7 +106,7 @@ final class PrettyPrinter implements ValueVisitor {
         $text->addLines($this->text($e->message())->indent(2));
         $text->addLine();
 
-        if ($this->showExceptionSourceCode) {
+        if ($this->settings->showExceptionSourceCode) {
             $sourceCode = $location->sourceCode();
 
             $t = !$sourceCode
@@ -123,7 +118,7 @@ final class PrettyPrinter implements ValueVisitor {
             $text->addLine();
         }
 
-        if ($this->showExceptionLocalVariables) {
+        if ($this->settings->showExceptionLocalVariables) {
             $locals = $e->locals();
 
             if (!is_array($locals)) {
@@ -138,7 +133,7 @@ final class PrettyPrinter implements ValueVisitor {
             $text->addLine();
         }
 
-        if ($this->showExceptionStackTrace) {
+        if ($this->settings->showExceptionStackTrace) {
             $text->addLine("stack trace:");
             $text->addLines($this->renderExceptionStack($e)->indent());
             $text->addLine();
@@ -232,7 +227,7 @@ final class PrettyPrinter implements ValueVisitor {
     function visitException(ValueException $exception) {
         $text = $this->renderException($exception);
 
-        if ($this->showExceptionGlobalVariables) {
+        if ($this->settings->showExceptionGlobalVariables) {
             $globals = $exception->globals();
 
             if ($globals instanceof ValueGlobals) {
@@ -295,7 +290,7 @@ final class PrettyPrinter implements ValueVisitor {
 
         if ($properties === array()) {
             $result = $this->text("new $class {}");
-        } elseif ($this->maxObjectProperties == 0) {
+        } elseif ($this->settings->maxObjectProperties == 0) {
             $result = $this->text("new $class {...}");
         } else {
             $prefixes = array();
@@ -304,7 +299,7 @@ final class PrettyPrinter implements ValueVisitor {
                 $prefixes[] = "{$prop->access()} ";
             }
 
-            $result = $this->renderVariables($properties, '', $this->maxObjectProperties, $prefixes)
+            $result = $this->renderVariables($properties, '', $this->settings->maxObjectProperties, $prefixes)
                            ->setHasEndingNewline(false)
                            ->indent(2)->wrapLines("new $class {", "}");
         }
@@ -327,12 +322,12 @@ final class PrettyPrinter implements ValueVisitor {
             "\v" => '\v',
             "\f" => '\f',
             "\"" => '\"',
-            "\t" => $this->escapeTabsInStrings ? '\t' : "\t",
-            "\n" => $this->splitMultiLineStrings ? "\\n\" .\n\"" : '\n',
+            "\t" => $this->settings->escapeTabsInStrings ? '\t' : "\t",
+            "\n" => $this->settings->splitMultiLineStrings ? "\\n\" .\n\"" : '\n',
         );
 
         $escaped = '';
-        $length  = min(strlen($string), $this->maxStringLength);
+        $length  = min(strlen($string), $this->settings->maxStringLength);
 
         for ($i = 0; $i < $length; $i++) {
             $char        = $string[$i];
@@ -359,42 +354,6 @@ final class PrettyPrinter implements ValueVisitor {
             return $this->text("$$name");
         else
             return $this->renderString($name)->wrap('${', '}');
-    }
-
-    function setEscapeTabsInStrings($escapeTabsInStrings) {
-        $this->escapeTabsInStrings = (bool)$escapeTabsInStrings;
-    }
-
-    function setMaxArrayEntries($maxArrayEntries) {
-        $this->maxArrayEntries = (float)$maxArrayEntries;
-    }
-
-    function setMaxObjectProperties($maxObjectProperties) {
-        $this->maxObjectProperties = (float)$maxObjectProperties;
-    }
-
-    function setMaxStringLength($maxStringLength) {
-        $this->maxStringLength = (float)$maxStringLength;
-    }
-
-    function setShowExceptionGlobalVariables($showExceptionGlobalVariables) {
-        $this->showExceptionGlobalVariables = (bool)$showExceptionGlobalVariables;
-    }
-
-    function setShowExceptionLocalVariables($showExceptionLocalVariables) {
-        $this->showExceptionLocalVariables = (bool)$showExceptionLocalVariables;
-    }
-
-    function setShowExceptionStackTrace($showExceptionStackTrace) {
-        $this->showExceptionStackTrace = (bool)$showExceptionStackTrace;
-    }
-
-    function setShowExceptionSourceCode($showExceptionSourceCode) {
-        $this->showExceptionSourceCode = (bool)$showExceptionSourceCode;
-    }
-
-    function setSplitMultiLineStrings($splitMultiLineStrings) {
-        $this->splitMultiLineStrings = (bool)$splitMultiLineStrings;
     }
 
     private function renderTable($rows) {

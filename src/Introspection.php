@@ -4,14 +4,14 @@ namespace ErrorHandler;
 
 class Introspection {
     function introspect($x) {
-        return new IntrospectionValue($x, $this);
+        return new IntrospectionValue($this, $x);
     }
 
     function introspectRef(&$x) {
         if (is_array($x)) {
             return new IntrospectionArray($this, $x, $this->arrayID($x));
         } else {
-            return new IntrospectionValue($x, $this);
+            return $this->introspect($x);
         }
     }
 
@@ -26,6 +26,27 @@ class Introspection {
     private $arrayIDs = array();
     private $objectIDs = array();
 
+    function introspectAcceptVisitor($value, ValueVisitor $visitor) {
+        if (is_string($value))
+            return $visitor->visitString($value);
+        else if (is_int($value))
+            return $visitor->visitInt($value);
+        else if (is_bool($value))
+            return $visitor->visitBool($value);
+        else if (is_null($value))
+            return $visitor->visitNull();
+        else if (is_float($value))
+            return $visitor->visitFloat($value);
+        else if (is_array($value))
+            return $visitor->visitArray(new IntrospectionArray($this, $value, $this->nextArrayID++));
+        else if (is_object($value))
+            return $visitor->visitObject($this->introspectObject($value));
+        else if (is_resource($value))
+            return $visitor->visitResource(new IntrospectionResource($value));
+        else
+            return $visitor->visitUnknown();
+    }
+
     private function arrayID(array &$array) {
         foreach ($this->arrayIDs as $id => &$array2) {
             if (self::refEqual($array2, $array)) {
@@ -33,14 +54,14 @@ class Introspection {
             }
         }
 
-        $id = $this->newArrayID();
+        $id = $this->nextArrayID++;
 
         $this->arrayIDs[$id] =& $array;
 
         return $id;
     }
 
-    function objectID($object) {
+    function introspectObject($object) {
         $id =& $this->objectIDs[spl_object_hash($object)];
         if ($id === null) {
             $id = $this->nextObjectID++;
@@ -48,7 +69,7 @@ class Introspection {
             $this->objects[] = $object;
         }
 
-        return $id;
+        return new IntrospectionObject($this, $object, $id);
     }
 
     private static function refEqual(&$x, &$y) {
@@ -58,10 +79,6 @@ class Introspection {
         $x      = $xOld;
 
         return $result;
-    }
-
-    function newArrayID() {
-        return $this->nextArrayID++;
     }
 }
 
@@ -121,10 +138,12 @@ class IntrospectionResource implements ValueResource {
 class IntrospectionObject implements ValueObject {
     private $introspection;
     private $object;
+    private $id;
 
-    function __construct(Introspection $introspection, $object) {
+    function __construct(Introspection $introspection, $object, $id) {
         $this->introspection = $introspection;
         $this->object        = $object;
+        $this->id            = $id;
     }
 
     function className() { return get_class($this->object); }
@@ -135,10 +154,10 @@ class IntrospectionObject implements ValueObject {
 
     function hash() { return spl_object_hash($this->object); }
 
-    function id() { return $this->introspection->objectID($this->object); }
+    function id() { return $this->id; }
 }
 
-class IntrospectionArray implements ValueArray, Value {
+class IntrospectionArray implements ValueArray, ValueImpl {
     private $introspection;
     private $array;
     private $id;
@@ -194,7 +213,7 @@ class IntrospectionArrayEntry implements ValueArrayEntry {
     function value() { return $this->value; }
 }
 
-class IntrospectionException implements ValueException, Value {
+class IntrospectionException implements ValueException, ValueImpl {
     private $introspection;
     private $exception;
     private $includeGlobals;
@@ -233,10 +252,7 @@ class IntrospectionException implements ValueException, Value {
     }
 
     function globals() {
-        if (!$this->includeGlobals)
-            return null;
-
-        return new IntrospectionGlobals($this->introspection);
+        return $this->includeGlobals ? new IntrospectionGlobals($this->introspection) : null;
     }
 
     function locals() {
@@ -287,16 +303,16 @@ class IntrospectionVariable implements ValueVariable {
         $results = array();
 
         foreach ($variables as $name => &$value) {
-            $self        = new self;
-            $self->name  = $name;
-            $self->value = $introspection->introspectRef($value);
-            $results[]   = $self;
+            $results[] = new self($name, $introspection->introspectRef($value));
         }
 
         return $results;
     }
 
-    private function __construct() { }
+    private function __construct($name, ValueImpl $value) {
+        $this->name  = $name;
+        $this->value = $value;
+    }
 
     private $name;
     private $value;
@@ -451,8 +467,7 @@ class IntrospectionStackFrame implements ValueStackFrame {
     }
 
     function location() {
-        return IntrospectionCodeLocation::create($this->key('file'),
-                                                 $this->key('line'));
+        return IntrospectionCodeLocation::create($this->key('file'), $this->key('line'));
     }
 
     function className() {
@@ -470,7 +485,7 @@ class IntrospectionStackFrame implements ValueStackFrame {
     function object() {
         $object = $this->key('object');
 
-        return is_object($object) ? new IntrospectionObject($this->introspection, $object) : null;
+        return is_object($object) ? $this->introspection->introspectObject($object) : null;
     }
 
     function arguments() {
@@ -494,36 +509,17 @@ class IntrospectionStackFrame implements ValueStackFrame {
     }
 }
 
-class IntrospectionValue implements Value {
-    private $value;
+class IntrospectionValue implements ValueImpl {
     private $introspection;
+    private $value;
 
-    function __construct($value, Introspection $introspection) {
-        $this->value         = $value;
+    function __construct(Introspection $introspection, $value) {
         $this->introspection = $introspection;
+        $this->value         = $value;
     }
 
     function acceptVisitor(ValueVisitor $visitor) {
-        $value = $this->value;
-
-        if (is_string($value))
-            return $visitor->visitString($value);
-        else if (is_int($value))
-            return $visitor->visitInt($value);
-        else if (is_bool($value))
-            return $visitor->visitBool($value);
-        else if (is_null($value))
-            return $visitor->visitNull();
-        else if (is_float($value))
-            return $visitor->visitFloat($value);
-        else if (is_array($value))
-            return $visitor->visitArray(new IntrospectionArray($this->introspection, $value, $this->introspection->newArrayID()));
-        else if (is_object($value))
-            return $visitor->visitObject(new IntrospectionObject($this->introspection, $value));
-        else if (is_resource($value))
-            return $visitor->visitResource(new IntrospectionResource($value));
-        else
-            return $visitor->visitUnknown();
+        return $this->introspection->introspectAcceptVisitor($this->value, $visitor);
     }
 }
 

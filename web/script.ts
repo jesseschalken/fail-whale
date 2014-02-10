@@ -295,7 +295,7 @@ module PrettyPrinter {
             if (x === null)
                 return null;
 
-            var object = root['objects'][ x[1]];
+            var object = root['objects'][x];
             var objectProps:any[] = object['properties'];
 
             return {
@@ -358,7 +358,7 @@ module PrettyPrinter {
                         return v.visitUnknown();
 
                     if (x[0] === 'object') {
-                        return v.visitObject(parseObject(x));
+                        return v.visitObject(parseObject(x[1]));
                     }
 
                     if (x[0] === 'exception')

@@ -2,7 +2,7 @@
 
 namespace ErrorHandler;
 
-class MockException implements Value, ValueException {
+class MockException implements ValueImpl, ValueException {
     private $introspection;
 
     function __construct(Introspection $introspection) {
@@ -58,7 +58,7 @@ class MockStackFrame1 implements ValueStackFrame {
 
     function location() { return new MockLocation; }
 
-    function object() { return new IntrospectionObject($this->introspection, new DummyClass1); }
+    function object() { return $this->introspection->introspectObject(new DummyClass1); }
 }
 
 class MockStackFrame2 implements ValueStackFrame {
@@ -83,7 +83,7 @@ class MockStackFrame2 implements ValueStackFrame {
     function object() { return null; }
 }
 
-class MockLocal1 implements ValueVariable, Value {
+class MockLocal1 implements ValueVariable, ValueImpl {
     function name() { return 'lol'; }
 
     function value() { return $this; }
@@ -91,7 +91,7 @@ class MockLocal1 implements ValueVariable, Value {
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitInt(8); }
 }
 
-class MockLocal2 implements ValueVariable, Value {
+class MockLocal2 implements ValueVariable, ValueImpl {
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitString('bar'); }
 
     function name() { return 'foo'; }
@@ -99,7 +99,7 @@ class MockLocal2 implements ValueVariable, Value {
     function value() { return $this; }
 }
 
-class MockGlobal1 implements ValueVariable, Value {
+class MockGlobal1 implements ValueVariable, ValueImpl {
     function name() { return 'globalVariable'; }
 
     function value() { return $this; }
@@ -107,7 +107,7 @@ class MockGlobal1 implements ValueVariable, Value {
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitInt(-2734); }
 }
 
-class MockGlobal2 implements ValueVariable, Value {
+class MockGlobal2 implements ValueVariable, ValueImpl {
     function name() { return '_SESSION'; }
 
     function value() { return $this; }
@@ -137,7 +137,7 @@ class MockGlobalState implements ValueGlobals {
     }
 }
 
-class MockStaticProperty1 implements ValueObjectProperty, Value {
+class MockStaticProperty1 implements ValueObjectProperty, ValueImpl {
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull(); }
 
     function name() { return 'blahProperty'; }
@@ -151,7 +151,7 @@ class MockStaticProperty1 implements ValueObjectProperty, Value {
     function isDefault() { return false; }
 }
 
-class MockStaticVariable1 implements ValueStaticVariable, Value {
+class MockStaticVariable1 implements ValueStaticVariable, ValueImpl {
     function name() { return 'variable name'; }
 
     function value() { return $this; }
@@ -163,7 +163,7 @@ class MockStaticVariable1 implements ValueStaticVariable, Value {
     function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitNull(); }
 }
 
-class MockStaticVariable2 implements ValueStaticVariable, Value {
+class MockStaticVariable2 implements ValueStaticVariable, ValueImpl {
     function name() { return 'lolStatic'; }
 
     function value() { return $this; }
@@ -213,8 +213,8 @@ s
     function testComplexObject() {
         $this->markTestIncomplete();
 
-        $pp = self::pp();
-        $pp->setMaxArrayEntries(10);
+        $pp                  = self::pp();
+        $pp->maxArrayEntries = 10;
         $pp->assertPrettyIs(null, <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
@@ -307,11 +307,9 @@ s
     }
 
     function testException() {
-        $i         = new Introspection;
-        $exception = new MockException($i);
-        $exception = JSONParse::parse(JSONSerialize::serialize($exception));
+        $exception = Value::mockException();
 
-        self::assertEquals(self::pp()->render($exception)->toString(), <<<'s'
+        self::assertEquals($exception->toString(self::pp()), <<<'s'
 MuhMockException Dummy exception code in /the/path/to/muh/file:9000
 
     This is a dummy exception message.
@@ -352,8 +350,8 @@ s
     }
 
     function testMaxArrayEntries() {
-        $pp = self::pp();
-        $pp->setMaxArrayEntries(3);
+        $pp                  = self::pp();
+        $pp->maxArrayEntries = 3;
         $pp->assertPrettyIs(range(1, 10), <<<'s'
 array( 1,
        2,
@@ -382,8 +380,8 @@ s
     }
 
     function testMaxObjectProperties() {
-        $pp = self::pp();
-        $pp->setMaxObjectProperties(5);
+        $pp                      = self::pp();
+        $pp->maxObjectProperties = 5;
         $pp->assertPrettyIs(new DummyClass2, <<<'s'
 new PrettyPrinter\Test\DummyClass2 #1 {
     public $public2       = null;
@@ -398,8 +396,8 @@ s
     }
 
     function testMaxStringLength() {
-        $pp = self::pp();
-        $pp->setMaxStringLength(10);
+        $pp                  = self::pp();
+        $pp->maxStringLength = 10;
         $pp->assertPrettyIs("wafkjawejf bawjehfb awjhefb j,awhebf ", '"wafkjawejf...');
     }
 

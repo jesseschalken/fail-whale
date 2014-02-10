@@ -4,9 +4,10 @@ namespace ErrorHandler;
 
 class ErrorHandler {
     /**
-     * @param callable $handler
+     * @param callable      $handler
+     * @param callable|null $ignoredErrorHandler
      */
-    static function register($handler) {
+    static function register($handler, $ignoredErrorHandler = null) {
         if (PHP_MAJOR_VERSION == 5)
             if (PHP_MINOR_VERSION == 3)
                 $phpBug61767Fixed = PHP_RELEASE_VERSION >= 18;
@@ -19,20 +20,28 @@ class ErrorHandler {
 
         $lastError = error_get_last();
 
-        set_error_handler($errorHandler = function ($severity, $message, $file = null, $line = null,
-                                                    $localVars = null) use (&$lastError, $handler, $phpBug61767Fixed) {
-            $lastError = error_get_last();
+        set_error_handler($errorHandler = function (
+            $severity, $message, $file = null, $line = null, $localVars = null
+        ) use (
+            &$lastError, $handler, $phpBug61767Fixed, $ignoredErrorHandler
+        ) {
+            $lastError         = error_get_last();
+            $isNotIgnored      = error_reporting() & $severity;
+            $hasIgnoredHandler = is_callable($ignoredErrorHandler);
 
-            if (error_reporting() & $severity) {
+            if ($isNotIgnored || $hasIgnoredHandler) {
                 $e = new ErrorException($severity, $message, $file, $line, $localVars,
                                         array_slice(debug_backtrace(), 1));
 
-                if ($phpBug61767Fixed)
-                    throw $e;
-                else if ($severity & (E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED))
-                    throw $e;
-                else
-                    call_user_func($handler, $e);
+                if ($isNotIgnored)
+                    if ($phpBug61767Fixed)
+                        throw $e;
+                    else if ($severity & (E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED))
+                        throw $e;
+                    else
+                        call_user_func($handler, $e);
+                else if ($hasIgnoredHandler)
+                    call_user_func($ignoredErrorHandler, $e);
             }
 
             return true;
@@ -62,7 +71,7 @@ class ErrorHandler {
             ));
         });
 
-        \set_exception_handler($handler);
+        set_exception_handler($handler);
 
         assert_options(ASSERT_CALLBACK, function ($file, $line, $expression, $message = 'Assertion failed') {
             throw new AssertionFailedException($file, $line, $expression, $message, array_slice(debug_backtrace(), 1));
@@ -71,104 +80,26 @@ class ErrorHandler {
 
     static function simpleHandler() {
         return function (\Exception $e) {
+            $e = Value::introspectException($e);
+
+            while (ob_get_level() > 0 && ob_end_clean()) ;
+
             if (PHP_SAPI === 'cli') {
-                $pp = new PrettyPrinter;
-                $pp->setMaxStringLength(100);
-                $pp->setMaxArrayEntries(10);
-                $pp->setMaxObjectProperties(10);
+                $settings                      = new PrettyPrinter;
+                $settings->maxStringLength     = 100;
+                $settings->maxArrayEntries     = 10;
+                $settings->maxObjectProperties = 10;
 
-                ErrorHandler::output('error', $pp->prettyPrintException($e));
+                fwrite(STDERR, $e->toString($settings));
             } else {
-                while (ob_get_level() > 0 && ob_end_clean()) ;
-
                 if (!headers_sent()) {
                     header('HTTP/1.1 500 Internal Server Error', true, 500);
                     header("Content-Type: text/html; charset=UTF-8", true);
                 }
 
-                $introspection = new Introspection;
-                $exception     = $introspection->introspectException($e);
-                $json          = JSONSerialize::serialize($exception);
-                ?>
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title></title>
-                    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-                    <script type="text/javascript"><?= file_get_contents(__DIR__ . '/../web/script.js') ?></script>
-                    <script type="text/javascript">
-                        document.addEventListener('DOMContentLoaded', function () {
-                            var body = document.getElementsByTagName('body')[0];
-                            var json = document.getElementById('the-json').textContent;
-                            var value = PrettyPrinter.renderJSON(json);
-
-                            body.innerHTML = '';
-                            body.appendChild(value);
-                        });
-                    </script>
-                </head>
-                <body>
-                <pre id="the-json"><?= htmlspecialchars($json, ENT_COMPAT, "UTF-8") ?></pre>
-                </body>
-                </html>
-            <?php
+                echo $e->toHTML();
             }
         };
-    }
-
-    /**
-     * @param string $title
-     * @param string $body
-     */
-    static function output($title, $body) {
-        while (ob_get_level() > 0 && ob_end_clean()) ;
-
-        if (PHP_SAPI === 'cli') {
-            fwrite(STDERR, $body);
-        } else {
-            if (!headers_sent()) {
-                header('HTTP/1.1 500 Internal Server Error', true, 500);
-                header("Content-Type: text/html; charset=UTF-8", true);
-            }
-
-            print self::wrapHTML($title, $body);
-        }
-    }
-
-    /**
-     * @param string $title
-     * @param string $body
-     *
-     * @return string
-     */
-    static function wrapHTML($title, $body) {
-        $body  = htmlspecialchars($body, ENT_COMPAT, "UTF-8");
-        $title = htmlspecialchars($title, ENT_COMPAT, "UTF-8");
-
-        return <<<html
-<!DOCTYPE html>
-<html>
-	<head>
-		<meta charset="UTF-8" />
-		<title>$title</title>
-	</head>
-	<body>
-		<pre style="
-			white-space: pre;
-			font-family: 'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace;
-			font-size: 10pt;
-			color: #000000;
-			display: block;
-			background: white;
-			border: none;
-			margin: 0;
-			padding: 0;
-			line-height: 16px;
-			width: 100%;
-		">$body</pre>
-	</body>
-</html>
-html;
     }
 }
 

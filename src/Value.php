@@ -2,6 +2,92 @@
 
 namespace ErrorHandler;
 
+class Value {
+    static function introspect($value) {
+        $introspection = new Introspection;
+
+        return new self($introspection->introspect($value));
+    }
+
+    static function introspectRef(&$value) {
+        $introspection = new Introspection;
+
+        return new self($introspection->introspectRef($value));
+    }
+
+    static function introspectException(\Exception $exception) {
+        $introspection = new Introspection;
+
+        return new self($introspection->introspectException($exception));
+    }
+    
+    static function mockException() {
+        return new self(new MockException(new Introspection));
+    }
+
+    static function fromJSON($json) {
+        $json = JSON::decode($json);
+
+        return new self(new JSONValue($json, $json['root']));
+    }
+
+    private $impl;
+
+    private function __construct(ValueImpl $impl) {
+        $this->impl = $impl;
+    }
+
+    function toJSON() {
+        $visitor      = new JSONSerialize;
+        $root         = $this->impl->acceptVisitor($visitor);
+        $json         = $visitor->result();
+        $json['root'] = $root;
+
+        return JSON::encode($json);
+    }
+
+    function toHTML() {
+        $js = <<<js
+document.addEventListener('DOMContentLoaded', function () {
+    var json = document.getElementById('the-json').textContent;
+    var value = PrettyPrinter.renderJSON(json);
+
+    document.innerHTML = '';
+    document.appendChild(value);
+});
+js;
+
+        $document           = new \DOMDocument;
+        $document->encoding = 'UTF-8';
+
+        $script1 = $document->createElement('script');
+        $script1->appendChild($document->createTextNode(file_get_contents(__DIR__ . '/../web/script.js')));
+
+        $script2 = $document->createElement('script');
+        $script2->appendChild($document->createTextNode($js));
+
+        $pre = $document->createElement('pre');
+        $pre->setAttribute('id', 'the-json');
+        $pre->appendChild($document->createTextNode($this->toJSON()));
+
+        $document->appendChild($script1);
+        $document->appendChild($script2);
+        $document->appendChild($pre);
+
+        return $document->saveHTML();
+    }
+
+    function toString(PrettyPrinter $settings = null) {
+        if (!$settings instanceof PrettyPrinter)
+            $settings = new PrettyPrinter;
+
+        /** @var PrettyPrinterText $text */
+        $text = $this->impl->acceptVisitor(new PrettyPrinterVisitor($settings));
+
+        return $text->toString();
+    }
+}
+
 interface ValueVisitor {
     function visitObject(ValueObject $object);
 
@@ -44,7 +130,7 @@ interface ValueVisitor {
     function visitBool($bool);
 }
 
-interface Value {
+interface ValueImpl {
     function acceptVisitor(ValueVisitor $visitor);
 }
 
@@ -165,7 +251,7 @@ interface ValueVariable {
     function name();
 
     /**
-     * @return Value
+     * @return ValueImpl
      */
     function value();
 }
@@ -201,7 +287,7 @@ interface ValueObjectProperty extends ValueVariable {
 
 interface ValueStackFrame {
     /**
-     * @return Value[]|null
+     * @return ValueImpl[]|null
      */
     function arguments();
 
@@ -250,12 +336,12 @@ interface ValueArray {
 
 interface ValueArrayEntry {
     /**
-     * @return Value
+     * @return ValueImpl
      */
     function key();
 
     /**
-     * @return Value
+     * @return ValueImpl
      */
     function value();
 }
