@@ -13,131 +13,147 @@ class JSONSerialize implements ValueVisitor {
 
     function result() { return $this->json; }
 
-    function addObject(ValueObject $object) {
+    private function serializeObject(ValueObject $object = null) {
+        if (!$object instanceof ValueObject)
+            return null;
+
         $json =& $this->json['objects'][$object->id()];
 
         if ($json === null) {
-            $self = $this;
-            $json = array();
             $json = array(
                 'class'      => $object->className(),
-                'hash'       => $object->hash(),
-                'properties' => array_map(
-                    function (ValueObjectProperty $p) use ($self) {
-                        return $self->serializeObjectProperty($p);
-                    },
-                    $object->properties()
-                ),
+                'properties' => array(),
             );
+
+            foreach ($object->properties() as $p)
+                $json['properties'][] = $this->serializeObjectProperty($p);
         }
+
+        return $object->id();
     }
 
     function visitObject(ValueObject $object) {
-        $this->addObject($object);
-
-        return array('object', $object->id());
+        return array('object', $this->serializeObject($object));
     }
 
-    function addArray(ValueArray $array) {
+    private function serializeArray(ValueArray $array) {
         $json =& $this->json['arrays'][$array->id()];
 
         if ($json === null) {
-            $self = $this;
-            $json = array();
             $json = array(
                 'isAssociative' => $array->isAssociative(),
-                'entries'       => array_map(
-                    function (ValueArrayEntry $entry) use ($self) {
-                        return array(
-                            $entry->key()->acceptVisitor($self),
-                            $entry->value()->acceptVisitor($self),
-                        );
-                    },
-                    $array->entries()
-                ),
+                'entries'       => array(),
             );
+
+            foreach ($array->entries() as $entry)
+                $json['entries'][] = array(
+                    $entry->key()->acceptVisitor($this),
+                    $entry->value()->acceptVisitor($this),
+                );
         }
+
+        return $array->id();
     }
 
     function visitArray(ValueArray $array) {
-        $this->addArray($array);
-
-        return array('array', $array->id());
+        return array('array', $this->serializeArray($array));
     }
 
-    function serializeException(ValueException $exception) {
-        $self = $this;
-
-        $locals   = $exception->locals();
-        $globals  = $exception->globals();
-        $previous = $exception->previous();
+    private function serializeException(ValueException $exception = null) {
+        if (!$exception instanceof ValueException)
+            return null;
 
         return array(
             'class'    => $exception->className(),
             'code'     => $exception->code(),
             'message'  => $exception->message(),
-            'previous' => $previous instanceof ValueException ? $this->serializeException($previous) : null,
+            'previous' => $this->serializeException($exception->previous()),
             'location' => $this->serializeCodeLocation($exception->location()),
-            'stack'    => array_map(
-                function (ValueStackFrame $frame) use ($self) {
-                    $object = $frame->object();
-                    $args   = $frame->arguments();
-
-                    if ($object instanceof ValueObject)
-                        $self->addObject($object);
-
-                    return array(
-                        'function' => $frame->functionName(),
-                        'class'    => $frame->className(),
-                        'isStatic' => $frame->isStatic(),
-                        'location' => $self->serializeCodeLocation($frame->location()),
-                        'object'   => $object instanceof ValueObject ? $object->id() : null,
-                        'args'     => is_array($args)
-                                ? array_map(
-                                    function (ValueImpl $arg) use ($self) {
-                                        return $arg->acceptVisitor($self);
-                                    },
-                                    $args
-                                )
-                                : null,
-                    );
-                },
-                $exception->stack()
-            ),
-            'locals'   => is_array($locals)
-                    ? array_map(
-                        function (ValueVariable $var) use ($self) {
-                            return $self->serializeVariable($var);
-                        },
-                        $locals
-                    )
-                    : null,
-            'globals'  => $globals instanceof ValueGlobals
-                    ? array(
-                        'staticProperties' => array_map(
-                            function (ValueObjectProperty $p) use ($self) {
-                                return $self->serializeObjectProperty($p);
-                            },
-                            $globals->staticProperties()
-                        ),
-                        'staticVariables'  => array_map(
-                            function (ValueStaticVariable $v) use ($self) {
-                                return array(
-                                           'function' => $v->functionName(),
-                                           'class'    => $v->className(),
-                                       ) + $self->serializeVariable($v);
-                            },
-                            $globals->staticVariables()
-                        ),
-                        'globalVariables'  => array_map(
-                            function (ValueVariable $v) use ($self) {
-                                return $self->serializeVariable($v);
-                            },
-                            $globals->globalVariables()
-                        ),
-                    )
-                    : null,
+            'stack'    => $this->serializeStack($exception->stack()),
+            'locals'   => $this->serializeLocals($exception->locals()),
+            'globals'  => $this->serializeGlobals($exception->globals()),
         );
+    }
+
+    /**
+     * @param ValueStackFrame[] $stack
+     *
+     * @return array
+     */
+    private function serializeStack(array $stack) {
+        $result = array();
+
+        foreach ($stack as $frame)
+            $result[] = array(
+                'function' => $frame->functionName(),
+                'class'    => $frame->className(),
+                'isStatic' => $frame->isStatic(),
+                'location' => $this->serializeCodeLocation($frame->location()),
+                'object'   => $this->serializeObject($frame->object()),
+                'args'     => $this->serializeArgs($frame->arguments()),
+            );
+
+        return $result;
+    }
+
+    /**
+     * @param ValueImpl[]|null $args
+     *
+     * @return array|null
+     */
+    private function serializeArgs(array $args = null) {
+        /** @var ValueImpl[] $args */
+        if (!is_array($args))
+            return null;
+
+        $result = array();
+
+        foreach ($args as $arg)
+            $result[] = $arg->acceptVisitor($this);
+
+        return $result;
+    }
+
+    /**
+     * @param ValueVariable[] $locals
+     *
+     * @return array|null
+     */
+    private function serializeLocals(array $locals = null) {
+        if (!is_array($locals))
+            return null;
+
+        $result = array();
+
+        foreach ($locals as $var)
+            $result[] = $this->serializeVariable($var);
+
+        return $result;
+    }
+
+    private function serializeGlobals(ValueGlobals $globals = null) {
+        if (!$globals instanceof ValueGlobals)
+            return null;
+
+        $result = array(
+            'staticProperties' => array(),
+            'staticVariables'  => array(),
+            'globalVariables'  => array(),
+        );
+
+        foreach ($globals->staticProperties() as $p)
+            $result['staticProperties'][] = $this->serializeObjectProperty($p);
+
+        foreach ($globals->staticVariables() as $v)
+            $result['staticVariables'][] = array(
+                                               'function' => $v->functionName(),
+                                               'class'    => $v->className(),
+                                           ) + $this->serializeVariable($v);
+
+        foreach ($globals->globalVariables() as $v)
+            $result['globalVariables'][] = $this->serializeVariable($v);
+
+        return $result;
     }
 
     function visitException(ValueException $exception) {
@@ -189,7 +205,7 @@ class JSONSerialize implements ValueVisitor {
 
     function visitBool($bool) { return $bool; }
 
-    function serializeCodeLocation(ValueCodeLocation $location = null) {
+    private function serializeCodeLocation(ValueCodeLocation $location = null) {
         return $location instanceof ValueCodeLocation
             ? array(
                 'file'       => $location->file(),
@@ -199,7 +215,7 @@ class JSONSerialize implements ValueVisitor {
             : null;
     }
 
-    function serializeObjectProperty(ValueObjectProperty $p) {
+    private function serializeObjectProperty(ValueObjectProperty $p) {
         return array(
                    'class'     => $p->className(),
                    'access'    => $p->access(),
@@ -207,7 +223,7 @@ class JSONSerialize implements ValueVisitor {
                ) + $this->serializeVariable($p);
     }
 
-    function serializeVariable(ValueVariable $v) {
+    private function serializeVariable(ValueVariable $v) {
         return array(
             'name'  => $v->name(),
             'value' => $v->value()->acceptVisitor($this),
@@ -266,46 +282,42 @@ class JSONException extends JSONParse implements ValueException {
     }
 
     function locals() {
-        $root   = $this->root;
         $locals = $this->json['locals'];
 
         if (!is_array($locals))
             return null;
 
-        return array_map(
-            function ($json) use ($root) {
-                return new JSONVariable($root, $json);
-            },
-            $locals
-        );
+        $result = array();
+
+        foreach ($locals as $json)
+            $result[] = new JSONVariable($this->root, $json);
+
+        return $result;
     }
 
     function stack() {
-        $root = $this->root;
+        $result = array();
 
-        return array_map(
-            function ($json) use ($root) {
-                return new JSONStackFrame($root, $json);
-            },
-            $this->json['stack']
-        );
+        foreach ($this->json['stack'] as $json)
+            $result[] = new JSONStackFrame($this->root, $json);
+
+        return $result;
     }
 }
 
 class JSONStackFrame extends JSONParse implements ValueStackFrame {
     function arguments() {
         $args = $this->json['args'];
-        $root = $this->root;
 
         if (!is_array($args))
             return null;
 
-        return array_map(
-            function ($json) use ($root) {
-                return new JSONValue($root, $json);
-            },
-            $args
-        );
+        $result = array();
+
+        foreach ($args as $json)
+            $result[] = new JSONValue($this->root, $json);
+
+        return $result;
     }
 
     function functionName() { return $this->json['function']; }
@@ -329,36 +341,30 @@ class JSONStackFrame extends JSONParse implements ValueStackFrame {
 
 class JSONGlobals extends JSONParse implements ValueGlobals {
     function staticProperties() {
-        $root = $this->root;
+        $result = array();
 
-        return array_map(
-            function ($json) use ($root) {
-                return new JSONObjectProperty($root, $json);
-            },
-            $this->json['staticProperties']
-        );
+        foreach ($this->json['staticProperties'] as $json)
+            $result[] = new JSONObjectProperty($this->root, $json);
+
+        return $result;
     }
 
     function staticVariables() {
-        $root = $this->root;
+        $result = array();
 
-        return array_map(
-            function ($json) use ($root) {
-                return new JSONStaticVariable($root, $json);
-            },
-            $this->json['staticVariables']
-        );
+        foreach ($this->json['staticVariables'] as $json)
+            $result[] = new JSONStaticVariable($this->root, $json);
+
+        return $result;
     }
 
     function globalVariables() {
-        $root = $this->root;
+        $result = array();
 
-        return array_map(
-            function ($json) use ($root) {
-                return new JSONVariable($root, $json);
-            },
-            $this->json['globalVariables']
-        );
+        foreach ($this->json['globalVariables'] as $json)
+            $result[] = new JSONVariable($this->root, $json);
+
+        return $result;
     }
 }
 
@@ -392,14 +398,12 @@ class JSONObject extends JSONParse implements ValueObject {
     function className() { return $this->json['class']; }
 
     function properties() {
-        $root = $this->root;
+        $result = array();
 
-        return array_map(
-            function ($property) use ($root) {
-                return new JSONObjectProperty($root, $property);
-            },
-            $this->json['properties']
-        );
+        foreach ($this->json['properties'] as $property)
+            $result[] = new JSONObjectProperty($this->root, $property);
+
+        return $result;
     }
 
     function hash() { return $this->json['hash']; }
@@ -429,14 +433,12 @@ class JSONArray extends JSONParse implements ValueArray {
     function id() { return $this->id; }
 
     function entries() {
-        $root = $this->root;
+        $result = array();
 
-        return array_map(
-            function ($entry) use ($root) {
-                return new JSONArrayEntry($root, $entry);
-            },
-            $this->json['entries']
-        );
+        foreach ($this->json['entries'] as $entry)
+            $result[] = new JSONArrayEntry($this->root, $entry);
+
+        return $result;
     }
 }
 
