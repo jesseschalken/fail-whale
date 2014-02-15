@@ -382,8 +382,8 @@ class PrettyPrinterVisitor implements ValueVisitor {
         return $this->text("$int" === "$float" ? "$float.0" : "$float");
     }
 
-    function visitResource(ValueResource $r) {
-        return $this->text("{$r->type()}");
+    function visitResource(ValueResource $resource) {
+        return $this->text("{$resource->type()}");
     }
 
     function visitBool($bool) {

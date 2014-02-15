@@ -21,8 +21,9 @@ class JSONSerialize implements ValueVisitor {
 
         if ($json === null) {
             $json = array(
-                'class'      => $object->className(),
-                'properties' => array(),
+                'class'         => $object->className(),
+                'properties'    => array(),
+                'numProperties' => $object->numProperties(),
             );
 
             foreach ($object->properties() as $p)
@@ -43,6 +44,7 @@ class JSONSerialize implements ValueVisitor {
             $json = array(
                 'isAssociative' => $array->isAssociative(),
                 'entries'       => array(),
+                'numEntries'    => $array->numEntries(),
             );
 
             foreach ($array->entries() as $entry)
@@ -64,14 +66,16 @@ class JSONSerialize implements ValueVisitor {
             return null;
 
         return array(
-            'class'    => $exception->className(),
-            'code'     => $exception->code(),
-            'message'  => $exception->message(),
-            'previous' => $this->serializeException($exception->previous()),
-            'location' => $this->serializeCodeLocation($exception->location()),
-            'stack'    => $this->serializeStack($exception->stack()),
-            'locals'   => $this->serializeLocals($exception->locals()),
-            'globals'  => $this->serializeGlobals($exception->globals()),
+            'class'          => $exception->className(),
+            'code'           => $exception->code(),
+            'message'        => $exception->message(),
+            'previous'       => $this->serializeException($exception->previous()),
+            'location'       => $this->serializeCodeLocation($exception->location()),
+            'stack'          => $this->serializeStack($exception->stack()),
+            'locals'         => $this->serializeLocals($exception->locals()),
+            'globals'        => $this->serializeGlobals($exception->globals()),
+            'numStackFrames' => $exception->numStackFrames(),
+            'numLocals'      => $exception->numLocals(),
         );
     }
 
@@ -91,6 +95,7 @@ class JSONSerialize implements ValueVisitor {
                 'location' => $this->serializeCodeLocation($frame->location()),
                 'object'   => $this->serializeObject($frame->object()),
                 'args'     => $this->serializeArgs($frame->arguments()),
+                'numArgs'  => $frame->numArguments(),
             );
 
         return $result;
@@ -136,9 +141,12 @@ class JSONSerialize implements ValueVisitor {
             return null;
 
         $result = array(
-            'staticProperties' => array(),
-            'staticVariables'  => array(),
-            'globalVariables'  => array(),
+            'staticProperties'    => array(),
+            'staticVariables'     => array(),
+            'globalVariables'     => array(),
+            'numStaticProperties' => $globals->numStaticProperties(),
+            'numStaticVariables'  => $globals->numStaticVariables(),
+            'numGlobalVariables'  => $globals->numGlobalVariables(),
         );
 
         foreach ($globals->staticProperties() as $p)
@@ -194,10 +202,10 @@ class JSONSerialize implements ValueVisitor {
         return array('float', $json);
     }
 
-    function visitResource(ValueResource $r) {
+    function visitResource(ValueResource $resource) {
         $json = array(
-            'type' => $r->type(),
-            'id'   => $r->id(),
+            'type' => $resource->type(),
+            'id'   => $resource->id(),
         );
 
         return array('resource', $json);
@@ -303,6 +311,10 @@ class JSONException extends JSONParse implements ValueException {
 
         return $result;
     }
+
+    function numStackFrames() { return $this->json['numStackFrames']; }
+
+    function numLocals() { return $this->json['numLocals']; }
 }
 
 class JSONStackFrame extends JSONParse implements ValueStackFrame {
@@ -337,6 +349,8 @@ class JSONStackFrame extends JSONParse implements ValueStackFrame {
 
         return $object ? new JSONObject($this->root, $object) : null;
     }
+
+    function numArguments() { return $this->json['numArgs']; }
 }
 
 class JSONGlobals extends JSONParse implements ValueGlobals {
@@ -366,6 +380,12 @@ class JSONGlobals extends JSONParse implements ValueGlobals {
 
         return $result;
     }
+
+    function numStaticProperties() { return $this->json['numStaticProperties']; }
+
+    function numStaticVariables() { return $this->json['numStaticVariables']; }
+
+    function numGlobalVariables() { return $this->json['numGlobalVariables']; }
 }
 
 class JSONVariable extends JSONParse implements ValueVariable {
@@ -409,6 +429,8 @@ class JSONObject extends JSONParse implements ValueObject {
     function hash() { return $this->json['hash']; }
 
     function id() { return $this->id; }
+
+    function numProperties() { return $this->json['numProperties']; }
 }
 
 class JSONObjectProperty extends JSONVariable implements ValueObjectProperty {
@@ -440,6 +462,8 @@ class JSONArray extends JSONParse implements ValueArray {
 
         return $result;
     }
+
+    function numEntries() { return $this->json['numEntries']; }
 }
 
 class JSONArrayEntry extends JSONParse implements ValueArrayEntry {

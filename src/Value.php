@@ -20,7 +20,7 @@ class Value {
 
         return new self($introspection->introspectException($exception));
     }
-    
+
     static function mockException() {
         return new self(new MockException(new Introspection));
     }
@@ -120,7 +120,7 @@ interface ValueVisitor {
      */
     function visitFloat($float);
 
-    function visitResource(ValueResource $r);
+    function visitResource(ValueResource $resource);
 
     /**
      * @param bool $bool
@@ -166,6 +166,11 @@ interface ValueObject {
      * @return int
      */
     function id();
+
+    /**
+     * @return int
+     */
+    function numProperties();
 }
 
 interface ValueException {
@@ -208,6 +213,16 @@ interface ValueException {
      * @return ValueStackFrame[]
      */
     function stack();
+
+    /**
+     * @return int
+     */
+    function numStackFrames();
+
+    /**
+     * @return int
+     */
+    function numLocals();
 }
 
 interface ValueGlobals {
@@ -225,6 +240,21 @@ interface ValueGlobals {
      * @return ValueVariable[]
      */
     function globalVariables();
+
+    /**
+     * @return int
+     */
+    function numStaticProperties();
+
+    /**
+     * @return int
+     */
+    function numStaticVariables();
+
+    /**
+     * @return int
+     */
+    function numGlobalVariables();
 }
 
 interface ValueCodeLocation {
@@ -315,6 +345,11 @@ interface ValueStackFrame {
      * @return ValueObject|null
      */
     function object();
+
+    /**
+     * @return int
+     */
+    function numArguments();
 }
 
 interface ValueArray {
@@ -332,6 +367,11 @@ interface ValueArray {
      * @return ValueArrayEntry[]
      */
     function entries();
+
+    /**
+     * @return int
+     */
+    function numEntries();
 }
 
 interface ValueArrayEntry {

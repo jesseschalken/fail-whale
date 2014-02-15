@@ -139,8 +139,10 @@ class IntrospectionObject implements ValueObject {
     private $introspection;
     private $object;
     private $id;
+    private $properties;
 
     function __construct(Introspection $introspection, $object, $id) {
+        $this->properties    = IntrospectionObjectProperty::objectProperties($introspection, $object);
         $this->introspection = $introspection;
         $this->object        = $object;
         $this->id            = $id;
@@ -148,13 +150,13 @@ class IntrospectionObject implements ValueObject {
 
     function className() { return get_class($this->object); }
 
-    function properties() {
-        return IntrospectionObjectProperty::objectProperties($this->introspection, $this->object);
-    }
+    function properties() { return $this->properties; }
 
     function hash() { return spl_object_hash($this->object); }
 
     function id() { return $this->id; }
+
+    function numProperties() { return count($this->properties); }
 }
 
 class IntrospectionArray implements ValueArray, ValueImpl {
@@ -187,6 +189,8 @@ class IntrospectionArray implements ValueArray, ValueImpl {
     function acceptVisitor(ValueVisitor $visitor) {
         return $visitor->visitArray($this);
     }
+
+    function numEntries() { return count($this->array); }
 }
 
 class IntrospectionArrayEntry implements ValueArrayEntry {
@@ -217,11 +221,20 @@ class IntrospectionException implements ValueException, ValueImpl {
     private $introspection;
     private $exception;
     private $includeGlobals;
+    private $stack = array();
+    private $locals;
 
     function __construct(Introspection $introspection, \Exception $exception, $includeGlobals = true) {
+        $frames = $exception instanceof ExceptionHasFullTrace ? $exception->getFullTrace() : $exception->getTrace();
+        $locals = $exception instanceof ExceptionHasLocalVariables ? $exception->getLocalVariables() : null;
+
         $this->introspection  = $introspection;
         $this->exception      = $exception;
         $this->includeGlobals = $includeGlobals;
+        $this->locals         = is_array($locals) ? IntrospectionVariable::introspect($introspection, $locals) : null;
+
+        foreach ($frames as $frame)
+            $this->stack[] = new IntrospectionStackFrame($introspection, $frame);
     }
 
     function className() { return get_class($this->exception); }
@@ -255,47 +268,43 @@ class IntrospectionException implements ValueException, ValueImpl {
         return $this->includeGlobals ? new IntrospectionGlobals($this->introspection) : null;
     }
 
-    function locals() {
-        $locals = $this->exception instanceof ExceptionHasLocalVariables ? $this->exception->getLocalVariables() : null;
+    function locals() { return $this->locals; }
 
-        return is_array($locals) ? IntrospectionVariable::introspect($this->introspection, $locals) : null;
+    function numLocals() {
+        return is_array($this->locals) ? count($this->locals) : null;
     }
 
-    function stack() {
-        $frames = $this->exception instanceof ExceptionHasFullTrace
-            ? $this->exception->getFullTrace()
-            : $this->exception->getTrace();
-
-        if (!is_array($frames))
-            return array();
-
-        $result = array();
-
-        foreach ($frames as $frame) {
-            $frame    = is_array($frame) ? $frame : array();
-            $result[] = new IntrospectionStackFrame($this->introspection, $frame);
-        }
-
-        return $result;
-    }
+    function stack() { return $this->stack; }
 
     function acceptVisitor(ValueVisitor $visitor) {
         return $visitor->visitException($this);
     }
+
+    function numStackFrames() { return count($this->stack); }
 }
 
 class IntrospectionGlobals implements ValueGlobals {
     private $introspection;
+    private $staticProperties;
+    private $staticVariables;
 
     function __construct(Introspection $introspection) {
-        $this->introspection = $introspection;
+        $this->staticVariables  = IntrospectionStaticVariable::all($this->introspection);
+        $this->staticProperties = IntrospectionObjectProperty::staticProperties($introspection);
+        $this->introspection    = $introspection;
     }
 
-    function staticProperties() { return IntrospectionObjectProperty::staticProperties($this->introspection); }
+    function staticProperties() { return $this->staticProperties; }
 
-    function staticVariables() { return IntrospectionStaticVariable::all($this->introspection); }
+    function staticVariables() { return $this->staticVariables; }
 
     function globalVariables() { return IntrospectionVariable::introspect($this->introspection, $GLOBALS); }
+
+    function numStaticProperties() { return count($this->staticProperties); }
+
+    function numStaticVariables() { return count($this->staticVariables); }
+
+    function numGlobalVariables() { return count($GLOBALS); }
 }
 
 class IntrospectionVariable implements ValueVariable {
@@ -506,6 +515,12 @@ class IntrospectionStackFrame implements ValueStackFrame {
 
     private function key($key) {
         return isset($this->frame[$key]) ? $this->frame[$key] : null;
+    }
+
+    function numArguments() {
+        $args = $this->key('args');
+
+        return is_array($args) ? count($args) : null;
     }
 }
 
