@@ -289,7 +289,7 @@ class IntrospectionGlobals implements ValueGlobals {
     private $staticVariables;
 
     function __construct(Introspection $introspection) {
-        $this->staticVariables  = IntrospectionStaticVariable::all($this->introspection);
+        $this->staticVariables  = IntrospectionStaticVariable::all($introspection);
         $this->staticProperties = IntrospectionObjectProperty::staticProperties($introspection);
         $this->introspection    = $introspection;
     }

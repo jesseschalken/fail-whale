@@ -51,14 +51,16 @@ class Value {
 document.addEventListener('DOMContentLoaded', function () {
     var json = document.getElementById('the-json').textContent;
     var value = PrettyPrinter.renderJSON(json);
+    var body = document.getElementsByTagName('body')[0];
 
-    document.innerHTML = '';
-    document.appendChild(value);
+    body.innerHTML = '';
+    body.appendChild(value);
 });
 js;
 
         $document           = new \DOMDocument;
         $document->encoding = 'UTF-8';
+        $document->loadHTML('<!DOCTYPE html>');
 
         $script1 = $document->createElement('script');
         $script1->appendChild($document->createTextNode(file_get_contents(__DIR__ . '/../web/script.js')));
@@ -85,6 +87,10 @@ js;
         $text = $this->impl->acceptVisitor(new PrettyPrinterVisitor($settings));
 
         return $text->toString();
+    }
+
+    function limit(Limiter $settings) {
+        return new self(new LimitedValue($settings, $this->impl));
     }
 }
 

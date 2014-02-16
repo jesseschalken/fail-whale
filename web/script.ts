@@ -167,6 +167,7 @@ module PrettyPrinter {
         hash: string;
         className: string;
         properties:ValueObjectProperty[];
+        numProperties: number;
     }
 
     interface ValueExceptionLocation {
@@ -191,6 +192,9 @@ module PrettyPrinter {
         staticProperties: ValueObjectProperty[];
         staticVariables: ValueStaticVariable[];
         globalVariables: ValueVariable[];
+        numStaticProperties: number;
+        numStaticVariables: number;
+        numGlobalVariables: number;
     }
 
     interface ValueException {
@@ -202,6 +206,8 @@ module PrettyPrinter {
         globals: ValueExceptionGlobals;
         stack: ValueExceptionStackFrame[];
         previous: ValueException;
+        numStackFrames: number;
+        numLocals: number;
     }
 
     interface ValueExceptionStackFrame {
@@ -211,6 +217,7 @@ module PrettyPrinter {
         functionName: string;
         location: ValueExceptionLocation;
         args: Value[];
+        numArgs: number;
     }
 
     interface Value {
@@ -242,18 +249,18 @@ module PrettyPrinter {
             var stack:any[] = e['stack'];
 
             return {
-                className: e['class'],
-                message:   e['message'],
-                code:      e['code'],
-                location:  parseLocation(e['location']),
-                locals:    locals instanceof Array ? locals.map(function (x) {
+                className:      e['class'],
+                message:        e['message'],
+                code:           e['code'],
+                location:       parseLocation(e['location']),
+                locals:         locals instanceof Array ? locals.map(function (x) {
                     return {
                         name:  x['name'],
                         value: parseValue(x['value'])
                     };
                 }) : null,
-                globals:   {
-                    staticProperties: staticProps.map(function (x) {
+                globals:        {
+                    staticProperties:    staticProps.map(function (x) {
                         return {
                             name:      x['name'],
                             value:     parseValue(x['value']),
@@ -261,7 +268,7 @@ module PrettyPrinter {
                             access:    x['access']
                         };
                     }),
-                    staticVariables:  staticVars.map(function (x) {
+                    staticVariables:     staticVars.map(function (x) {
                         return {
                             name:         x['name'],
                             value:        parseValue(x['value']),
@@ -269,14 +276,17 @@ module PrettyPrinter {
                             functionName: x['function']
                         };
                     }),
-                    globalVariables:  globalVars.map(function (x) {
+                    globalVariables:     globalVars.map(function (x) {
                         return {
                             name:  x['name'],
                             value: parseValue(x['value'])
                         };
-                    })
+                    }),
+                    numGlobalVariables:  e['globals']['numGlobalVariables'],
+                    numStaticProperties: e['globals']['numStaticProperties'],
+                    numStaticVariables:  e['globals']['numStaticVariables']
                 },
-                stack:     stack.map(function (x) {
+                stack:          stack.map(function (x) {
                     var args:any[] = x['args'];
                     return {
                         object:       parseObject(x['object']),
@@ -284,10 +294,13 @@ module PrettyPrinter {
                         isStatic:     x['isStatic'],
                         functionName: x['function'],
                         args:         args.map(parseValue),
-                        location:     parseLocation(x['location'])
+                        location:     parseLocation(x['location']),
+                        numArgs:      x['numArgs']
                     };
                 }),
-                previous:  parseException(e['previous'])
+                previous:       parseException(e['previous']),
+                numLocals:      e['numLocals'],
+                numStackFrames: e['numStackFrames']
             };
         }
 
@@ -299,16 +312,17 @@ module PrettyPrinter {
             var objectProps:any[] = object['properties'];
 
             return {
-                hash:       object['hash'],
-                className:  object['class'],
-                properties: objectProps.map(function (x) {
+                hash:          object['hash'],
+                className:     object['class'],
+                properties:    objectProps.map(function (x) {
                     return {
                         name:      x['name'],
                         value:     parseValue(x['value']),
                         className: x['class'],
                         access:    x['access']
                     };
-                })
+                }),
+                numProperties: object['numProperties']
             };
         }
 
@@ -515,7 +529,7 @@ module PrettyPrinter {
             for (var i = 0; i < globalVariables.length; i++) {
                 var pieces = document.createDocumentFragment();
                 var v2 = globalVariables[i];
-                var superglobals = [
+                var superGlobals = [
                     'GLOBALS',
                     '_SERVER',
                     '_GET',
@@ -526,7 +540,7 @@ module PrettyPrinter {
                     '_REQUEST',
                     '_ENV'
                 ];
-                if (superglobals.indexOf(v2.name) == -1) {
+                if (superGlobals.indexOf(v2.name) == -1) {
                     pieces.appendChild(keyword('global'));
                     pieces.appendChild(text(' '));
                 }
