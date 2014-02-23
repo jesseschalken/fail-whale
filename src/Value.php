@@ -90,7 +90,7 @@ js;
     }
 
     function limit(Limiter $settings) {
-        return new self(new LimitedValue($settings, $this->impl));
+        $this->impl = new LimitedValue($settings, $this->impl);
     }
 }
 

@@ -159,7 +159,7 @@ module PrettyPrinter {
         visitFloat: (x:number) => T;
         visitResource: (type:string, id:number) => T;
         visitObject: (x:ValueObject) => T;
-        visitArray: (entries:ValueArrayEntry[]) => T;
+        visitArray: (entries:ValueArrayEntry[], numEntries:number) => T;
         visitException: (x:ValueException) => T;
     }
 
@@ -358,14 +358,15 @@ module PrettyPrinter {
                             return v.visitFloat(x[1]);
 
                     if (x[0] === 'array') {
-                        var arrayEntries:any[] = root['arrays'][x[1]]['entries'];
+                        var array = root['arrays'][x[1]];
+                        var arrayEntries:any[] = array['entries'];
 
                         return v.visitArray(arrayEntries.map(function (x) {
                             return {
                                 key:   parseValue(x[0]),
                                 value: parseValue(x[1])
                             };
-                        }));
+                        }), array['numEntries']);
                     }
 
                     if (x[0] === 'unknown')
@@ -390,20 +391,25 @@ module PrettyPrinter {
     }
 
     function render(v:Value):Node {
-        function renderArray(entries:ValueArrayEntry[]):Node {
+        function renderArray(entries:ValueArrayEntry[], numEntries:number):Node {
             return inlineBlock(expandable({
                 head: keyword('array'),
                 body: function () {
-                    if (entries.length == 0)
+                    if (numEntries == 0)
                         return notice('empty');
 
-                    return createTable(entries.map(function (x) {
+                    var container = document.createDocumentFragment();
+                    container.appendChild(createTable(entries.map(function (x) {
                         return [
                             render(x.key),
                             text('=>'),
                             render(x.value)
                         ];
-                    }));
+                    })));
+                    if (entries.length != numEntries)
+                        container.appendChild(notice((numEntries - entries.length) + " missing entries"));
+
+                    return container;
                 },
                 open: false
             }));
@@ -413,10 +419,11 @@ module PrettyPrinter {
             return inlineBlock(expandable({
                 head: collect([keyword('object'), text(' ' + object.className)]),
                 body: function () {
-                    if (object.properties.length == 0)
+                    if (object.numProperties == 0)
                         return notice('empty');
 
-                    return createTable(object.properties.map(function (property) {
+                    var container = document.createDocumentFragment();
+                    container.appendChild(createTable(object.properties.map(function (property) {
                         var prefix = '';
                         if (property.className != object.className)
                             prefix = property.className + '::';
@@ -430,13 +437,19 @@ module PrettyPrinter {
                             text('='),
                             render(property.value)
                         ];
-                    }));
+                    })));
+                    if (object.numProperties != object.properties.length) {
+                        var numMissing = (object.numProperties - object.properties.length);
+
+                        container.appendChild(notice(numMissing + " missing properties"));
+                    }
+                    return  container;
                 },
                 open: false
             }));
         }
 
-        function renderStack(stack:ValueExceptionStackFrame[]):Node {
+        function renderStack(stack:ValueExceptionStackFrame[], numStackFrames:number):Node {
             function renderFunctionCall(call:ValueExceptionStackFrame):Node {
                 var result = document.createDocumentFragment();
                 var prefix = '';
@@ -456,6 +469,13 @@ module PrettyPrinter {
 
                     result.appendChild(render(call.args[i]));
                 }
+                
+                if (call.args.length != call.numArgs) {
+                    var numMissing = call.numArgs - call.args.length;
+                    
+                    result.appendChild(text(', '));
+                    result.appendChild(italics(numMissing + ' arguments missing'));
+                }
 
                 result.appendChild(text(')'));
 
@@ -472,19 +492,27 @@ module PrettyPrinter {
                 ]);
             }
 
-            rows.push([
-                text('#' + String(x + 1)),
-                inlineBlock(expandable({
-                    head: text('{main}'),
-                    body: function () {
-                        return notice('no source code');
-                    },
-                    open: false
-                })),
-                collect([])
-            ]);
+            if (stack.length == numStackFrames) {
+                rows.push([
+                    text('#' + String(x + 1)),
+                    inlineBlock(expandable({
+                        head: text('{main}'),
+                        body: function () {
+                            return notice('no source code');
+                        },
+                        open: false
+                    })),
+                    collect([])
+                ]);
+            }
 
-            return createTable(rows);
+            var container = document.createDocumentFragment();
+            container.appendChild(createTable(rows));
+            if (stack.length != numStackFrames) {
+                var numMissing = numStackFrames - stack.length;
+                container.appendChild(notice(numMissing + " missing stack frames"));
+            }
+            return container;
         }
 
         function renderVariable(name:string):Node {
@@ -501,20 +529,26 @@ module PrettyPrinter {
             }
         }
 
-        function renderLocals(locals:ValueVariable[]):Node {
+        function renderLocals(locals:ValueVariable[], numLocals:number):Node {
             if (!(locals instanceof Array))
                 return notice('not available');
 
-            if (locals.length == 0)
+            if (numLocals == 0)
                 return notice('none');
 
-            return createTable(locals.map(function (local) {
+            var container = document.createDocumentFragment();
+            container.appendChild(createTable(locals.map(function (local) {
                 return [
                     renderVariable(local.name),
                     text('='),
                     render(local.value)
                 ];
-            }));
+            })));
+            if (numLocals != locals.length) {
+                var numMissing = numLocals - locals.length;
+                container.appendChild(notice(numMissing + " missing variables"));
+            }
+            return container;
         }
 
         function renderGlobals(globals:ValueExceptionGlobals) {
@@ -581,7 +615,28 @@ module PrettyPrinter {
                 ]);
             }
 
-            return createTable(rows);
+            var container = document.createDocumentFragment();
+            container.appendChild(createTable(rows));
+
+            if (staticProperties.length != globals.numStaticProperties) {
+                var numMissing = globals.numStaticProperties - staticProperties.length;
+
+                container.appendChild(block(notice(numMissing + " missing static properties")));
+            }
+
+            if (globalVariables.length != globals.numGlobalVariables) {
+                var numMissing = globals.numGlobalVariables - globalVariables.length;
+
+                container.appendChild(block(notice(numMissing + " missing global variables")));
+            }
+
+            if (staticVariables.length != globals.numStaticVariables) {
+                var numMissing = globals.numStaticVariables - staticVariables.length;
+
+                container.appendChild(block(notice(numMissing + " missing global variables")));
+            }
+
+            return container;
         }
 
         function renderException(x:ValueException):Node {
@@ -603,10 +658,10 @@ module PrettyPrinter {
                     var parts = collect([
                         block(expandable({open: true, head: bold('exception'), body: renderInfo})),
                         block(expandable({open: true, head: bold('locals'), body: function () {
-                            return renderLocals(x.locals);
+                            return renderLocals(x.locals, x.numLocals);
                         }})),
                         block(expandable({open: true, head: bold('stack'), body: function () {
-                            return renderStack(x.stack);
+                            return renderStack(x.stack, x.numStackFrames);
                         }})),
                         block(expandable({open: true, head: bold('globals'), body: function () {
                             return renderGlobals(x.globals);

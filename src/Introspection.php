@@ -114,7 +114,7 @@ class IntrospectionCodeLocation implements ValueCodeLocation {
         $results = array();
 
         foreach (range($this->line - 5, $this->line + 5) as $lineToScan) {
-            if (isset($lines[$lineToScan])) {
+            if (isset($lines[$lineToScan - 1])) {
                 $results[$lineToScan] = $lines[$lineToScan - 1];
             }
         }
