@@ -9,8 +9,6 @@ class JSONSerialize implements ValueVisitor {
         'strings' => array(),
     );
 
-    private $stringIDs = array();
-
     function result() { return $this->json; }
 
     private function serializeObject(ValueObject $object = null) {
@@ -168,19 +166,17 @@ class JSONSerialize implements ValueVisitor {
         return array('exception', $this->serializeException($exception));
     }
 
-    function visitString($string) {
-        if (strlen($string) > 100) {
-            $id =& $this->stringIDs[$string];
-            if ($id === null) {
-                $id = count($this->stringIDs);
+    function visitString(ValueString $string) {
+        $json =& $this->json['strings'][$string->id()];
 
-                $this->json['strings'][$id] = $string;
-            }
-
-            return array('string-ref', $id);
-        } else {
-            return $string;
+        if ($json === null) {
+            $json = array(
+                'string' => $string->string(),
+                'length' => $string->length(),
+            );
         }
+
+        return array('string-ref', $string->id());
     }
 
     function visitInt($int) { return $int; }
@@ -484,8 +480,6 @@ class JSONValue extends JSONParse implements ValueImpl {
             return $visitor->visitBool($json);
         } else if (is_null($json)) {
             return $visitor->visitNull();
-        } else if (is_string($json)) {
-            return $visitor->visitString($json);
         } else {
             switch ($json[0]) {
                 case 'object':
@@ -513,7 +507,7 @@ class JSONValue extends JSONParse implements ValueImpl {
                 case 'string':
                     return $visitor->visitString($json[1]);
                 case 'string-ref':
-                    return $visitor->visitString($this->root['strings'][$json[1]]);
+                    return $visitor->visitString(new JSONString($this->root, $json[1]));
                 default:
                     throw new Exception("Unknown type: {$json[0]}");
             }
@@ -530,6 +524,22 @@ class JSONValue extends JSONParse implements ValueImpl {
         else
             return (float)$json;
     }
+}
+
+class JSONString extends JSONParse implements ValueString {
+    private $id;
+
+    function __construct($root, $json) {
+        $this->id = $json;
+        $json     = $root['strings'][$json];
+        parent::__construct($root, $json);
+    }
+
+    function id() { return $this->id; }
+
+    function string() { return $this->json['string']; }
+
+    function length() { return $this->json['length']; }
 }
 
 /**

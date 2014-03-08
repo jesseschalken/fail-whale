@@ -4,9 +4,6 @@ namespace ErrorHandler;
 
 final class PrettyPrinter {
     public $escapeTabsInStrings = false;
-    public $maxArrayEntries = INF;
-    public $maxObjectProperties = INF;
-    public $maxStringLength = INF;
     public $showExceptionGlobalVariables = true;
     public $showExceptionLocalVariables = true;
     public $showExceptionStackTrace = true;
@@ -62,20 +59,19 @@ class PrettyPrinterVisitor implements ValueVisitor {
 
         $entries       = $array->entries();
         $isAssociative = $array->isAssociative();
+        $numEntries    = $array->numEntries();
+        $numMissing    = count($entries) - $numEntries;
 
-        if ($entries === array())
+        if ($numEntries == 0)
             return $this->text("array()");
 
         $rows = array();
 
         foreach ($entries as $keyValuePair) {
-            if ((count($rows) + 1) > $this->settings->maxArrayEntries)
-                break;
-
             $key   = $this->render($keyValuePair->key());
             $value = $this->render($keyValuePair->value());
 
-            if (count($rows) != count($entries) - 1)
+            if (count($rows) != $numEntries - 1)
                 $value->append(',');
 
             $rows[] = $isAssociative
@@ -87,8 +83,8 @@ class PrettyPrinterVisitor implements ValueVisitor {
 
         $result = $this->renderTable($rows);
 
-        if (count($rows) < count($entries))
-            $result->addLine('...');
+        if ($numMissing != 0)
+            $result->addLine("$numMissing missing entries");
 
         return $result->setHasEndingNewline(false)->wrap("array( ", " )");
     }
@@ -125,7 +121,7 @@ class PrettyPrinterVisitor implements ValueVisitor {
                 $t = $this->text('not available');
             } else {
                 $prefixes = array_fill(0, count($locals), '');
-                $t        = $this->renderVariables($locals, 'none', INF, $prefixes);
+                $t        = $this->renderVariables($locals, 'none', $e->numLocals(), $prefixes);
             }
 
             $text->addLine("local variables:");
@@ -170,31 +166,29 @@ class PrettyPrinterVisitor implements ValueVisitor {
     /**
      * @param ValueVariable[] $variables
      * @param string          $noneText
-     * @param float           $max
+     * @param int             $total
      * @param string[]        $prefixes
      *
      * @return PrettyPrinterText
      */
-    private function renderVariables(array $variables, $noneText, $max, array $prefixes) {
-        if (count($variables) == 0)
+    private function renderVariables(array $variables, $noneText, $total, array $prefixes) {
+        if ($total == 0)
             return $this->text($noneText);
 
         $rows = array();
 
         foreach ($variables as $k => $variable) {
-            if ((count($rows) + 1) > $max)
-                break;
-
             $rows[] = array(
                 $this->text($prefixes[$k])->appendLines($this->renderVariable($variable->name())),
                 $this->render($variable->value())->wrap(' = ', ';'),
             );
         }
 
-        $result = $this->renderTable($rows);
+        $result  = $this->renderTable($rows);
+        $missing = $total - count($rows);
 
-        if (count($rows) < count($variables))
-            $result->addLine('...');
+        if ($missing != 0)
+            $result->addLine("$missing missing");
 
         return $result;
     }
@@ -203,7 +197,9 @@ class PrettyPrinterVisitor implements ValueVisitor {
         $text = $this->text();
         $i    = 1;
 
-        foreach ($exception->stack() as $frame) {
+        $stack = $exception->stack();
+
+        foreach ($stack as $frame) {
             $location = $frame->location();
             $location = $location instanceof ValueCodeLocation
                 ? "{$location->file()}:{$location->line()}"
@@ -214,7 +210,13 @@ class PrettyPrinterVisitor implements ValueVisitor {
             $i++;
         }
 
-        return $text->addLine("#$i {main}");
+        $missing = $exception->numStackFrames() - count($stack);
+        if ($missing != 0)
+            $text->addLine("$missing missing");
+        else
+            $text->addLine("#$i {main}");
+
+        return $text;
     }
 
     private function renderExceptionStackFrame(ValueStackFrame $frame) {
@@ -264,7 +266,11 @@ class PrettyPrinterVisitor implements ValueVisitor {
                     $prefixes[]  = in_array($v->name(), $superGlobals) ? '' : 'global ';
                 }
 
-                $t = $this->renderVariables($variables, 'none', INF, $prefixes);
+                $total = $globals->numStaticProperties() +
+                         $globals->numStaticVariables() +
+                         $globals->numGlobalVariables();
+
+                $t = $this->renderVariables($variables, 'none', $total, $prefixes);
             } else {
                 $t = $this->text('not available');
             }
@@ -285,13 +291,12 @@ class PrettyPrinterVisitor implements ValueVisitor {
 
         $rendered = true;
 
-        $properties = $object->properties();
-        $class      = $object->className();
+        $properties    = $object->properties();
+        $class         = $object->className();
+        $numProperties = $object->numProperties();
 
-        if ($properties === array()) {
+        if ($numProperties == 0) {
             $result = $this->text("new $class {}");
-        } elseif ($this->settings->maxObjectProperties == 0) {
-            $result = $this->text("new $class {...}");
         } else {
             $prefixes = array();
 
@@ -299,7 +304,7 @@ class PrettyPrinterVisitor implements ValueVisitor {
                 $prefixes[] = "{$prop->access()} ";
             }
 
-            $result = $this->renderVariables($properties, '', $this->settings->maxObjectProperties, $prefixes)
+            $result = $this->renderVariables($properties, '', $numProperties, $prefixes)
                            ->setHasEndingNewline(false)
                            ->indent(2)->wrapLines("new $class {", "}");
         }
@@ -327,7 +332,7 @@ class PrettyPrinterVisitor implements ValueVisitor {
         );
 
         $escaped = '';
-        $length  = min(strlen($string), $this->settings->maxStringLength);
+        $length  = strlen($string);
 
         for ($i = 0; $i < $length; $i++) {
             $char        = $string[$i];
@@ -341,7 +346,7 @@ class PrettyPrinterVisitor implements ValueVisitor {
             $escaped .= $charEscaped;
         }
 
-        return $this->text("\"$escaped" . (strlen($string) > $length ? '...' : '"'));
+        return $this->text("\"$escaped\"");
     }
 
     /**
@@ -360,8 +365,14 @@ class PrettyPrinterVisitor implements ValueVisitor {
         return PrettyPrinterText::renderTable($rows, "\n");
     }
 
-    function visitString($string) {
-        return $this->renderString($string);
+    function visitString(ValueString $string) {
+        $result     = $this->renderString($string->string());
+        $numMissing = $string->length() - strlen($string->string());
+
+        if ($numMissing != 0)
+            $result->append(" $numMissing more bytes...");
+
+        return $result;
     }
 
     function visitInt($int) {
@@ -411,26 +422,33 @@ class PrettyPrinterVisitor implements ValueVisitor {
         $result = $this->text();
 
         foreach ($pretties as $k => $pretty) {
-            if ($k !== 0)
-                $result->append(', ');
-
             if ($isMultiLine)
                 $result->addLines($pretty);
             else
                 $result->appendLines($pretty);
+
+            if ($k + 1 == $frame->numArguments())
+                $result->append(', ');
         }
+
+        $numMissing = $frame->numArguments() - count($args);
+        if ($numMissing != 0)
+            if ($isMultiLine)
+                $result->addLine("$numMissing more...");
+            else
+                $result->append("$numMissing more...");
 
         return $result->wrap("( ", " )");
     }
 
     private function renderExceptionStackFramePrefix(ValueStackFrame $frame) {
-        $object    = $frame->object();
-        $className = $frame->className();
+        $object = $frame->object();
+        $class  = $frame->className();
 
         if ($object instanceof ValueObject)
             return $this->visitObject($object)->append('->');
-        else if ($className)
-            return $this->text($className . ($frame->isStatic() ? "::" : "->"));
+        else if ($class)
+            return $this->text($frame->isStatic() ? "$class::" : "$class->");
         else
             return $this->text();
     }
@@ -450,9 +468,8 @@ class PrettyPrinterText {
         foreach (self::flipArray($rows) as $colNo => $column) {
             $width = 0;
 
-            foreach ($column as $cell) {
+            foreach ($column as $cell)
                 $width = max($width, $cell->width());
-            }
 
             $columnWidths[$colNo] = $width;
         }
@@ -466,9 +483,8 @@ class PrettyPrinterText {
             foreach ($cells as $column => $cell) {
                 $cell = clone $cell;
 
-                if ($column !== $lastColumn) {
+                if ($column !== $lastColumn)
                     $cell->padWidth($columnWidths[$column]);
-                }
 
                 $row->appendLines($cell);
             }
@@ -482,11 +498,9 @@ class PrettyPrinterText {
     private static function flipArray(array $x) {
         $result = array();
 
-        foreach ($x as $k1 => $v1) {
-            foreach ($v1 as $k2 => $v2) {
+        foreach ($x as $k1 => $v1)
+            foreach ($v1 as $k2 => $v2)
                 $result[$k2][$k1] = $v2;
-            }
-        }
 
         return $result;
     }
@@ -497,17 +511,15 @@ class PrettyPrinterText {
         $this->newLineChar = $newLineChar;
         $this->lines       = explode($this->newLineChar, $text);
 
-        if ($this->hasEndingNewLine = $this->lines[count($this->lines) - 1] === "") {
+        if ($this->hasEndingNewLine = $this->lines[count($this->lines) - 1] === "")
             array_pop($this->lines);
-        }
     }
 
     function toString() {
         $text = join($this->newLineChar, $this->lines);
 
-        if ($this->hasEndingNewLine && $this->lines) {
+        if ($this->hasEndingNewLine && $this->lines)
             $text .= $this->newLineChar;
-        }
 
         return $text;
     }
@@ -527,9 +539,8 @@ class PrettyPrinterText {
      * @return self
      */
     function addLines(self $add) {
-        foreach ($add->lines as $line) {
+        foreach ($add->lines as $line)
             $this->lines[] = $line;
-        }
 
         return $this;
     }
@@ -550,13 +561,11 @@ class PrettyPrinterText {
     function appendLines(self $append) {
         $space = str_repeat(' ', $this->width());
 
-        foreach ($append->lines as $k => $line) {
-            if ($k === 0 && $this->lines) {
+        foreach ($append->lines as $k => $line)
+            if ($k == 0 && $this->lines)
                 $this->lines[count($this->lines) - 1] .= $line;
-            } else {
+            else
                 $this->lines[] = $space . $line;
-            }
-        }
 
         return $this;
     }
@@ -571,11 +580,9 @@ class PrettyPrinterText {
     function indent($times = 1) {
         $space = str_repeat('  ', $times);
 
-        foreach ($this->lines as $k => $line) {
-            if ($line !== '') {
+        foreach ($this->lines as $k => $line)
+            if ($line !== '')
                 $this->lines[$k] = $space . $line;
-            }
-        }
 
         return $this;
     }

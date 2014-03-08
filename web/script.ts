@@ -28,6 +28,7 @@ module PrettyPrinter {
 
     function italics(text:string):Node {
         var wrapped = wrap(text);
+        wrapped.style.display = 'inline';
         wrapped.style.fontStyle = 'italic';
         return wrapped;
     }
@@ -151,7 +152,7 @@ module PrettyPrinter {
     }
 
     interface ValueVisitor<T> {
-        visitString: (x:string) => T;
+        visitString: (id:number, x:string, length:number) => T;
         visitBool: (x:boolean) => T;
         visitNull: () => T;
         visitUnknown: () => T;
@@ -329,9 +330,6 @@ module PrettyPrinter {
         function parseValue(x:any):Value {
             return {
                 acceptVisitor: function <T> (v:ValueVisitor<T>):T {
-                    if (typeof x === 'string')
-                        return v.visitString(x);
-
                     if (typeof x === 'number')
                         if (x % 1 === 0)
                             return v.visitInt(x);
@@ -344,8 +342,11 @@ module PrettyPrinter {
                     if (x === null)
                         return v.visitNull();
 
-                    if (x[0] === 'string-ref')
-                        return v.visitString(root['strings'][x[1]]);
+                    if (x[0] === 'string-ref') {
+                        var id = x[1];
+                        var str = root['strings'][ id];
+                        return v.visitString(id, str['string'], str['length']);
+                    }
 
                     if (x[0] === 'float')
                         if (x[1] === 'inf' || x[1] === '+inf')
@@ -407,7 +408,7 @@ module PrettyPrinter {
                         ];
                     })));
                     if (entries.length != numEntries)
-                        container.appendChild(notice((numEntries - entries.length) + " missing entries"));
+                        container.appendChild(notice((numEntries - entries.length) + " entries missing..."));
 
                     return container;
                 },
@@ -441,7 +442,7 @@ module PrettyPrinter {
                     if (object.numProperties != object.properties.length) {
                         var numMissing = (object.numProperties - object.properties.length);
 
-                        container.appendChild(notice(numMissing + " missing properties"));
+                        container.appendChild(notice(numMissing + " properties missing..."));
                     }
                     return  container;
                 },
@@ -469,12 +470,12 @@ module PrettyPrinter {
 
                     result.appendChild(render(call.args[i]));
                 }
-                
+
                 if (call.args.length != call.numArgs) {
                     var numMissing = call.numArgs - call.args.length;
-                    
+
                     result.appendChild(text(', '));
-                    result.appendChild(italics(numMissing + ' arguments missing'));
+                    result.appendChild(italics(numMissing + ' arguments missing...'));
                 }
 
                 result.appendChild(text(')'));
@@ -510,7 +511,7 @@ module PrettyPrinter {
             container.appendChild(createTable(rows));
             if (stack.length != numStackFrames) {
                 var numMissing = numStackFrames - stack.length;
-                container.appendChild(notice(numMissing + " missing stack frames"));
+                container.appendChild(notice(numMissing + " stack frames missing..."));
             }
             return container;
         }
@@ -525,7 +526,7 @@ module PrettyPrinter {
             if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name)) {
                 return red('$' + name);
             } else {
-                return collect([red('$' + '{'), renderString(name), red('}')])
+                return collect([red('$' + '{'), renderString(name, name.length), red('}')])
             }
         }
 
@@ -546,7 +547,7 @@ module PrettyPrinter {
             })));
             if (numLocals != locals.length) {
                 var numMissing = numLocals - locals.length;
-                container.appendChild(notice(numMissing + " missing variables"));
+                container.appendChild(notice(numMissing + " variables missing..."));
             }
             return container;
         }
@@ -621,19 +622,19 @@ module PrettyPrinter {
             if (staticProperties.length != globals.numStaticProperties) {
                 var numMissing = globals.numStaticProperties - staticProperties.length;
 
-                container.appendChild(block(notice(numMissing + " missing static properties")));
+                container.appendChild(block(notice(numMissing + " static properties missing...")));
             }
 
             if (globalVariables.length != globals.numGlobalVariables) {
                 var numMissing = globals.numGlobalVariables - globalVariables.length;
 
-                container.appendChild(block(notice(numMissing + " missing global variables")));
+                container.appendChild(block(notice(numMissing + " global variables missing...")));
             }
 
             if (staticVariables.length != globals.numStaticVariables) {
                 var numMissing = globals.numStaticVariables - staticVariables.length;
 
-                container.appendChild(block(notice(numMissing + " missing global variables")));
+                container.appendChild(block(notice(numMissing + " global variables missing...")));
             }
 
             return container;
@@ -722,12 +723,11 @@ module PrettyPrinter {
             }));
         }
 
-        function renderString(x:string):Node {
+        function renderString(x:string, length:number):Node {
             function doRender():Node {
                 var span = document.createElement('span');
                 span.style.color = '#080';
                 span.style.fontWeight = 'bold';
-                span.style.display = 'inline-block';
 
                 var translate = {
                     '\\': '\\\\',
@@ -765,7 +765,17 @@ module PrettyPrinter {
 
                 span.appendChild(document.createTextNode(buffer + '"'));
 
-                return span;
+                var container = document.createElement('div');
+                container.style.display = 'inline-block';
+                container.appendChild(span);
+
+                if (length != x.length) {
+                    var numMissing = length - x.length;
+                    container.appendChild(document.createTextNode(' '));
+                    container.appendChild(italics(numMissing + ' bytes missing...'));
+                }
+
+                return container;
             }
 
             var visualLength = 0;
@@ -797,7 +807,7 @@ module PrettyPrinter {
         }
 
         return v.acceptVisitor({
-            visitString:    renderString,
+            visitString:    function (id, str, length) {return renderString(str, length); },
             visitBool:      function (x:boolean) { return keyword(x ? 'true' : 'false'); },
             visitNull:      function () { return keyword('null'); },
             visitUnknown:   function () { return bold('unknown type'); },

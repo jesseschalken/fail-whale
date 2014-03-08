@@ -37,6 +37,14 @@ s;
             new MockStackFrame2($this->introspection),
         );
     }
+
+    function numStackFrames() {
+        return 8;
+    }
+
+    function numLocals() {
+        return 5;
+    }
 }
 
 class MockStackFrame1 implements ValueStackFrame {
@@ -59,6 +67,10 @@ class MockStackFrame1 implements ValueStackFrame {
     function location() { return new MockLocation; }
 
     function object() { return $this->introspection->introspectObject(new DummyClass1); }
+
+    function numArguments() {
+        return 3;
+    }
 }
 
 class MockStackFrame2 implements ValueStackFrame {
@@ -81,6 +93,10 @@ class MockStackFrame2 implements ValueStackFrame {
     function location() { return new MockLocation; }
 
     function object() { return null; }
+
+    function numArguments() {
+        return 6;
+    }
 }
 
 class MockLocal1 implements ValueVariable, ValueImpl {
@@ -92,7 +108,7 @@ class MockLocal1 implements ValueVariable, ValueImpl {
 }
 
 class MockLocal2 implements ValueVariable, ValueImpl {
-    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitString('bar'); }
+    function acceptVisitor(ValueVisitor $visitor) { return $visitor->visitString(new IntrospectionString(5, 'bar')); }
 
     function name() { return 'foo'; }
 
@@ -134,6 +150,18 @@ class MockGlobalState implements ValueGlobals {
 
     function globalVariables() {
         return array(new MockGlobal1, new MockGlobal2);
+    }
+
+    function numStaticProperties() {
+        return 1;
+    }
+
+    function numStaticVariables() {
+        return 7;
+    }
+
+    function numGlobalVariables() {
+        return 19;
     }
 }
 
@@ -214,7 +242,6 @@ s
         $this->markTestIncomplete();
 
         $pp                  = self::pp();
-        $pp->maxArrayEntries = 10;
         $pp->assertPrettyIs(null, <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
@@ -351,7 +378,6 @@ s
 
     function testMaxArrayEntries() {
         $pp                  = self::pp();
-        $pp->maxArrayEntries = 3;
         $pp->assertPrettyIs(range(1, 10), <<<'s'
 array( 1,
        2,
@@ -381,7 +407,6 @@ s
 
     function testMaxObjectProperties() {
         $pp                      = self::pp();
-        $pp->maxObjectProperties = 5;
         $pp->assertPrettyIs(new DummyClass2, <<<'s'
 new PrettyPrinter\Test\DummyClass2 #1 {
     public $public2       = null;
@@ -397,7 +422,6 @@ s
 
     function testMaxStringLength() {
         $pp                  = self::pp();
-        $pp->maxStringLength = 10;
         $pp->assertPrettyIs("wafkjawejf bawjehfb awjhefb j,awhebf ", '"wafkjawejf...');
     }
 

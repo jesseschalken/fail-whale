@@ -55,7 +55,9 @@ class LimitedValueVisitor extends LimitedThing implements ValueVisitor {
         return $this->visitor->visitException(new LimitedException($this->settings, $exception));
     }
 
-    function visitString($string) { return $this->visitor->visitString($string); }
+    function visitString(ValueString $string) {
+        return $this->visitor->visitString(new LimitedString($this->settings, $string));
+    }
 
     function visitInt($int) { return $this->visitor->visitInt($int); }
 
@@ -68,6 +70,26 @@ class LimitedValueVisitor extends LimitedThing implements ValueVisitor {
     function visitResource(ValueResource $resource) { return $this->visitor->visitResource($resource); }
 
     function visitBool($bool) { return $this->visitor->visitBool($bool); }
+}
+
+class LimitedString extends LimitedThing implements ValueString {
+    private $string;
+
+    function __construct(Limiter $settings, ValueString $string) {
+        parent::__construct($settings);
+        $this->string = $string;
+    }
+
+    function id() { return $this->string->id(); }
+
+    function string() {
+        $string = $this->string->string();
+        $string = substr($string, 0, $this->settings->maxStringLength);
+
+        return $string;
+    }
+
+    function length() { return $this->string->length(); }
 }
 
 class LimitedObject extends LimitedThing implements ValueObject {

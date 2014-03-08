@@ -102,11 +102,11 @@ interface ValueVisitor {
     function visitException(ValueException $exception);
 
     /**
-     * @param string $string
+     * @param ValueString $string
      *
      * @return mixed
      */
-    function visitString($string);
+    function visitString(ValueString $string);
 
     /**
      * @param int $int
@@ -390,5 +390,22 @@ interface ValueArrayEntry {
      * @return ValueImpl
      */
     function value();
+}
+
+interface ValueString {
+    /**
+     * @return int
+     */
+    function id();
+
+    /**
+     * @return string
+     */
+    function string();
+
+    /**
+     * @return int
+     */
+    function length();
 }
 

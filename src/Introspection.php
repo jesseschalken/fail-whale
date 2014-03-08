@@ -21,14 +21,16 @@ class Introspection {
 
     private $nextObjectID = 1;
     private $nextArrayID = 1;
+    private $nextStringID = 1;
     /** @var object[] Just to keep a reference to the objects, because if they get GC'd their hash can get re-used */
     private $objects = array();
     private $arrayIDs = array();
     private $objectIDs = array();
+    private $stringIDs = array();
 
     function introspectAcceptVisitor($value, ValueVisitor $visitor) {
         if (is_string($value))
-            return $visitor->visitString($value);
+            return $visitor->visitString(new IntrospectionString($this->stringID($value), $value));
         else if (is_int($value))
             return $visitor->visitInt($value);
         else if (is_bool($value))
@@ -45,6 +47,14 @@ class Introspection {
             return $visitor->visitResource(new IntrospectionResource($value));
         else
             return $visitor->visitUnknown();
+    }
+
+    private function stringID($string) {
+        $id =& $this->stringIDs[$string];
+        if ($id === null)
+            $id = $this->nextStringID++;
+
+        return $id;
     }
 
     private function arrayID(array &$array) {
@@ -80,6 +90,21 @@ class Introspection {
 
         return $result;
     }
+}
+
+class IntrospectionString implements ValueString {
+    private $id, $string;
+
+    function __construct($id, $string) {
+        $this->id     = $id;
+        $this->string = $string;
+    }
+
+    function id() { return $this->id; }
+
+    function string() { return $this->string; }
+
+    function length() { return strlen($this->string); }
 }
 
 class IntrospectionCodeLocation implements ValueCodeLocation {

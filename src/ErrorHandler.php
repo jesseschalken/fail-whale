@@ -82,6 +82,18 @@ class ErrorHandler {
         return function (\Exception $e) {
             $e = Value::introspectException($e);
 
+            $limitSettings                       = new Limiter;
+            $limitSettings->maxArrayEntries      = 3;
+            $limitSettings->maxFunctionArguments = 1;
+            $limitSettings->maxObjectProperties  = 5;
+            $limitSettings->maxStackFrames       = 2;
+            $limitSettings->maxLocalVariables    = 2;
+            $limitSettings->maxGlobalVariables   = 2;
+            $limitSettings->maxStringLength      = 20;
+            $limitSettings->maxStaticProperties  = 0;
+            
+            $e->limit($limitSettings);
+
             while (ob_get_level() > 0 && ob_end_clean()) ;
 
             if (PHP_SAPI === 'cli') {
