@@ -262,6 +262,8 @@ module PrettyPrinter {
                     return renderException(x.exception);
                 case 'resource':
                     return collect([keyword('resource'), text(' ' + x.resource.type)]);
+                case 'null':
+                    return keyword('null');
                 default:
                     throw "unknown type " + x.type;
             }
