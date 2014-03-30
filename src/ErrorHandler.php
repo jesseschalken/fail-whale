@@ -92,7 +92,7 @@ class ErrorHandler {
             $limitSettings->maxStringLength      = 20;
             $limitSettings->maxStaticProperties  = 0;
             
-            $e->limit($limitSettings);
+//            $e->limit($limitSettings);
 
             while (ob_get_level() > 0 && ob_end_clean()) ;
 

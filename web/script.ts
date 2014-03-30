@@ -246,7 +246,7 @@ module PrettyPrinter {
                     return keyword('true');
                 case 'false':
                     return keyword('false');
-                case 'bytes':
+                case 'string':
                     return renderString(root.strings[x.string]);
                 case 'inf':
                     return keyword('INF');
@@ -263,7 +263,7 @@ module PrettyPrinter {
                 case 'resource':
                     return collect([keyword('resource'), text(' ' + x.resource.type)]);
                 default:
-                    throw { message: "unknown type " + x.type };
+                    throw "unknown type " + x.type;
             }
         }
 

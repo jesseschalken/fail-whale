@@ -12,7 +12,6 @@
           <option name="PHPDOC_BLANK_LINES_AROUND_PARAMETERS" value="true" />
           <option name="LOWER_CASE_BOOLEAN_CONST" value="true" />
           <option name="LOWER_CASE_NULL_CONST" value="true" />
-          <option name="BLANK_LINE_BEFORE_RETURN_STATEMENT" value="true" />
         </PHPCodeStyleSettings>
         <TypeScriptCodeStyleSettings>
           <option name="ALIGN_OBJECT_PROPERTIES" value="1" />
@@ -31,6 +30,12 @@
           <option name="ALIGN_MULTILINE_ARRAY_INITIALIZER_EXPRESSION" value="true" />
           <option name="KEEP_SIMPLE_METHODS_IN_ONE_LINE" value="true" />
           <arrangement>
+            <groups>
+              <group>
+                <type>DEPENDENT_METHODS</type>
+                <order>BREADTH_FIRST</order>
+              </group>
+            </groups>
             <rules>
               <rule>
                 <match>

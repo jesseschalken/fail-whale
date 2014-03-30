@@ -4,46 +4,41 @@ namespace ErrorHandler;
 
 class Value {
     static function introspect($value) {
-        $introspection = new Introspection;
+        $i = new JSON2\Introspection;
 
-        return new self($introspection->introspect($value));
+        return new self($i->root($i->introspect($value)));
     }
 
     static function introspectRef(&$value) {
-        $introspection = new Introspection;
+        $i = new JSON2\Introspection;
 
-        return new self($introspection->introspectRef($value));
+        return new self($i->root($i->introspectRef($value)));
     }
 
     static function introspectException(\Exception $exception) {
-        $introspection = new Introspection;
+        $i = new JSON2\Introspection;
 
-        return new self($introspection->introspectException($exception));
+        return new self($i->root($i->introspectException($exception)));
     }
 
-    static function mockException() {
-        return new self(new MockException(new Introspection));
-    }
+//    static function mockException() {
+//        return new self(new MockException(new Introspection));
+//    }
 
-    static function fromJSON($json) {
-        $json = JSON::decode($json);
-
-        return new self(new JSONValue($json, $json['root']));
-    }
+//    static function fromJSON($json) {
+//        $json = JSON::decode($json);
+//
+//        return new self(new JSONValue($json, $json['root']));
+//    }
 
     private $impl;
 
-    private function __construct(ValueImpl $impl) {
+    private function __construct(JSON2\Root $impl) {
         $this->impl = $impl;
     }
 
     function toJSON() {
-        $visitor      = new JSONRoot;
-        $root         = $this->impl->acceptVisitor($visitor);
-        $json         = $visitor->result();
-        $json['root'] = $root;
-
-        return JSON::encode($json);
+        return JSON::encode($this->impl);
     }
 
     function toHTML() {

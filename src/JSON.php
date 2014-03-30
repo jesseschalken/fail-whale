@@ -639,56 +639,50 @@ class JSONString extends JSONParse implements ValueString {
  */
 final class JSON {
     /**
-     * @param mixed $value
+     * @param mixed  $value
+     * @param string $nl
      *
      * @return string
      */
-    static function encode($value) {
-        $value = self::translateStrings($value, function ($x) { return utf8_encode($x); });
-        $json  = json_encode($value, defined('JSON_PRETTY_PRINT') ? JSON_PRETTY_PRINT : 0);
-
-        self::checkError();
-
-        return $json;
-    }
-
-    static function encodePretty($value, $indent = '') {
-        if (is_object($value))
-            $value = get_object_vars($value);
+    static function encode($value, $nl = "\n") {
+        if (is_object($value)) {
+            $value2 = array();
+            foreach (get_object_vars($value) as $key => $value)
+                if ($value !== null)
+                    $value2[$key] = $value;
+            $value = $value2;
+        }
 
         if (is_array($value)) {
             if (empty($value))
                 return '[]';
 
+            $nl2   = "$nl    ";
+            $lines = array();
+
             if (self::isAssoc($value)) {
-                $result = "{\n";
+                $start = "{";
+                $end   = "}";
 
-                $i = 0;
-                foreach ($value as $k => $v) {
-                    $ppk   = self::encodePretty("$k", "$indent    ");
-                    $ppv   = self::encodePretty($v, "$indent    ");
-                    $comma = $i == count($value) - 1 ? "" : ",";
-                    $result .= "$indent    $ppk: $ppv$comma\n";
-                    $i++;
-                }
-                $result .= "$indent}";
+                foreach ($value as $k => $v)
+                    $lines[] = self::encode("$k", $nl2) . ": " . self::encode($v, $nl2);
             } else {
-                $result = "[\n";
+                $start = "[";
+                $end   = "]";
 
-                $i = 0;
-                foreach ($value as $v) {
-                    $p     = self::encodePretty($v, "$indent    ");
-                    $comma = $i == count($value) - 1 ? "" : ",";
-                    $result .= "$indent    $p$comma\n";
-                    $i++;
-                }
-                $result .= "$indent]";
+                foreach ($value as $v)
+                    $lines[] = self::encode($v, $nl2);
             }
 
-            return $result;
-        }
+            return $start . $nl2 . join(",$nl2", $lines) . $nl . $end;
+        } else {
+            $value = self::translateStrings($value, function ($x) { return utf8_encode($x); });
+            $json  = json_encode($value);
 
-        return self::encode($value);
+            self::checkError();
+
+            return $json;
+        }
     }
 
     static function isAssoc(array $array) {

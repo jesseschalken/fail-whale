@@ -58,17 +58,6 @@ class Introspection {
     }
 
     private function arrayID(array &$array) {
-        foreach ($this->arrayIDs as $id => &$array2) {
-            if (self::refEqual($array2, $array)) {
-                return $id;
-            }
-        }
-
-        $id = $this->nextArrayID++;
-
-        $this->arrayIDs[$id] =& $array;
-
-        return $id;
     }
 
     function introspectObject($object) {
@@ -80,15 +69,6 @@ class Introspection {
         }
 
         return new IntrospectionObject($this, $object, $id);
-    }
-
-    private static function refEqual(&$x, &$y) {
-        $xOld   = $x;
-        $x      = new \stdClass;
-        $result = $x === $y;
-        $x      = $xOld;
-
-        return $result;
     }
 }
 
@@ -358,40 +338,9 @@ class IntrospectionVariable implements ValueVariable {
 
 class IntrospectionObjectProperty implements ValueObjectProperty {
     static function staticProperties(Introspection $introspection) {
-        $results = array();
-
-        foreach (get_declared_classes() as $class) {
-            $reflection = new \ReflectionClass($class);
-
-            foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
-                if ($property->class === $reflection->name) {
-                    $self                = new self;
-                    $self->introspection = $introspection;
-                    $self->property      = $property;
-                    $results[]           = $self;
-                }
-            }
-        }
-
-        return $results;
     }
 
     static function objectProperties(Introspection $introspection, $object) {
-        $results = array();
-
-        for ($reflection = new \ReflectionObject($object);
-             $reflection !== false;
-             $reflection = $reflection->getParentClass()) {
-            foreach ($reflection->getProperties() as $property) {
-                if (!$property->isStatic() && $property->class === $reflection->name) {
-                    $self                = new self;
-                    $self->introspection = $introspection;
-                    $self->property      = $property;
-                    $self->object        = $object;
-                    $results[]           = $self;
-                }
-            }
-        }
 
         return $results;
     }
@@ -414,12 +363,6 @@ class IntrospectionObjectProperty implements ValueObjectProperty {
     }
 
     function access() {
-        if ($this->property->isPrivate())
-            return 'private';
-        else if ($this->property->isProtected())
-            return 'protected';
-        else
-            return 'public';
     }
 
     function className() { return $this->property->class; }
@@ -429,44 +372,6 @@ class IntrospectionObjectProperty implements ValueObjectProperty {
 
 class IntrospectionStaticVariable implements ValueStaticVariable {
     static function all(Introspection $i) {
-        $globals = array();
-
-        foreach (get_declared_classes() as $class) {
-            $reflection = new \ReflectionClass($class);
-
-            foreach ($reflection->getMethods() as $method) {
-                if ($method->class !== $reflection->name)
-                    continue;
-
-                $staticVariables = $method->getStaticVariables();
-
-                foreach ($staticVariables as $name => &$value) {
-                    $variable           = new self;
-                    $variable->name     = $name;
-                    $variable->value    = $i->introspectRef($value);
-                    $variable->class    = $method->class;
-                    $variable->function = $method->getName();
-                    $globals[]          = $variable;
-                }
-            }
-        }
-
-        foreach (get_defined_functions() as $section) {
-            foreach ($section as $function) {
-                $reflection      = new \ReflectionFunction($function);
-                $staticVariables = $reflection->getStaticVariables();
-
-                foreach ($staticVariables as $name => &$value2) {
-                    $variable           = new self;
-                    $variable->name     = $name;
-                    $variable->value    = $i->introspectRef($value2);
-                    $variable->function = $function;
-                    $globals[]          = $variable;
-                }
-            }
-        }
-
-        return $globals;
     }
 
     private $function;
