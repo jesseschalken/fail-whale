@@ -70,14 +70,18 @@ class Introspection {
     private function introspectException2(\Exception $e = null, $includeGlobals = true) {
         if (!$e)
             return null;
+
+        $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
+        $stack  = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
+
         $result            = new Exception;
         $result->className = get_class($e);
         $result->code      = $e->getCode();
         $result->message   = $e->getMessage();
         $result->location  = $this->introspectLocation($e->getFile(), $e->getLine());
         $result->globals   = $includeGlobals ? $this->introspectGlobals() : null;
-        $result->locals    = $this->introspectLocals($e);
-        $result->stack     = $this->introspectStack($e);
+        $result->locals    = $this->introspectVariables($locals);
+        $result->stack     = $this->introspectStack($stack);
         $result->previous  = $this->introspectException2($e->getPrevious(), false);
         return $result;
     }
@@ -100,25 +104,18 @@ class Introspection {
         return $result;
     }
 
-    private function introspectLocals(\Exception $e) {
-        $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
-
-        return $this->introspectVariables($locals);
-    }
-
-    private function introspectStack(\Exception $e) {
+    private function introspectStack(array $frames) {
         $results = array();
-        $frames  = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
         foreach ($frames as $frame) {
-            $line   =& $frame['line'];
-            $file   =& $frame['file'];
-            $class  =& $frame['class'];
-            $object =& $frame['object'];
-            $type   =& $frame['type'];
-            $args   =& $frame['args'];
+            $function =& $frame['function'];
+            $line     =& $frame['line'];
+            $file     =& $frame['file'];
+            $class    =& $frame['class'];
+            $object   =& $frame['object'];
+            $type     =& $frame['type'];
+            $args     =& $frame['args'];
 
             $result               = new Stack;
-            $function             = $frame['function'];
             $result->functionName = $function;
             $result->location     = $this->introspectLocation($file, $line);
             $result->className    = $class;
@@ -152,9 +149,9 @@ class Introspection {
         $lines   = explode("\n", $contents);
         $results = array();
 
-        foreach (range($line - 5, $line + 5) as $lineToScan) {
-            if (isset($lines[$lineToScan - 1])) {
-                $results[$lineToScan] = $lines[$lineToScan - 1];
+        foreach (range($line - 5, $line + 5) as $line1) {
+            if (isset($lines[$line1 - 1])) {
+                $results[$line1] = $lines[$line1 - 1];
             }
         }
 
@@ -206,7 +203,7 @@ class Introspection {
                 $staticVariables = $reflection->getStaticVariables();
 
                 foreach ($staticVariables as $name => &$value2) {
-                    $variable               = new StaticVariable();
+                    $variable               = new StaticVariable;
                     $variable->name         = $name;
                     $variable->value        = $this->introspectRef($value2);
                     $variable->functionName = $function;
@@ -216,10 +213,11 @@ class Introspection {
         }
 
         return $globals;
-
     }
 
-    private function introspectVariables(array &$variables) {
+    private function introspectVariables(array &$variables = null) {
+        if (!is_array($variables))
+            return null;
         /** @var Variable[] $results */
         $results = array();
 
@@ -236,8 +234,7 @@ class Introspection {
     private function objectId($object) {
         if (!$object)
             return null;
-        $hash = spl_object_hash($object);
-        $id   =& $this->objectIds[$hash];
+        $id =& $this->objectIds[spl_object_hash($object)];
         if ($id === null) {
             $id = count($this->objectIds);
 
@@ -293,9 +290,18 @@ class Introspection {
         $property->setAccessible(true);
         $result            = new Property;
         $result->className = $property->class;
-        $result->access    = $this->propertyAccess($property);
         $result->name      = $property->name;
         $result->value     = $this->introspect($property->getValue($object));
+
+        if ($property->isPrivate())
+            $result->access = 'private';
+        else if ($property->isProtected())
+            $result->access = 'protected';
+        else if ($property->isPublic())
+            $result->access = 'public';
+        else
+            $result->access = null;
+
         return $result;
     }
 
@@ -307,14 +313,17 @@ class Introspection {
         return $result;
     }
 
-    private function stringId(&$value) {
+    private function stringId($value) {
         $id =& $this->stringIds[$value];
         if ($id === null) {
             $id = count($this->stringIds);
 
-            $this->root->strings[$id]               = new String1;
-            $this->root->strings[$id]->bytes        = $value;
-            $this->root->strings[$id]->bytesMissing = 0;
+            $string               = new String1;
+            $string->bytes        = $value;
+            $string->bytesMissing = 0;
+
+            $this->root->strings[$id] = $string;
+
             return $id;
         }
         return $id;
@@ -333,15 +342,6 @@ class Introspection {
         $this->root->arrays[$id] = $this->introspectArray($array);
 
         return $id;
-    }
-
-    private function propertyAccess(\ReflectionProperty $property) {
-        if ($property->isPrivate())
-            return 'private';
-        else if ($property->isProtected())
-            return 'protected';
-        else
-            return 'public';
     }
 
     function introspect($value) {
