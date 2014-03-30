@@ -141,6 +141,9 @@ class Introspection {
     }
 
     private function introspectSourceCode($file, $line) {
+        if (!@is_readable($file))
+            return null;
+
         $contents = @file_get_contents($file);
 
         if (!is_string($contents))
