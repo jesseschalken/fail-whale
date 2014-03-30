@@ -2,11 +2,15 @@
 
 namespace ErrorHandler;
 
-class JSONSerialize implements ValueVisitor {
+class JSONRoot implements ValueVisitor {
+    const ARRAYS  = 'arrays';
+    const OBJECTS = 'objects';
+    const STRINGS = 'strings';
+
     private $json = array(
-        'arrays'  => array(),
-        'objects' => array(),
-        'strings' => array(),
+        self::ARRAYS  => array(),
+        self::OBJECTS => array(),
+        self::STRINGS => array(),
     );
 
     function result() { return $this->json; }
@@ -15,40 +19,43 @@ class JSONSerialize implements ValueVisitor {
         if (!$object instanceof ValueObject)
             return null;
 
-        $json =& $this->json['objects'][$object->id()];
+        $json =& $this->json[self::OBJECTS][$object->id()];
 
         if ($json === null) {
             $json = array(
-                'class'         => $object->className(),
-                'properties'    => array(),
-                'numProperties' => $object->numProperties(),
+                JSONObject::CLASS_NAME         => $object->className(),
+                JSONObject::PROPERTIES         => array(),
+                JSONObject::PROPERTIES_MISSING => $object->propertiesMissing(),
             );
 
             foreach ($object->properties() as $p)
-                $json['properties'][] = $this->serializeObjectProperty($p);
+                $json[JSONObject::PROPERTIES][] = $this->serializeObjectProperty($p);
         }
 
         return $object->id();
     }
 
     function visitObject(ValueObject $object) {
-        return array('object', $this->serializeObject($object));
+        return array(
+            JSONValue::PROP_TYPE   => JSONValue::TYPE_OBJECT,
+            JSONValue::PROP_OBJECT => $this->serializeObject($object),
+        );
     }
 
     private function serializeArray(ValueArray $array) {
-        $json =& $this->json['arrays'][$array->id()];
+        $json =& $this->json[self::ARRAYS][$array->id()];
 
         if ($json === null) {
             $json = array(
-                'isAssociative' => $array->isAssociative(),
-                'entries'       => array(),
-                'numEntries'    => $array->numEntries(),
+                JSONArray::IS_ASSOCIATIVE  => $array->isAssociative(),
+                JSONArray::ENTRIES         => array(),
+                JSONArray::ENTRIES_MISSING => $array->entriesMissing(),
             );
 
             foreach ($array->entries() as $entry)
-                $json['entries'][] = array(
-                    $entry->key()->acceptVisitor($this),
-                    $entry->value()->acceptVisitor($this),
+                $json[JSONArray::ENTRIES][] = array(
+                    JSONArrayEntry::KEY   => $entry->key()->acceptVisitor($this),
+                    JSONArrayEntry::VALUE => $entry->value()->acceptVisitor($this),
                 );
         }
 
@@ -56,7 +63,10 @@ class JSONSerialize implements ValueVisitor {
     }
 
     function visitArray(ValueArray $array) {
-        return array('array', $this->serializeArray($array));
+        return array(
+            JSONValue::PROP_TYPE  => JSONValue::TYPE_ARRAY,
+            JSONValue::PROP_ARRAY => $this->serializeArray($array),
+        );
     }
 
     private function serializeException(ValueException $exception = null) {
@@ -64,16 +74,16 @@ class JSONSerialize implements ValueVisitor {
             return null;
 
         return array(
-            'class'          => $exception->className(),
-            'code'           => $exception->code(),
-            'message'        => $exception->message(),
-            'previous'       => $this->serializeException($exception->previous()),
-            'location'       => $this->serializeCodeLocation($exception->location()),
-            'stack'          => $this->serializeStack($exception->stack()),
-            'locals'         => $this->serializeLocals($exception->locals()),
-            'globals'        => $this->serializeGlobals($exception->globals()),
-            'numStackFrames' => $exception->numStackFrames(),
-            'numLocals'      => $exception->numLocals(),
+            JSONException::CLASS_NAME     => $exception->className(),
+            JSONException::CODE           => $exception->code(),
+            JSONException::MESSAGE        => $exception->message(),
+            JSONException::PREVIOUS       => $this->serializeException($exception->previous()),
+            JSONException::LOCATION       => $this->serializeCodeLocation($exception->location()),
+            JSONException::STACK          => $this->serializeStack($exception->stack()),
+            JSONException::LOCALS         => $this->serializeLocals($exception->locals()),
+            JSONException::GLOBALS        => $this->serializeGlobals($exception->globals()),
+            JSONException::STACK_MISSING  => $exception->stackMissing(),
+            JSONException::LOCALS_MISSING => $exception->localsMissing(),
         );
     }
 
@@ -87,13 +97,13 @@ class JSONSerialize implements ValueVisitor {
 
         foreach ($stack as $frame)
             $result[] = array(
-                'function' => $frame->functionName(),
-                'class'    => $frame->className(),
-                'isStatic' => $frame->isStatic(),
-                'location' => $this->serializeCodeLocation($frame->location()),
-                'object'   => $this->serializeObject($frame->object()),
-                'args'     => $this->serializeArgs($frame->arguments()),
-                'numArgs'  => $frame->numArguments(),
+                JSONStackFrame::FUNCTION_NAME => $frame->functionName(),
+                JSONStackFrame::CLASS_NAME    => $frame->className(),
+                JSONStackFrame::IS_STATIC     => $frame->isStatic(),
+                JSONStackFrame::LOCATION      => $this->serializeCodeLocation($frame->location()),
+                JSONStackFrame::OBJECT        => $this->serializeObject($frame->object()),
+                JSONStackFrame::ARGS          => $this->serializeArgs($frame->arguments()),
+                JSONStackFrame::ARGS_MISSING  => $frame->argumentsMissing(),
             );
 
         return $result;
@@ -139,98 +149,120 @@ class JSONSerialize implements ValueVisitor {
             return null;
 
         $result = array(
-            'staticProperties'    => array(),
-            'staticVariables'     => array(),
-            'globalVariables'     => array(),
-            'numStaticProperties' => $globals->numStaticProperties(),
-            'numStaticVariables'  => $globals->numStaticVariables(),
-            'numGlobalVariables'  => $globals->numGlobalVariables(),
+            JSONGlobals::GLOBAL_VARIABLES          => array(),
+            JSONGlobals::STATIC_PROPERTIES         => array(),
+            JSONGlobals::STATIC_VARIABLES          => array(),
+            JSONGlobals::GLOBAL_VARIABLES_MISSING  => $globals->staticPropertiesMissing(),
+            JSONGlobals::STATIC_PROPERTIES_MISSING => $globals->staticVariablesMissing(),
+            JSONGlobals::STATIC_VARIABLES_MISSING  => $globals->globalVariablesMissing(),
         );
 
         foreach ($globals->staticProperties() as $p)
-            $result['staticProperties'][] = $this->serializeObjectProperty($p);
+            $result[JSONGlobals::STATIC_PROPERTIES][] = $this->serializeObjectProperty($p);
 
         foreach ($globals->staticVariables() as $v)
-            $result['staticVariables'][] = array(
-                                               'function' => $v->functionName(),
-                                               'class'    => $v->className(),
-                                           ) + $this->serializeVariable($v);
+            $result[JSONGlobals::STATIC_VARIABLES][] = array(
+                                                           JSONStaticVariable::FUNCTION_NAME => $v->functionName(),
+                                                           JSONStaticVariable::CLASS_NAME    => $v->className(),
+                                                       ) + $this->serializeVariable($v);
 
         foreach ($globals->globalVariables() as $v)
-            $result['globalVariables'][] = $this->serializeVariable($v);
+            $result[JSONGlobals::GLOBAL_VARIABLES][] = $this->serializeVariable($v);
 
         return $result;
     }
 
     function visitException(ValueException $exception) {
-        return array('exception', $this->serializeException($exception));
+        return array(
+            JSONValue::PROP_TYPE      => JSONValue::TYPE_EXCEPTION,
+            JSONValue::PROP_EXCEPTION => $this->serializeException($exception),
+        );
     }
 
     function visitString(ValueString $string) {
-        $json =& $this->json['strings'][$string->id()];
+        $json =& $this->json[self::STRINGS][$string->id()];
 
         if ($json === null) {
             $json = array(
-                'string' => $string->string(),
-                'length' => $string->length(),
+                JSONString::BYTES         => $string->bytes(),
+                JSONString::BYTES_MISSING => $string->bytesMissing(),
             );
         }
 
-        return array('string-ref', $string->id());
+        return array(
+            JSONValue::PROP_TYPE   => JSONValue::TYPE_STRING,
+            JSONValue::PROP_STRING => $string->id(),
+        );
     }
 
-    function visitInt($int) { return $int; }
+    function visitInt($int) {
+        return array(
+            JSONValue::PROP_TYPE => JSONValue::TYPE_INT,
+            JSONValue::PROP_INT  => $int,
+        );
+    }
 
-    function visitNull() { return null; }
+    function visitNull() {
+        return array(
+            JSONValue::PROP_TYPE => JSONValue::TYPE_NULL
+        );
+    }
 
-    function visitUnknown() { return array('unknown'); }
+    function visitUnknown() {
+        return array(
+            JSONValue::PROP_TYPE => JSONValue::TYPE_UNKNOWN
+        );
+    }
 
     function visitFloat($float) {
         if ($float === INF)
-            $json = '+inf';
+            return array(JSONValue::PROP_TYPE => JSONValue::TYPE_POS_INF);
         else if ($float === -INF)
-            $json = '-inf';
+            return array(JSONValue::PROP_TYPE => JSONValue::TYPE_NEG_INF);
         else if (is_nan($float))
-            $json = 'nan';
+            return array(JSONValue::PROP_TYPE => JSONValue::TYPE_NAN);
         else
-            $json = $float;
-
-        return array('float', $json);
+            return array(JSONValue::PROP_TYPE => JSONValue::TYPE_FLOAT, JSONValue::PROP_FLOAT => $float);
     }
 
     function visitResource(ValueResource $resource) {
-        $json = array(
-            'type' => $resource->type(),
-            'id'   => $resource->id(),
+        return array(
+            JSONValue::PROP_TYPE     => JSONValue::TYPE_RESOURCE,
+            JSONValue::PROP_RESOURCE => array(
+                JSONResource::TYPE => $resource->type(),
+                JSONResource::ID   => $resource->id(),
+            ),
         );
-
-        return array('resource', $json);
     }
 
-    function visitBool($bool) { return $bool; }
+    function visitBool($bool) {
+        return array(
+            JSONValue::PROP_TYPE => $bool ? JSONValue::TYPE_TRUE : JSONValue::TYPE_FALSE,
+        );
+    }
 
     private function serializeCodeLocation(ValueCodeLocation $location = null) {
         return $location instanceof ValueCodeLocation
             ? array(
-                'file'       => $location->file(),
-                'line'       => $location->line(),
-                'sourceCode' => $location->sourceCode(),
+                JSONCodeLocation::FILE   => $location->file(),
+                JSONCodeLocation::LINE   => $location->line(),
+                JSONCodeLocation::SOURCE => $location->sourceCode(),
             )
             : null;
     }
 
     private function serializeObjectProperty(ValueObjectProperty $p) {
         return array(
-                   'class'     => $p->className(),
-                   'access'    => $p->access(),
-                   'isDefault' => $p->isDefault(),
+                   JSONObjectProperty::CLASS_NAME => $p->className(),
+                   JSONObjectProperty::ACCESS     => $p->access(),
+                   JSONObjectProperty::IS_DEFAULT => $p->isDefault(),
                ) + $this->serializeVariable($p);
     }
 
     private function serializeVariable(ValueVariable $v) {
         return array(
-            'name'  => $v->name(),
-            'value' => $v->value()->acceptVisitor($this),
+            JSONVariable::NAME  => $v->name(),
+            JSONVariable::VALUE => $v->value()->acceptVisitor($this),
         );
     }
 }
@@ -257,36 +289,51 @@ abstract class JSONParse {
 }
 
 class JSONCodeLocation extends JSONParse implements ValueCodeLocation {
-    function line() { return $this->json['line']; }
+    const LINE   = 'line';
+    const FILE   = 'file';
+    const SOURCE = 'sourceCode';
 
-    function file() { return $this->json['file']; }
+    function line() { return $this->json[self::LINE]; }
 
-    function sourceCode() { return $this->json['sourceCode']; }
+    function file() { return $this->json[self::FILE]; }
+
+    function sourceCode() { return $this->json[self::SOURCE]; }
 }
 
 class JSONException extends JSONParse implements ValueException {
-    function className() { return $this->json['class']; }
+    const CLASS_NAME     = 'className';
+    const CODE           = 'code';
+    const MESSAGE        = 'message';
+    const PREVIOUS       = 'previous';
+    const LOCATION       = 'location';
+    const GLOBALS        = 'globals';
+    const LOCALS         = 'locals';
+    const STACK          = 'stack';
+    const STACK_MISSING  = 'stackMissing';
+    const LOCALS_MISSING = 'localsMissing';
 
-    function code() { return $this->json['code']; }
+    function className() { return $this->json[self::CLASS_NAME]; }
 
-    function message() { return $this->json['message']; }
+    function code() { return $this->json[self::CODE]; }
+
+    function message() { return $this->json[self::MESSAGE]; }
 
     function previous() {
-        $previous = $this->json['previous'];
+        $previous = $this->json[self::PREVIOUS];
 
         return $previous ? new self($this->root, $previous) : null;
     }
 
-    function location() { return new JSONCodeLocation($this->root, $this->json['location']); }
+    function location() { return new JSONCodeLocation($this->root, $this->json[self::LOCATION]); }
 
     function globals() {
-        $globals = $this->json['globals'];
+        $globals = $this->json[self::GLOBALS];
 
         return $globals ? new JSONGlobals($this->root, $globals) : null;
     }
 
     function locals() {
-        $locals = $this->json['locals'];
+        $locals = $this->json[self::LOCALS];
 
         if (!is_array($locals))
             return null;
@@ -302,20 +349,28 @@ class JSONException extends JSONParse implements ValueException {
     function stack() {
         $result = array();
 
-        foreach ($this->json['stack'] as $json)
+        foreach ($this->json[self::STACK] as $json)
             $result[] = new JSONStackFrame($this->root, $json);
 
         return $result;
     }
 
-    function numStackFrames() { return $this->json['numStackFrames']; }
+    function stackMissing() { return $this->json[self::STACK_MISSING]; }
 
-    function numLocals() { return $this->json['numLocals']; }
+    function localsMissing() { return $this->json[self::LOCALS_MISSING]; }
 }
 
 class JSONStackFrame extends JSONParse implements ValueStackFrame {
+    const ARGS          = 'args';
+    const FUNCTION_NAME = 'functionName';
+    const CLASS_NAME    = 'className';
+    const IS_STATIC     = 'isStatic';
+    const LOCATION      = 'location';
+    const OBJECT        = 'object';
+    const ARGS_MISSING  = 'argsMissing';
+
     function arguments() {
-        $args = $this->json['args'];
+        $args = $this->json[self::ARGS];
 
         if (!is_array($args))
             return null;
@@ -328,32 +383,39 @@ class JSONStackFrame extends JSONParse implements ValueStackFrame {
         return $result;
     }
 
-    function functionName() { return $this->json['function']; }
+    function functionName() { return $this->json[self::FUNCTION_NAME]; }
 
-    function className() { return $this->json['class']; }
+    function className() { return $this->json[self::CLASS_NAME]; }
 
-    function isStatic() { return $this->json['isStatic']; }
+    function isStatic() { return $this->json[self::IS_STATIC]; }
 
     function location() {
-        $location = $this->json['location'];
+        $location = $this->json[self::LOCATION];
 
         return $location ? new JSONCodeLocation($this->root, $location) : null;
     }
 
     function object() {
-        $object = $this->json['object'];
+        $object = $this->json[self::OBJECT];
 
         return $object ? new JSONObject($this->root, $object) : null;
     }
 
-    function numArguments() { return $this->json['numArgs']; }
+    function argumentsMissing() { return $this->json[self::ARGS_MISSING]; }
 }
 
 class JSONGlobals extends JSONParse implements ValueGlobals {
+    const STATIC_PROPERTIES         = 'staticProperties';
+    const STATIC_VARIABLES          = 'staticVariables';
+    const GLOBAL_VARIABLES          = 'globalVariables';
+    const STATIC_PROPERTIES_MISSING = 'staticPropertiesMissing';
+    const STATIC_VARIABLES_MISSING  = 'staticVariablesMissing';
+    const GLOBAL_VARIABLES_MISSING  = 'globalVariablesMissing';
+
     function staticProperties() {
         $result = array();
 
-        foreach ($this->json['staticProperties'] as $json)
+        foreach ($this->json[self::STATIC_PROPERTIES] as $json)
             $result[] = new JSONObjectProperty($this->root, $json);
 
         return $result;
@@ -362,7 +424,7 @@ class JSONGlobals extends JSONParse implements ValueGlobals {
     function staticVariables() {
         $result = array();
 
-        foreach ($this->json['staticVariables'] as $json)
+        foreach ($this->json[self::STATIC_VARIABLES] as $json)
             $result[] = new JSONStaticVariable($this->root, $json);
 
         return $result;
@@ -371,38 +433,52 @@ class JSONGlobals extends JSONParse implements ValueGlobals {
     function globalVariables() {
         $result = array();
 
-        foreach ($this->json['globalVariables'] as $json)
+        foreach ($this->json[self::GLOBAL_VARIABLES] as $json)
             $result[] = new JSONVariable($this->root, $json);
 
         return $result;
     }
 
-    function numStaticProperties() { return $this->json['numStaticProperties']; }
+    function staticPropertiesMissing() { return $this->json[self::STATIC_PROPERTIES_MISSING]; }
 
-    function numStaticVariables() { return $this->json['numStaticVariables']; }
+    function staticVariablesMissing() { return $this->json[self::STATIC_VARIABLES_MISSING]; }
 
-    function numGlobalVariables() { return $this->json['numGlobalVariables']; }
+    function globalVariablesMissing() { return $this->json[self::GLOBAL_VARIABLES_MISSING]; }
 }
 
 class JSONVariable extends JSONParse implements ValueVariable {
-    function name() { return $this->json['name']; }
+    const NAME  = 'name';
+    const VALUE = 'value';
 
-    function value() { return new JSONValue($this->root, $this->json['value']); }
+    function name() { return $this->json[self::NAME]; }
+
+    function value() { return new JSONValue($this->root, $this->json[self::VALUE]); }
 }
 
 class JSONStaticVariable extends JSONVariable implements ValueStaticVariable {
-    function functionName() { return $this->json['function']; }
+    const FUNCTION_NAME = 'functionName';
+    const CLASS_NAME    = 'className';
 
-    function className() { return $this->json['class']; }
+    function functionName() { return $this->json[self::FUNCTION_NAME]; }
+
+    function className() { return $this->json[self::CLASS_NAME]; }
 }
 
 class JSONResource extends JSONParse implements ValueResource {
-    function type() { return $this->json['type']; }
+    const TYPE = 'type';
+    const ID   = 'id';
 
-    function id() { return $this->json['id']; }
+    function type() { return $this->json[self::TYPE]; }
+
+    function id() { return $this->json[self::ID]; }
 }
 
 class JSONObject extends JSONParse implements ValueObject {
+    const CLASS_NAME         = 'className';
+    const PROPERTIES         = 'properties';
+    const HASH               = 'hash';
+    const PROPERTIES_MISSING = 'propertiesMissing';
+
     private $id;
 
     function __construct($root, $json) {
@@ -411,33 +487,41 @@ class JSONObject extends JSONParse implements ValueObject {
         parent::__construct($root, $json);
     }
 
-    function className() { return $this->json['class']; }
+    function className() { return $this->json[self::CLASS_NAME]; }
 
     function properties() {
         $result = array();
 
-        foreach ($this->json['properties'] as $property)
+        foreach ($this->json[self::PROPERTIES] as $property)
             $result[] = new JSONObjectProperty($this->root, $property);
 
         return $result;
     }
 
-    function hash() { return $this->json['hash']; }
+    function hash() { return $this->json[self::HASH]; }
 
     function id() { return $this->id; }
 
-    function numProperties() { return $this->json['numProperties']; }
+    function propertiesMissing() { return $this->json[self::PROPERTIES_MISSING]; }
 }
 
 class JSONObjectProperty extends JSONVariable implements ValueObjectProperty {
-    function access() { return $this->json['access']; }
+    const ACCESS     = 'access';
+    const CLASS_NAME = 'className';
+    const IS_DEFAULT = 'isDefault';
 
-    function className() { return $this->json['class']; }
+    function access() { return $this->json[self::ACCESS]; }
 
-    function isDefault() { return $this->json['isDefault']; }
+    function className() { return $this->json[self::CLASS_NAME]; }
+
+    function isDefault() { return $this->json[self::IS_DEFAULT]; }
 }
 
 class JSONArray extends JSONParse implements ValueArray {
+    const IS_ASSOCIATIVE  = 'isAssociative';
+    const ENTRIES         = 'entries';
+    const ENTRIES_MISSING = 'entriesMissing';
+
     private $id;
 
     function __construct($root, $json) {
@@ -446,87 +530,95 @@ class JSONArray extends JSONParse implements ValueArray {
         parent::__construct($root, $json);
     }
 
-    function isAssociative() { return $this->json['isAssociative']; }
+    function isAssociative() { return $this->json[self::IS_ASSOCIATIVE]; }
 
     function id() { return $this->id; }
 
     function entries() {
         $result = array();
 
-        foreach ($this->json['entries'] as $entry)
+        foreach ($this->json[self::ENTRIES] as $entry)
             $result[] = new JSONArrayEntry($this->root, $entry);
 
         return $result;
     }
 
-    function numEntries() { return $this->json['numEntries']; }
+    function entriesMissing() { return $this->json[self::ENTRIES_MISSING]; }
 }
 
 class JSONArrayEntry extends JSONParse implements ValueArrayEntry {
-    function key() { return new JSONValue($this->root, $this->json[0]); }
+    const KEY   = 'key';
+    const VALUE = 'value';
 
-    function value() { return new JSONValue($this->root, $this->json[1]); }
+    function key() { return new JSONValue($this->root, $this->json[self::KEY]); }
+
+    function value() { return new JSONValue($this->root, $this->json[self::VALUE]); }
 }
 
 class JSONValue extends JSONParse implements ValueImpl {
+    const PROP_TYPE      = 'type';
+    const PROP_OBJECT    = 'object';
+    const PROP_EXCEPTION = 'exception';
+    const PROP_FLOAT     = 'float';
+    const PROP_ARRAY     = 'array';
+    const PROP_RESOURCE  = 'resource';
+    const PROP_STRING    = 'string';
+    const PROP_INT       = 'int';
+    const TYPE_OBJECT    = 'object';
+    const TYPE_NEG_INF   = '-inf';
+    const TYPE_POS_INF   = '+inf';
+    const TYPE_NAN       = 'nan';
+    const TYPE_FLOAT     = 'float';
+    const TYPE_ARRAY     = 'array';
+    const TYPE_EXCEPTION = 'exception';
+    const TYPE_RESOURCE  = 'resource';
+    const TYPE_UNKNOWN   = 'unknown';
+    const TYPE_NULL      = 'null';
+    const TYPE_INT       = 'int';
+    const TYPE_TRUE      = 'true';
+    const TYPE_FALSE     = 'false';
+    const TYPE_STRING    = 'bytes';
+
     function acceptVisitor(ValueVisitor $visitor) {
-        $json = $this->json;
-
-        if (is_float($json)) {
-            return $visitor->visitFloat($json);
-        } else if (is_int($json)) {
-            return $visitor->visitInt($json);
-        } else if (is_bool($json)) {
-            return $visitor->visitBool($json);
-        } else if (is_null($json)) {
-            return $visitor->visitNull();
-        } else {
-            switch ($json[0]) {
-                case 'object':
-                    return $visitor->visitObject(new JSONObject($this->root, $json[1]));
-                case '-inf':
-                case '+inf':
-                case 'nan':
-                    return $visitor->visitFloat($this->parseFloat($json[0]));
-                case 'float':
-                    return $visitor->visitFloat($this->parseFloat($json[1]));
-                case 'array':
-                    return $visitor->visitArray(new JSONArray($this->root, $json[1]));
-                case 'exception':
-                    return $visitor->visitException(new JSONException($this->root, $json[1]));
-                case 'resource':
-                    return $visitor->visitResource(new JSONResource($this->root, $json[1]));
-                case 'unknown':
-                    return $visitor->visitUnknown();
-                case 'null':
-                    return $visitor->visitNull();
-                case 'int':
-                    return $visitor->visitInt($json[1]);
-                case 'bool':
-                    return $visitor->visitBool($json[1]);
-                case 'string':
-                    return $visitor->visitString($json[1]);
-                case 'string-ref':
-                    return $visitor->visitString(new JSONString($this->root, $json[1]));
-                default:
-                    throw new Exception("Unknown type: {$json[0]}");
-            }
+        switch ($this->json[self::PROP_TYPE]) {
+            case self::TYPE_OBJECT:
+                return $visitor->visitObject(new JSONObject($this->root, $this->json[self::PROP_OBJECT]));
+            case self::TYPE_NEG_INF:
+                return $visitor->visitFloat(-INF);
+            case self::TYPE_POS_INF:
+                return $visitor->visitFloat(INF);
+            case self::TYPE_NAN:
+                return $visitor->visitFloat(NAN);
+            case self::TYPE_FLOAT:
+                return $visitor->visitFloat($this->json[self::PROP_FLOAT]);
+            case self::TYPE_ARRAY:
+                return $visitor->visitArray(new JSONArray($this->root, $this->json[self::PROP_ARRAY]));
+            case self::TYPE_EXCEPTION:
+                return $visitor->visitException(new JSONException($this->root, $this->json[self::PROP_EXCEPTION]));
+            case self::TYPE_RESOURCE:
+                return $visitor->visitResource(new JSONResource($this->root, $this->json[self::PROP_RESOURCE]));
+            case self::TYPE_UNKNOWN:
+                return $visitor->visitUnknown();
+            case self::TYPE_NULL:
+                return $visitor->visitNull();
+            case self::TYPE_INT:
+                return $visitor->visitInt($this->json[self::PROP_INT]);
+            case self::TYPE_TRUE:
+                return $visitor->visitBool(true);
+            case self::TYPE_FALSE:
+                return $visitor->visitBool(false);
+            case self::TYPE_STRING:
+                return $visitor->visitString(new JSONString($this->root, $this->json[self::PROP_STRING]));
+            default:
+                throw new Exception("Unknown type: {$this->json[self::PROP_TYPE]}");
         }
-    }
-
-    private function parseFloat($json) {
-        if ($json === '+inf')
-            return INF;
-        else if ($json === '-inf')
-            return -INF;
-        else if ($json === 'nan')
-            return NAN;
-        else
-            return (float)$json;
     }
 }
 
 class JSONString extends JSONParse implements ValueString {
+    const BYTES         = 'bytes';
+    const BYTES_MISSING = 'bytesMissing';
+
     private $id;
 
     function __construct($root, $json) {
@@ -537,9 +629,9 @@ class JSONString extends JSONParse implements ValueString {
 
     function id() { return $this->id; }
 
-    function string() { return $this->json['string']; }
+    function bytes() { return $this->json[self::BYTES]; }
 
-    function length() { return $this->json['length']; }
+    function bytesMissing() { return $this->json[self::BYTES_MISSING]; }
 }
 
 /**
@@ -558,6 +650,54 @@ final class JSON {
         self::checkError();
 
         return $json;
+    }
+
+    static function encodePretty($value, $indent = '') {
+        if (is_object($value))
+            $value = get_object_vars($value);
+
+        if (is_array($value)) {
+            if (empty($value))
+                return '[]';
+
+            if (self::isAssoc($value)) {
+                $result = "{\n";
+
+                $i = 0;
+                foreach ($value as $k => $v) {
+                    $ppk   = self::encodePretty("$k", "$indent    ");
+                    $ppv   = self::encodePretty($v, "$indent    ");
+                    $comma = $i == count($value) - 1 ? "" : ",";
+                    $result .= "$indent    $ppk: $ppv$comma\n";
+                    $i++;
+                }
+                $result .= "$indent}";
+            } else {
+                $result = "[\n";
+
+                $i = 0;
+                foreach ($value as $v) {
+                    $p     = self::encodePretty($v, "$indent    ");
+                    $comma = $i == count($value) - 1 ? "" : ",";
+                    $result .= "$indent    $p$comma\n";
+                    $i++;
+                }
+                $result .= "$indent]";
+            }
+
+            return $result;
+        }
+
+        return self::encode($value);
+    }
+
+    static function isAssoc(array $array) {
+        $i = 0;
+        foreach ($array as $k => $v)
+            if ($k !== $i++)
+                return true;
+
+        return false;
     }
 
     /**

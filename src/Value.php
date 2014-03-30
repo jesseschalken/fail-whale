@@ -38,7 +38,7 @@ class Value {
     }
 
     function toJSON() {
-        $visitor      = new JSONSerialize;
+        $visitor      = new JSONRoot;
         $root         = $this->impl->acceptVisitor($visitor);
         $json         = $visitor->result();
         $json['root'] = $root;
@@ -176,7 +176,7 @@ interface ValueObject {
     /**
      * @return int
      */
-    function numProperties();
+    function propertiesMissing();
 }
 
 interface ValueException {
@@ -223,12 +223,12 @@ interface ValueException {
     /**
      * @return int
      */
-    function numStackFrames();
+    function stackMissing();
 
     /**
      * @return int
      */
-    function numLocals();
+    function localsMissing();
 }
 
 interface ValueGlobals {
@@ -250,17 +250,17 @@ interface ValueGlobals {
     /**
      * @return int
      */
-    function numStaticProperties();
+    function staticPropertiesMissing();
 
     /**
      * @return int
      */
-    function numStaticVariables();
+    function staticVariablesMissing();
 
     /**
      * @return int
      */
-    function numGlobalVariables();
+    function globalVariablesMissing();
 }
 
 interface ValueCodeLocation {
@@ -355,7 +355,7 @@ interface ValueStackFrame {
     /**
      * @return int
      */
-    function numArguments();
+    function argumentsMissing();
 }
 
 interface ValueArray {
@@ -377,7 +377,7 @@ interface ValueArray {
     /**
      * @return int
      */
-    function numEntries();
+    function entriesMissing();
 }
 
 interface ValueArrayEntry {
@@ -401,11 +401,11 @@ interface ValueString {
     /**
      * @return string
      */
-    function string();
+    function bytes();
 
     /**
      * @return int
      */
-    function length();
+    function bytesMissing();
 }
 

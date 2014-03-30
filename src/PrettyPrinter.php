@@ -59,7 +59,7 @@ class PrettyPrinterVisitor implements ValueVisitor {
 
         $entries       = $array->entries();
         $isAssociative = $array->isAssociative();
-        $numEntries    = $array->numEntries();
+        $numEntries    = $array->entriesMissing();
         $numMissing    = count($entries) - $numEntries;
 
         if ($numEntries == 0)
@@ -84,7 +84,7 @@ class PrettyPrinterVisitor implements ValueVisitor {
         $result = $this->renderTable($rows);
 
         if ($numMissing != 0)
-            $result->addLine("$numMissing missing entries");
+            $result->addLine("$numMissing bytesMissing entries");
 
         return $result->setHasEndingNewline(false)->wrap("array( ", " )");
     }
@@ -121,7 +121,7 @@ class PrettyPrinterVisitor implements ValueVisitor {
                 $t = $this->text('not available');
             } else {
                 $prefixes = array_fill(0, count($locals), '');
-                $t        = $this->renderVariables($locals, 'none', $e->numLocals(), $prefixes);
+                $t        = $this->renderVariables($locals, 'none', $e->localsMissing(), $prefixes);
             }
 
             $text->addLine("local variables:");
@@ -188,7 +188,7 @@ class PrettyPrinterVisitor implements ValueVisitor {
         $missing = $total - count($rows);
 
         if ($missing != 0)
-            $result->addLine("$missing missing");
+            $result->addLine("$missing bytesMissing");
 
         return $result;
     }
@@ -203,16 +203,16 @@ class PrettyPrinterVisitor implements ValueVisitor {
             $location = $frame->location();
             $location = $location instanceof ValueCodeLocation
                 ? "{$location->file()}:{$location->line()}"
-                : '[internal function]';
+                : '[internal functionName]';
             $text->addLine("#$i {$location}");
             $text->addLines($this->renderExceptionStackFrame($frame)->append(';')->indent(3));
             $text->addLine();
             $i++;
         }
 
-        $missing = $exception->numStackFrames() - count($stack);
+        $missing = $exception->stackMissing() - count($stack);
         if ($missing != 0)
-            $text->addLine("$missing missing");
+            $text->addLine("$missing bytesMissing");
         else
             $text->addLine("#$i {main}");
 
@@ -257,7 +257,7 @@ class PrettyPrinterVisitor implements ValueVisitor {
                     $class       = $p->className();
                     $function    = $p->functionName();
                     $function    = $class ? "$class::$function" : $function;
-                    $prefixes[]  = "function $function()::static ";
+                    $prefixes[]  = "functionName $function()::static ";
                     $variables[] = $p;
                 }
 
@@ -266,9 +266,9 @@ class PrettyPrinterVisitor implements ValueVisitor {
                     $prefixes[]  = in_array($v->name(), $superGlobals) ? '' : 'global ';
                 }
 
-                $total = $globals->numStaticProperties() +
-                         $globals->numStaticVariables() +
-                         $globals->numGlobalVariables();
+                $total = $globals->staticPropertiesMissing() +
+                         $globals->staticVariablesMissing() +
+                         $globals->globalVariablesMissing();
 
                 $t = $this->renderVariables($variables, 'none', $total, $prefixes);
             } else {
@@ -293,7 +293,7 @@ class PrettyPrinterVisitor implements ValueVisitor {
 
         $properties    = $object->properties();
         $class         = $object->className();
-        $numProperties = $object->numProperties();
+        $numProperties = $object->propertiesMissing();
 
         if ($numProperties == 0) {
             $result = $this->text("new $class {}");
@@ -366,8 +366,8 @@ class PrettyPrinterVisitor implements ValueVisitor {
     }
 
     function visitString(ValueString $string) {
-        $result     = $this->renderString($string->string());
-        $numMissing = $string->length() - strlen($string->string());
+        $result     = $this->renderString($string->bytes());
+        $numMissing = $string->bytesMissing() - strlen($string->bytes());
 
         if ($numMissing != 0)
             $result->append(" $numMissing more bytes...");
@@ -427,11 +427,11 @@ class PrettyPrinterVisitor implements ValueVisitor {
             else
                 $result->appendLines($pretty);
 
-            if ($k + 1 == $frame->numArguments())
+            if ($k + 1 == $frame->argumentsMissing())
                 $result->append(', ');
         }
 
-        $numMissing = $frame->numArguments() - count($args);
+        $numMissing = $frame->argumentsMissing() - count($args);
         if ($numMissing != 0)
             if ($isMultiLine)
                 $result->addLine("$numMissing more...");

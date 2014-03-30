@@ -102,9 +102,9 @@ class IntrospectionString implements ValueString {
 
     function id() { return $this->id; }
 
-    function string() { return $this->string; }
+    function bytes() { return $this->string; }
 
-    function length() { return strlen($this->string); }
+    function bytesMissing() { return 0; }
 }
 
 class IntrospectionCodeLocation implements ValueCodeLocation {
@@ -181,7 +181,7 @@ class IntrospectionObject implements ValueObject {
 
     function id() { return $this->id; }
 
-    function numProperties() { return count($this->properties); }
+    function propertiesMissing() { return 0; }
 }
 
 class IntrospectionArray implements ValueArray, ValueImpl {
@@ -215,7 +215,7 @@ class IntrospectionArray implements ValueArray, ValueImpl {
         return $visitor->visitArray($this);
     }
 
-    function numEntries() { return count($this->array); }
+    function entriesMissing() { return 0; }
 }
 
 class IntrospectionArrayEntry implements ValueArrayEntry {
@@ -295,8 +295,8 @@ class IntrospectionException implements ValueException, ValueImpl {
 
     function locals() { return $this->locals; }
 
-    function numLocals() {
-        return is_array($this->locals) ? count($this->locals) : null;
+    function localsMissing() {
+        return 0;
     }
 
     function stack() { return $this->stack; }
@@ -305,7 +305,7 @@ class IntrospectionException implements ValueException, ValueImpl {
         return $visitor->visitException($this);
     }
 
-    function numStackFrames() { return count($this->stack); }
+    function stackMissing() { return 0; }
 }
 
 class IntrospectionGlobals implements ValueGlobals {
@@ -325,11 +325,11 @@ class IntrospectionGlobals implements ValueGlobals {
 
     function globalVariables() { return IntrospectionVariable::introspect($this->introspection, $GLOBALS); }
 
-    function numStaticProperties() { return count($this->staticProperties); }
+    function staticPropertiesMissing() { return 0; }
 
-    function numStaticVariables() { return count($this->staticVariables); }
+    function staticVariablesMissing() { return 0; }
 
-    function numGlobalVariables() { return count($GLOBALS); }
+    function globalVariablesMissing() { return 0; }
 }
 
 class IntrospectionVariable implements ValueVariable {
@@ -495,7 +495,7 @@ class IntrospectionStackFrame implements ValueStackFrame {
     }
 
     function functionName() {
-        $function = $this->key('function');
+        $function = $this->key('functionName');
 
         return is_scalar($function) ? "$function" : null;
     }
@@ -505,7 +505,7 @@ class IntrospectionStackFrame implements ValueStackFrame {
     }
 
     function className() {
-        $class = $this->key('class');
+        $class = $this->key('className');
 
         return is_scalar($class) ? "$class" : null;
     }
@@ -542,10 +542,8 @@ class IntrospectionStackFrame implements ValueStackFrame {
         return isset($this->frame[$key]) ? $this->frame[$key] : null;
     }
 
-    function numArguments() {
-        $args = $this->key('args');
-
-        return is_array($args) ? count($args) : null;
+    function argumentsMissing() {
+        return 0;
     }
 }
 

@@ -74,22 +74,29 @@ class LimitedValueVisitor extends LimitedThing implements ValueVisitor {
 
 class LimitedString extends LimitedThing implements ValueString {
     private $string;
+    private $bytes;
 
     function __construct(Limiter $settings, ValueString $string) {
+        $this->bytes = $string->bytes();
         parent::__construct($settings);
         $this->string = $string;
     }
 
     function id() { return $this->string->id(); }
 
-    function string() {
-        $string = $this->string->string();
+    function bytes() {
+        $string = $this->bytes;
         $string = substr($string, 0, $this->settings->maxStringLength);
 
         return $string;
     }
 
-    function length() { return $this->string->length(); }
+    function bytesMissing() {
+        $missing = $this->string->bytesMissing();
+        $missing += max(0, strlen($this->bytes) - $this->settings->maxStringLength);
+
+        return $missing;
+    }
 }
 
 class LimitedObject extends LimitedThing implements ValueObject {
@@ -118,7 +125,12 @@ class LimitedObject extends LimitedThing implements ValueObject {
 
     function id() { return $this->object->id(); }
 
-    function numProperties() { return $this->object->numProperties(); }
+    function propertiesMissing() {
+        $missing = $this->object->propertiesMissing();
+        $missing += max(0, count($this->properties()) - $this->settings->maxObjectProperties);
+
+        return $missing;
+    }
 }
 
 class LimitedArray extends LimitedThing implements ValueArray {
@@ -145,7 +157,12 @@ class LimitedArray extends LimitedThing implements ValueArray {
 
     function id() { return $this->array->id(); }
 
-    function numEntries() { return $this->array->numEntries(); }
+    function entriesMissing() {
+        $missing = $this->array->entriesMissing();
+        $missing += max(0, count($this->array->entries()) - $this->settings->maxArrayEntries);
+
+        return $missing;
+    }
 }
 
 class LimitedArrayEntry extends LimitedThing implements ValueArrayEntry {
@@ -207,9 +224,19 @@ class LimitedException extends LimitedThing implements ValueException {
 
     function location() { return $this->exception->location(); }
 
-    function numStackFrames() { return $this->exception->numStackFrames(); }
+    function stackMissing() {
+        $missing = $this->exception->stackMissing();
+        $missing += max(0, count($this->exception->stack()) - $this->settings->maxStackFrames);
 
-    function numLocals() { return $this->exception->numLocals(); }
+        return $missing;
+    }
+
+    function localsMissing() {
+        $missing = $this->exception->localsMissing();
+        $missing += max(0, count($this->exception->locals()) - $this->settings->maxLocalVariables);
+
+        return $missing;
+    }
 }
 
 class LimitedGlobals extends LimitedThing implements ValueGlobals {
@@ -256,11 +283,26 @@ class LimitedGlobals extends LimitedThing implements ValueGlobals {
         return $result;
     }
 
-    function numStaticProperties() { return $this->globals->numStaticProperties(); }
+    function staticPropertiesMissing() {
+        $missing = $this->globals->staticPropertiesMissing();
+        $missing += max(0, count($this->globals->staticProperties()) - $this->settings->maxGlobalVariables);
 
-    function numStaticVariables() { return $this->globals->numStaticVariables(); }
+        return $missing;
+    }
 
-    function numGlobalVariables() { return $this->globals->numGlobalVariables(); }
+    function staticVariablesMissing() {
+        $missing = $this->globals->staticVariablesMissing();
+        $missing += max(0, count($this->globals->staticVariables()) - $this->settings->maxStaticVariables);
+
+        return $missing;
+    }
+
+    function globalVariablesMissing() {
+        $missing = $this->globals->globalVariablesMissing();
+        $missing += max(0, count($this->globals->globalVariables()) - $this->settings->maxGlobalVariables);
+
+        return $missing;
+    }
 }
 
 class LimitedStackFrame extends LimitedThing implements ValueStackFrame {
@@ -302,7 +344,12 @@ class LimitedStackFrame extends LimitedThing implements ValueStackFrame {
         return $object instanceof ValueObject ? new LimitedObject($this->settings, $object) : null;
     }
 
-    function numArguments() { return $this->stackFrame->numArguments(); }
+    function argumentsMissing() {
+        $missing = $this->stackFrame->argumentsMissing();
+        $missing += max(0, count($this->stackFrame->arguments()) - $this->settings->maxFunctionArguments);
+
+        return $missing;
+    }
 }
 
 class LimitedVariable extends LimitedThing implements ValueVariable {

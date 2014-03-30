@@ -38,11 +38,11 @@ s;
         );
     }
 
-    function numStackFrames() {
+    function stackMissing() {
         return 8;
     }
 
-    function numLocals() {
+    function localsMissing() {
         return 5;
     }
 }
@@ -68,7 +68,7 @@ class MockStackFrame1 implements ValueStackFrame {
 
     function object() { return $this->introspection->introspectObject(new DummyClass1); }
 
-    function numArguments() {
+    function argumentsMissing() {
         return 3;
     }
 }
@@ -94,7 +94,7 @@ class MockStackFrame2 implements ValueStackFrame {
 
     function object() { return null; }
 
-    function numArguments() {
+    function argumentsMissing() {
         return 6;
     }
 }
@@ -152,15 +152,15 @@ class MockGlobalState implements ValueGlobals {
         return array(new MockGlobal1, new MockGlobal2);
     }
 
-    function numStaticProperties() {
+    function staticPropertiesMissing() {
         return 1;
     }
 
-    function numStaticVariables() {
+    function staticVariablesMissing() {
         return 7;
     }
 
-    function numGlobalVariables() {
+    function globalVariablesMissing() {
         return 19;
     }
 }
@@ -254,7 +254,7 @@ new PrettyPrinter\TypeHandlers\Any #1 {
                                                             private $cache      = array();
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
                                                         },
-                                      "string"       => new PrettyPrinter\TypeHandlers\String #7 {
+                                      "bytes"       => new PrettyPrinter\TypeHandlers\String #7 {
                                                             private $characterEscapeCache = array( "\\" => "\\\\",
                                                                                                    "\$" => "\\\$",
                                                                                                    "\r" => "\\r",
@@ -366,9 +366,9 @@ stack trace:
 
 global variables:
   private static BlahClass::$blahProperty                       = null;
-  function BlahAnotherClass()::static $public                   = null;
+  functionName BlahAnotherClass()::static $public                   = null;
   global ${"lol global"}                                        = null;
-  function BlahYetAnotherClass::blahMethod()::static $lolStatic = null;
+  functionName BlahYetAnotherClass::blahMethod()::static $lolStatic = null;
   global $blahVariable                                          = null;
 
 
