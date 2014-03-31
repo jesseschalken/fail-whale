@@ -285,10 +285,10 @@ class PrettyPrinterVisitor {
                 }
 
                 foreach ($globals->staticVariables as $p) {
-                    $class       = $p->className;
-                    $function    = $p->functionName;
-                    $function    = $class ? "$class::$function" : $function;
-                    $prefixes[]  = "functionName $function()::static ";
+                    if ($p->className)
+                        $prefixes[] = "function $p->className::$p->functionName()::static ";
+                    else
+                        $prefixes[] = "function $p->functionName()::static ";
                     $variables[] = $p;
                 }
 
