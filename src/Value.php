@@ -78,7 +78,7 @@ js;
         if (!$settings instanceof PrettyPrinter)
             $settings = new PrettyPrinter;
 
-        /** @var PrettyPrinterText $text */
+        /** @var Text $text */
         $text = $this->impl->acceptVisitor(new PrettyPrinterVisitor($settings));
 
         return $text->toString();
