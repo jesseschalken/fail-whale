@@ -126,59 +126,50 @@ class PrettyPrinterVisitor {
     }
 
     private function renderException(JSON2\Exception $e) {
-        $location = $e->location;
+        $text = new Text("$e->className $e->code in {$e->location->file}:{$e->location->line}");
 
-        $text = new Text("$e->className $e->code in $location->file:$location->line\n");
-        $text->addLine();
-        $text1 = new Text($e->message);
-        $text1->indent(2);
-        $text->addLines($text1);
-        $text->addLine();
+        $message = new Text($e->message);
+        $message->indent();
+        $message->indent();
+        $message->wrapLines();
+        $text->addLines($message);
 
         if ($this->settings->showExceptionSourceCode) {
-            $sourceCode = $location->source;
+            if (!$e->location->source)
+                $source = new Text('not available');
+            else
+                $source = $this->renderSourceCode($e->location->source, $e->location->line);
 
-            $t = !$sourceCode
-                ? new Text('not available')
-                : $this->renderSourceCode($sourceCode, $location->line);
-
-            $t->indent();
-            $text->addLine("source code:");
-            $text->addLines($t);
-            $text->addLine();
+            $source->indent();
+            $source->wrapLines("source code:");
+            $text->addLines($source);
         }
 
         if ($this->settings->showExceptionLocalVariables) {
-            $locals = $e->locals;
-
-            if (!is_array($locals)) {
-                $t = new Text('not available');
+            if (!is_array($e->locals)) {
+                $locals = new Text('not available');
             } else {
-                $prefixes = array_fill(0, count($locals), '');
-                $t        = $this->renderVariables($locals, 'none', $e->localsMissing, $prefixes);
+                $prefixes = array_fill(0, count($e->locals), '');
+                $locals   = $this->renderVariables($e->locals, 'none', $e->localsMissing, $prefixes);
             }
 
-            $t->indent();
-            $text->addLine("local variables:");
-            $text->addLines($t);
-            $text->addLine();
+            $locals->indent();
+            $locals->wrapLines("local variables:");
+            $text->addLines($locals);
         }
 
         if ($this->settings->showExceptionStackTrace) {
-            $text2 = $this->renderExceptionStack($e);
-            $text2->indent();
-
-            $text->addLine("stack trace:");
-            $text->addLines($text2);
-            $text->addLine();
+            $stack = $this->renderExceptionStack($e);
+            $stack->indent();
+            $stack->wrapLines("stack trace:");
+            $text->addLines($stack);
         }
 
         $previous = $e->previous ? $this->renderException($e->previous) : new Text('none');
-        $previous->indent(2);
-
-        $text->addLine("previous exception:");
+        $previous->indent();
+        $previous->indent();
+        $previous->wrapLines("previous exception:");
         $text->addLines($previous);
-        $text->addLine();
 
         return $text;
     }
@@ -243,7 +234,9 @@ class PrettyPrinterVisitor {
             $text->addLine("#$i {$location}");
             $call = $this->renderExceptionStackFrame($frame);
             $call->append(';');
-            $call->indent(3);
+            $call->indent();
+            $call->indent();
+            $call->indent();
             $text->addLines($call);
             $text->addLine();
             $i++;
@@ -340,7 +333,8 @@ class PrettyPrinterVisitor {
                 $prefixes[] = "$prop->access ";
 
             $result = $this->renderVariables($object->properties, '', $object->propertiesMissing, $prefixes);
-            $result->indent(2);
+            $result->indent();
+            $result->indent();
             $result->wrapLines("new $object->className {", "}");
         }
 
@@ -549,12 +543,10 @@ class Text {
 
     function count() { return count($this->lines); }
 
-    function indent($times = 1) {
-        $space = str_repeat('  ', $times);
-
+    function indent() {
         foreach ($this->lines as $k => $line)
             if ($line !== '')
-                $this->lines[$k] = $space . $line;
+                $this->lines[$k] = "  $line";
     }
 
     function padWidth($width) {
