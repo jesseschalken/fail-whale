@@ -1,72 +1,89 @@
 module PrettyPrinter {
 
-    interface JSONRoot {
-        root: JSONValue;
-        strings: JSONString[];
-        objects: JSONObject[];
-        arrays: JSONArray[];
+    var Type = {
+        STRING:    'string',
+        ARRAY:    'array',
+        OBJECT:    'object',
+        INT:       'int',
+        TRUE:      'true',
+        FALSE:     'false',
+        NULL:      'null',
+        POS_INF:   '+inf',
+        NEG_INF:   '-inf',
+        NAN:       'nan',
+        UNKNOWN:   'unknown',
+        FLOAT:     'float',
+        RESOURCE:  'resource',
+        EXCEPTION: 'exception'
+    };
+
+    interface Root {
+        root: Value;
+        strings: String1[];
+        objects: Object1[];
+        arrays: Array1[];
     }
-    interface JSONString {
+    interface String1 {
         bytes: string;
         bytesMissing: number
     }
-    interface JSONArray {
+    interface Array1 {
         entriesMissing: number;
         entries: {
-            key: JSONValue;
-            value: JSONValue;
+            key: Value;
+            value: Value;
         }[];
     }
-    interface JSONObject {
+    interface Object1 {
         hash: string;
         className: string;
-        properties: JSONProperty[];
+        properties: Property[];
         propertiesMissing: number;
     }
-    interface JSONVariable {
+    interface Variable {
         name: string;
-        value: JSONValue;
+        value: Value;
     }
-    interface JSONProperty extends JSONVariable {
+    interface Property extends Variable {
         className: string;
         access: string;
     }
-    interface JSONStaticVariable extends JSONVariable {
+    interface StaticVariable extends Variable {
         className: string;
         functionName: string;
     }
-    interface JSONGlobals {
-        staticProperties: JSONProperty[];
+    interface Globals {
+        staticProperties: Property[];
         staticPropertiesMissing: number;
-        staticVariables: JSONStaticVariable[];
+        staticVariables: StaticVariable[];
         staticVariablesMissing: number;
-        globalVariables: JSONVariable[];
+        globalVariables: Variable[];
         globalVariablesMissing: number;
     }
-    interface JSONException {
-        locals: JSONVariable[];
+    interface Exception {
+        locals: Variable[];
         localsMissing: number;
-        globals:JSONGlobals;
-        stack: JSONStack[];
+        globals:Globals;
+        stack: Stack[];
         stackMissing: number;
         className: string;
         code: string;
         message: string;
-        location: JSONLocation;
-        previous: JSONException;
+        location: Location;
+        previous: Exception;
     }
-    interface JSONStack {
+    interface Stack {
         functionName: string;
-        args: JSONValue[];
+        args: Value[];
         argsMissing: number;
         object: number;
         className: string;
         isStatic: boolean;
-        location: JSONLocation;
+        location: Location;
     }
-    interface JSONValue {
+    interface Value {
         type: string;
-        exception: JSONException;
+        exception: Exception;
         object: number;
         array: number;
         string: number;
@@ -77,7 +94,7 @@ module PrettyPrinter {
             id: number;
         };
     }
-    interface JSONLocation {
+    interface Location {
         file: string;
         line: number;
         source: {[lineNo:number]: string};
@@ -225,7 +242,7 @@ module PrettyPrinter {
     }
 
     export function renderJSON(json:string):Node {
-        var root:JSONRoot = JSON.parse(json);
+        var root:Root = JSON.parse(json);
 
         var container = document.createElement('div');
         container.style.whiteSpace = 'pre';
@@ -234,36 +251,38 @@ module PrettyPrinter {
         container.appendChild(renderValue(root.root));
         return container;
 
-        function renderValue(x:JSONValue) {
+        function renderValue(x:Value) {
             switch (x.type) {
-                case 'int':
+                case Type.INT:
                     return renderNumber(String(x.int));
-                case 'float':
+                case Type.FLOAT:
                     var str = String(x.float);
                     str = x.float % 1 == 0 ? str + '.0' : str;
                     return renderNumber(str);
-                case 'true':
+                case Type.TRUE:
                     return keyword('true');
-                case 'false':
+                case Type.FALSE:
                     return keyword('false');
-                case 'string':
+                case Type.STRING:
                     return renderString(root.strings[x.string]);
-                case 'inf':
+                case Type.POS_INF:
                     return keyword('INF');
-                case '-inf':
+                case Type.NEG_INF:
                     return collect([text('-'), keyword('INF')]);
-                case 'nan':
+                case Type.NAN:
                     return keyword('NAN');
-                case 'array':
+                case Type.ARRAY:
                     return renderArray(x.array);
-                case 'object':
+                case Type.OBJECT:
                     return renderObject(root.objects[x.object]);
-                case 'exception':
+                case Type.EXCEPTION:
                     return renderException(x.exception);
-                case 'resource':
+                case Type.RESOURCE:
                     return collect([keyword('resource'), text(' ' + x.resource.type)]);
-                case 'null':
+                case Type.NULL:
                     return keyword('null');
+                case Type.UNKNOWN:
+                    return keyword('unknown type');
                 default:
                     throw "unknown type " + x.type;
             }
@@ -294,7 +313,7 @@ module PrettyPrinter {
             }));
         }
 
-        function renderObject(object:JSONObject):Node {
+        function renderObject(object:Object1):Node {
             return inlineBlock(expandable({
                 head: collect([keyword('object'), text(' ' + object.className)]),
                 body: function () {
@@ -326,8 +345,8 @@ module PrettyPrinter {
             }));
         }
 
-        function renderStack(stack:JSONStack[], missing:number):Node {
-            function renderFunctionCall(call:JSONStack):Node {
+        function renderStack(stack:Stack[], missing:number):Node {
+            function renderFunctionCall(call:Stack):Node {
                 var result = document.createDocumentFragment();
                 var prefix = '';
                 if (call.object) {
@@ -396,14 +415,13 @@ module PrettyPrinter {
                 return result;
             }
 
-            if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name)) {
+            if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name))
                 return red('$' + name);
-            } else {
+            else
                 return collect([red('$' + '{'), renderString({bytes: name, bytesMissing: 0}), red('}')])
-            }
         }
 
-        function renderLocals(locals:JSONVariable[], missing:number):Node {
+        function renderLocals(locals:Variable[], missing:number):Node {
             if (!(locals instanceof Array))
                 return notice('not available');
 
@@ -423,7 +441,7 @@ module PrettyPrinter {
             return container;
         }
 
-        function renderGlobals(globals:JSONGlobals) {
+        function renderGlobals(globals:Globals) {
             if (!globals)
                 return notice('not available');
 
@@ -473,9 +491,8 @@ module PrettyPrinter {
                 pieces.appendChild(keyword('functionName'));
                 pieces.appendChild(text(' '));
 
-                if (v.className) {
+                if (v.className)
                     pieces.appendChild(text(v.className + '::'));
-                }
 
                 pieces.appendChild(text(v.functionName + '()::'));
                 pieces.appendChild(renderVariable(v.name));
@@ -502,7 +519,7 @@ module PrettyPrinter {
             return container;
         }
 
-        function renderException(x:JSONException):Node {
+        function renderException(x:Exception):Node {
             if (!x)
                 return italics('none');
 
@@ -535,7 +552,7 @@ module PrettyPrinter {
             }));
         }
 
-        function renderLocation(location:JSONLocation, open:boolean = false):Node {
+        function renderLocation(location:Location, open:boolean = false):Node {
             return inlineBlock(expandable({
                 head: collect([text(location.file + ':'), renderNumber(String(location.line))]),
                 body: function () {
@@ -580,7 +597,7 @@ module PrettyPrinter {
             }));
         }
 
-        function renderString(x:JSONString):Node {
+        function renderString(x:String1):Node {
             function doRender():Node {
                 var span = document.createElement('span');
                 span.style.color = '#080';
@@ -642,11 +659,10 @@ module PrettyPrinter {
                 visualLength += isPrintable ? 1 : 4;
             }
 
-            if (visualLength > 200 || x.bytes.indexOf("\n") != -1) {
+            if (visualLength > 200 || x.bytes.indexOf("\n") != -1)
                 return inlineBlock(expandable({open: false, head: keyword('bytes'), body: doRender}));
-            } else {
+            else
                 return doRender();
-            }
         }
 
         function renderNumber(x:string):Node {

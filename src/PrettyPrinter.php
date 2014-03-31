@@ -45,11 +45,6 @@ class PrettyPrinterVisitor {
         $this->root     = $root;
     }
 
-    /**
-     * @param JSON2\Value $v
-     *
-     * @return Text
-     */
     private function render(JSON2\Value $v) {
         switch ($v->type) {
             case Type::STRING:
@@ -83,6 +78,10 @@ class PrettyPrinterVisitor {
             default:
                 return new Text("unknown type $v->type");
         }
+    }
+
+    function renderRoot() {
+        return $this->render($this->root->root);
     }
 
     private function visitArray($id) {

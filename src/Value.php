@@ -31,14 +31,14 @@ class Value {
 //        return new self(new JSONValue($json, $json['root']));
 //    }
 
-    private $impl;
+    private $root;
 
-    private function __construct(JSON2\Root $impl) {
-        $this->impl = $impl;
+    private function __construct(JSON2\Root $root) {
+        $this->root = $root;
     }
 
     function toJSON() {
-        return JSON::encode($this->impl);
+        return JSON::encode($this->root);
     }
 
     function toHTML() {
@@ -75,17 +75,9 @@ js;
     }
 
     function toString(PrettyPrinter $settings = null) {
-        if (!$settings instanceof PrettyPrinter)
-            $settings = new PrettyPrinter;
+        $visitor = new PrettyPrinterVisitor($settings ? : new PrettyPrinter, $this->root);
 
-        /** @var Text $text */
-        $text = $this->impl->acceptVisitor(new PrettyPrinterVisitor($settings));
-
-        return $text->toString();
-    }
-
-    function limit(Limiter $settings) {
-        $this->impl = new LimitedValue($settings, $this->impl);
+        return $visitor->renderRoot()->toString();
     }
 }
 
