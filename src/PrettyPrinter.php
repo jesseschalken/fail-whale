@@ -2,6 +2,8 @@
 
 namespace ErrorHandler;
 
+use ErrorHandler\JSON2\Type;
+
 final class PrettyPrinter {
     public $escapeTabsInStrings = false;
     public $showExceptionGlobalVariables = true;
@@ -31,114 +33,151 @@ final class PrettyPrinter {
     }
 }
 
-class PrettyPrinterVisitor implements ValueVisitor {
+class PrettyPrinterVisitor {
     private $settings;
     private $arraysRendered = array();
     private $objectsRendered = array();
+    /** @var JSON2\Root */
+    private $root;
 
-    function __construct(PrettyPrinter $settings) {
+    function __construct(PrettyPrinter $settings, JSON2\Root $root) {
         $this->settings = $settings;
+        $this->root     = $root;
     }
 
     /**
-     * @param ValueImpl $v
+     * @param JSON2\Value $v
      *
      * @return Text
      */
-    private function render(ValueImpl $v) { return $v->acceptVisitor($this); }
+    private function render(JSON2\Value $v) {
+        switch ($v->type) {
+            case Type::STRING:
+                return $this->visitString($this->root->strings[$v->string]);
+            case Type::ARRAY1:
+                return $this->visitArray($v->array);
+            case Type::OBJECT:
+                return $this->visitObject($v->object);
+            case Type::INT:
+                return new Text("$v->int");
+            case Type::TRUE:
+                return new Text('true');
+            case Type::FALSE:
+                return new Text('false');
+            case Type::NULL:
+                return new Text('null');
+            case Type::POS_INF:
+                return $this->visitFloat(INF);
+            case Type::NEG_INF:
+                return $this->visitFloat(-INF);
+            case Type::NAN:
+                return $this->visitFloat(NAN);
+            case Type::UNKNOWN:
+                return new Text('unknown type');
+            case Type::FLOAT:
+                return $this->visitFloat($v->float);
+            case Type::RESOURCE:
+                return new Text("{$v->resource->type}");
+            case Type::EXCEPTION:
+                return $this->visitException($v->exception);
+            default:
+                return new Text("unknown type $v->type");
+        }
+    }
 
-    function visitArray(ValueArray $array) {
-        $rendered =& $this->arraysRendered[$array->id()];
+    private function visitArray($id) {
+        $array    = $this->root->arrays[$id];
+        $rendered =& $this->arraysRendered[$id];
 
         if ($rendered)
             return new Text('*recursion*');
 
         $rendered = true;
 
-        $entries       = $array->entries();
-        $isAssociative = $array->isAssociative();
-        $numEntries    = $array->entriesMissing();
-        $numMissing    = count($entries) - $numEntries;
-
-        if ($numEntries == 0)
+        if (!($array->entries) && $array->entriesMissing == 0)
             return new Text("array()");
 
         $rows = array();
 
-        foreach ($entries as $keyValuePair) {
-            $key   = $this->render($keyValuePair->key());
-            $value = $this->render($keyValuePair->value());
+        foreach ($array->entries as $keyValuePair) {
+            $key   = $this->render($keyValuePair->key);
+            $value = $this->render($keyValuePair->value);
 
-            if (count($rows) != $numEntries - 1)
+            if (count($rows) != count($array->entries) - 1)
                 $value->append(',');
 
-            $rows[] = $isAssociative
-                ? array($key, $value->prepend(' => '))
-                : array($value);
+            if ($array->isAssociative) {
+                $value->prepend(' => ');
+                $rows[] = array($key, $value);
+            } else {
+                $rows[] = array($value);
+            }
         }
 
         $rendered = false;
 
         $result = Text::table($rows);
 
-        if ($numMissing != 0)
-            $result->addLine("$numMissing bytesMissing entries");
+        if ($array->entriesMissing != 0)
+            $result->addLine("$array->entriesMissing missing entries");
 
-        return $result->wrap("array( ", " )");
+        $result->wrap("array( ", " )");
+        return $result;
     }
 
-    /**
-     * @param ValueException $e
-     *
-     * @return Text
-     */
-    private function renderException(ValueException $e) {
-        $location = $e->location();
+    private function renderException(JSON2\Exception $e) {
+        $location = $e->location;
 
-        $text = new Text("{$e->className()} {$e->code()} in {$location->file()}:{$location->line()}\n");
+        $text = new Text("$e->className $e->code in $location->file:$location->line\n");
         $text->addLine();
-        $text1 = new Text($e->message());
-        $text->addLines($text1->indent(2));
+        $text1 = new Text($e->message);
+        $text1->indent(2);
+        $text->addLines($text1);
         $text->addLine();
 
         if ($this->settings->showExceptionSourceCode) {
-            $sourceCode = $location->sourceCode();
+            $sourceCode = $location->source;
 
             $t = !$sourceCode
                 ? new Text('not available')
-                : $this->renderSourceCode($sourceCode, $location->line());
+                : $this->renderSourceCode($sourceCode, $location->line);
 
+            $t->indent();
             $text->addLine("source code:");
-            $text->addLines($t->indent());
+            $text->addLines($t);
             $text->addLine();
         }
 
         if ($this->settings->showExceptionLocalVariables) {
-            $locals = $e->locals();
+            $locals = $e->locals;
 
             if (!is_array($locals)) {
                 $t = new Text('not available');
             } else {
                 $prefixes = array_fill(0, count($locals), '');
-                $t        = $this->renderVariables($locals, 'none', $e->localsMissing(), $prefixes);
+                $t        = $this->renderVariables($locals, 'none', $e->localsMissing, $prefixes);
             }
 
+            $t->indent();
             $text->addLine("local variables:");
-            $text->addLines($t->indent());
+            $text->addLines($t);
             $text->addLine();
         }
 
         if ($this->settings->showExceptionStackTrace) {
+            $text2 = $this->renderExceptionStack($e);
+            $text2->indent();
+
             $text->addLine("stack trace:");
-            $text->addLines($this->renderExceptionStack($e)->indent());
+            $text->addLines($text2);
             $text->addLine();
         }
 
-        $previous = $e->previous();
-        $previous = $previous instanceof ValueException ? $this->renderException($previous) : new Text('none');
+        $previous = $e->previous ? $this->renderException($e->previous) : new Text('none');
+        $previous->indent(2);
 
         $text->addLine("previous exception:");
-        $text->addLines($previous->indent(2));
+        $text->addLines($previous);
         $text->addLine();
 
         return $text;
@@ -163,76 +202,75 @@ class PrettyPrinterVisitor implements ValueVisitor {
     }
 
     /**
-     * @param ValueVariable[] $variables
-     * @param string          $noneText
-     * @param int             $total
-     * @param string[]        $prefixes
+     * @param JSON2\Variable[] $variables
+     * @param string           $noneText
+     * @param int              $missing
+     * @param string[]         $prefixes
      *
      * @return Text
      */
-    private function renderVariables(array $variables, $noneText, $total, array $prefixes) {
-        if ($total == 0)
+    private function renderVariables(array $variables, $noneText, $missing, array $prefixes) {
+        if (!$variables && $missing == 0)
             return new Text($noneText);
 
         $rows = array();
 
         foreach ($variables as $k => $variable) {
-            $text   = new Text($prefixes[$k]);
-            $rows[] = array(
-                $text->appendLines($this->renderVariable($variable->name())),
-                $this->render($variable->value())->wrap(' = ', ';'),
-            );
+            $prefix = new Text($prefixes[$k]);
+            $prefix->appendLines($this->renderVariable($variable->name));
+            $value = $this->render($variable->value);
+            $value->wrap(' = ', ';');
+            $rows[] = array($prefix, $value,);
         }
 
-        $result  = Text::table($rows);
-        $missing = $total - count($rows);
+        $result = Text::table($rows);
 
         if ($missing != 0)
-            $result->addLine("$missing bytesMissing");
+            $result->addLine("$missing missing");
 
         return $result;
     }
 
-    private function renderExceptionStack(ValueException $exception) {
+    private function renderExceptionStack(JSON2\Exception $exception) {
         $text = new Text;
         $i    = 1;
 
-        $stack = $exception->stack();
-
-        foreach ($stack as $frame) {
-            $location = $frame->location();
-            $location = $location instanceof ValueCodeLocation
-                ? "{$location->file()}:{$location->line()}"
-                : '[internal functionName]';
+        foreach ($exception->stack as $frame) {
+            $location = $frame->location;
+            $location = $location
+                ? "$location->file:$location->line"
+                : '[internal function]';
             $text->addLine("#$i {$location}");
-            $text->addLines($this->renderExceptionStackFrame($frame)->append(';')->indent(3));
+            $call = $this->renderExceptionStackFrame($frame);
+            $call->append(';');
+            $call->indent(3);
+            $text->addLines($call);
             $text->addLine();
             $i++;
         }
 
-        $missing = $exception->stackMissing() - count($stack);
-        if ($missing != 0)
-            $text->addLine("$missing bytesMissing");
+        if ($exception->stackMissing != 0)
+            $text->addLine("$exception->stackMissing missing");
         else
             $text->addLine("#$i {main}");
 
         return $text;
     }
 
-    private function renderExceptionStackFrame(ValueStackFrame $frame) {
-        $prefix = $this->renderExceptionStackFramePrefix($frame);
-        $args   = $this->renderExceptionStackFrameArgs($frame);
-
-        return $prefix->append($frame->functionName())->appendLines($args);
+    private function renderExceptionStackFrame(JSON2\Stack $frame) {
+        $result = $this->renderExceptionStackFramePrefix($frame);
+        $result->append($frame->functionName);
+        $result->appendLines($this->renderExceptionStackFrameArgs($frame));
+        return $result;
     }
 
-    function visitException(ValueException $exception) {
+    private function visitException(JSON2\Exception $exception) {
         $text = $this->renderException($exception);
 
         if ($this->settings->showExceptionGlobalVariables) {
-            $globals = $exception->globals();
+            $globals = $exception->globals;
 
-            if ($globals instanceof ValueGlobals) {
+            if ($globals) {
                 $superGlobals = array(
                     'GLOBALS',
                     '_SERVER',
@@ -248,63 +286,62 @@ class PrettyPrinterVisitor implements ValueVisitor {
                 $variables = array();
                 $prefixes  = array();
 
-                foreach ($globals->staticProperties() as $p) {
+                foreach ($globals->staticProperties as $p) {
                     $variables[] = $p;
-                    $prefixes[]  = "{$p->access()} static {$p->className()}::";
+                    $prefixes[]  = "$p->access static $p->className::";
                 }
 
-                foreach ($globals->staticVariables() as $p) {
-                    $class       = $p->className();
-                    $function    = $p->functionName();
+                foreach ($globals->staticVariables as $p) {
+                    $class       = $p->className;
+                    $function    = $p->functionName;
                     $function    = $class ? "$class::$function" : $function;
                     $prefixes[]  = "functionName $function()::static ";
                     $variables[] = $p;
                 }
 
-                foreach ($globals->globalVariables() as $v) {
+                foreach ($globals->globalVariables as $v) {
                     $variables[] = $v;
-                    $prefixes[]  = in_array($v->name(), $superGlobals) ? '' : 'global ';
+                    $prefixes[]  = in_array($v->name, $superGlobals) ? '' : 'global ';
                 }
 
-                $total = $globals->staticPropertiesMissing() +
-                         $globals->staticVariablesMissing() +
-                         $globals->globalVariablesMissing();
+                $missing = $globals->staticPropertiesMissing +
+                           $globals->staticVariablesMissing +
+                           $globals->globalVariablesMissing;
 
-                $t = $this->renderVariables($variables, 'none', $total, $prefixes);
+                $t = $this->renderVariables($variables, 'none', $missing, $prefixes);
             } else {
                 $t = new Text('not available');
             }
 
+            $t->indent();
             $text->addLine("global variables:");
-            $text->addLines($t->indent());
+            $text->addLines($t);
             $text->addLine();
         }
 
         return $text;
     }
 
-    function visitObject(ValueObject $object) {
-        $rendered =& $this->objectsRendered[$object->id()];
+    private function visitObject($id) {
+        $object   = $this->root->objects[$id];
+        $rendered =& $this->objectsRendered[$id];
 
         if ($rendered)
             return new Text('*recursion*');
 
         $rendered = true;
 
-        $properties    = $object->properties();
-        $class         = $object->className();
-        $numProperties = $object->propertiesMissing();
-
-        if ($numProperties == 0) {
-            $result = new Text("new $class {}");
+        if (!$object->properties && $object->propertiesMissing == 0) {
+            $result = new Text("new $object->className {}");
         } else {
             $prefixes = array();
 
-            foreach ($properties as $prop)
-                $prefixes[] = "{$prop->access()} ";
+            foreach ($object->properties as $prop)
+                $prefixes[] = "$prop->access ";
 
-            $result = $this->renderVariables($properties, '', $numProperties, $prefixes)
-                           ->indent(2)->wrapLines("new $class {", "}");
+            $result = $this->renderVariables($object->properties, '', $object->propertiesMissing, $prefixes);
+            $result->indent(2);
+            $result->wrapLines("new $object->className {", "}");
         }
 
         $rendered = false;
@@ -312,11 +349,6 @@ class PrettyPrinterVisitor implements ValueVisitor {
         return $result;
     }
 
-    /**
-     * @param string $string
-     *
-     * @return Text
-     */
     private function renderString($string) {
         $characterEscapeCache = array(
             "\\" => '\\\\',
@@ -347,71 +379,49 @@ class PrettyPrinterVisitor implements ValueVisitor {
         return new Text("\"$escaped\"");
     }
 
-    /**
-     * @param string $name
-     *
-     * @return Text
-     */
     private function renderVariable($name) {
         if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name))
             return new Text("$$name");
-        else
-            return $this->renderString($name)->wrap('${', '}');
+
+        $result = $this->renderString($name);
+        $result->wrap('${', '}');
+        return $result;
     }
 
-    function visitString(ValueString $string) {
-        $result     = $this->renderString($string->bytes());
-        $numMissing = $string->bytesMissing() - strlen($string->bytes());
+    private function visitString(JSON2\String1 $string) {
+        $result = $this->renderString($string->bytes);
 
-        if ($numMissing != 0)
-            $result->append(" $numMissing more bytes...");
+        if ($string->bytesMissing != 0)
+            $result->append(" $string->bytesMissing more bytes...");
 
         return $result;
     }
 
-    function visitInt($int) {
-        return new Text("$int");
-    }
-
-    function visitNull() {
-        return new Text('null');
-    }
-
-    function visitUnknown() {
-        return new Text('unknown type');
-    }
-
-    function visitFloat($float) {
+    private function visitFloat($float) {
         $int = (int)$float;
 
         return new Text("$int" === "$float" ? "$float.0" : "$float");
     }
 
-    function visitResource(ValueResource $resource) {
-        return new Text("{$resource->type()}");
-    }
-
-    function visitBool($bool) {
-        return new Text($bool ? 'true' : 'false');
-    }
-
-    private function renderExceptionStackFrameArgs(ValueStackFrame $frame) {
-        $args = $frame->arguments();
-
-        if (!is_array($args))
+    private function renderExceptionStackFrameArgs(JSON2\Stack $frame) {
+        if (!is_array($frame->args))
             return new Text("( ? )");
 
-        if ($args === array())
+        if ($frame->args === array())
             return new Text("()");
 
+        /** @var Text[] $pretties */
         $pretties    = array();
         $isMultiLine = false;
 
-        foreach ($args as $arg) {
+        foreach ($frame->args as $arg) {
             $pretty      = $this->render($arg);
             $isMultiLine = $isMultiLine || $pretty->count() > 1;
             $pretties[]  = $pretty;
         }
+
+        if ($frame->argsMissing != 0)
+            $pretties[] = new Text("$frame->argsMissing more...");
 
         $result = new Text;
 
@@ -421,30 +431,24 @@ class PrettyPrinterVisitor implements ValueVisitor {
             else
                 $result->appendLines($pretty);
 
-            if ($k + 1 == $frame->argumentsMissing())
+            if ($k != count($pretties) - 1)
                 $result->append(', ');
         }
 
-        $numMissing = $frame->argumentsMissing() - count($args);
-        if ($numMissing != 0)
-            if ($isMultiLine)
-                $result->addLine("$numMissing more...");
-            else
-                $result->append("$numMissing more...");
-
-        return $result->wrap("( ", " )");
+        $result->wrap("( ", " )");
+        return $result;
     }
 
-    private function renderExceptionStackFramePrefix(ValueStackFrame $frame) {
-        $object = $frame->object();
-        $class  = $frame->className();
-
-        if ($object instanceof ValueObject)
-            return $this->visitObject($object)->append('->');
-        else if ($class)
-            return new Text($frame->isStatic() ? "$class::" : "$class->");
-        else
+    private function renderExceptionStackFramePrefix(JSON2\Stack $frame) {
+        if ($frame->object) {
+            $prefix = $this->visitObject($frame->object);
+            $prefix->append('->');
+            return $prefix;
+        } else if ($frame->className) {
+            return new Text($frame->isStatic ? "$frame->className::" : "$frame->className->");
+        } else {
             return new Text;
+        }
     }
 }
 
@@ -516,40 +520,23 @@ class Text {
         return $this->lines ? "$text\n" : $text;
     }
 
-    /**
-     * @param string $line
-     *
-     * @return Text
-     */
     function addLine($line = "") {
-        return $this->addLines(new self($line));
+        $this->addLines(new self($line));
     }
 
-    /**
-     * @param Text $add
-     *
-     * @return Text
-     */
     function addLines(self $add) {
         foreach ($add->lines as $line)
             $this->lines[] = $line;
-
-        return $this;
     }
 
     function addLinesBefore(self $addBefore) {
-        return $this->addLines($this->swapLines($addBefore));
+        $this->addLines($this->swapLines($addBefore));
     }
 
     function append($string) {
-        return $this->appendLines(new self($string));
+        $this->appendLines(new self($string));
     }
 
-    /**
-     * @param Text $append
-     *
-     * @return Text
-     */
     function appendLines(self $append) {
         $space = str_repeat(' ', $this->width());
 
@@ -558,46 +545,32 @@ class Text {
                 $this->lines[count($this->lines) - 1] .= $line;
             else
                 $this->lines[] = $space . $line;
-
-        return $this;
     }
 
     function count() { return count($this->lines); }
 
-    /**
-     * @param int $times
-     *
-     * @return Text
-     */
     function indent($times = 1) {
         $space = str_repeat('  ', $times);
 
         foreach ($this->lines as $k => $line)
             if ($line !== '')
                 $this->lines[$k] = $space . $line;
-
-        return $this;
     }
 
     function padWidth($width) {
-        return $this->append(str_repeat(' ', $width - $this->width()));
+        $this->append(str_repeat(' ', $width - $this->width()));
     }
 
-    /**
-     * @param $string
-     *
-     * @return Text
-     */
     function prepend($string) {
-        return $this->prependLines(new self($string));
+        $this->prependLines(new self($string));
     }
 
     function prependLine($line = "") {
-        return $this->addLines($this->swapLines(new self($line)));
+        $this->addLines($this->swapLines(new self($line)));
     }
 
     function prependLines(self $lines) {
-        return $this->appendLines($this->swapLines($lines));
+        $this->appendLines($this->swapLines($lines));
     }
 
     function swapLines(self $other) {
@@ -612,10 +585,12 @@ class Text {
     }
 
     function wrap($prepend, $append) {
-        return $this->prepend($prepend)->append($append);
+        $this->prepend($prepend);
+        $this->append($append);
     }
 
     function wrapLines($prepend = '', $append = '') {
-        return $this->prependLine($prepend)->addLine($append);
+        $this->prependLine($prepend);
+        $this->addLine($append);
     }
 }

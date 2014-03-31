@@ -409,6 +409,8 @@ class Array1 extends Base {
     public $entriesMissing = 0;
     /** @var ArrayEntry[] */
     public $entries = array();
+    /** @var bool */
+    public $isAssociative;
 
     function pushJson(array $json) {
         parent::pushJson($json);
