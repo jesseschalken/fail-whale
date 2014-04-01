@@ -2,7 +2,7 @@ module PrettyPrinter {
 
     var Type = {
         STRING:    'string',
-        ARRAY:    'array',
+        ARRAY:     'array',
         OBJECT:    'object',
         INT:       'int',
         TRUE:      'true',
@@ -570,17 +570,17 @@ module PrettyPrinter {
                         lineNumber.style.paddingRight = padding;
                         lineNumber.style.marginRight = padding;
                         lineNumber.style.textAlign = 'right';
-                        lineNumber.style.color = '#999';
+                        lineNumber.style.opacity = '0.6';
 
                         var code = wrap(location.source[codeLine]);
                         code.style.minWidth = '60em';
 
                         var row = block(collect([lineNumber, code]));
+                        row.style.padding = borderWidth;
                         if (codeLine == location.line) {
                             row.style.backgroundColor = '#f99';
-                            row.style.color = '#300';
+                            row.style.color = '#600';
                             row.style.borderRadius = padding;
-                            lineNumber.style.color = '#933';
                         }
 
                         inner.appendChild(row);
@@ -589,7 +589,7 @@ module PrettyPrinter {
                     var wrapper = block(inner);
                     wrapper.style.padding = padding;
                     wrapper.style.backgroundColor = '#333';
-                    wrapper.style.color = '#eee';
+                    wrapper.style.color = '#ddd';
 
                     return  wrapper;
                 },
@@ -660,7 +660,7 @@ module PrettyPrinter {
             }
 
             if (visualLength > 200 || x.bytes.indexOf("\n") != -1)
-                return inlineBlock(expandable({open: false, head: keyword('bytes'), body: doRender}));
+                return inlineBlock(expandable({open: false, head: keyword('string'), body: doRender}));
             else
                 return doRender();
         }
