@@ -388,6 +388,7 @@ s;
         $result->className = $property->class;
         $result->name      = $property->name;
         $result->value     = $this->introspect($property->getValue($object));
+        $result->isDefault = $property->isDefault();
 
         if ($property->isPrivate())
             $result->access = 'private';
@@ -471,7 +472,8 @@ s;
     }
 
     private function introspectArray(array $array) {
-        $result = new Array1;
+        $result                = new Array1;
+        $result->isAssociative = self::isAssoc($array);
 
         foreach ($array as $key => &$value) {
             $entry             = new ArrayEntry;
@@ -487,6 +489,14 @@ s;
         $root       = clone $this->root;
         $root->root = $value;
         return $root;
+    }
+
+    private static function isAssoc(array $array) {
+        $i = 0;
+        foreach ($array as $k => $v)
+            if ($k !== $i++)
+                return true;
+        return false;
     }
 }
 
