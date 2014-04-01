@@ -6,6 +6,7 @@ use ErrorHandler\DummyClass1;
 use ErrorHandler\DummyClass2;
 use ErrorHandler\ExceptionHasFullTrace;
 use ErrorHandler\ExceptionHasLocalVariables;
+use ErrorHandler\Limiter;
 
 class Base {
     static function jsons(&$json) {
@@ -74,9 +75,11 @@ class Introspection {
     private $stringIds = array();
     private $objectIds = array();
     private $arrayIds = array();
+    private $limits;
 
-    function __construct() {
-        $this->root = new Root;
+    function __construct(Limiter $limits = null) {
+        $this->root   = new Root;
+        $this->limits = $limits ? : new Limiter;
     }
 
     function mockException() {
@@ -190,8 +193,9 @@ s;
         $result->message   = $e->getMessage();
         $result->location  = $this->introspectLocation($e->getFile(), $e->getLine());
         $result->globals   = $includeGlobals ? $this->introspectGlobals() : null;
-        $result->locals    = $this->introspectVariables($locals);
-        $result->stack     = $this->introspectStack($stack);
+        $result->locals    = $this->introspectVariables($locals, $result->localsMissing,
+                                                        $this->limits->maxLocalVariables);
+        $result->stack     = $this->introspectStack($stack, $result->stackMissing);
         $result->previous  = $this->introspectException2($e->getPrevious(), false);
         return $result;
     }
@@ -208,43 +212,48 @@ s;
 
     private function introspectGlobals() {
         $result                   = new Globals;
-        $result->globalVariables  = $this->introspectVariables($GLOBALS);
-        $result->staticProperties = $this->introspectStaticProperties();
-        $result->staticVariables  = $this->introspectStaticVariables();
+        $result->globalVariables  = $this->introspectVariables($GLOBALS, $result->globalVariablesMissing,
+                                                               $this->limits->maxGlobalVariables);
+        $result->staticProperties = $this->introspectStaticProperties($result->staticPropertiesMissing);
+        $result->staticVariables  = $this->introspectStaticVariables($result->staticVariablesMissing);
         return $result;
     }
 
-    private function introspectStack(array $frames) {
+    private function introspectStack(array $frames, &$missing) {
         $results = array();
         foreach ($frames as $frame) {
-            $function =& $frame['function'];
-            $line     =& $frame['line'];
-            $file     =& $frame['file'];
-            $class    =& $frame['class'];
-            $object   =& $frame['object'];
-            $type     =& $frame['type'];
-            $args     =& $frame['args'];
+            if (count($results) >= $this->limits->maxStackFrames) {
+                $missing++;
+            } else {
+                $function =& $frame['function'];
+                $line     =& $frame['line'];
+                $file     =& $frame['file'];
+                $class    =& $frame['class'];
+                $object   =& $frame['object'];
+                $type     =& $frame['type'];
+                $args     =& $frame['args'];
 
-            $result               = new Stack;
-            $result->functionName = $function;
-            $result->location     = $this->introspectLocation($file, $line);
-            $result->className    = $class;
-            $result->object       = $this->objectId($object);
+                $result               = new Stack;
+                $result->functionName = $function;
+                $result->location     = $this->introspectLocation($file, $line);
+                $result->className    = $class;
+                $result->object       = $this->objectId($object);
 
-            if ($type === '::')
-                $result->isStatic = true;
-            else if ($type === '->')
-                $result->isStatic = false;
-            else
-                $result->isStatic = null;
+                if ($type === '::')
+                    $result->isStatic = true;
+                else if ($type === '->')
+                    $result->isStatic = false;
+                else
+                    $result->isStatic = null;
 
-            if ($args !== null) {
-                $result->args = array();
-                foreach ($args as &$arg)
-                    $result->args[] = $this->introspectRef($arg);
+                if ($args !== null) {
+                    $result->args = array();
+                    foreach ($args as &$arg)
+                        $result->args[] = $this->introspectRef($arg);
+                }
+
+                $results[] = $result;
             }
-
-            $results[] = $result;
         }
 
         return $results;
@@ -261,17 +270,16 @@ s;
 
         $lines   = explode("\n", $contents);
         $results = array();
-
-        foreach (range($line - 10, $line + 10) as $line1) {
-            if (isset($lines[$line1 - 1])) {
+        $context = $this->limits->maxSourceCodeContext;
+        foreach (range($line - $context, $line + $context) as $line1) {
+            if (isset($lines[$line1 - 1]))
                 $results[$line1] = $lines[$line1 - 1];
-            }
         }
 
         return $results;
     }
 
-    private function introspectStaticProperties() {
+    private function introspectStaticProperties(&$missing) {
         $results = array();
 
         foreach (get_declared_classes() as $class) {
@@ -279,7 +287,10 @@ s;
 
             foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
                 if ($property->class === $reflection->name) {
-                    $results[] = $this->introspectProperty($property);
+                    if (count($results) >= $this->limits->maxStaticProperties)
+                        $missing++;
+                    else
+                        $results[] = $this->introspectProperty($property);
                 }
             }
         }
@@ -287,7 +298,7 @@ s;
         return $results;
     }
 
-    private function introspectStaticVariables() {
+    private function introspectStaticVariables(&$missing) {
         $globals = array();
 
         foreach (get_declared_classes() as $class) {
@@ -300,12 +311,16 @@ s;
                 $staticVariables = $method->getStaticVariables();
 
                 foreach ($staticVariables as $name => &$value) {
-                    $variable               = new StaticVariable;
-                    $variable->name         = $name;
-                    $variable->value        = $this->introspectRef($value);
-                    $variable->className    = $method->class;
-                    $variable->functionName = $method->getName();
-                    $globals[]              = $variable;
+                    if (count($globals) >= $this->limits->maxStaticVariables) {
+                        $missing++;
+                    } else {
+                        $variable               = new StaticVariable;
+                        $variable->name         = $name;
+                        $variable->value        = $this->introspectRef($value);
+                        $variable->className    = $method->class;
+                        $variable->functionName = $method->getName();
+                        $globals[]              = $variable;
+                    }
                 }
             }
         }
@@ -316,11 +331,15 @@ s;
                 $staticVariables = $reflection->getStaticVariables();
 
                 foreach ($staticVariables as $name => &$value2) {
-                    $variable               = new StaticVariable;
-                    $variable->name         = $name;
-                    $variable->value        = $this->introspectRef($value2);
-                    $variable->functionName = $function;
-                    $globals[]              = $variable;
+                    if (count($globals) >= $this->limits->maxStaticVariables) {
+                        $missing++;
+                    } else {
+                        $variable               = new StaticVariable;
+                        $variable->name         = $name;
+                        $variable->value        = $this->introspectRef($value2);
+                        $variable->functionName = $function;
+                        $globals[]              = $variable;
+                    }
                 }
             }
         }
@@ -328,17 +347,21 @@ s;
         return $globals;
     }
 
-    private function introspectVariables(array &$variables = null) {
+    private function introspectVariables(array &$variables = null, &$missing, $max) {
         if (!is_array($variables))
             return null;
         /** @var Variable[] $results */
         $results = array();
 
         foreach ($variables as $name => &$value) {
-            $result        = new Variable;
-            $result->name  = $name;
-            $result->value = $this->introspectRef($value);
-            $results[]     = $result;
+            if (count($results) >= $max) {
+                $missing++;
+            } else {
+                $result        = new Variable;
+                $result->name  = $name;
+                $result->value = $this->introspectRef($value);
+                $results[]     = $result;
+            }
         }
 
         return $results;
@@ -423,7 +446,7 @@ s;
         $result             = new Object1;
         $result->className  = get_class($object);
         $result->hash       = spl_object_hash($object);
-        $result->properties = $this->introspectObjectProperties($object);
+        $result->properties = $this->introspectObjectProperties($object, $result->propertiesMissing);
         return $result;
     }
 
@@ -433,8 +456,8 @@ s;
             $id = count($this->stringIds);
 
             $string               = new String1;
-            $string->bytes        = $value;
-            $string->bytesMissing = 0;
+            $string->bytes        = substr($value, 0, $this->limits->maxStringLength);
+            $string->bytesMissing = strlen($value) - strlen($string->bytes);
 
             $this->root->strings[$id] = $string;
 
@@ -462,7 +485,7 @@ s;
         return $this->introspectRef($value);
     }
 
-    private function introspectObjectProperties($object) {
+    private function introspectObjectProperties($object, &$missing) {
         /** @var Property[] $results */
         $results = array();
 
@@ -471,7 +494,10 @@ s;
              $reflection = $reflection->getParentClass()) {
             foreach ($reflection->getProperties() as $property) {
                 if (!$property->isStatic() && $property->class === $reflection->name) {
-                    $results[] = $this->introspectProperty($property, $object);
+                    if (count($results) >= $this->limits->maxObjectProperties)
+                        $missing++;
+                    else
+                        $results[] = $this->introspectProperty($property, $object);
                 }
             }
         }
@@ -493,10 +519,14 @@ s;
         $result->isAssociative = self::isAssoc($array);
 
         foreach ($array as $key => &$value) {
-            $entry             = new ArrayEntry;
-            $entry->key        = $this->introspectRef($key);
-            $entry->value      = $this->introspectRef($value);
-            $result->entries[] = $entry;
+            if (count($result->entries) >= $this->limits->maxArrayEntries) {
+                $result->entriesMissing++;
+            } else {
+                $entry             = new ArrayEntry;
+                $entry->key        = $this->introspectRef($key);
+                $entry->value      = $this->introspectRef($value);
+                $result->entries[] = $entry;
+            }
         }
 
         return $result;
@@ -521,7 +551,7 @@ class String1 extends Base {
     /** @var string */
     public $bytes;
     /** @var int */
-    public $bytesMissing;
+    public $bytesMissing = 0;
 }
 
 class Array1 extends Base {
@@ -599,15 +629,15 @@ class Globals extends Base {
     /** @var Property[] */
     public $staticProperties;
     /** @var int */
-    public $staticPropertiesMissing;
+    public $staticPropertiesMissing = 0;
     /** @var StaticVariable[] */
     public $staticVariables;
     /** @var int */
-    public $staticVariablesMissing;
+    public $staticVariablesMissing = 0;
     /** @var Variable[] */
     public $globalVariables;
     /** @var int */
-    public $globalVariablesMissing;
+    public $globalVariablesMissing = 0;
 
     function pushJson(array $json) {
         parent::pushJson($json);
@@ -625,9 +655,9 @@ class Exception extends Base {
     /** @var Globals */
     public $globals;
     /** @var Stack[] */
-    public $stack;
+    public $stack = array();
     /** @var int */
-    public $stackMissing;
+    public $stackMissing = 0;
     /** @var string */
     public $className;
     /** @var string */
@@ -655,7 +685,7 @@ class Stack extends Base {
     /** @var Value[] */
     public $args;
     /** @var int */
-    public $argsMissing;
+    public $argsMissing = 0;
     /** @var int */
     public $object;
     /** @var string */

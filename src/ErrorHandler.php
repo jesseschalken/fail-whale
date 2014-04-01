@@ -80,19 +80,17 @@ class ErrorHandler {
 
     static function simpleHandler() {
         return function (\Exception $e) {
-            $e = Value::introspectException($e);
+            $limits                       = new Limiter;
+            $limits->maxArrayEntries      = 3;
+            $limits->maxFunctionArguments = 1;
+            $limits->maxObjectProperties  = 5;
+            $limits->maxStackFrames       = 2;
+            $limits->maxLocalVariables    = 2;
+            $limits->maxGlobalVariables   = 2;
+            $limits->maxStringLength      = 20;
+            $limits->maxStaticProperties  = 0;
 
-            $limitSettings                       = new Limiter;
-            $limitSettings->maxArrayEntries      = 3;
-            $limitSettings->maxFunctionArguments = 1;
-            $limitSettings->maxObjectProperties  = 5;
-            $limitSettings->maxStackFrames       = 2;
-            $limitSettings->maxLocalVariables    = 2;
-            $limitSettings->maxGlobalVariables   = 2;
-            $limitSettings->maxStringLength      = 20;
-            $limitSettings->maxStaticProperties  = 0;
-            
-//            $e->limit($limitSettings);
+            $e = Value::introspectException($e, $limits);
 
             while (ob_get_level() > 0 && ob_end_clean()) ;
 

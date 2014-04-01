@@ -3,14 +3,15 @@
 namespace ErrorHandler;
 
 class Limiter {
-    public $maxArrayEntries = PHP_INT_MAX;
-    public $maxObjectProperties = PHP_INT_MAX;
-    public $maxStringLength = PHP_INT_MAX;
-    public $maxStackFrames = PHP_INT_MAX;
-    public $maxLocalVariables = PHP_INT_MAX;
-    public $maxStaticProperties = PHP_INT_MAX;
-    public $maxStaticVariables = PHP_INT_MAX;
-    public $maxGlobalVariables = PHP_INT_MAX;
-    public $maxFunctionArguments = PHP_INT_MAX;
+    public $maxArrayEntries = 1000;
+    public $maxObjectProperties = 100;
+    public $maxStringLength = 1000;
+    public $maxStackFrames = 10;
+    public $maxLocalVariables = 10;
+    public $maxStaticProperties = 100;
+    public $maxStaticVariables = 100;
+    public $maxGlobalVariables = 100;
+    public $maxFunctionArguments = 10;
+    public $maxSourceCodeContext = 10;
 }
 

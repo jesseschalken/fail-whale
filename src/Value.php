@@ -17,8 +17,8 @@ class Value {
         return new self($i->root($i->introspectRef($value)));
     }
 
-    static function introspectException(\Exception $exception) {
-        $i = new JSON2\Introspection;
+    static function introspectException(\Exception $exception, Limiter $limits = null) {
+        $i = new JSON2\Introspection($limits);
 
         return new self($i->root($i->introspectException($exception)));
     }
