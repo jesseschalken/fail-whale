@@ -80,34 +80,31 @@ class ErrorHandler {
 
     static function simpleHandler() {
         return function (\Exception $e) {
-            $limits                       = new Limiter;
-            $limits->maxArrayEntries      = 3;
-            $limits->maxFunctionArguments = 1;
-            $limits->maxObjectProperties  = 5;
-            $limits->maxStackFrames       = 2;
-            $limits->maxLocalVariables    = 2;
-            $limits->maxGlobalVariables   = 2;
-            $limits->maxStringLength      = 20;
-            $limits->maxStaticProperties  = 0;
-
-            $e = Value::introspectException($e, $limits);
-
             while (ob_get_level() > 0 && ob_end_clean()) ;
 
             if (PHP_SAPI === 'cli') {
-                $settings                      = new PrettyPrinter;
-                $settings->maxStringLength     = 100;
-                $settings->maxArrayEntries     = 10;
-                $settings->maxObjectProperties = 10;
+                $limits                       = new Limiter;
+                $limits->maxStringLength      = 100;
+                $limits->maxArrayEntries      = 10;
+                $limits->maxObjectProperties  = 10;
+                $limits->maxSourceCodeContext = 3;
 
-                fwrite(STDERR, $e->toString($settings));
+                $settings                               = new PrettyPrinter;
+                $settings->showExceptionGlobalVariables = false;
+                $settings->showExceptionStackTrace      = true;
+                $settings->showExceptionLocalVariables  = true;
+                $settings->showExceptionSourceCode      = true;
+                $settings->showObjectProperties         = false;
+                $settings->showArrayEntries             = false;
+
+                fwrite(STDERR, Value::introspectException($e, $limits)->toString($settings));
             } else {
                 if (!headers_sent()) {
                     header('HTTP/1.1 500 Internal Server Error', true, 500);
                     header("Content-Type: text/html; charset=UTF-8", true);
                 }
 
-                echo $e->toHTML();
+                echo Value::introspectException($e)->toHTML();
             }
         };
     }
