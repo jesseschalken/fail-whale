@@ -25,10 +25,21 @@ class Base {
     }
 
     function pushJson(array $json) {
-        foreach (get_object_vars($this) as $name => $value) {
-            $value       =& $json[$name];
-            $this->$name = $value;
-        }
+        foreach (get_object_vars($this) as $name => $value)
+            if (isset($json[$name]))
+                $this->$name = $json[$name];
+            else
+                $this->$name = null;
+    }
+
+    function pullJson() {
+        $json = array();
+        foreach (get_object_vars($this) as $name => $value)
+            if ($value instanceof self)
+                $json[$name] = $value->pullJson();
+            else if ($value !== null)
+                $json[$name] = $value;
+        return $json;
     }
 }
 

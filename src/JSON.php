@@ -7,59 +7,18 @@ namespace ErrorHandler;
  */
 final class JSON {
     /**
-     * @param mixed  $value
-     * @param string $nl
+     * @param mixed $value
+     * @param bool  $pretty
      *
      * @return string
      */
-    static function encode($value, $nl = "\n") {
-        if (is_object($value)) {
-            $value2 = array();
-            foreach (get_object_vars($value) as $key => $value)
-                if ($value !== null)
-                    $value2[$key] = $value;
-            $value = $value2;
-        }
+    static function encode($value, $pretty = true) {
+        $value = self::translateStrings($value, function ($x) { return utf8_encode($x); });
+        $json  = json_encode($value, $pretty ? JSON_PRETTY_PRINT : 0);
 
-        if (is_array($value)) {
-            if (empty($value))
-                return '[]';
+        self::checkError();
 
-            $nl2   = "$nl    ";
-            $lines = array();
-
-            if (self::isAssoc($value)) {
-                $start = "{";
-                $end   = "}";
-
-                foreach ($value as $k => $v)
-                    $lines[] = self::encode("$k", $nl2) . ": " . self::encode($v, $nl2);
-            } else {
-                $start = "[";
-                $end   = "]";
-
-                foreach ($value as $v)
-                    $lines[] = self::encode($v, $nl2);
-            }
-
-            return $start . $nl2 . join(",$nl2", $lines) . $nl . $end;
-        } else {
-            $value = self::translateStrings($value, function ($x) { return utf8_encode($x); });
-            $json  = json_encode($value);
-
-            self::checkError();
-
-            return $json;
-        }
-    }
-
-    static function isAssoc(array $array) {
-        $i = 0;
-        foreach ($array as $k => $v)
-            if ($k !== $i++)
-                return true;
-
-        return false;
+        return $json;
     }
 
     /**
@@ -110,9 +69,8 @@ final class JSON {
     }
 
     private static function checkError() {
-        if (json_last_error() !== JSON_ERROR_NONE) {
+        if (json_last_error() !== JSON_ERROR_NONE)
             throw new \Exception("JSON Error", json_last_error());
-        }
     }
 }
 

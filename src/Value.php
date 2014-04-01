@@ -40,8 +40,8 @@ class Value {
         $this->root = $root;
     }
 
-    function toJSON() {
-        return JSON::encode($this->root);
+    function toJSON($pretty = true) {
+        return JSON::encode($this->root->pullJson(), $pretty);
     }
 
     function toHTML() {
