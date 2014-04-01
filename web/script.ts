@@ -350,8 +350,11 @@ module PrettyPrinter {
                 var result = document.createDocumentFragment();
                 var prefix = '';
                 if (call.object) {
-                    result.appendChild(renderObject(root.objects[call.object]));
+                    var object = root.objects[call.object];
+                    result.appendChild(renderObject(object));
                     prefix += '->';
+                    if (object.className !== call.className)
+                        prefix += call.className + '::';
                 } else if (call.className) {
                     prefix += call.className;
                     prefix += call.isStatic ? '::' : '->';
@@ -576,7 +579,6 @@ module PrettyPrinter {
                         code.style.minWidth = '60em';
 
                         var row = block(collect([lineNumber, code]));
-                        row.style.padding = borderWidth;
                         if (codeLine == location.line) {
                             row.style.backgroundColor = '#f99';
                             row.style.color = '#600';
@@ -671,7 +673,7 @@ module PrettyPrinter {
             return result;
         }
     }
-    
+
     function decodeUTF8(utf8Bytes:string):string {
         return decodeURIComponent(escape(utf8Bytes));
     }

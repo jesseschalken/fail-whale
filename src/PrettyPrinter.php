@@ -443,9 +443,16 @@ class PrettyPrinterVisitor {
         if ($frame->object) {
             $prefix = $this->visitObject($frame->object);
             $prefix->append('->');
+
+            if ($this->root->objects[$frame->object]->className !== $frame->className)
+                $prefix->append("$frame->className::");
+
             return $prefix;
         } else if ($frame->className) {
-            return new Text($frame->isStatic ? "$frame->className::" : "$frame->className->");
+            $prefix = new Text;
+            $prefix->append($frame->className);
+            $prefix->append($frame->isStatic ? '::' : '->');
+            return $prefix;
         } else {
             return new Text;
         }
