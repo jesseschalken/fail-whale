@@ -11,6 +11,9 @@ final class PrettyPrinter {
     public $showExceptionStackTrace = true;
     public $splitMultiLineStrings = true;
     public $showExceptionSourceCode = true;
+    public $showObjectProperties = true;
+    public $showArrayEntries = true;
+    public $showStringContents = true;
 
     function assertPrettyIs($value, $expectedPretty) {
         \PHPUnit_Framework_TestCase::assertEquals($expectedPretty, $this->prettyPrint($value));
@@ -95,6 +98,8 @@ class PrettyPrinterVisitor {
 
         if (!($array->entries) && $array->entriesMissing == 0)
             return new Text("array()");
+        else if (!$this->settings->showArrayEntries)
+            return new Text("array(...)");
 
         $rows = array();
 
@@ -325,6 +330,8 @@ class PrettyPrinterVisitor {
 
         if (!$object->properties && $object->propertiesMissing == 0) {
             $result = new Text("new $object->className {}");
+        } else if (!$this->settings->showObjectProperties) {
+            $result = new Text("new $object->className {...}");
         } else {
             $prefixes = array();
 
