@@ -514,7 +514,7 @@ class Text {
     }
 
     function addLine($line = "") {
-        $this->addLines(new self($line));
+        $this->addLines(new self("$line\n"));
     }
 
     function addLines(self $add) {
@@ -557,7 +557,7 @@ class Text {
     }
 
     function prependLine($line = "") {
-        $this->addLines($this->swapLines(new self($line)));
+        $this->addLines($this->swapLines(new self("$line\n")));
     }
 
     function prependLines(self $lines) {

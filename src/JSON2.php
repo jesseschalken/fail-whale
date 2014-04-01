@@ -2,6 +2,8 @@
 
 namespace ErrorHandler\JSON2;
 
+use ErrorHandler\DummyClass1;
+use ErrorHandler\DummyClass2;
 use ErrorHandler\ExceptionHasFullTrace;
 use ErrorHandler\ExceptionHasLocalVariables;
 
@@ -58,6 +60,97 @@ class Introspection {
 
     function __construct() {
         $this->root = new Root;
+    }
+
+    function mockException() {
+        $mock                = new Exception;
+        $mock->className     = 'MuhMockException';
+        $mock->code          = 'Dummy exception code';
+        $mock->message       = <<<'s'
+This is a dummy exception message.
+
+lololool
+s;
+        $mock->previous      = null;
+        $mock->stackMissing  = 8;
+        $mock->localsMissing = 5;
+
+        $mock->location       = new Location;
+        $mock->location->file = '/path/to/muh/file';
+        $mock->location->line = 9000;
+
+        $mock->globals                          = new Globals;
+        $mock->globals->staticPropertiesMissing = 1;
+        $mock->globals->globalVariablesMissing  = 19;
+        $mock->globals->staticVariablesMissing  = 7;
+
+        $prop1            = new Property;
+        $prop1->value     = $this->introspect(null);
+        $prop1->name      = 'blahProperty';
+        $prop1->access    = 'private';
+        $prop1->className = 'BlahClass';
+        $prop1->isDefault = false;
+
+        $mock->globals->staticProperties = array($prop1);
+
+        $static1               = new StaticVariable;
+        $static1->name         = 'variable name';
+        $static1->value        = $this->introspect(true);
+        $static1->functionName = 'blahFunction';
+        $static1->className    = null;
+
+        $static2               = new StaticVariable;
+        $static2->name         = 'lolStatic';
+        $static2->value        = $this->introspect(null);
+        $static2->functionName = 'blahMethod';
+        $static2->className    = 'BlahAnotherClass';
+
+        $mock->globals->staticVariables = array($static1, $static2);
+
+        $global1        = new Variable;
+        $global1->name  = '_SESSION';
+        $global1->value = $this->introspect(true);
+
+        $global2        = new Variable;
+        $global2->name  = 'globalVariable';
+        $global2->value = $this->introspect(-2734);
+
+        $mock->globals->globalVariables = array($global1, $global2);
+
+        $local1        = new Variable;
+        $local1->name  = 'lol';
+        $local1->value = $this->introspect(8);
+
+        $local2        = new Variable;
+        $local2->name  = 'foo';
+        $local2->value = $this->introspect('bar');
+
+        $mock->locals = array($local1, $local2);
+
+        $stack1               = new Stack;
+        $stack1->args         = array($this->introspect(new DummyClass1));
+        $stack1->functionName = 'aFunction';
+        $stack1->className    = 'DummyClass1';
+        $stack1->isStatic     = false;
+        $stack1->location     = clone $mock->location;
+        $stack1->object       = $this->objectId(new DummyClass1);
+        $stack1->argsMissing  = 3;
+
+        $stack2               = new Stack;
+        $stack2->args         = array($this->introspect(new DummyClass2));
+        $stack2->functionName = 'aFunction';
+        $stack2->className    = null;
+        $stack2->isStatic     = null;
+        $stack2->location     = clone $mock->location;
+        $stack2->object       = null;
+        $stack2->argsMissing  = 6;
+
+        $mock->stack = array($stack1, $stack2);
+
+        $value            = new Value;
+        $value->type      = Type::EXCEPTION;
+        $value->exception = $mock;
+        return $value;
     }
 
     function introspectException(\Exception $e) {
@@ -464,6 +557,8 @@ class Property extends Variable {
     public $className;
     /** @var string */
     public $access;
+    /** @var bool */
+    public $isDefault;
 }
 
 class StaticVariable extends Variable {

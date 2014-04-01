@@ -2,6 +2,8 @@
 
 namespace ErrorHandler;
 
+use ErrorHandler\JSON2\Root;
+
 class Value {
     static function introspect($value) {
         $i = new JSON2\Introspection;
@@ -21,15 +23,16 @@ class Value {
         return new self($i->root($i->introspectException($exception)));
     }
 
-//    static function mockException() {
-//        return new self(new MockException(new Introspection));
-//    }
+    static function mockException() {
+        $i = new JSON2\Introspection;
+        return new self($i->root($i->mockException()));
+    }
 
-//    static function fromJSON($json) {
-//        $json = JSON::decode($json);
-//
-//        return new self(new JSONValue($json, $json['root']));
-//    }
+    static function fromJSON($json) {
+        $root = new Root;
+        $root->pushJson(JSON::decode($json));
+        return new self($root);
+    }
 
     private $root;
 
