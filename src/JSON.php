@@ -14,7 +14,14 @@ final class JSON {
      */
     static function encode($value, $pretty = true) {
         $value = self::translateStrings($value, function ($x) { return utf8_encode($x); });
-        $json  = json_encode($value, $pretty ? JSON_PRETTY_PRINT : 0);
+
+        $flags = 0;
+        $flags |= JSON_UNESCAPED_SLASHES;
+
+        if ($pretty)
+            $flags |= JSON_PRETTY_PRINT;
+
+        $json = json_encode($value, $flags);
 
         self::checkError();
 
