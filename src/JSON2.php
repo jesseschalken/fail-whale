@@ -33,12 +33,18 @@ class Base {
     }
 
     function pullJson() {
-        $json = array();
-        foreach (get_object_vars($this) as $name => $value)
-            if ($value instanceof self)
-                $json[$name] = $value->pullJson();
-            else if ($value !== null)
-                $json[$name] = $value;
+        $json = get_object_vars($this);
+        foreach ($json as $k => &$value) {
+            if ($value === null) {
+                unset($json[$k]);
+            } else if (is_array($value)) {
+                foreach ($value as &$v)
+                    if ($v instanceof self)
+                        $v = $v->pullJson();
+            } else if ($value instanceof self) {
+                $value = $value->pullJson();
+            }
+        }
         return $json;
     }
 }
