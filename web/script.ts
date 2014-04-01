@@ -572,7 +572,7 @@ module PrettyPrinter {
                         lineNumber.style.textAlign = 'right';
                         lineNumber.style.opacity = '0.6';
 
-                        var code = wrap(location.source[codeLine]);
+                        var code = wrap(decodeUTF8(location.source[codeLine]));
                         code.style.minWidth = '60em';
 
                         var row = block(collect([lineNumber, code]));
@@ -671,7 +671,14 @@ module PrettyPrinter {
             return result;
         }
     }
+    
+    function decodeUTF8(utf8Bytes:string):string {
+        return decodeURIComponent(escape(utf8Bytes));
+    }
+
 }
+
+declare function escape(s:string):string;
 
 interface CSSStyleDeclaration {
     MozBoxSizing:string;
