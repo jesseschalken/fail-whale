@@ -262,7 +262,7 @@ s;
         $lines   = explode("\n", $contents);
         $results = array();
 
-        foreach (range($line - 5, $line + 5) as $line1) {
+        foreach (range($line - 10, $line + 10) as $line1) {
             if (isset($lines[$line1 - 1])) {
                 $results[$line1] = $lines[$line1 - 1];
             }
