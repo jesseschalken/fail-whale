@@ -3,14 +3,14 @@
 namespace ErrorHandler;
 
 class Value {
-    static function introspectValue($value) {
-        $i = new Introspection;
+    static function introspectValue($value, IntrospectionSettings $settings = null) {
+        $i = new Introspection($settings);
 
         return new self($i->root($i->introspectValue($value)));
     }
 
-    static function introspectRef(&$value) {
-        $i = new Introspection;
+    static function introspectRef(&$value, IntrospectionSettings $settings = null) {
+        $i = new Introspection($settings);
 
         return new self($i->root($i->introspectRef($value)));
     }
