@@ -2,29 +2,27 @@
 
 namespace ErrorHandler;
 
-use ErrorHandler\JSON2\Root;
-
 class Value {
     static function introspect($value) {
-        $i = new JSON2\Introspection;
+        $i = new Introspection;
 
         return new self($i->root($i->introspect($value)));
     }
 
     static function introspectRef(&$value) {
-        $i = new JSON2\Introspection;
+        $i = new Introspection;
 
         return new self($i->root($i->introspectRef($value)));
     }
 
     static function introspectException(\Exception $exception, Limiter $limits = null) {
-        $i = new JSON2\Introspection($limits);
+        $i = new Introspection($limits);
 
         return new self($i->root($i->introspectException($exception)));
     }
 
     static function mockException() {
-        $i = new JSON2\Introspection;
+        $i = new Introspection;
         return new self($i->root($i->mockException()));
     }
 
@@ -36,7 +34,7 @@ class Value {
 
     private $root;
 
-    private function __construct(JSON2\Root $root) {
+    private function __construct(Root $root) {
         $this->root = $root;
     }
 

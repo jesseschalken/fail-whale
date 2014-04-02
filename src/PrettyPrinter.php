@@ -2,8 +2,6 @@
 
 namespace ErrorHandler;
 
-use ErrorHandler\JSON2\Type;
-
 final class PrettyPrinter {
     public $escapeTabsInStrings = false;
     public $showExceptionGlobalVariables = true;
@@ -40,15 +38,15 @@ class PrettyPrinterVisitor {
     private $settings;
     private $arraysRendered = array();
     private $objectsRendered = array();
-    /** @var JSON2\Root */
+    /** @var Root */
     private $root;
 
-    function __construct(PrettyPrinter $settings, JSON2\Root $root) {
+    function __construct(PrettyPrinter $settings, Root $root) {
         $this->settings = $settings;
         $this->root     = $root;
     }
 
-    private function render(JSON2\Value $v) {
+    private function render(ValueImpl $v) {
         switch ($v->type) {
             case Type::STRING:
                 return $this->visitString($this->root->strings[$v->string]);
@@ -129,7 +127,7 @@ class PrettyPrinterVisitor {
         return $result;
     }
 
-    private function renderException(JSON2\Exception $e) {
+    private function renderException(ExceptionImpl $e) {
         $text = new Text("$e->className $e->code in {$e->location->file}:{$e->location->line}");
 
         $message = new Text($e->message);
@@ -197,7 +195,7 @@ class PrettyPrinterVisitor {
     }
 
     /**
-     * @param JSON2\Variable[] $variables
+     * @param Variable[] $variables
      * @param string           $noneText
      * @param int              $missing
      * @param string[]         $prefixes
@@ -226,7 +224,7 @@ class PrettyPrinterVisitor {
         return $result;
     }
 
-    private function renderExceptionStack(JSON2\Exception $exception) {
+    private function renderExceptionStack(ExceptionImpl $exception) {
         $text = new Text;
         $i    = 1;
 
@@ -254,14 +252,14 @@ class PrettyPrinterVisitor {
         return $text;
     }
 
-    private function renderExceptionStackFrame(JSON2\Stack $frame) {
+    private function renderExceptionStackFrame(Stack $frame) {
         $result = $this->renderExceptionStackFramePrefix($frame);
         $result->append($frame->functionName);
         $result->appendLines($this->renderExceptionStackFrameArgs($frame));
         return $result;
     }
 
-    private function visitException(JSON2\Exception $exception) {
+    private function visitException(ExceptionImpl $exception) {
         $text = $this->renderException($exception);
 
         if ($this->settings->showExceptionGlobalVariables) {
@@ -388,7 +386,7 @@ class PrettyPrinterVisitor {
         return $result;
     }
 
-    private function visitString(JSON2\String1 $string) {
+    private function visitString(String1 $string) {
         $result = $this->renderString($string->bytes);
 
         if ($string->bytesMissing != 0)
@@ -403,7 +401,7 @@ class PrettyPrinterVisitor {
         return new Text("$int" === "$float" ? "$float.0" : "$float");
     }
 
-    private function renderExceptionStackFrameArgs(JSON2\Stack $frame) {
+    private function renderExceptionStackFrameArgs(Stack $frame) {
         if (!is_array($frame->args))
             return new Text("( ? )");
 
@@ -439,7 +437,7 @@ class PrettyPrinterVisitor {
         return $result;
     }
 
-    private function renderExceptionStackFramePrefix(JSON2\Stack $frame) {
+    private function renderExceptionStackFramePrefix(Stack $frame) {
         if ($frame->object) {
             $prefix = $this->visitObject($frame->object);
             $prefix->append('->');

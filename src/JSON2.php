@@ -1,12 +1,6 @@
 <?php
 
-namespace ErrorHandler\JSON2;
-
-use ErrorHandler\DummyClass1;
-use ErrorHandler\DummyClass2;
-use ErrorHandler\ExceptionHasFullTrace;
-use ErrorHandler\ExceptionHasLocalVariables;
-use ErrorHandler\Limiter;
+namespace ErrorHandler;
 
 class Base {
     static function jsons(&$json) {
@@ -51,7 +45,7 @@ class Base {
 }
 
 class Root extends Base {
-    /** @var Value */
+    /** @var ValueImpl */
     public $root;
     /** @var String1[] */
     public $strings = array();
@@ -62,7 +56,7 @@ class Root extends Base {
 
     function pushJson(array $json) {
         parent::pushJson($json);
-        Value::json($this->root);
+        ValueImpl::json($this->root);
         String1::jsons($this->strings);
         Object1::jsons($this->objects);
         Array1::jsons($this->arrays);
@@ -83,7 +77,7 @@ class Introspection {
     }
 
     function mockException() {
-        $mock                = new Exception;
+        $mock                = new ExceptionImpl;
         $mock->className     = 'MuhMockException';
         $mock->code          = 'Dummy exception code';
         $mock->message       = <<<'s'
@@ -167,14 +161,14 @@ s;
 
         $mock->stack = array($stack1, $stack2);
 
-        $value            = new Value;
+        $value            = new ValueImpl;
         $value->type      = Type::EXCEPTION;
         $value->exception = $mock;
         return $value;
     }
 
     function introspectException(\Exception $e) {
-        $result            = new Value;
+        $result            = new ValueImpl;
         $result->type      = Type::EXCEPTION;
         $result->exception = $this->introspectException2($e);
         return $result;
@@ -187,7 +181,7 @@ s;
         $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
         $stack  = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
 
-        $result            = new Exception;
+        $result            = new ExceptionImpl;
         $result->className = get_class($e);
         $result->code      = $e->getCode();
         $result->message   = $e->getMessage();
@@ -381,7 +375,7 @@ s;
     }
 
     function introspectRef(&$value) {
-        $result = new Value;
+        $result = new ValueImpl;
 
         if (is_string($value)) {
             $result->type   = Type::STRING;
@@ -532,7 +526,7 @@ s;
         return $result;
     }
 
-    function root(Value $value) {
+    function root(ValueImpl $value) {
         $root       = clone $this->root;
         $root->root = $value;
         return $root;
@@ -569,15 +563,15 @@ class Array1 extends Base {
 }
 
 class ArrayEntry extends Base {
-    /** @var Value */
+    /** @var ValueImpl */
     public $key;
-    /** @var Value */
+    /** @var ValueImpl */
     public $value;
 
     function pushJson(array $json) {
         parent::pushJson($json);
-        Value::json($this->key);
-        Value::json($this->value);
+        ValueImpl::json($this->key);
+        ValueImpl::json($this->value);
     }
 }
 
@@ -600,12 +594,12 @@ class Object1 extends Base {
 class Variable extends Base {
     /** @var string */
     public $name;
-    /** @var Value */
+    /** @var ValueImpl */
     public $value;
 
     function pushJson(array $json) {
         parent::pushJson($json);
-        Value::json($this->value);
+        ValueImpl::json($this->value);
     }
 }
 
@@ -647,7 +641,7 @@ class Globals extends Base {
     }
 }
 
-class Exception extends Base {
+class ExceptionImpl extends Base {
     /** @var Variable[] */
     public $locals;
     /** @var int */
@@ -666,7 +660,7 @@ class Exception extends Base {
     public $message;
     /** @var Location */
     public $location;
-    /** @var Exception */
+    /** @var ExceptionImpl */
     public $previous;
 
     function pushJson(array $json) {
@@ -682,7 +676,7 @@ class Exception extends Base {
 class Stack extends Base {
     /** @var string */
     public $functionName;
-    /** @var Value[] */
+    /** @var ValueImpl[] */
     public $args;
     /** @var int */
     public $argsMissing = 0;
@@ -697,15 +691,15 @@ class Stack extends Base {
 
     function pushJson(array $json) {
         parent::pushJson($json);
-        Value::jsons($this->args);
+        ValueImpl::jsons($this->args);
         Location::json($this->location);
     }
 }
 
-class Value extends Base {
+class ValueImpl extends Base {
     /** @var string */
     public $type;
-    /** @var Exception */
+    /** @var ExceptionImpl */
     public $exception;
     /** @var int */
     public $object;
@@ -722,7 +716,7 @@ class Value extends Base {
 
     function pushJson(array $json) {
         parent::pushJson($json);
-        Exception::json($this->exception);
+        ExceptionImpl::json($this->exception);
         Resource1::json($this->resource);
     }
 }
