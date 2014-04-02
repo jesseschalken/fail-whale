@@ -1,5 +1,33 @@
 module PrettyPrinter {
 
+    function rescroll() {
+        var viewport = {
+            x: document.body.scrollLeft,
+            y: document.body.scrollTop,
+            w: window.innerWidth,
+            h: window.innerHeight
+        };
+        
+        function doc() {
+            return {
+                w: document.body.scrollWidth,
+                h: document.body.scrollHeight
+            };
+        }
+        var doc1 = doc();
+
+        return function () {
+            var doc2 = doc();
+
+            if ( viewport.x + viewport.w >= doc1.w && viewport.x != 0 )
+                viewport.x = doc2.w - viewport.w;
+            if ( viewport.y + viewport.h >= doc1.h && viewport.y != 0 )
+                viewport.y = doc2.h - viewport.h;
+
+            window.scrollTo(viewport.x,viewport.y);
+        };
+    }
+
     var Type = {
         STRING:    'string',
         ARRAY:     'array',
@@ -201,8 +229,10 @@ module PrettyPrinter {
         refresh();
 
         head.addEventListener('click', function () {
+            var scroll = rescroll();
             open = !open;
             refresh();
+            scroll();
         });
 
         return container;
