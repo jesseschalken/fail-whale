@@ -25,12 +25,24 @@ class DummyClass2 extends DummyClass1 {
 }
 
 class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
-    private static function pp() {
-        return new PrettyPrinterSettings;
+    /**
+     * @param mixed $value
+     * @param string $pretty
+     */
+    private static function assertPrettyIs($value, $pretty) {
+        self::assertEquals($pretty, Value::introspectValue($value)->toString());
+    }
+
+    /**
+     * @param mixed $ref
+     * @param string $pretty
+     */
+    private static function assertPrettyRefIs(&$ref, $pretty) {
+        self::assertEquals($pretty, Value::introspectRef($ref)->toString());
     }
 
     function testClosure() {
-        self::pp()->assertPrettyIs(function () { }, <<<'s'
+        self::assertPrettyIs(function () { }, <<<'s'
 new Closure #1 {
 }
 s
@@ -38,10 +50,9 @@ s
     }
 
     function testComplexObject() {
-        $this->markTestIncomplete();
+        self::markTestIncomplete();
 
-        $pp                  = self::pp();
-        $pp->assertPrettyIs(null, <<<'s'
+        self::assertPrettyIs(null, <<<'s'
 new PrettyPrinter\TypeHandlers\Any #1 {
     private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
                                                             private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
@@ -133,9 +144,7 @@ s
     }
 
     function testException() {
-        $exception = Value::mockException();
-
-        self::assertEquals($exception->toString(self::pp()), <<<'s'
+        self::assertEquals(Value::mockException()->toString(), <<<'s'
 MuhMockException Dummy exception code in /the/path/to/muh/file:9000
 
     This is a dummy exception message.
@@ -176,22 +185,21 @@ s
     }
 
     function testMaxArrayEntries() {
-        $pp                  = self::pp();
-        $pp->assertPrettyIs(range(1, 10), <<<'s'
+        self::assertPrettyIs(range(1, 10), <<<'s'
 array( 1,
        2,
        3,
        ... )
 s
         );
-        $pp->assertPrettyIs(array("blarg" => "foo",
+        self::assertPrettyIs(array("blarg" => "foo",
                                   "bar"   => "bar"),
             <<<'s'
 array( "blarg" => "foo",
        "bar"   => "bar" )
 s
         );
-        $pp->assertPrettyIs(array("blarg"    => "foo",
+        self::assertPrettyIs(array("blarg"    => "foo",
                                   "bar"      => "bar",
                                   "bawreara" => "wrjenrg",
                                   "awfjnrg"  => "awrrg"),
@@ -205,8 +213,7 @@ s
     }
 
     function testMaxObjectProperties() {
-        $pp                      = self::pp();
-        $pp->assertPrettyIs(new DummyClass2, <<<'s'
+        self::assertPrettyIs(new DummyClass2, <<<'s'
 new PrettyPrinter\Test\DummyClass2 #1 {
     public $public2       = null;
     private $private2     = null;
@@ -220,12 +227,11 @@ s
     }
 
     function testMaxStringLength() {
-        $pp                  = self::pp();
-        $pp->assertPrettyIs("wafkjawejf bawjehfb awjhefb j,awhebf ", '"wafkjawejf...');
+        self::assertPrettyIs("wafkjawejf bawjehfb awjhefb j,awhebf ", '"wafkjawejf...');
     }
 
     function testMultiLineString() {
-        self::pp()->assertPrettyIs(<<<'s'
+        self::assertPrettyIs(<<<'s'
  weaf waef 8we 7f8tweyufgij2k3e wef f
 sdf wf wef
     wef
@@ -254,7 +260,7 @@ s
         $array       = array($object);
         $object->foo =& $array;
 
-        self::pp()->assertPrettyRefIs($array, <<<'s'
+        self::assertPrettyRefIs($array, <<<'s'
 array( new stdClass #2 {
            public $foo = array( new stdClass #2 {...} );
        } )
@@ -263,7 +269,7 @@ s
     }
 
     function testObjectProperties() {
-        self::pp()->assertPrettyIs(new DummyClass2, <<<'s'
+        self::assertPrettyIs(new DummyClass2, <<<'s'
 new PrettyPrinter\Test\DummyClass2 #1 {
     public $public2       = null;
     private $private2     = null;
@@ -280,7 +286,7 @@ s
         $recursiveArray            = array();
         $recursiveArray['recurse'] =& $recursiveArray;
 
-        self::pp()->assertPrettyIs(array(&$recursiveArray, $recursiveArray, $recursiveArray),
+        self::assertPrettyIs(array(&$recursiveArray, $recursiveArray, $recursiveArray),
             <<<'s'
 #1 array( "recurse" => #1 array(...) )
 s
@@ -288,29 +294,28 @@ s
     }
 
     function testSimpleValues() {
-        $pp = self::pp();
-        $pp->assertPrettyIs(null, "null");
-        $pp->assertPrettyIs(false, "false");
-        $pp->assertPrettyIs(true, "true");
-        $pp->assertPrettyIs(INF, "INF");
-        $pp->assertPrettyIs(-INF, "-INF");
-        $pp->assertPrettyIs(NAN, "NAN");
-        $pp->assertPrettyIs((float)0, "0.0");
-        $pp->assertPrettyIs(0, "0");
-        $pp->assertPrettyIs(0.0, "0.0");
-        $pp->assertPrettyIs(1, "1");
-        $pp->assertPrettyIs(100.0000, "100.0");
-        $pp->assertPrettyIs(100.00001, "100.00001");
-        $pp->assertPrettyIs(-1.9999, "-1.9999");
-        $pp->assertPrettyIs(PHP_INT_MAX, (string)PHP_INT_MAX);
-        $pp->assertPrettyIs(~PHP_INT_MAX, (string)~PHP_INT_MAX);
-        $pp->assertPrettyIs(0.0745, "0.0745");
-        $pp->assertPrettyIs(0.33333333333333, "0.33333333333333");
-        $pp->assertPrettyIs(2.2250738585072e-308, "2.2250738585072e-308");
-        $pp->assertPrettyIs("lol", '"lol"');
-        $pp->assertPrettyIs(array(), "array()");
-        $pp->assertPrettyIs(array("foo"), 'array( "foo" )');
-        $pp->assertPrettyIs(array("foo", "foo"),
+        self::assertPrettyIs(null, "null");
+        self::assertPrettyIs(false, "false");
+        self::assertPrettyIs(true, "true");
+        self::assertPrettyIs(INF, "INF");
+        self::assertPrettyIs(-INF, "-INF");
+        self::assertPrettyIs(NAN, "NAN");
+        self::assertPrettyIs((float)0, "0.0");
+        self::assertPrettyIs(0, "0");
+        self::assertPrettyIs(0.0, "0.0");
+        self::assertPrettyIs(1, "1");
+        self::assertPrettyIs(100.0000, "100.0");
+        self::assertPrettyIs(100.00001, "100.00001");
+        self::assertPrettyIs(-1.9999, "-1.9999");
+        self::assertPrettyIs(PHP_INT_MAX, (string)PHP_INT_MAX);
+        self::assertPrettyIs(~PHP_INT_MAX, (string)~PHP_INT_MAX);
+        self::assertPrettyIs(0.0745, "0.0745");
+        self::assertPrettyIs(0.33333333333333, "0.33333333333333");
+        self::assertPrettyIs(2.2250738585072e-308, "2.2250738585072e-308");
+        self::assertPrettyIs("lol", '"lol"');
+        self::assertPrettyIs(array(), "array()");
+        self::assertPrettyIs(array("foo"), 'array( "foo" )');
+        self::assertPrettyIs(array("foo", "foo"),
             <<<'s'
 array( "foo",
        "foo" )
@@ -322,7 +327,7 @@ s
         $object      = new \stdClass;
         $object->foo = 'bar';
 
-        self::pp()->assertPrettyIs($object, <<<'s'
+        self::assertPrettyIs($object, <<<'s'
 new stdClass #1 {
     public $foo = "bar";
 }

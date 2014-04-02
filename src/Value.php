@@ -3,10 +3,10 @@
 namespace ErrorHandler;
 
 class Value {
-    static function introspect($value) {
+    static function introspectValue($value) {
         $i = new Introspection;
 
-        return new self($i->root($i->introspect($value)));
+        return new self($i->root($i->introspectValue($value)));
     }
 
     static function introspectRef(&$value) {
@@ -76,7 +76,7 @@ js;
     }
 
     function toString(PrettyPrinterSettings $settings = null) {
-        $visitor = new PrettyPrinter($settings ? : new PrettyPrinterSettings, $this->root);
+        $visitor = new PrettyPrinter($this->root, $settings);
 
         return $visitor->renderRoot()->toString();
     }

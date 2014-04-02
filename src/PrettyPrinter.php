@@ -12,26 +12,6 @@ final class PrettyPrinterSettings {
     public $showObjectProperties = true;
     public $showArrayEntries = true;
     public $showStringContents = true;
-
-    function assertPrettyIs($value, $expectedPretty) {
-        \PHPUnit_Framework_TestCase::assertEquals($expectedPretty, $this->prettyPrint($value));
-    }
-
-    function assertPrettyRefIs(&$ref, $expectedPretty) {
-        \PHPUnit_Framework_TestCase::assertEquals($expectedPretty, $this->prettyPrintRef($ref));
-    }
-
-    function prettyPrint($value) {
-        return Value::introspect($value)->toString($this);
-    }
-
-    function prettyPrintException(\Exception $exception) {
-        return Value::introspectException($exception)->toString($this);
-    }
-
-    function prettyPrintRef(&$ref) {
-        return Value::introspectRef($ref)->toString($this);
-    }
 }
 
 class PrettyPrinter {
@@ -41,8 +21,8 @@ class PrettyPrinter {
     /** @var Root */
     private $root;
 
-    function __construct(PrettyPrinterSettings $settings, Root $root) {
-        $this->settings = $settings;
+    function __construct(Root $root, PrettyPrinterSettings $settings = null) {
+        $this->settings = $settings ? : new PrettyPrinterSettings;
         $this->root     = $root;
     }
 

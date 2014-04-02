@@ -51,7 +51,7 @@ s;
         $mock->globals->staticVariablesMissing  = 7;
 
         $prop1            = new Property;
-        $prop1->value     = $this->introspect(null);
+        $prop1->value     = $this->introspectValue(null);
         $prop1->name      = 'blahProperty';
         $prop1->access    = 'private';
         $prop1->className = 'BlahClass';
@@ -61,13 +61,13 @@ s;
 
         $static1               = new StaticVariable;
         $static1->name         = 'variable name';
-        $static1->value        = $this->introspect(true);
+        $static1->value        = $this->introspectValue(true);
         $static1->functionName = 'blahFunction';
         $static1->className    = null;
 
         $static2               = new StaticVariable;
         $static2->name         = 'lolStatic';
-        $static2->value        = $this->introspect(null);
+        $static2->value        = $this->introspectValue(null);
         $static2->functionName = 'blahMethod';
         $static2->className    = 'BlahAnotherClass';
 
@@ -75,26 +75,26 @@ s;
 
         $global1        = new Variable;
         $global1->name  = '_SESSION';
-        $global1->value = $this->introspect(true);
+        $global1->value = $this->introspectValue(true);
 
         $global2        = new Variable;
         $global2->name  = 'globalVariable';
-        $global2->value = $this->introspect(-2734);
+        $global2->value = $this->introspectValue(-2734);
 
         $mock->globals->globalVariables = array($global1, $global2);
 
         $local1        = new Variable;
         $local1->name  = 'lol';
-        $local1->value = $this->introspect(8);
+        $local1->value = $this->introspectValue(8);
 
         $local2        = new Variable;
         $local2->name  = 'foo';
-        $local2->value = $this->introspect('bar');
+        $local2->value = $this->introspectValue('bar');
 
         $mock->locals = array($local1, $local2);
 
         $stack1               = new Stack;
-        $stack1->args         = array($this->introspect(new DummyClass1));
+        $stack1->args         = array($this->introspectValue(new DummyClass1));
         $stack1->functionName = 'aFunction';
         $stack1->className    = 'DummyClass1';
         $stack1->isStatic     = false;
@@ -103,7 +103,7 @@ s;
         $stack1->argsMissing  = 3;
 
         $stack2               = new Stack;
-        $stack2->args         = array($this->introspect(new DummyClass2));
+        $stack2->args         = array($this->introspectValue(new DummyClass2));
         $stack2->functionName = 'aFunction';
         $stack2->className    = null;
         $stack2->isStatic     = null;
@@ -373,7 +373,7 @@ s;
         $result            = new Property;
         $result->className = $property->class;
         $result->name      = $property->name;
-        $result->value     = $this->introspect($property->getValue($object));
+        $result->value     = $this->introspectValue($property->getValue($object));
         $result->isDefault = $property->isDefault();
 
         if ($property->isPrivate())
@@ -427,7 +427,7 @@ s;
         return $id;
     }
 
-    function introspect($value) {
+    function introspectValue($value) {
         return $this->introspectRef($value);
     }
 
