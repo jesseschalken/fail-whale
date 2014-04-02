@@ -3,10 +3,10 @@
 namespace ErrorHandler;
 
 class Value {
-    static function introspectValue($value, IntrospectionSettings $settings = null) {
+    static function introspect($value, IntrospectionSettings $settings = null) {
         $i = new Introspection($settings);
 
-        return new self($i->root($i->introspectValue($value)));
+        return new self($i->root($i->introspect($value)));
     }
 
     static function introspectRef(&$value, IntrospectionSettings $settings = null) {

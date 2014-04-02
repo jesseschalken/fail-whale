@@ -30,7 +30,7 @@ class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
      * @param string $pretty
      */
     private static function assertPrettyIs($value, $pretty) {
-        self::assertEquals($pretty, Value::introspectValue($value)->toString());
+        self::assertEquals($pretty, Value::introspect($value)->toString());
     }
 
     /**
