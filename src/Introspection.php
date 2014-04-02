@@ -20,7 +20,8 @@ class Introspection {
     private $root;
     private $stringIds = array();
     private $objectIds = array();
-    private $arrayIds = array();
+    private $arrayIdRefs = array();
+    private $nextArrayId = 1;
     private $limits;
 
     function __construct(IntrospectionSettings $limits = null) {
@@ -326,7 +327,7 @@ s;
         return $id;
     }
 
-    function introspectRef(&$value) {
+    function introspectValue($value) {
         $result = new ValueImpl;
 
         if (is_string($value)) {
@@ -412,23 +413,36 @@ s;
         return $id;
     }
 
-    private function arrayId(array &$array) {
-        foreach ($this->arrayIds as $id => &$array2) {
-            if (self::refEqual($array2, $array)) {
+    private function arrayRefId(array &$array) {
+        foreach ($this->arrayIdRefs as $id => &$array2) {
+            if (self::refEqual($array2, $array))
                 return $id;
-            }
         }
 
-        $id = count($this->arrayIds) + 1;
+        $id = $this->nextArrayId++;
 
-        $this->arrayIds[$id]     =& $array;
+        $this->arrayIdRefs[$id]  =& $array;
         $this->root->arrays[$id] = $this->introspectArray($array);
 
         return $id;
     }
 
-    function introspectValue($value) {
-        return $this->introspectRef($value);
+    private function arrayId(array $value) {
+        $id = $this->nextArrayId++;
+
+        $this->root->arrays[$id] = $this->introspectArray($value);
+        return $id;
+    }
+
+    function introspectRef(&$value) {
+        if (is_array($value)) {
+            $result        = new ValueImpl;
+            $result->type  = Type::ARRAY1;
+            $result->array = $this->arrayRefId($value);
+            return $result;
+        } else {
+            return $this->introspectValue($value);
+        }
     }
 
     private function introspectObjectProperties($object, &$missing) {
@@ -469,7 +483,7 @@ s;
                 $result->entriesMissing++;
             } else {
                 $entry             = new ArrayEntry;
-                $entry->key        = $this->introspectRef($key);
+                $entry->key        = $this->introspectValue($key);
                 $entry->value      = $this->introspectRef($value);
                 $result->entries[] = $entry;
             }
