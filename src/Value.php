@@ -38,10 +38,6 @@ class Value {
         $this->root = $root;
     }
 
-    function toJSON($pretty = true) {
-        return JSON::encode($this->root->pullJson(), $pretty);
-    }
-
     function toHTML() {
         $js = <<<js
 document.addEventListener('DOMContentLoaded', function () {
@@ -73,6 +69,10 @@ js;
         $document->appendChild($pre);
 
         return $document->saveHTML();
+    }
+
+    function toJSON($pretty = true) {
+        return JSON::encode($this->root->pullJson(), $pretty);
     }
 
     function toString(PrettyPrinterSettings $settings = null) {

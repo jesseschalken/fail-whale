@@ -26,6 +26,10 @@ class PrettyPrinter {
         $this->root     = $root;
     }
 
+    function renderRoot() {
+        return $this->render($this->root->root);
+    }
+
     private function render(ValueImpl $v) {
         switch ($v->type) {
             case Type::STRING:
@@ -61,8 +65,13 @@ class PrettyPrinter {
         }
     }
 
-    function renderRoot() {
-        return $this->render($this->root->root);
+    private function visitString(String1 $string) {
+        $result = $this->renderString($string->bytes);
+
+        if ($string->bytesMissing != 0)
+            $result->append(" $string->bytesMissing more bytes...");
+
+        return $result;
     }
 
     private function visitArray($id) {
@@ -107,136 +116,40 @@ class PrettyPrinter {
         return $result;
     }
 
-    private function renderException(ExceptionImpl $e) {
-        $text = new Text("$e->className $e->code in {$e->location->file}:{$e->location->line}");
+    private function visitObject($id) {
+        $object   = $this->root->objects[$id];
+        $rendered =& $this->objectsRendered[$id];
 
-        $message = new Text($e->message);
-        $message->indent();
-        $message->indent();
-        $message->wrapLines();
-        $text->addLines($message);
+        if ($rendered)
+            return new Text('*recursion*');
 
-        if ($this->settings->showExceptionSourceCode) {
-            if (!$e->location->source)
-                $source = new Text('not available');
-            else
-                $source = $this->renderSourceCode($e->location->source, $e->location->line);
+        $rendered = true;
 
-            $source->indent();
-            $source->wrapLines("source code:");
-            $text->addLines($source);
+        if (!$object->properties && $object->propertiesMissing == 0) {
+            $result = new Text("new $object->className {}");
+        } else if (!$this->settings->showObjectProperties) {
+            $result = new Text("new $object->className {...}");
+        } else {
+            $prefixes = array();
+
+            foreach ($object->properties as $prop)
+                $prefixes[] = "$prop->access ";
+
+            $result = $this->renderVariables($object->properties, '', $object->propertiesMissing, $prefixes);
+            $result->indent();
+            $result->indent();
+            $result->wrapLines("new $object->className {", "}");
         }
 
-        if ($this->settings->showExceptionLocalVariables) {
-            if (!is_array($e->locals)) {
-                $locals = new Text('not available');
-            } else {
-                $prefixes = array_fill(0, count($e->locals), '');
-                $locals   = $this->renderVariables($e->locals, 'none', $e->localsMissing, $prefixes);
-            }
-
-            $locals->indent();
-            $locals->wrapLines("local variables:");
-            $text->addLines($locals);
-        }
-
-        if ($this->settings->showExceptionStackTrace) {
-            $stack = $this->renderExceptionStack($e);
-            $stack->indent();
-            $stack->wrapLines("stack trace:");
-            $text->addLines($stack);
-        }
-
-        $previous = $e->previous ? $this->renderException($e->previous) : new Text('none');
-        $previous->indent();
-        $previous->indent();
-        $previous->wrapLines("previous exception:");
-        $text->addLines($previous);
-
-        return $text;
-    }
-
-    /**
-     * @param string[] $code
-     * @param int      $line
-     *
-     * @return Text
-     */
-    private function renderSourceCode(array $code, $line) {
-        $rows = array();
-
-        foreach ($code as $codeLine => $codeText) {
-            $rows[] = array(new Text($codeLine == $line ? "> " : ''),
-                            new Text("$codeLine "),
-                            new Text($codeText));
-        }
-
-        return Text::table($rows);
-    }
-
-    /**
-     * @param Variable[] $variables
-     * @param string           $noneText
-     * @param int              $missing
-     * @param string[]         $prefixes
-     *
-     * @return Text
-     */
-    private function renderVariables(array $variables, $noneText, $missing, array $prefixes) {
-        if (!$variables && $missing == 0)
-            return new Text($noneText);
-
-        $rows = array();
-
-        foreach ($variables as $k => $variable) {
-            $prefix = new Text($prefixes[$k]);
-            $prefix->appendLines($this->renderVariable($variable->name));
-            $value = $this->render($variable->value);
-            $value->wrap(' = ', ';');
-            $rows[] = array($prefix, $value,);
-        }
-
-        $result = Text::table($rows);
-
-        if ($missing != 0)
-            $result->addLine("$missing missing");
+        $rendered = false;
 
         return $result;
     }
 
-    private function renderExceptionStack(ExceptionImpl $exception) {
-        $text = new Text;
-        $i    = 1;
+    private function visitFloat($float) {
+        $int = (int)$float;
 
-        foreach ($exception->stack as $frame) {
-            $location = $frame->location;
-            $location = $location
-                ? "$location->file:$location->line"
-                : '[internal function]';
-            $text->addLine("#$i {$location}");
-            $call = $this->renderExceptionStackFrame($frame);
-            $call->append(';');
-            $call->indent();
-            $call->indent();
-            $call->indent();
-            $text->addLines($call);
-            $text->addLine();
-            $i++;
-        }
-
-        if ($exception->stackMissing != 0)
-            $text->addLine("$exception->stackMissing missing");
-        else
-            $text->addLine("#$i {main}");
-
-        return $text;
-    }
-
-    private function renderExceptionStackFrame(Stack $frame) {
-        $result = $this->renderExceptionStackFramePrefix($frame);
-        $result->append($frame->functionName);
-        $result->appendLines($this->renderExceptionStackFrameArgs($frame));
-        return $result;
+        return new Text("$int" === "$float" ? "$float.0" : "$float");
     }
 
     private function visitException(ExceptionImpl $exception) {
@@ -297,36 +210,6 @@ class PrettyPrinter {
         return $text;
     }
 
-    private function visitObject($id) {
-        $object   = $this->root->objects[$id];
-        $rendered =& $this->objectsRendered[$id];
-
-        if ($rendered)
-            return new Text('*recursion*');
-
-        $rendered = true;
-
-        if (!$object->properties && $object->propertiesMissing == 0) {
-            $result = new Text("new $object->className {}");
-        } else if (!$this->settings->showObjectProperties) {
-            $result = new Text("new $object->className {...}");
-        } else {
-            $prefixes = array();
-
-            foreach ($object->properties as $prop)
-                $prefixes[] = "$prop->access ";
-
-            $result = $this->renderVariables($object->properties, '', $object->propertiesMissing, $prefixes);
-            $result->indent();
-            $result->indent();
-            $result->wrapLines("new $object->className {", "}");
-        }
-
-        $rendered = false;
-
-        return $result;
-    }
-
     private function renderString($string) {
         $characterEscapeCache = array(
             "\\" => '\\\\',
@@ -357,6 +240,85 @@ class PrettyPrinter {
         return new Text("\"$escaped\"");
     }
 
+    /**
+     * @param Variable[] $variables
+     * @param string $noneText
+     * @param int $missing
+     * @param string[] $prefixes
+     *
+     * @return Text
+     */
+    private function renderVariables(array $variables, $noneText, $missing, array $prefixes) {
+        if (!$variables && $missing == 0)
+            return new Text($noneText);
+
+        $rows = array();
+
+        foreach ($variables as $k => $variable) {
+            $prefix = new Text($prefixes[$k]);
+            $prefix->appendLines($this->renderVariable($variable->name));
+            $value = $this->render($variable->value);
+            $value->wrap(' = ', ';');
+            $rows[] = array($prefix, $value,);
+        }
+
+        $result = Text::table($rows);
+
+        if ($missing != 0)
+            $result->addLine("$missing missing");
+
+        return $result;
+    }
+
+    private function renderException(ExceptionImpl $e) {
+        $text = new Text("$e->className $e->code in {$e->location->file}:{$e->location->line}");
+
+        $message = new Text($e->message);
+        $message->indent();
+        $message->indent();
+        $message->wrapLines();
+        $text->addLines($message);
+
+        if ($this->settings->showExceptionSourceCode) {
+            if (!$e->location->source)
+                $source = new Text('not available');
+            else
+                $source = $this->renderSourceCode($e->location->source, $e->location->line);
+
+            $source->indent();
+            $source->wrapLines("source code:");
+            $text->addLines($source);
+        }
+
+        if ($this->settings->showExceptionLocalVariables) {
+            if (!is_array($e->locals)) {
+                $locals = new Text('not available');
+            } else {
+                $prefixes = array_fill(0, count($e->locals), '');
+                $locals   = $this->renderVariables($e->locals, 'none', $e->localsMissing, $prefixes);
+            }
+
+            $locals->indent();
+            $locals->wrapLines("local variables:");
+            $text->addLines($locals);
+        }
+
+        if ($this->settings->showExceptionStackTrace) {
+            $stack = $this->renderExceptionStack($e);
+            $stack->indent();
+            $stack->wrapLines("stack trace:");
+            $text->addLines($stack);
+        }
+
+        $previous = $e->previous ? $this->renderException($e->previous) : new Text('none');
+        $previous->indent();
+        $previous->indent();
+        $previous->wrapLines("previous exception:");
+        $text->addLines($previous);
+
+        return $text;
+    }
+
     private function renderVariable($name) {
         if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name))
             return new Text("$$name");
@@ -366,19 +328,76 @@ class PrettyPrinter {
         return $result;
     }
 
-    private function visitString(String1 $string) {
-        $result = $this->renderString($string->bytes);
+    /**
+     * @param string[] $code
+     * @param int $line
+     *
+     * @return Text
+     */
+    private function renderSourceCode(array $code, $line) {
+        $rows = array();
 
-        if ($string->bytesMissing != 0)
-            $result->append(" $string->bytesMissing more bytes...");
+        foreach ($code as $codeLine => $codeText) {
+            $rows[] = array(new Text($codeLine == $line ? "> " : ''),
+                            new Text("$codeLine "),
+                            new Text($codeText));
+        }
 
+        return Text::table($rows);
+    }
+
+    private function renderExceptionStack(ExceptionImpl $exception) {
+        $text = new Text;
+        $i    = 1;
+
+        foreach ($exception->stack as $frame) {
+            $location = $frame->location;
+            $location = $location
+                ? "$location->file:$location->line"
+                : '[internal function]';
+            $text->addLine("#$i {$location}");
+            $call = $this->renderExceptionStackFrame($frame);
+            $call->append(';');
+            $call->indent();
+            $call->indent();
+            $call->indent();
+            $text->addLines($call);
+            $text->addLine();
+            $i++;
+        }
+
+        if ($exception->stackMissing != 0)
+            $text->addLine("$exception->stackMissing missing");
+        else
+            $text->addLine("#$i {main}");
+
+        return $text;
+    }
+
+    private function renderExceptionStackFrame(Stack $frame) {
+        $result = $this->renderExceptionStackFramePrefix($frame);
+        $result->append($frame->functionName);
+        $result->appendLines($this->renderExceptionStackFrameArgs($frame));
         return $result;
     }
 
-    private function visitFloat($float) {
-        $int = (int)$float;
+    private function renderExceptionStackFramePrefix(Stack $frame) {
+        if ($frame->object) {
+            $prefix = $this->visitObject($frame->object);
+            $prefix->append('->');
 
-        return new Text("$int" === "$float" ? "$float.0" : "$float");
+            if ($this->root->objects[$frame->object]->className !== $frame->className)
+                $prefix->append("$frame->className::");
+
+            return $prefix;
+        } else if ($frame->className) {
+            $prefix = new Text;
+            $prefix->append($frame->className);
+            $prefix->append($frame->isStatic ? '::' : '->');
+            return $prefix;
+        } else {
+            return new Text;
+        }
     }
 
     private function renderExceptionStackFrameArgs(Stack $frame) {
@@ -415,25 +434,6 @@ class PrettyPrinter {
 
         $result->wrap("( ", " )");
         return $result;
-    }
-
-    private function renderExceptionStackFramePrefix(Stack $frame) {
-        if ($frame->object) {
-            $prefix = $this->visitObject($frame->object);
-            $prefix->append('->');
-
-            if ($this->root->objects[$frame->object]->className !== $frame->className)
-                $prefix->append("$frame->className::");
-
-            return $prefix;
-        } else if ($frame->className) {
-            $prefix = new Text;
-            $prefix->append($frame->className);
-            $prefix->append($frame->isStatic ? '::' : '->');
-            return $prefix;
-        } else {
-            return new Text;
-        }
     }
 }
 
@@ -487,6 +487,33 @@ class Text {
         return $result;
     }
 
+    function width() {
+        return $this->lines ? strlen($this->lines[count($this->lines) - 1]) : 0;
+    }
+
+    function padWidth($width) {
+        $this->append(str_repeat(' ', $width - $this->width()));
+    }
+
+    function appendLines(self $append) {
+        $space = str_repeat(' ', $this->width());
+
+        foreach ($append->lines as $k => $line)
+            if ($k == 0 && $this->lines)
+                $this->lines[count($this->lines) - 1] .= $line;
+            else
+                $this->lines[] = $space . $line;
+    }
+
+    function addLines(self $add) {
+        foreach ($add->lines as $line)
+            $this->lines[] = $line;
+    }
+
+    function append($string) {
+        $this->appendLines(new self($string));
+    }
+
     /** @var string[] */
     private $lines;
 
@@ -505,31 +532,15 @@ class Text {
         return $this->lines ? "$text\n" : $text;
     }
 
-    function addLine($line = "") {
-        $this->addLines(new self("$line\n"));
-    }
-
-    function addLines(self $add) {
-        foreach ($add->lines as $line)
-            $this->lines[] = $line;
-    }
-
     function addLinesBefore(self $addBefore) {
         $this->addLines($this->swapLines($addBefore));
     }
 
-    function append($string) {
-        $this->appendLines(new self($string));
-    }
+    function swapLines(self $other) {
+        $clone       = clone $this;
+        $this->lines = $other->lines;
 
-    function appendLines(self $append) {
-        $space = str_repeat(' ', $this->width());
-
-        foreach ($append->lines as $k => $line)
-            if ($k == 0 && $this->lines)
-                $this->lines[count($this->lines) - 1] .= $line;
-            else
-                $this->lines[] = $space . $line;
+        return $clone;
     }
 
     function count() { return count($this->lines); }
@@ -540,40 +551,29 @@ class Text {
                 $this->lines[$k] = "  $line";
     }
 
-    function padWidth($width) {
-        $this->append(str_repeat(' ', $width - $this->width()));
+    function wrap($prepend, $append) {
+        $this->prepend($prepend);
+        $this->append($append);
     }
 
     function prepend($string) {
         $this->prependLines(new self($string));
     }
 
-    function prependLine($line = "") {
-        $this->addLines($this->swapLines(new self("$line\n")));
-    }
-
     function prependLines(self $lines) {
         $this->appendLines($this->swapLines($lines));
-    }
-
-    function swapLines(self $other) {
-        $clone       = clone $this;
-        $this->lines = $other->lines;
-
-        return $clone;
-    }
-
-    function width() {
-        return $this->lines ? strlen($this->lines[count($this->lines) - 1]) : 0;
-    }
-
-    function wrap($prepend, $append) {
-        $this->prepend($prepend);
-        $this->append($append);
     }
 
     function wrapLines($prepend = '', $append = '') {
         $this->prependLine($prepend);
         $this->addLine($append);
+    }
+
+    function prependLine($line = "") {
+        $this->addLines($this->swapLines(new self("$line\n")));
+    }
+
+    function addLine($line = "") {
+        $this->addLines(new self("$line\n"));
     }
 }

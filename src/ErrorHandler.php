@@ -2,9 +2,23 @@
 
 namespace ErrorHandler;
 
+interface ExceptionHasFullTrace {
+    /**
+     * @return array
+     */
+    function getFullTrace();
+}
+
+interface ExceptionHasLocalVariables {
+    /**
+     * @return array|null
+     */
+    function getLocalVariables();
+}
+
 class ErrorHandler {
     /**
-     * @param callable      $handler
+     * @param callable $handler
      * @param callable|null $ignoredErrorHandler
      */
     static function register($handler, $ignoredErrorHandler = null) {
@@ -110,29 +124,15 @@ class ErrorHandler {
     }
 }
 
-interface ExceptionHasFullTrace {
-    /**
-     * @return array
-     */
-    function getFullTrace();
-}
-
-interface ExceptionHasLocalVariables {
-    /**
-     * @return array|null
-     */
-    function getLocalVariables();
-}
-
 class AssertionFailedException extends \LogicException implements ExceptionHasFullTrace {
     private $expression, $fullStackTrace;
 
     /**
      * @param string $file
-     * @param int    $line
+     * @param int $line
      * @param string $expression
      * @param string $message
-     * @param array  $fullStackTrace
+     * @param array $fullStackTrace
      */
     function __construct($file, $line, $expression, $message, array $fullStackTrace) {
         parent::__construct($message);

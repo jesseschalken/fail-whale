@@ -8,7 +8,7 @@ namespace ErrorHandler;
 final class JSON {
     /**
      * @param mixed $value
-     * @param bool  $pretty
+     * @param bool $pretty
      *
      * @return string
      */
@@ -29,22 +29,7 @@ final class JSON {
     }
 
     /**
-     * @param string $json
-     *
-     * @return mixed
-     */
-    static function decode($json) {
-        $value = json_decode($json, true);
-
-        self::checkError();
-
-        $value = self::translateStrings($value, function ($x) { return utf8_decode($x); });
-
-        return $value;
-    }
-
-    /**
-     * @param mixed    $value
+     * @param mixed $value
      * @param callable $f
      *
      * @throws \Exception
@@ -78,6 +63,21 @@ final class JSON {
     private static function checkError() {
         if (json_last_error() !== JSON_ERROR_NONE)
             throw new \Exception("JSON Error", json_last_error());
+    }
+
+    /**
+     * @param string $json
+     *
+     * @return mixed
+     */
+    static function decode($json) {
+        $value = json_decode($json, true);
+
+        self::checkError();
+
+        $value = self::translateStrings($value, function ($x) { return utf8_decode($x); });
+
+        return $value;
     }
 }
 

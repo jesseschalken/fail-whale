@@ -120,6 +120,193 @@ s;
         return $value;
     }
 
+    function introspectValue($value) {
+        $result = new ValueImpl;
+
+        if (is_string($value)) {
+            $result->type   = Type::STRING;
+            $result->string = $this->stringId($value);
+        } else if (is_int($value)) {
+            $result->type = Type::INT;
+            $result->int  = $value;
+        } else if (is_bool($value)) {
+            $result->type = $value ? Type::TRUE : Type::FALSE;
+        } else if (is_null($value)) {
+            $result->type = Type::NULL;
+        } else if (is_float($value)) {
+            if ($value === INF) {
+                $result->type = Type::POS_INF;
+            } else if ($value === -INF) {
+                $result->type = Type::NEG_INF;
+            } else if (is_nan($value)) {
+                $result->type = Type::NAN;
+            } else {
+                $result->type  = Type::FLOAT;
+                $result->float = $value;
+            }
+        } else if (is_array($value)) {
+            $result->type  = Type::ARRAY1;
+            $result->array = $this->arrayId($value);
+        } else if (is_object($value)) {
+            $result->type   = Type::OBJECT;
+            $result->object = $this->objectId($value);
+        } else if (is_resource($value)) {
+            $result->type           = Type::RESOURCE;
+            $result->resource       = new Resource1;
+            $result->resource->id   = (int)$value;
+            $result->resource->type = get_resource_type($value);
+        } else {
+            $result->type = Type::UNKNOWN;
+        }
+
+        return $result;
+    }
+
+    private function objectId($object) {
+        if (!$object)
+            return null;
+        $id =& $this->objectIds[spl_object_hash($object)];
+        if ($id === null) {
+            $id = count($this->objectIds);
+
+            $this->root->objects[$id] = $this->introspectObject($object);
+            return $id;
+        }
+        return $id;
+    }
+
+    private function stringId($value) {
+        $id =& $this->stringIds[$value];
+        if ($id === null) {
+            $id = count($this->stringIds);
+
+            $string               = new String1;
+            $string->bytes        = substr($value, 0, $this->limits->maxStringLength);
+            $string->bytesMissing = strlen($value) - strlen($string->bytes);
+
+            $this->root->strings[$id] = $string;
+
+            return $id;
+        }
+        return $id;
+    }
+
+    private function arrayId(array $value) {
+        $id = $this->nextArrayId++;
+
+        $this->root->arrays[$id] = $this->introspectArray($value);
+        return $id;
+    }
+
+    private function introspectObject($object) {
+        $result             = new Object1;
+        $result->className  = get_class($object);
+        $result->hash       = spl_object_hash($object);
+        $result->properties = $this->introspectObjectProperties($object, $result->propertiesMissing);
+        return $result;
+    }
+
+    private function introspectArray(array $array) {
+        $result                = new Array1;
+        $result->isAssociative = self::isAssoc($array);
+
+        foreach ($array as $key => &$value) {
+            if (count($result->entries) >= $this->limits->maxArrayEntries) {
+                $result->entriesMissing++;
+            } else {
+                $entry             = new ArrayEntry;
+                $entry->key        = $this->introspectValue($key);
+                $entry->value      = $this->introspectRef($value);
+                $result->entries[] = $entry;
+            }
+        }
+
+        return $result;
+    }
+
+    private function introspectObjectProperties($object, &$missing) {
+        /** @var Property[] $results */
+        $results = array();
+
+        for ($reflection = new \ReflectionObject($object);
+             $reflection !== false;
+             $reflection = $reflection->getParentClass()) {
+            foreach ($reflection->getProperties() as $property) {
+                if (!$property->isStatic() && $property->class === $reflection->name) {
+                    if (count($results) >= $this->limits->maxObjectProperties)
+                        $missing++;
+                    else
+                        $results[] = $this->introspectProperty($property, $object);
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    private static function isAssoc(array $array) {
+        $i = 0;
+        foreach ($array as $k => $v)
+            if ($k !== $i++)
+                return true;
+        return false;
+    }
+
+    function introspectRef(&$value) {
+        if (is_array($value)) {
+            $result        = new ValueImpl;
+            $result->type  = Type::ARRAY1;
+            $result->array = $this->arrayRefId($value);
+            return $result;
+        } else {
+            return $this->introspectValue($value);
+        }
+    }
+
+    private function introspectProperty(\ReflectionProperty $property, $object = null) {
+        $property->setAccessible(true);
+        $result            = new Property;
+        $result->className = $property->class;
+        $result->name      = $property->name;
+        $result->value     = $this->introspectValue($property->getValue($object));
+        $result->isDefault = $property->isDefault();
+
+        if ($property->isPrivate())
+            $result->access = 'private';
+        else if ($property->isProtected())
+            $result->access = 'protected';
+        else if ($property->isPublic())
+            $result->access = 'public';
+        else
+            $result->access = null;
+
+        return $result;
+    }
+
+    private function arrayRefId(array &$array) {
+        foreach ($this->arrayIdRefs as $id => &$array2) {
+            if (self::refEqual($array2, $array))
+                return $id;
+        }
+
+        $id = $this->nextArrayId++;
+
+        $this->arrayIdRefs[$id]  =& $array;
+        $this->root->arrays[$id] = $this->introspectArray($array);
+        unset($this->arrayIdRefs[$id]);
+
+        return $id;
+    }
+
+    private static function refEqual(&$x, &$y) {
+        $xOld   = $x;
+        $x      = new \stdClass;
+        $result = $x === $y;
+        $x      = $xOld;
+
+        return $result;
+    }
+
     function introspectException(\Exception $e) {
         $result            = new ValueImpl;
         $result->type      = Type::EXCEPTION;
@@ -164,6 +351,26 @@ s;
         $result->staticProperties = $this->introspectStaticProperties($result->staticPropertiesMissing);
         $result->staticVariables  = $this->introspectStaticVariables($result->staticVariablesMissing);
         return $result;
+    }
+
+    private function introspectVariables(array &$variables = null, &$missing, $max) {
+        if (!is_array($variables))
+            return null;
+        /** @var Variable[] $results */
+        $results = array();
+
+        foreach ($variables as $name => &$value) {
+            if (count($results) >= $max) {
+                $missing++;
+            } else {
+                $result        = new Variable;
+                $result->name  = $name;
+                $result->value = $this->introspectRef($value);
+                $results[]     = $result;
+            }
+        }
+
+        return $results;
     }
 
     private function introspectStack(array $frames, &$missing) {
@@ -294,217 +501,10 @@ s;
         return $globals;
     }
 
-    private function introspectVariables(array &$variables = null, &$missing, $max) {
-        if (!is_array($variables))
-            return null;
-        /** @var Variable[] $results */
-        $results = array();
-
-        foreach ($variables as $name => &$value) {
-            if (count($results) >= $max) {
-                $missing++;
-            } else {
-                $result        = new Variable;
-                $result->name  = $name;
-                $result->value = $this->introspectRef($value);
-                $results[]     = $result;
-            }
-        }
-
-        return $results;
-    }
-
-    private function objectId($object) {
-        if (!$object)
-            return null;
-        $id =& $this->objectIds[spl_object_hash($object)];
-        if ($id === null) {
-            $id = count($this->objectIds);
-
-            $this->root->objects[$id] = $this->introspectObject($object);
-            return $id;
-        }
-        return $id;
-    }
-
-    function introspectValue($value) {
-        $result = new ValueImpl;
-
-        if (is_string($value)) {
-            $result->type   = Type::STRING;
-            $result->string = $this->stringId($value);
-        } else if (is_int($value)) {
-            $result->type = Type::INT;
-            $result->int  = $value;
-        } else if (is_bool($value)) {
-            $result->type = $value ? Type::TRUE : Type::FALSE;
-        } else if (is_null($value)) {
-            $result->type = Type::NULL;
-        } else if (is_float($value)) {
-            if ($value === INF) {
-                $result->type = Type::POS_INF;
-            } else if ($value === -INF) {
-                $result->type = Type::NEG_INF;
-            } else if (is_nan($value)) {
-                $result->type = Type::NAN;
-            } else {
-                $result->type  = Type::FLOAT;
-                $result->float = $value;
-            }
-        } else if (is_array($value)) {
-            $result->type  = Type::ARRAY1;
-            $result->array = $this->arrayId($value);
-        } else if (is_object($value)) {
-            $result->type   = Type::OBJECT;
-            $result->object = $this->objectId($value);
-        } else if (is_resource($value)) {
-            $result->type           = Type::RESOURCE;
-            $result->resource       = new Resource1;
-            $result->resource->id   = (int)$value;
-            $result->resource->type = get_resource_type($value);
-        } else {
-            $result->type = Type::UNKNOWN;
-        }
-
-        return $result;
-    }
-
-    private function introspectProperty(\ReflectionProperty $property, $object = null) {
-        $property->setAccessible(true);
-        $result            = new Property;
-        $result->className = $property->class;
-        $result->name      = $property->name;
-        $result->value     = $this->introspectValue($property->getValue($object));
-        $result->isDefault = $property->isDefault();
-
-        if ($property->isPrivate())
-            $result->access = 'private';
-        else if ($property->isProtected())
-            $result->access = 'protected';
-        else if ($property->isPublic())
-            $result->access = 'public';
-        else
-            $result->access = null;
-
-        return $result;
-    }
-
-    private function introspectObject($object) {
-        $result             = new Object1;
-        $result->className  = get_class($object);
-        $result->hash       = spl_object_hash($object);
-        $result->properties = $this->introspectObjectProperties($object, $result->propertiesMissing);
-        return $result;
-    }
-
-    private function stringId($value) {
-        $id =& $this->stringIds[$value];
-        if ($id === null) {
-            $id = count($this->stringIds);
-
-            $string               = new String1;
-            $string->bytes        = substr($value, 0, $this->limits->maxStringLength);
-            $string->bytesMissing = strlen($value) - strlen($string->bytes);
-
-            $this->root->strings[$id] = $string;
-
-            return $id;
-        }
-        return $id;
-    }
-
-    private function arrayRefId(array &$array) {
-        foreach ($this->arrayIdRefs as $id => &$array2) {
-            if (self::refEqual($array2, $array))
-                return $id;
-        }
-
-        $id = $this->nextArrayId++;
-
-        $this->arrayIdRefs[$id]  =& $array;
-        $this->root->arrays[$id] = $this->introspectArray($array);
-        unset($this->arrayIdRefs[$id]);
-
-        return $id;
-    }
-
-    private function arrayId(array $value) {
-        $id = $this->nextArrayId++;
-
-        $this->root->arrays[$id] = $this->introspectArray($value);
-        return $id;
-    }
-
-    function introspectRef(&$value) {
-        if (is_array($value)) {
-            $result        = new ValueImpl;
-            $result->type  = Type::ARRAY1;
-            $result->array = $this->arrayRefId($value);
-            return $result;
-        } else {
-            return $this->introspectValue($value);
-        }
-    }
-
-    private function introspectObjectProperties($object, &$missing) {
-        /** @var Property[] $results */
-        $results = array();
-
-        for ($reflection = new \ReflectionObject($object);
-             $reflection !== false;
-             $reflection = $reflection->getParentClass()) {
-            foreach ($reflection->getProperties() as $property) {
-                if (!$property->isStatic() && $property->class === $reflection->name) {
-                    if (count($results) >= $this->limits->maxObjectProperties)
-                        $missing++;
-                    else
-                        $results[] = $this->introspectProperty($property, $object);
-                }
-            }
-        }
-
-        return $results;
-    }
-
-    private static function refEqual(&$x, &$y) {
-        $xOld   = $x;
-        $x      = new \stdClass;
-        $result = $x === $y;
-        $x      = $xOld;
-
-        return $result;
-    }
-
-    private function introspectArray(array $array) {
-        $result                = new Array1;
-        $result->isAssociative = self::isAssoc($array);
-
-        foreach ($array as $key => &$value) {
-            if (count($result->entries) >= $this->limits->maxArrayEntries) {
-                $result->entriesMissing++;
-            } else {
-                $entry             = new ArrayEntry;
-                $entry->key        = $this->introspectValue($key);
-                $entry->value      = $this->introspectRef($value);
-                $result->entries[] = $entry;
-            }
-        }
-
-        return $result;
-    }
-
     function root(ValueImpl $value) {
         $root       = clone $this->root;
         $root->root = $value;
         return $root;
-    }
-
-    private static function isAssoc(array $array) {
-        $i = 0;
-        foreach ($array as $k => $v)
-            if ($k !== $i++)
-                return true;
-        return false;
     }
 }
 
