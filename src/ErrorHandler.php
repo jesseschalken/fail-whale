@@ -18,10 +18,10 @@ interface ExceptionHasLocalVariables {
 
 class ErrorHandler {
     /**
-     * @param callable $handler
-     * @param callable|null $ignoredErrorHandler
+     * @param callable $handleException
+     * @param callable|null $handleIgnoredError
      */
-    static function register($handler, $ignoredErrorHandler = null) {
+    static function register($handleException, $handleIgnoredError = null) {
         if (PHP_MAJOR_VERSION == 5)
             if (PHP_MINOR_VERSION == 3)
                 $phpBug61767Fixed = PHP_RELEASE_VERSION >= 18;
@@ -34,48 +34,47 @@ class ErrorHandler {
 
         $lastError = error_get_last();
 
-        set_error_handler($errorHandler = function (
-            $severity, $message, $file = null, $line = null, $localVars = null
-        ) use (
-            &$lastError, $handler, $phpBug61767Fixed, $ignoredErrorHandler
+        $handleError = function ($severity, $message, $file = null, $line = null,
+                                 $localVars = null) use (
+            &$lastError, $handleException,
+            $phpBug61767Fixed, $handleIgnoredError
         ) {
-            $lastError         = error_get_last();
-            $isNotIgnored      = error_reporting() & $severity;
-            $hasIgnoredHandler = is_callable($ignoredErrorHandler);
-
-            if ($isNotIgnored || $hasIgnoredHandler) {
+            $lastError    = error_get_last();
+            $ignore       = error_reporting() & $severity === 0;
+            $handleIgnore = is_callable($handleIgnoredError);
+            if (!$ignore || $handleIgnore) {
                 $e = new ErrorException($severity, $message, $file, $line, $localVars,
                                         array_slice(debug_backtrace(), 1));
 
-                if ($isNotIgnored)
+                if (!$ignore)
                     if ($phpBug61767Fixed)
                         throw $e;
                     else if ($severity & (E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED))
                         throw $e;
                     else
-                        call_user_func($handler, $e);
-                else if ($hasIgnoredHandler)
-                    call_user_func($ignoredErrorHandler, $e);
+                        call_user_func($handleException, $e);
+                else if ($handleIgnore)
+                    call_user_func($handleIgnoredError, $e);
             }
 
             return true;
-        });
+        };
 
-        register_shutdown_function(function () use (&$lastError, $errorHandler, $handler) {
+        $handleShutdown = function () use (&$lastError, $handleError, $handleException) {
             $e = error_get_last();
 
             if ($e === null || $e === $lastError)
                 return;
 
-            $x = set_error_handler($errorHandler);
+            $x = set_error_handler($handleError);
             restore_error_handler();
 
-            if ($x !== $errorHandler)
+            if ($x !== $handleError)
                 return;
 
             ini_set('memory_limit', '-1');
 
-            call_user_func($handler, new ErrorException(
+            call_user_func($handleException, new ErrorException(
                 $e['type'],
                 $e['message'],
                 $e['file'],
@@ -83,13 +82,16 @@ class ErrorHandler {
                 null,
                 array_slice(debug_backtrace(), 1)
             ));
-        });
+        };
 
-        set_exception_handler($handler);
-
-        assert_options(ASSERT_CALLBACK, function ($file, $line, $expression, $message = 'Assertion failed') {
+        $handleAssert = function ($file, $line, $expression, $message = 'Assertion failed') {
             throw new AssertionFailedException($file, $line, $expression, $message, array_slice(debug_backtrace(), 1));
-        });
+        };
+
+        set_error_handler($handleError);
+        register_shutdown_function($handleShutdown);
+        set_exception_handler($handleException);
+        assert_options(ASSERT_CALLBACK, $handleAssert);
     }
 
     static function simpleHandler() {
