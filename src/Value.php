@@ -15,7 +15,7 @@ class Value {
         return new self($i->root($i->introspectRef($value)));
     }
 
-    static function introspectException(\Exception $exception, Limiter $limits = null) {
+    static function introspectException(\Exception $exception, IntrospectionSettings $limits = null) {
         $i = new Introspection($limits);
 
         return new self($i->root($i->introspectException($exception)));
@@ -75,8 +75,8 @@ js;
         return $document->saveHTML();
     }
 
-    function toString(PrettyPrinter $settings = null) {
-        $visitor = new PrettyPrinterVisitor($settings ? : new PrettyPrinter, $this->root);
+    function toString(PrettyPrinterSettings $settings = null) {
+        $visitor = new PrettyPrinter($settings ? : new PrettyPrinterSettings, $this->root);
 
         return $visitor->renderRoot()->toString();
     }

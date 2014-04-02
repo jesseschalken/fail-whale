@@ -83,13 +83,13 @@ class ErrorHandler {
             while (ob_get_level() > 0 && ob_end_clean()) ;
 
             if (PHP_SAPI === 'cli') {
-                $limits                       = new Limiter;
+                $limits                       = new IntrospectionSettings;
                 $limits->maxStringLength      = 100;
                 $limits->maxArrayEntries      = 10;
                 $limits->maxObjectProperties  = 10;
                 $limits->maxSourceCodeContext = 3;
 
-                $settings                               = new PrettyPrinter;
+                $settings                               = new PrettyPrinterSettings;
                 $settings->showExceptionGlobalVariables = false;
                 $settings->showExceptionStackTrace      = true;
                 $settings->showExceptionLocalVariables  = true;

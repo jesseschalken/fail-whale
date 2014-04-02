@@ -2,7 +2,7 @@
 
 namespace ErrorHandler;
 
-final class PrettyPrinter {
+final class PrettyPrinterSettings {
     public $escapeTabsInStrings = false;
     public $showExceptionGlobalVariables = true;
     public $showExceptionLocalVariables = true;
@@ -34,14 +34,14 @@ final class PrettyPrinter {
     }
 }
 
-class PrettyPrinterVisitor {
+class PrettyPrinter {
     private $settings;
     private $arraysRendered = array();
     private $objectsRendered = array();
     /** @var Root */
     private $root;
 
-    function __construct(PrettyPrinter $settings, Root $root) {
+    function __construct(PrettyPrinterSettings $settings, Root $root) {
         $this->settings = $settings;
         $this->root     = $root;
     }

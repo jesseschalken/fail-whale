@@ -26,7 +26,7 @@ class DummyClass2 extends DummyClass1 {
 
 class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
     private static function pp() {
-        return new PrettyPrinter;
+        return new PrettyPrinterSettings;
     }
 
     function testClosure() {
