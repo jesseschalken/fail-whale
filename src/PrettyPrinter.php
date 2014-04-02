@@ -543,7 +543,9 @@ class Text {
         return $clone;
     }
 
-    function count() { return count($this->lines); }
+    function count() {
+        return count($this->lines);
+    }
 
     function indent() {
         foreach ($this->lines as $k => $line)

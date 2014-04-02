@@ -13,7 +13,9 @@ final class JSON {
      * @return string
      */
     static function encode($value, $pretty = true) {
-        $value = self::translateStrings($value, function ($x) { return utf8_encode($x); });
+        $value = self::translateStrings($value, function ($x) {
+            return utf8_encode($x);
+        });
 
         $flags = 0;
         $flags |= JSON_UNESCAPED_SLASHES;
@@ -75,7 +77,9 @@ final class JSON {
 
         self::checkError();
 
-        $value = self::translateStrings($value, function ($x) { return utf8_decode($x); });
+        $value = self::translateStrings($value, function ($x) {
+            return utf8_decode($x);
+        });
 
         return $value;
     }

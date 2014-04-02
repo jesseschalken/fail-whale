@@ -42,7 +42,8 @@ class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
     }
 
     function testClosure() {
-        self::assertPrettyIs(function () { }, <<<'s'
+        self::assertPrettyIs(function () {
+            }, <<<'s'
 new Closure #1 {
 }
 s
@@ -193,16 +194,16 @@ array( 1,
 s
         );
         self::assertPrettyIs(array("blarg" => "foo",
-                                  "bar"   => "bar"),
+                                   "bar"   => "bar"),
             <<<'s'
 array( "blarg" => "foo",
        "bar"   => "bar" )
 s
         );
         self::assertPrettyIs(array("blarg"    => "foo",
-                                  "bar"      => "bar",
-                                  "bawreara" => "wrjenrg",
-                                  "awfjnrg"  => "awrrg"),
+                                   "bar"      => "bar",
+                                   "bawreara" => "wrjenrg",
+                                   "awfjnrg"  => "awrrg"),
             <<<'s'
 array( "blarg"    => "foo",
        "bar"      => "bar",

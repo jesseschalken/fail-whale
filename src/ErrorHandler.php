@@ -143,9 +143,13 @@ class AssertionFailedException extends \LogicException implements ExceptionHasFu
         $this->fullStackTrace = $fullStackTrace;
     }
 
-    function getExpression() { return $this->expression; }
+    function getExpression() {
+        return $this->expression;
+    }
 
-    function getFullTrace() { return $this->fullStackTrace; }
+    function getFullTrace() {
+        return $this->fullStackTrace;
+    }
 }
 
 class ErrorException extends \ErrorException implements ExceptionHasFullTrace, ExceptionHasLocalVariables {
@@ -177,9 +181,13 @@ class ErrorException extends \ErrorException implements ExceptionHasFullTrace, E
         $this->code           = isset($constants[$severity]) ? $constants[$severity] : 'E_?';
     }
 
-    function getFullTrace() { return $this->stackTrace; }
+    function getFullTrace() {
+        return $this->stackTrace;
+    }
 
-    function getLocalVariables() { return $this->localVariables; }
+    function getLocalVariables() {
+        return $this->localVariables;
+    }
 }
 
 /**
@@ -200,5 +208,7 @@ class Exception extends \Exception implements ExceptionHasFullTrace {
         parent::__construct($message, $code, $previous);
     }
 
-    function getFullTrace() { return $this->stackTrace; }
+    function getFullTrace() {
+        return $this->stackTrace;
+    }
 }
