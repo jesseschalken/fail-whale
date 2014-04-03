@@ -561,23 +561,23 @@ module PrettyPrinter {
                 body: function () {
 
                     var body = document.createElement('div');
-                    body.appendChild(block(expandable({open: true, head: bold('exception'), body: function () {
+                    body.appendChild(expandable({open: true, head: bold('exception'), body: function () {
                         return createTable([
                             [bold('code'), text(x.code)],
                             [bold('message'), text(x.message)],
                             [bold('location'), renderLocation(x.location, true)],
                             [bold('previous'), renderException(x.previous)]
                         ]);
-                    }})));
-                    body.appendChild(block(expandable({open: true, head: bold('locals'), body: function () {
+                    }}));
+                    body.appendChild(expandable({open: true, head: bold('locals'), body: function () {
                         return renderLocals(x.locals, x.localsMissing);
-                    }})));
-                    body.appendChild(block(expandable({open: true, head: bold('stack'), body: function () {
+                    }}));
+                    body.appendChild(expandable({open: true, head: bold('stack'), body: function () {
                         return renderStack(x.stack, x.stackMissing);
-                    }})));
-                    body.appendChild(block(expandable({open: true, head: bold('globals'), body: function () {
+                    }}));
+                    body.appendChild(expandable({open: true, head: bold('globals'), body: function () {
                         return renderGlobals(x.globals);
-                    }})));
+                    }}));
                     body.style.padding = padding;
                     return body;
                 },
