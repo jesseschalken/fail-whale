@@ -31,291 +31,291 @@ module PrettyPrinter {
         };
     }
 
-    var Type = {
-        STRING:    'string',
-        ARRAY:     'array',
-        OBJECT:    'object',
-        INT:       'int',
-        TRUE:      'true',
-        FALSE:     'false',
-        NULL:      'null',
-        POS_INF:   '+inf',
-        NEG_INF:   '-inf',
-        NAN:       'nan',
-        UNKNOWN:   'unknown',
-        FLOAT:     'float',
-        RESOURCE:  'resource',
-        EXCEPTION: 'exception'
-    };
-
-    interface Root {
-        root: Value;
-        strings: String1[];
-        objects: Object1[];
-        arrays: Array1[];
-    }
-    interface String1 {
-        bytes: string;
-        bytesMissing: number
-    }
-    interface Array1 {
-        entriesMissing: number;
-        entries: {
-            key: Value;
-            value: Value;
-        }[];
-    }
-    interface Object1 {
-        hash: string;
-        className: string;
-        properties: Property[];
-        propertiesMissing: number;
-    }
-    interface Variable {
-        name: string;
-        value: Value;
-    }
-    interface Property extends Variable {
-        className: string;
-        access: string;
-    }
-    interface StaticVariable extends Variable {
-        className: string;
-        functionName: string;
-    }
-    interface Globals {
-        staticProperties: Property[];
-        staticPropertiesMissing: number;
-        staticVariables: StaticVariable[];
-        staticVariablesMissing: number;
-        globalVariables: Variable[];
-        globalVariablesMissing: number;
-    }
-    interface Exception {
-        locals: Variable[];
-        localsMissing: number;
-        globals:Globals;
-        stack: Stack[];
-        stackMissing: number;
-        className: string;
-        code: string;
-        message: string;
-        location: Location;
-        previous: Exception;
-    }
-    interface Stack {
-        functionName: string;
-        args: Value[];
-        argsMissing: number;
-        object: number;
-        className: string;
-        isStatic: boolean;
-        location: Location;
-    }
-    interface Value {
-        type: string;
-        exception: Exception;
-        object: number;
-        array: number;
-        string: number;
-        int: number;
-        float: number;
-        resource: {
-            type: string;
-            id: number;
+    module Data {
+        export var Type = {
+            STRING:    'string',
+            ARRAY:     'array',
+            OBJECT:    'object',
+            INT:       'int',
+            TRUE:      'true',
+            FALSE:     'false',
+            NULL:      'null',
+            POS_INF:   '+inf',
+            NEG_INF:   '-inf',
+            NAN:       'nan',
+            UNKNOWN:   'unknown',
+            FLOAT:     'float',
+            RESOURCE:  'resource',
+            EXCEPTION: 'exception'
         };
+
+        export interface Root {
+            root: Value;
+            strings: String1[];
+            objects: Object1[];
+            arrays: Array1[];
+        }
+        export interface String1 {
+            bytes: string;
+            bytesMissing: number
+        }
+        export interface Array1 {
+            entriesMissing: number;
+            entries: {
+                key: Value;
+                value: Value;
+            }[];
+        }
+        export interface Object1 {
+            hash: string;
+            className: string;
+            properties: Property[];
+            propertiesMissing: number;
+        }
+        export interface Variable {
+            name: string;
+            value: Value;
+        }
+        export interface Property extends Variable {
+            className: string;
+            access: string;
+        }
+        export interface StaticVariable extends Variable {
+            className: string;
+            functionName: string;
+        }
+        export interface Globals {
+            staticProperties: Property[];
+            staticPropertiesMissing: number;
+            staticVariables: StaticVariable[];
+            staticVariablesMissing: number;
+            globalVariables: Variable[];
+            globalVariablesMissing: number;
+        }
+        export interface Exception {
+            locals: Variable[];
+            localsMissing: number;
+            globals:Globals;
+            stack: Stack[];
+            stackMissing: number;
+            className: string;
+            code: string;
+            message: string;
+            location: Location;
+            previous: Exception;
+        }
+        export interface Stack {
+            functionName: string;
+            args: Value[];
+            argsMissing: number;
+            object: number;
+            className: string;
+            isStatic: boolean;
+            location: Location;
+        }
+        export interface Value {
+            type: string;
+            exception: Exception;
+            object: number;
+            array: number;
+            string: number;
+            int: number;
+            float: number;
+            resource: {
+                type: string;
+                id: number;
+            };
+        }
+        export interface Location {
+            file: string;
+            line: number;
+            source: {[lineNo:number]: string};
+        }
     }
-    interface Location {
-        file: string;
-        line: number;
-        source: {[lineNo:number]: string};
+
+    module Settings {
+        export var fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
+        export var fontSize = '10pt';
+        export var padding = '0.25em';
+        export var borderWidth = '0.125em';
     }
 
-    var fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
-    var fontSize = '10pt';
-    var padding = '0.25em';
-    var borderWidth = '0.125em';
+    module HTML {
+        export function inline(inner:Node):Node {
+            var s = document.createElement('div');
+            s.style.display = 'inline-block';
+            s.appendChild(inner);
+            return s;
+        }
 
-    function inlineBlock(inner:Node):HTMLElement {
-        var s = document.createElement('div');
-        s.style.display = 'inline-block';
-        s.appendChild(inner);
-        return s;
-    }
+        export function plain(content:string):Node {
+            return document.createTextNode(content);
+        }
 
-    function block(node:Node):HTMLElement {
-        var div = document.createElement('div');
-        div.appendChild(node);
-        return div;
-    }
+        export function italics(t:string):Node {
+            var wrapped = document.createElement('span');
+            wrapped.appendChild(HTML.plain(t));
+            wrapped.style.display = 'inline';
+            wrapped.style.fontStyle = 'italic';
+            return wrapped;
+        }
 
-    function text(text:string):Node {
-        return document.createTextNode(text);
-    }
+        export function notice(t:string):Node {
+            var wrapped = document.createElement('span');
+            wrapped.appendChild(HTML.plain(t));
+            wrapped.style.fontStyle = 'italic';
+            wrapped.style.padding = Settings.padding;
+            return wrapped;
+        }
 
-    function wrap(t:string):HTMLElement {
-        return inlineBlock(text(t));
-    }
+        export function collect(nodes:Node[]):Node {
+            var x = document.createDocumentFragment();
+            for (var i = 0; i < nodes.length; i++)
+                x.appendChild(nodes[i]);
+            return x;
+        }
 
-    function italics(text:string):Node {
-        var wrapped = wrap(text);
-        wrapped.style.display = 'inline';
-        wrapped.style.fontStyle = 'italic';
-        return wrapped;
-    }
+        export function expandable(content:{
+            head:Node;
+            body:() => Node;
+            open:boolean;
+        }):Node {
+            var container = document.createElement('div');
 
-    function notice(text:string):Node {
-        var wrapped = wrap(text);
-        wrapped.style.fontStyle = 'italic';
-        wrapped.style.padding = padding;
-        return wrapped;
-    }
-
-    function collect(nodes:Node[]):Node {
-        var x = document.createDocumentFragment();
-        for (var i = 0; i < nodes.length; i++)
-            x.appendChild(nodes[i]);
-        return x;
-    }
-
-    function expandable(content:{
-        head:Node;
-        body:() => Node;
-        open:boolean;
-    }):Node {
-        var container = document.createElement('div');
-
-        var head = document.createElement('div');
-        head.style.backgroundColor = '#eee';
-        head.style.cursor = 'pointer';
-        head.style.padding = padding;
-        head.addEventListener('mouseenter', function () {
-            head.style.backgroundColor = '#ddd';
-            body.style.borderColor = '#ddd';
-        });
-        head.addEventListener('mouseleave', function () {
+            var head = document.createElement('div');
             head.style.backgroundColor = '#eee';
+            head.style.cursor = 'pointer';
+            head.style.padding = Settings.padding;
+            head.addEventListener('mouseenter', function () {
+                head.style.backgroundColor = '#ddd';
+                body.style.borderColor = '#ddd';
+            });
+            head.addEventListener('mouseleave', function () {
+                head.style.backgroundColor = '#eee';
+                body.style.borderColor = '#eee';
+            });
+            head.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+            });
+            head.appendChild(content.head);
+            container.appendChild(head);
+
+            var body = document.createElement('table');
+            body.style.borderSpacing = '0';
+            body.style.padding = '0';
+            body.style.backgroundColor = 'white';
             body.style.borderColor = '#eee';
-        });
-        head.addEventListener('mousedown', function (e) {
-            e.preventDefault();
-        });
-        head.appendChild(content.head);
-        container.appendChild(head);
+            body.style.borderWidth = Settings.borderWidth;
+            body.style.borderTopWidth = '0px';
+            body.style.borderStyle = 'solid';
+            body.style.width = '100%';
+            container.appendChild(body);
 
-        var body = document.createElement('table');
-        body.style.borderSpacing = '0';
-        body.style.padding = '0';
-        body.style.backgroundColor = 'white';
-        body.style.borderColor = '#eee';
-        body.style.borderWidth = borderWidth;
-        body.style.borderTopWidth = '0px';
-        body.style.borderStyle = 'solid';
-        body.style.width = '100%';
-        container.appendChild(body);
+            var open = content.open;
 
-        var open = content.open;
+            function refresh() {
+                if (open && body.innerHTML.length == 0) {
+                    var td = document.createElement('td');
+                    var tr = document.createElement('tr');
+                    td.style.padding = '0';
+                    td.appendChild(content.body());
+                    tr.appendChild(td);
+                    body.appendChild(tr);
+                }
 
-        function refresh() {
-            if (open && body.innerHTML.length == 0) {
-                var td = document.createElement('td');
-                var tr = document.createElement('tr');
-                td.style.padding = '0';
-                td.appendChild(content.body());
-                tr.appendChild(td);
-                body.appendChild(tr);
+                body.style.display = open ? 'table' : 'none';
             }
 
-            body.style.display = open ? 'table' : 'none';
-        }
-
-        refresh();
-
-        head.addEventListener('click', function () {
-            var scroll = rescroll();
-            open = !open;
             refresh();
-            scroll();
-        });
 
-        return container;
-    }
+            head.addEventListener('click', function () {
+                var scroll = rescroll();
+                open = !open;
+                refresh();
+                scroll();
+            });
 
-    function createTable(data:Node[][]):HTMLTableElement {
-        var table = document.createElement('table');
-        table.style.borderSpacing = '0';
-        table.style.padding = '0';
-
-        for (var i = 0; i < data.length; i++) {
-            var tr = document.createElement('tr');
-            table.appendChild(tr);
-            for (var j = 0; j < data[i].length; j++) {
-                var td = document.createElement('td');
-                td.style.padding = padding;
-                td.style.verticalAlign = 'baseline';
-                td.appendChild(data[i][j]);
-                tr.appendChild(td);
-            }
+            return container;
         }
 
-        return table;
-    }
+        export function table(data:Node[][]):HTMLTableElement {
+            var table = document.createElement('table');
+            table.style.borderSpacing = '0';
+            table.style.padding = '0';
 
-    function bold(content:string):Node {
-        var box = wrap(content);
-        box.style.fontWeight = 'bold';
-        return box;
-    }
+            for (var i = 0; i < data.length; i++) {
+                var tr = document.createElement('tr');
+                table.appendChild(tr);
+                for (var j = 0; j < data[i].length; j++) {
+                    var td = document.createElement('td');
+                    td.style.padding = Settings.padding;
+                    td.style.verticalAlign = 'baseline';
+                    td.appendChild(data[i][j]);
+                    tr.appendChild(td);
+                }
+            }
 
-    function keyword(word:string) {
-        var box = wrap(word);
-        box.style.color = '#008';
-        box.style.fontWeight = 'bold';
-        return box;
+            return table;
+        }
+
+        export function bold(content:string):Node {
+            var box = document.createElement('span');
+            box.appendChild(HTML.plain(content));
+            box.style.fontWeight = 'bold';
+            return box;
+        }
+
+        export function keyword(word:string) {
+            var box = document.createElement('span');
+            box.appendChild(HTML.plain(word));
+            box.style.color = '#008';
+            box.style.fontWeight = 'bold';
+            return box;
+        }
     }
 
     export function renderJSON(json:string):Node {
-        var root:Root = JSON.parse(json);
+        var root:Data.Root = JSON.parse(json);
 
         var container = document.createElement('div');
         container.style.whiteSpace = 'pre';
-        container.style.fontFamily = fontFamily;
-        container.style.fontSize = fontSize;
+        container.style.fontFamily = Settings.fontFamily;
+        container.style.fontSize = Settings.fontSize;
         container.appendChild(renderValue(root.root));
         return container;
 
-        function renderValue(x:Value) {
+        function renderValue(x:Data.Value) {
             switch (x.type) {
-                case Type.INT:
+                case Data.Type.INT:
                     return renderNumber(String(x.int));
-                case Type.FLOAT:
+                case Data.Type.FLOAT:
                     var str = String(x.float);
                     str = x.float % 1 == 0 ? str + '.0' : str;
                     return renderNumber(str);
-                case Type.TRUE:
-                    return keyword('true');
-                case Type.FALSE:
-                    return keyword('false');
-                case Type.STRING:
+                case Data.Type.TRUE:
+                    return HTML.keyword('true');
+                case Data.Type.FALSE:
+                    return HTML.keyword('false');
+                case Data.Type.STRING:
                     return renderString(root.strings[x.string]);
-                case Type.POS_INF:
-                    return keyword('INF');
-                case Type.NEG_INF:
-                    return collect([text('-'), keyword('INF')]);
-                case Type.NAN:
-                    return keyword('NAN');
-                case Type.ARRAY:
+                case Data.Type.POS_INF:
+                    return HTML.keyword('INF');
+                case Data.Type.NEG_INF:
+                    return HTML.collect([ HTML.plain('-'), HTML.keyword('INF')]);
+                case Data.Type.NAN:
+                    return HTML.keyword('NAN');
+                case Data.Type.ARRAY:
                     return renderArray(x.array);
-                case Type.OBJECT:
+                case Data.Type.OBJECT:
                     return renderObject(root.objects[x.object]);
-                case Type.EXCEPTION:
+                case Data.Type.EXCEPTION:
                     return renderException(x.exception);
-                case Type.RESOURCE:
-                    return collect([keyword('resource'), text(' ' + x.resource.type)]);
-                case Type.NULL:
-                    return keyword('null');
-                case Type.UNKNOWN:
-                    return keyword('unknown type');
+                case Data.Type.RESOURCE:
+                    return HTML.collect([HTML.keyword('resource'), HTML.plain(' ' + x.resource.type)]);
+                case Data.Type.NULL:
+                    return HTML.keyword('null');
+                case Data.Type.UNKNOWN:
+                    return HTML.keyword('unknown type');
                 default:
                     throw "unknown type " + x.type;
             }
@@ -323,22 +323,22 @@ module PrettyPrinter {
 
         function renderArray(id:number):Node {
             var array = root.arrays[id];
-            return inlineBlock(expandable({
-                head: keyword('array'),
+            return HTML.inline(HTML.expandable({
+                head: HTML.keyword('array'),
                 body: function () {
                     if (array.entries.length == 0 && array.entriesMissing == 0)
-                        return notice('empty');
+                        return HTML.notice('empty');
 
                     var container = document.createDocumentFragment();
-                    container.appendChild(createTable(array.entries.map(function (x) {
+                    container.appendChild(HTML.table(array.entries.map(function (x) {
                         return [
                             renderValue(x.key),
-                            text('=>'),
+                            HTML.plain('=>'),
                             renderValue(x.value)
                         ];
                     })));
                     if (array.entriesMissing > 0)
-                        container.appendChild(notice(array.entriesMissing + " entries missing..."));
+                        container.appendChild(HTML.notice(array.entriesMissing + " entries missing..."));
 
                     return container;
                 },
@@ -346,40 +346,41 @@ module PrettyPrinter {
             }));
         }
 
-        function renderObject(object:Object1):Node {
-            return inlineBlock(expandable({
-                head: collect([keyword('object'), text(' ' + object.className)]),
+        function renderObject(object:Data.Object1):Node {
+            return HTML.inline(HTML.expandable({
+                head: HTML.collect([HTML.keyword('object'), HTML.plain(' ' + object.className)]),
                 body: function () {
                     if (object.properties.length == 0 && object.propertiesMissing == 0)
-                        return notice('empty');
+                        return HTML.notice('empty');
 
                     var container = document.createDocumentFragment();
-                    container.appendChild(createTable(object.properties.map(function (property) {
+                    container.appendChild(HTML.table(object.properties.map(function (property) {
                         var prefix = '';
                         if (property.className != object.className)
                             prefix = property.className + '::';
 
                         return [
-                            collect([
-                                keyword(property.access),
-                                text(' ' + prefix),
+                            HTML.collect([
+                                HTML.keyword(property.access),
+                                HTML.plain(' ' + prefix),
                                 renderVariable(property.name)
                             ]),
-                            text('='),
+                            HTML.plain('='),
                             renderValue(property.value)
                         ];
                     })));
-                    if (object.propertiesMissing > 0) {
-                        container.appendChild(notice(object.propertiesMissing + " properties missing..."));
-                    }
-                    return  container;
+
+                    if (object.propertiesMissing > 0)
+                        container.appendChild(HTML.notice(object.propertiesMissing + " properties missing..."));
+
+                    return container;
                 },
                 open: false
             }));
         }
 
-        function renderStack(stack:Stack[], missing:number):Node {
-            function renderFunctionCall(call:Stack):Node {
+        function renderStack(stack:Data.Stack[], missing:number):Node {
+            function renderFunctionCall(call:Data.Stack):Node {
                 var result = document.createDocumentFragment();
                 var prefix = '';
                 if (call.object) {
@@ -393,21 +394,21 @@ module PrettyPrinter {
                     prefix += call.isStatic ? '::' : '->';
                 }
 
-                result.appendChild(text(prefix + call.functionName + '('));
+                result.appendChild(HTML.plain(prefix + call.functionName + '('));
 
                 for (var i = 0; i < call.args.length; i++) {
                     if (i != 0)
-                        result.appendChild(text(', '));
+                        result.appendChild(HTML.plain(', '));
 
                     result.appendChild(renderValue(call.args[i]));
                 }
 
                 if (call.argsMissing > 0) {
-                    result.appendChild(text(', '));
-                    result.appendChild(italics(call.argsMissing + ' arguments missing...'));
+                    result.appendChild(HTML.plain(', '));
+                    result.appendChild(HTML.italics(call.argsMissing + ' arguments missing...'));
                 }
 
-                result.appendChild(text(')'));
+                result.appendChild(HTML.plain(')'));
 
                 return result;
             }
@@ -416,7 +417,7 @@ module PrettyPrinter {
 
             for (var x = 0; x < stack.length; x++) {
                 rows.push([
-                    text('#' + String(x + 1)),
+                    HTML.plain('#' + String(x + 1)),
                     renderLocation(stack[x].location),
                     renderFunctionCall(stack[x])
                 ]);
@@ -424,29 +425,30 @@ module PrettyPrinter {
 
             if (missing == 0) {
                 rows.push([
-                    text('#' + String(x + 1)),
-                    inlineBlock(expandable({
-                        head: text('{main}'),
+                    HTML.plain('#' + String(x + 1)),
+                    HTML.inline(HTML.expandable({
+                        head: HTML.plain('{main}'),
                         body: function () {
-                            return notice('no source code');
+                            return HTML.notice('no source code');
                         },
                         open: false
                     })),
-                    collect([])
+                    HTML.collect([])
                 ]);
             }
 
             var container = document.createDocumentFragment();
-            container.appendChild(createTable(rows));
-            if (missing > 0) {
-                container.appendChild(notice(missing + " stack frames missing..."));
-            }
+            container.appendChild(HTML.table(rows));
+            if (missing > 0)
+                container.appendChild(HTML.notice(missing + " stack frames missing..."));
+
             return container;
         }
 
         function renderVariable(name:string):Node {
             function red(v:string) {
-                var result = wrap(v);
+                var result = document.createElement('span');
+                result.appendChild(HTML.plain(v));
                 result.style.color = '#600';
                 return result;
             }
@@ -454,32 +456,34 @@ module PrettyPrinter {
             if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name))
                 return red('$' + name);
             else
-                return collect([red('$' + '{'), renderString({bytes: name, bytesMissing: 0}), red('}')])
+                return HTML.collect([red('$' + '{'), renderString({bytes: name, bytesMissing: 0}), red('}')])
         }
 
-        function renderLocals(locals:Variable[], missing:number):Node {
+        function renderLocals(locals:Data.Variable[], missing:number):Node {
             if (!(locals instanceof Array))
-                return notice('not available');
+                return HTML.notice('not available');
 
             if (locals.length == 0 && missing == 0)
-                return notice('none');
+                return HTML.notice('none');
 
             var container = document.createDocumentFragment();
-            container.appendChild(createTable(locals.map(function (local) {
+            container.appendChild(HTML.table(locals.map(function (local) {
                 return [
                     renderVariable(local.name),
-                    text('='),
+                    HTML.plain('='),
                     renderValue(local.value)
                 ];
             })));
+
             if (missing > 0)
-                container.appendChild(notice(missing + " variables missing..."));
+                container.appendChild(HTML.notice(missing + " variables missing..."));
+
             return container;
         }
 
-        function renderGlobals(globals:Globals) {
+        function renderGlobals(globals:Data.Globals) {
             if (!globals)
-                return notice('not available');
+                return HTML.notice('not available');
 
             var staticVariables = globals.staticVariables;
             var staticProperties = globals.staticProperties;
@@ -501,99 +505,105 @@ module PrettyPrinter {
                     '_ENV'
                 ];
                 if (superGlobals.indexOf(v2.name) == -1) {
-                    pieces.appendChild(keyword('global'));
-                    pieces.appendChild(text(' '));
+                    pieces.appendChild(HTML.keyword('global'));
+                    pieces.appendChild(HTML.plain(' '));
                 }
                 pieces.appendChild(renderVariable(v2.name));
 
-                rows.push([pieces, text('='), renderValue(v2.value)]);
+                rows.push([pieces, HTML.plain('='), renderValue(v2.value)]);
 
             }
 
             for (var i = 0; i < staticProperties.length; i++) {
                 var p = staticProperties[i];
                 var pieces = document.createDocumentFragment();
-                pieces.appendChild(keyword(p.access));
-                pieces.appendChild(text(' '));
-                pieces.appendChild(text(p.className + '::'));
+                pieces.appendChild(HTML.keyword(p.access));
+                pieces.appendChild(HTML.plain(' '));
+                pieces.appendChild(HTML.plain(p.className + '::'));
                 pieces.appendChild(renderVariable(p.name));
 
-                rows.push([pieces, text('='), renderValue(p.value)]);
+                rows.push([pieces, HTML.plain('='), renderValue(p.value)]);
             }
 
             for (var i = 0; i < staticVariables.length; i++) {
                 var v = staticVariables[i];
                 var pieces = document.createDocumentFragment();
-                pieces.appendChild(keyword('functionName'));
-                pieces.appendChild(text(' '));
+                pieces.appendChild(HTML.keyword('functionName'));
+                pieces.appendChild(HTML.plain(' '));
 
                 if (v.className)
-                    pieces.appendChild(text(v.className + '::'));
+                    pieces.appendChild(HTML.plain(v.className + '::'));
 
-                pieces.appendChild(text(v.functionName + '()::'));
+                pieces.appendChild(HTML.plain(v.functionName + '()::'));
                 pieces.appendChild(renderVariable(v.name));
 
                 rows.push([
                     pieces,
-                    text('='),
+                    HTML.plain('='),
                     renderValue(v.value)
                 ]);
             }
 
             var container = document.createDocumentFragment();
-            container.appendChild(createTable(rows));
+            container.appendChild(HTML.table(rows));
+
+            function block(node:Node):Node {
+                var div = document.createElement('div');
+                div.appendChild(node);
+                return div;
+            }
 
             if (globals.staticPropertiesMissing > 0)
-                container.appendChild(block(notice(globals.staticPropertiesMissing + " static properties missing...")));
+                container.appendChild(block(HTML.notice(globals.staticPropertiesMissing + " static properties missing...")));
 
             if (globals.globalVariablesMissing > 0)
-                container.appendChild(block(notice(globals.globalVariablesMissing + " global variables missing...")));
+                container.appendChild(block(HTML.notice(globals.globalVariablesMissing + " global variables missing...")));
 
             if (globals.staticPropertiesMissing > 0)
-                container.appendChild(block(notice(globals.staticPropertiesMissing + " static variables missing...")));
+                container.appendChild(block(HTML.notice(globals.staticPropertiesMissing + " static variables missing...")));
 
             return container;
         }
 
-        function renderException(x:Exception):Node {
+        function renderException(x:Data.Exception):Node {
             if (!x)
-                return italics('none');
+                return HTML.italics('none');
 
-            return inlineBlock(expandable({
-                head: collect([keyword('exception'), text(' ' + x.className)]),
+            return HTML.inline(HTML.expandable({
+                head: HTML.collect([HTML.keyword('exception'), HTML.plain(' ' + x.className)]),
                 body: function () {
 
                     var body = document.createElement('div');
-                    body.appendChild(expandable({open: true, head: bold('exception'), body: function () {
-                        return createTable([
-                            [bold('code'), text(x.code)],
-                            [bold('message'), text(x.message)],
-                            [bold('location'), renderLocation(x.location, true)],
-                            [bold('previous'), renderException(x.previous)]
+                    body.appendChild(HTML.expandable({open: true, head: HTML.bold('exception'), body: function () {
+                        return HTML.table([
+                            [HTML.bold('code'), HTML.plain(x.code)],
+                            [HTML.bold('message'), HTML.plain(x.message)],
+                            [HTML.bold('location'), renderLocation(x.location, true)],
+                            [HTML.bold('previous'), renderException(x.previous)]
                         ]);
                     }}));
-                    body.appendChild(expandable({open: true, head: bold('locals'), body: function () {
+                    body.appendChild(HTML.expandable({open: true, head: HTML.bold('locals'), body: function () {
                         return renderLocals(x.locals, x.localsMissing);
                     }}));
-                    body.appendChild(expandable({open: true, head: bold('stack'), body: function () {
+                    body.appendChild(HTML.expandable({open: true, head: HTML.bold('stack'), body: function () {
                         return renderStack(x.stack, x.stackMissing);
                     }}));
-                    body.appendChild(expandable({open: true, head: bold('globals'), body: function () {
+                    body.appendChild(HTML.expandable({open: true, head: HTML.bold('globals'), body: function () {
                         return renderGlobals(x.globals);
                     }}));
-                    body.style.padding = padding;
+                    body.style.padding = Settings.padding;
                     return body;
                 },
                 open: true
             }));
         }
 
-        function renderLocation(location:Location, open:boolean = false):Node {
-            return inlineBlock(expandable({
-                head: collect([text(location.file + ':'), renderNumber(String(location.line))]),
+        function renderLocation(location:Data.Location, open:boolean = false):Node {
+            return HTML.inline(HTML.expandable({
+                head: HTML.collect([HTML.plain(location.file + ':'), renderNumber(String(location.line))]),
                 body: function () {
                     if (!location.source)
-                        return notice('no source code');
+                        return HTML.notice('no source code');
 
                     var wrapper = document.createElement('table');
 
@@ -602,14 +612,14 @@ module PrettyPrinter {
                             continue;
 
                         var lineNumber = document.createElement('td');
-                        lineNumber.appendChild(text(String(codeLine)));
+                        lineNumber.appendChild(HTML.plain(String(codeLine)));
                         lineNumber.style.padding = '0';
                         lineNumber.style.paddingRight = '0.5em';
                         lineNumber.style.textAlign = 'right';
                         lineNumber.style.opacity = '0.6';
 
                         var code = document.createElement('td');
-                        code.appendChild(text(decodeUTF8(location.source[codeLine])));
+                        code.appendChild(HTML.plain(decodeUTF8(location.source[codeLine])));
                         code.style.padding = '0';
                         code.style.width = '100%';
 
@@ -620,14 +630,14 @@ module PrettyPrinter {
                         if (codeLine == location.line) {
                             code.style.backgroundColor = '#f99';
                             code.style.color = '#600';
-                            code.style.borderRadius = padding;
+                            code.style.borderRadius = Settings.padding;
                         }
 
                         wrapper.appendChild(row);
                     }
 
                     wrapper.style.borderSpacing = '0';
-                    wrapper.style.padding = padding;
+                    wrapper.style.padding = Settings.padding;
                     wrapper.style.backgroundColor = '#333';
                     wrapper.style.color = '#ddd';
                     wrapper.style.width = '100%';
@@ -638,7 +648,7 @@ module PrettyPrinter {
             }));
         }
 
-        function renderString(x:String1):Node {
+        function renderString(x:Data.String1):Node {
             function doRender():Node {
                 var span = document.createElement('span');
                 span.style.color = '#080';
@@ -669,24 +679,24 @@ module PrettyPrinter {
 
                     if (escaped !== undefined) {
                         if (buffer.length > 0)
-                            span.appendChild(document.createTextNode(buffer));
+                            span.appendChild(HTML.plain(buffer));
 
                         buffer = "";
-                        span.appendChild(keyword(escaped));
+                        span.appendChild(HTML.keyword(escaped));
                     } else {
                         buffer += char;
                     }
                 }
 
-                span.appendChild(document.createTextNode(buffer + '"'));
+                span.appendChild(HTML.plain(buffer + '"'));
 
                 var container = document.createElement('div');
                 container.style.display = 'inline-block';
                 container.appendChild(span);
 
                 if (x.bytesMissing > 0) {
-                    container.appendChild(document.createTextNode(' '));
-                    container.appendChild(italics(x.bytesMissing + ' bytes missing...'));
+                    container.appendChild(HTML.plain(' '));
+                    container.appendChild(HTML.italics(x.bytesMissing + ' bytes missing...'));
                 }
 
                 return container;
@@ -701,13 +711,14 @@ module PrettyPrinter {
             }
 
             if (visualLength > 200 || x.bytes.indexOf("\n") != -1)
-                return inlineBlock(expandable({open: false, head: keyword('string'), body: doRender}));
+                return HTML.inline(HTML.expandable({open: false, head: HTML.keyword('string'), body: doRender}));
             else
                 return doRender();
         }
 
         function renderNumber(x:string):Node {
-            var result = wrap(x);
+            var result = document.createElement('span');
+            result.appendChild(HTML.plain(x));
             result.style.color = '#00f';
             return result;
         }
@@ -716,7 +727,6 @@ module PrettyPrinter {
     function decodeUTF8(utf8Bytes:string):string {
         return decodeURIComponent(escape(utf8Bytes));
     }
-
 }
 
 declare function escape(s:string):string;
