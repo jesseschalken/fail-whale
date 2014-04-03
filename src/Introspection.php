@@ -5,8 +5,8 @@ namespace FailWhale;
 class IntrospectionSettings {
     public $maxArrayEntries = 1000;
     public $maxObjectProperties = 100;
-    public $maxStringLength = 1000;
-    public $maxStackFrames = 10;
+    public $maxStringLength = 10000;
+    public $maxStackFrames = 100;
     public $maxLocalVariables = 10;
     public $maxStaticProperties = 100;
     public $maxStaticVariables = 100;
