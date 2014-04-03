@@ -12,18 +12,21 @@ final class PrettyPrinterSettings {
     public $showObjectProperties = true;
     public $showArrayEntries = true;
     public $showStringContents = true;
+    public $longStringThreshold = 100;
 }
 
 class PrettyPrinter {
     private $settings;
     private $arraysRendered = array();
     private $objectsRendered = array();
+    private $stringsRendered = array();
     /** @var Root */
     private $root;
 
     function __construct(Root $root, PrettyPrinterSettings $settings = null) {
-        $this->settings = $settings ? : new PrettyPrinterSettings;
-        $this->root     = $root;
+        $this->settings  = $settings ? : new PrettyPrinterSettings;
+        $this->root      = $root;
+        $this->refCounts = new RefCounts($root);
     }
 
     function render() {
@@ -33,7 +36,7 @@ class PrettyPrinter {
     private function renderValue(ValueImpl $v) {
         switch ($v->type) {
             case Type::STRING:
-                return $this->visitString($this->root->strings[$v->string]);
+                return $this->visitString($v->string);
             case Type::ARRAY1:
                 return $this->visitArray($v->array);
             case Type::OBJECT:
@@ -65,24 +68,67 @@ class PrettyPrinter {
         }
     }
 
-    private function visitString(String1 $string) {
-        $result = $this->renderString($string->bytes);
+    private function visitString($id) {
+        $string   = $this->root->strings[$id];
+        $refCount =& $this->refCounts->strings[$id];
 
-        if ($string->bytesMissing != 0)
-            $result->append(" $string->bytesMissing more bytes...");
-
-        return $result;
+        if ($refCount > 1 && strlen($string->bytes) > $this->settings->longStringThreshold) {
+            $rendered =& $this->stringsRendered[$id];
+            $idString = sprintf("string%03d", $id);
+            if ($rendered) {
+                return new Text("*$idString");
+            } else {
+                $rendered = true;
+                $result   = new Text("&$idString ");
+                $result->appendLines($this->renderString($string));
+                return $result;
+            }
+        } else {
+            return $this->renderString($string);
+        }
     }
 
     private function visitArray($id) {
         $array    = $this->root->arrays[$id];
-        $rendered =& $this->arraysRendered[$id];
+        $refCount =& $this->refCounts->arrays[$id];
 
-        if ($rendered)
-            return new Text('*recursion*');
+        if ($refCount > 1) {
+            $rendered =& $this->arraysRendered[$id];
+            $idString = sprintf("array%03d", $id);
+            if ($rendered) {
+                return new Text("*$idString");
+            } else {
+                $rendered = true;
+                $result   = new Text("&$idString ");
+                $result->appendLines($this->renderArrayBody($array));
+                return $result;
+            }
+        } else {
+            return $this->renderArrayBody($array);
+        }
+    }
 
-        $rendered = true;
+    private function visitObject($id) {
+        $object   = $this->root->objects[$id];
+        $refCount =& $this->refCounts->objects[$id];
 
+        if ($refCount > 1) {
+            $rendered =& $this->objectsRendered[$id];
+            $idString = sprintf("object%03d", $id);
+            if ($rendered) {
+                return new Text("*$idString");
+            } else {
+                $rendered = true;
+                $result   = new Text("&$idString ");
+                $result->appendLines($this->renderObjectBody($object));
+                return $result;
+            }
+        } else {
+            return $this->renderObjectBody($object);
+        }
+    }
+
+    private function renderArrayBody(Array1 $array) {
         if (!($array->entries) && $array->entriesMissing == 0)
             return new Text("array()");
         else if (!$this->settings->showArrayEntries)
@@ -105,8 +151,6 @@ class PrettyPrinter {
             }
         }
 
-        $rendered = false;
-
         $result = Text::table($rows);
 
         if ($array->entriesMissing != 0)
@@ -116,19 +160,11 @@ class PrettyPrinter {
         return $result;
     }
 
-    private function visitObject($id) {
-        $object   = $this->root->objects[$id];
-        $rendered =& $this->objectsRendered[$id];
-
-        if ($rendered)
-            return new Text('*recursion*');
-
-        $rendered = true;
-
+    private function renderObjectBody(Object1 $object) {
         if (!$object->properties && $object->propertiesMissing == 0) {
-            $result = new Text("new $object->className {}");
+            return new Text("new $object->className {}");
         } else if (!$this->settings->showObjectProperties) {
-            $result = new Text("new $object->className {...}");
+            return new Text("new $object->className {...}");
         } else {
             $prefixes = array();
 
@@ -139,11 +175,8 @@ class PrettyPrinter {
             $result->indent();
             $result->indent();
             $result->wrapLines("new $object->className {", "}");
+            return $result;
         }
-
-        $rendered = false;
-
-        return $result;
     }
 
     private function visitFloat($float) {
@@ -210,7 +243,7 @@ class PrettyPrinter {
         return $text;
     }
 
-    private function renderString($string) {
+    private function renderString(String1 $string) {
         $characterEscapeCache = array(
             "\\" => '\\\\',
             "\$" => '\$',
@@ -223,10 +256,10 @@ class PrettyPrinter {
         );
 
         $escaped = '';
-        $length  = strlen($string);
+        $length  = strlen($string->bytes);
 
         for ($i = 0; $i < $length; $i++) {
-            $char        = $string[$i];
+            $char        = $string->bytes[$i];
             $charEscaped =& $characterEscapeCache[$char];
 
             if (!isset($charEscaped)) {
@@ -237,7 +270,12 @@ class PrettyPrinter {
             $escaped .= $charEscaped;
         }
 
-        return new Text("\"$escaped\"");
+        $result = new Text("\"$escaped\"");
+
+        if ($string->bytesMissing != 0)
+            $result->append(" $string->bytesMissing more bytes...");
+
+        return $result;
     }
 
     /**
@@ -323,7 +361,11 @@ class PrettyPrinter {
         if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name))
             return new Text("$$name");
 
-        $result = $this->renderString($name);
+        $string               = new String1;
+        $string->bytes        = $name;
+        $string->bytesMissing = 0;
+
+        $result = $this->renderString($string);
         $result->wrap('${', '}');
         return $result;
     }
@@ -434,6 +476,90 @@ class PrettyPrinter {
 
         $result->wrap("( ", " )");
         return $result;
+    }
+}
+
+class RefCounts {
+    public $strings = array();
+    public $arrays = array();
+    public $objects = array();
+    private $root;
+
+    function __construct(Root $root) {
+        $this->root = $root;
+        $this->doValue($root->root);
+    }
+
+    private function doValue(ValueImpl $value) {
+        switch ($value->type) {
+            case Type::ARRAY1:
+                $this->doArray($value->array);
+                break;
+            case Type::OBJECT:
+                $this->doObject($value->object);
+                break;
+            case Type::STRING:
+                $refCount =& $this->strings[$value->string];
+                $refCount++;
+                break;
+            case Type::EXCEPTION:
+                $this->doException($value->exception);
+        }
+    }
+
+    private function doArray($id) {
+        $refCount =& $this->arrays[$id];
+        $refCount++;
+
+        if ($refCount == 1) {
+            $array = $this->root->arrays[$id];
+
+            foreach ($array->entries as $entry) {
+                $this->doValue($entry->key);
+                $this->doValue($entry->value);
+            }
+        }
+    }
+
+    private function doObject($id) {
+        $refCount =& $this->objects[$id];
+        $refCount++;
+
+        if ($refCount == 1) {
+            $object = $this->root->objects[$id];
+
+            foreach ($object->properties as $property)
+                $this->doValue($property->value);
+        }
+    }
+
+    private function doException(ExceptionImpl $e) {
+        if ($e->locals)
+            foreach ($e->locals as $local)
+                $this->doValue($local->value);
+
+        if ($e->globals) {
+            foreach ($e->globals->staticVariables as $var)
+                $this->doValue($var->value);
+            foreach ($e->globals->staticProperties as $var)
+                $this->doValue($var->value);
+            foreach ($e->globals->globalVariables as $var)
+                $this->doValue($var->value);
+        }
+
+        if ($e->stack) {
+            foreach ($e->stack as $stack) {
+                if ($stack->object)
+                    $this->doObject($stack->object);
+
+                if ($stack->args)
+                    foreach ($stack->args as $arg)
+                        $this->doValue($arg);
+            }
+        }
+
+        if ($e->previous)
+            $this->doException($e->previous);
     }
 }
 

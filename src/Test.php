@@ -212,9 +212,9 @@ s
         $object->foo =& $array;
 
         self::assertPrettyRefIs($array, <<<'s'
-array( new stdClass {
-           public $foo = array( *recursion* );
-       } )
+array( &object001 new stdClass {
+                      public $foo = array( *object001 );
+                  } )
 
 s
         );
@@ -240,9 +240,9 @@ s
 
         self::assertPrettyIs(array(&$recursiveArray, $recursiveArray, $recursiveArray),
             <<<'s'
-array( array( "recurse" => *recursion* ),
-       array( "recurse" => array( "recurse" => *recursion* ) ),
-       array( "recurse" => array( "recurse" => *recursion* ) ) )
+array( &array002 array( "recurse" => *array002 ),
+       array( "recurse" => &array004 array( "recurse" => *array004 ) ),
+       array( "recurse" => &array006 array( "recurse" => *array006 ) ) )
 s
         );
     }
