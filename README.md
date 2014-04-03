@@ -87,7 +87,7 @@ The full list of methods for `Value` are:
 
 `Value::introspect()` (and `Value::introspectRef()`) will handle arbitrary PHP values, including recursive arrays and objects.
 
-`Value::introspectException()` will handle any `Exception` and retreive:
+`Value::introspectException()` will handle any `Exception` and retrieve:
 - it's code, message, file and line
 - a full stack trace, including function name, class name, arguments, `$this`, file and line
 - the entire global state of the PHP program
@@ -101,7 +101,7 @@ All `Value::introspect*()` methods optionally accept a `IntrospectionSettings` o
 
 `Value->toJSON()` will return a JSON string suitable for `Value::fromJSON()`.
 
-`Value->toHTML()` will return a full HTML document which represents the value in a browseable, expandable/collapsable form.
+`Value->toHTML()` will return a full HTML document which represents the value in a browsable, expandable/collapsible form.
 
 `Value->toString()` will return a string. It optionally accepts a `PrettyPrinterSettings` object to control how the value is rendered. PHP values (and exceptions) containing repeated arrays, objects and strings are handled gracefully, as are recursive arrays and objects.
 
