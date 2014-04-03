@@ -30,7 +30,7 @@ class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
      * @param string $pretty
      */
     private static function assertPrettyIs($value, $pretty) {
-        self::assertEquals($pretty, Value::introspect($value)->toString());
+        self::assertEquals("$pretty\n", Value::introspect($value)->toString());
     }
 
     /**
@@ -42,143 +42,61 @@ class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
     }
 
     function testClosure() {
-        self::assertPrettyIs(function () {
-            }, <<<'s'
-new Closure #1 {
-}
-s
-        );
-    }
-
-    function testComplexObject() {
-        self::markTestIncomplete();
-
-        self::assertPrettyIs(null, <<<'s'
-new PrettyPrinter\TypeHandlers\Any #1 {
-    private $typeHandlers    = array( "boolean"      => new PrettyPrinter\TypeHandlers\Boolean #3 {
-                                                            private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
-                                                        },
-                                      "integer"      => new PrettyPrinter\TypeHandlers\Integer #4 {
-                                                            private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
-                                                        },
-                                      "double"       => new PrettyPrinter\TypeHandlers\Float #5 {
-                                                            private $cache      = array();
-                                                            private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
-                                                        },
-                                      "bytes"       => new PrettyPrinter\TypeHandlers\String #7 {
-                                                            private $characterEscapeCache = array( "\\" => "\\\\",
-                                                                                                   "\$" => "\\\$",
-                                                                                                   "\r" => "\\r",
-                                                                                                   "\v" => "\\v",
-                                                                                                   "\f" => "\\f",
-                                                                                                   "\"" => "\\\"",
-                                                                                                   "	"  => "	",
-                                                                                                   "\n" .
-                                                                                                   ""   => "\\n\" .\n" .
-                                                                                                           "\"" );
-                                                            private $cache                = array();
-                                                            private $anyHandler           = new PrettyPrinter\TypeHandlers\Any #1 {...};
-                                                        },
-                                      "array"        => new PrettyPrinter\TypeHandlers\Array1 #10 {
-                                                            private $arrayStack         = array();
-                                                            private $arrayIdsReferenced = array();
-                                                            private $anyHandler         = new PrettyPrinter\TypeHandlers\Any #1 {...};
-                                                        },
-                                      "object"       => new PrettyPrinter\TypeHandlers\Object #13 {
-                                                            private $objectIds  = array();
-                                                            private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
-                                                        },
-                                      "resource"     => new PrettyPrinter\TypeHandlers\Resource #15 {
-                                                            private $resourceIds = array();
-                                                            private $cache       = array();
-                                                            private $anyHandler  = new PrettyPrinter\TypeHandlers\Any #1 {...};
-                                                        },
-                                      "NULL"         => new PrettyPrinter\TypeHandlers\Null #18 {
-                                                            private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
-                                                        },
-                                      "unknown type" => new PrettyPrinter\TypeHandlers\Unknown #19 {
-                                                            private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
-                                                        } );
-    private $variableHandler = new PrettyPrinter\TypeHandlers\Variable #20 {
-                                   private $cache      = array();
-                                   private $anyHandler = new PrettyPrinter\TypeHandlers\Any #1 {...};
-                               };
-    private $nextId          = 1;
-    private $settings        = new PrettyPrinter\PrettyPrinter #22 {
-                                   private $escapeTabsInStrings          = new PrettyPrinter\Settings\Bool #23 {
-                                                                               private $value = false;
-                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
-                                                                           };
-                                   private $splitMultiLineStrings        = new PrettyPrinter\Settings\Bool #24 {
-                                                                               private $value = true;
-                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
-                                                                           };
-                                   private $maxObjectProperties          = new PrettyPrinter\Settings\Number #25 {
-                                                                               private $value = 9223372036854775807;
-                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
-                                                                           };
-                                   private $maxArrayEntries              = new PrettyPrinter\Settings\Number #26 {
-                                                                               private $value = 9223372036854775807;
-                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
-                                                                           };
-                                   private $maxStringLength              = new PrettyPrinter\Settings\Number #27 {
-                                                                               private $value = 9223372036854775807;
-                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
-                                                                           };
-                                   private $showExceptionLocalVariables  = new PrettyPrinter\Settings\Bool #28 {
-                                                                               private $value = true;
-                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
-                                                                           };
-                                   private $showExceptionGlobalVariables = new PrettyPrinter\Settings\Bool #29 {
-                                                                               private $value = true;
-                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
-                                                                           };
-                                   private $showExceptionStackTrace      = new PrettyPrinter\Settings\Bool #30 {
-                                                                               private $value = true;
-                                                                               private $pp    = new PrettyPrinter\PrettyPrinter #22 {...};
-                                                                           };
-                               };
-    private $anyHandler      = new PrettyPrinter\TypeHandlers\Any #1 {...};
-}
-s
-        );
+        self::assertPrettyIs(function () { }, 'new Closure {}');
     }
 
     function testException() {
         self::assertEquals(Value::mockException()->toString(), <<<'s'
-MuhMockException Dummy exception code in /the/path/to/muh/file:9000
+MuhMockException Dummy exception code in /path/to/muh/file:9000
 
     This is a dummy exception message.
 
     lololool
 
+source code:
+  not available
+
 local variables:
   $lol = 8;
   $foo = "bar";
+  5 more...
 
 stack trace:
-  #1 /path/to/muh/file:1928
-        new PrettyPrinter\Test\DummyClass1 #1 {
-            public $public1       = null;
+  #1 /path/to/muh/file:9000
+        new FailWhale\DummyClass1 {
             private $private1     = null;
             protected $protected1 = null;
-        }->aFunction( new PrettyPrinter\Test\DummyClass2 #2 {
-                          public $public2       = null;
-                          private $private2     = null;
-                          protected $protected2 = null;
-                          public $public1       = null;
-                          private $private1     = null;
-                          protected $protected1 = null;
-                      } );
+            public $public1       = null;
+        }->DummyClass1::aFunction( new FailWhale\DummyClass1 {
+                                       private $private1     = null;
+                                       protected $protected1 = null;
+                                       public $public1       = null;
+                                   }, 
+                                   3 more... );
 
-  #2 {main}
+  #2 /path/to/muh/file:9000
+        aFunction( new FailWhale\DummyClass2 {
+                       private $private2     = null;
+                       protected $protected2 = null;
+                       public $public2       = null;
+                       private $private1     = null;
+                       protected $protected1 = null;
+                       public $public1       = null;
+                   }, 
+                   6 more... );
+
+  8 more...
+
+previous exception:
+    none
 
 global variables:
-  private static BlahClass::$blahProperty                       = null;
-  functionName BlahAnotherClass()::static $public                   = null;
-  global ${"lol global"}                                        = null;
-  functionName BlahYetAnotherClass::blahMethod()::static $lolStatic = null;
-  global $blahVariable                                          = null;
+  private static BlahClass::$blahProperty                    = null;
+  function blahFunction()::static ${"variable name"}         = true;
+  function BlahAnotherClass::blahMethod()::static $lolStatic = null;
+  $_SESSION                                                  = true;
+  global $globalVariable                                     = -2734;
+  27 more...
 
 
 s
@@ -186,49 +104,81 @@ s
     }
 
     function testMaxArrayEntries() {
-        self::assertPrettyIs(range(1, 10), <<<'s'
+        $settings                  = new IntrospectionSettings;
+        $settings->maxArrayEntries = 3;
+        self::assertEquals(
+            <<<'s'
 array( 1,
        2,
        3,
-       ... )
+       7 more... )
+
 s
+                ,
+                Value::introspect(
+                     range(1, 10),
+                     $settings
+                )->toString()
         );
-        self::assertPrettyIs(array("blarg" => "foo",
-                                   "bar"   => "bar"),
+        self::assertEquals(
             <<<'s'
 array( "blarg" => "foo",
        "bar"   => "bar" )
+
 s
+                ,
+                Value::introspect(
+                     array("blarg" => "foo",
+                           "bar"   => "bar"),
+                     $settings
+                )->toString()
         );
-        self::assertPrettyIs(array("blarg"    => "foo",
-                                   "bar"      => "bar",
-                                   "bawreara" => "wrjenrg",
-                                   "awfjnrg"  => "awrrg"),
+        self::assertEquals(
             <<<'s'
 array( "blarg"    => "foo",
        "bar"      => "bar",
        "bawreara" => "wrjenrg",
-       ... )
+       1 more... )
+
 s
+                ,
+                Value::introspect(
+                     array("blarg"    => "foo",
+                           "bar"      => "bar",
+                           "bawreara" => "wrjenrg",
+                           "awfjnrg"  => "awrrg"),
+                     $settings
+                )->toString()
         );
     }
 
     function testMaxObjectProperties() {
-        self::assertPrettyIs(new DummyClass2, <<<'s'
-new PrettyPrinter\Test\DummyClass2 #1 {
-    public $public2       = null;
+        $settings                      = new IntrospectionSettings;
+        $settings->maxObjectProperties = 5;
+        self::assertEquals(
+            <<<'s'
+new FailWhale\DummyClass2 {
     private $private2     = null;
     protected $protected2 = null;
-    public $public1       = null;
+    public $public2       = null;
     private $private1     = null;
-    ...
+    protected $protected1 = null;
+    1 more...
 }
+
 s
+                ,
+                Value::introspect(new DummyClass2, $settings)->toString()
         );
     }
 
     function testMaxStringLength() {
-        self::assertPrettyIs("wafkjawejf bawjehfb awjhefb j,awhebf ", '"wafkjawejf...');
+        $settings                  = new IntrospectionSettings;
+        $settings->maxStringLength = 10;
+        self::assertEquals(
+            "\"wafkjawejf\" 27 more bytes...\n",
+            Value::introspect("wafkjawejf bawjehfb awjhefb j,awhebf ", $settings)->toString()
+        );
     }
 
     function testMultiLineString() {
@@ -262,22 +212,23 @@ s
         $object->foo =& $array;
 
         self::assertPrettyRefIs($array, <<<'s'
-array( new stdClass #2 {
-           public $foo = array( new stdClass #2 {...} );
+array( new stdClass {
+           public $foo = array( *recursion* );
        } )
+
 s
         );
     }
 
     function testObjectProperties() {
         self::assertPrettyIs(new DummyClass2, <<<'s'
-new PrettyPrinter\Test\DummyClass2 #1 {
-    public $public2       = null;
+new FailWhale\DummyClass2 {
     private $private2     = null;
     protected $protected2 = null;
-    public $public1       = null;
+    public $public2       = null;
     private $private1     = null;
     protected $protected1 = null;
+    public $public1       = null;
 }
 s
         );
@@ -289,7 +240,9 @@ s
 
         self::assertPrettyIs(array(&$recursiveArray, $recursiveArray, $recursiveArray),
             <<<'s'
-#1 array( "recurse" => #1 array(...) )
+array( array( "recurse" => *recursion* ),
+       array( "recurse" => array( "recurse" => *recursion* ) ),
+       array( "recurse" => array( "recurse" => *recursion* ) ) )
 s
         );
     }
@@ -312,7 +265,7 @@ s
         self::assertPrettyIs(~PHP_INT_MAX, (string)~PHP_INT_MAX);
         self::assertPrettyIs(0.0745, "0.0745");
         self::assertPrettyIs(0.33333333333333, "0.33333333333333");
-        self::assertPrettyIs(2.2250738585072e-308, "2.2250738585072e-308");
+        self::assertPrettyIs(2.2250738585072e-308, "2.2250738585072E-308");
         self::assertPrettyIs("lol", '"lol"');
         self::assertPrettyIs(array(), "array()");
         self::assertPrettyIs(array("foo"), 'array( "foo" )');
@@ -329,7 +282,7 @@ s
         $object->foo = 'bar';
 
         self::assertPrettyIs($object, <<<'s'
-new stdClass #1 {
+new stdClass {
     public $foo = "bar";
 }
 s

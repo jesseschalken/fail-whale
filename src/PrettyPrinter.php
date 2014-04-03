@@ -94,7 +94,7 @@ class PrettyPrinter {
             $key   = $this->renderValue($keyValuePair->key);
             $value = $this->renderValue($keyValuePair->value);
 
-            if (count($rows) != count($array->entries) - 1)
+            if (count($rows) != count($array->entries) - 1 || $array->entriesMissing)
                 $value->append(',');
 
             if ($array->isAssociative) {
@@ -110,7 +110,7 @@ class PrettyPrinter {
         $result = Text::table($rows);
 
         if ($array->entriesMissing != 0)
-            $result->addLine("$array->entriesMissing missing entries");
+            $result->addLine("$array->entriesMissing more...");
 
         $result->wrap("array( ", " )");
         return $result;
@@ -265,7 +265,7 @@ class PrettyPrinter {
         $result = Text::table($rows);
 
         if ($missing != 0)
-            $result->addLine("$missing missing");
+            $result->addLine("$missing more...");
 
         return $result;
     }
@@ -367,7 +367,7 @@ class PrettyPrinter {
         }
 
         if ($exception->stackMissing != 0)
-            $text->addLine("$exception->stackMissing missing");
+            $text->addLine("$exception->stackMissing more...");
         else
             $text->addLine("#$i {main}");
 
