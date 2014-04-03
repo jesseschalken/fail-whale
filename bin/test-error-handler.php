@@ -4,7 +4,7 @@ namespace FailWhale;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-ErrorHandler::register(ErrorHandler::simpleHandler());
+ErrorHandler::bind(ErrorHandler::simpleHandler());
 
 ini_set('display_errors', 1);
 

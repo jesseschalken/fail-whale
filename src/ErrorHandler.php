@@ -21,7 +21,7 @@ class ErrorHandler {
      * @param callable $handleException
      * @param callable|null $handleIgnoredError
      */
-    static function register($handleException, $handleIgnoredError = null) {
+    static function bind($handleException, $handleIgnoredError = null) {
         if (PHP_MAJOR_VERSION == 5)
             if (PHP_MINOR_VERSION == 3)
                 $phpBug61767Fixed = PHP_RELEASE_VERSION >= 18;
