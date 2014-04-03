@@ -270,7 +270,7 @@ var FailWhale;
 
         function renderObject(object) {
             return HTML.inline(HTML.expandable({
-                head: HTML.collect([HTML.keyword('object'), HTML.plain(' ' + object.className)]),
+                head: HTML.collect([HTML.keyword('new'), HTML.plain(' ' + object.className)]),
                 body: function () {
                     if (object.properties.length == 0 && object.propertiesMissing == 0)
                         return HTML.notice('empty');
