@@ -1,31 +1,33 @@
 module PrettyPrinter {
 
     function rescroll() {
-        var viewport = {
-            x: document.body.scrollLeft,
-            y: document.body.scrollTop,
-            w: window.innerWidth,
-            h: window.innerHeight
-        };
+        function view() {
+            return {
+                x: document.documentElement.scrollLeft || document.body.scrollLeft,
+                y: document.documentElement.scrollTop || document.body.scrollTop,
+                w: document.documentElement.clientWidth || window.innerWidth,
+                h: document.documentElement.clientHeight || window.innerHeight
+            };
+        }
 
         function doc() {
             return {
-                w: document.body.scrollWidth,
-                h: document.body.scrollHeight
+                w: document.documentElement.scrollWidth || document.body.scrollWidth,
+                h: document.documentElement.scrollHeight || document.body.scrollHeight
             };
         }
 
         var doc1 = doc();
+        var view1 = view();
 
         return function () {
             var doc2 = doc();
+            var view2 = view();
 
-            if (viewport.x + viewport.w >= doc1.w && viewport.x != 0)
-                viewport.x = doc2.w - viewport.w;
-            if (viewport.y + viewport.h >= doc1.h && viewport.y != 0)
-                viewport.y = doc2.h - viewport.h;
-
-            window.scrollTo(viewport.x, viewport.y);
+            window.scrollTo(
+                view1.x + view1.w >= doc1.w && view1.x != 0 ? doc2.w - view2.w : view2.x,
+                view1.y + view1.h >= doc1.h && view1.y != 0 ? doc2.h - view2.h : view2.y
+            );
         };
     }
 
