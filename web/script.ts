@@ -7,24 +7,25 @@ module PrettyPrinter {
             w: window.innerWidth,
             h: window.innerHeight
         };
-        
+
         function doc() {
             return {
                 w: document.body.scrollWidth,
                 h: document.body.scrollHeight
             };
         }
+
         var doc1 = doc();
 
         return function () {
             var doc2 = doc();
 
-            if ( viewport.x + viewport.w >= doc1.w && viewport.x != 0 )
+            if (viewport.x + viewport.w >= doc1.w && viewport.x != 0)
                 viewport.x = doc2.w - viewport.w;
-            if ( viewport.y + viewport.h >= doc1.h && viewport.y != 0 )
+            if (viewport.y + viewport.h >= doc1.h && viewport.y != 0)
                 viewport.y = doc2.h - viewport.h;
 
-            window.scrollTo(viewport.x,viewport.y);
+            window.scrollTo(viewport.x, viewport.y);
         };
     }
 
@@ -592,35 +593,42 @@ module PrettyPrinter {
                     if (!location.source)
                         return notice('no source code');
 
-                    var wrapper = document.createElement('div');
+                    var wrapper = document.createElement('table');
 
                     for (var codeLine in location.source) {
                         if (!location.source.hasOwnProperty(codeLine))
                             continue;
 
-                        var lineNumber = wrap(String(codeLine));
-                        lineNumber.style.width = '3em';
-                        lineNumber.style.paddingRight = padding;
-                        lineNumber.style.marginRight = padding;
+                        var lineNumber = document.createElement('td');
+                        lineNumber.appendChild(text(String(codeLine)));
+                        lineNumber.style.padding = '0';
+                        lineNumber.style.paddingRight = '0.5em';
                         lineNumber.style.textAlign = 'right';
                         lineNumber.style.opacity = '0.6';
 
-                        var code = wrap(decodeUTF8(location.source[codeLine]));
-                        code.style.minWidth = '60em';
+                        var code = document.createElement('td');
+                        code.appendChild(text(decodeUTF8(location.source[codeLine])));
+                        code.style.padding = '0';
+                        code.style.width = '100%';
 
-                        var row = block(collect([lineNumber, code]));
+                        var row = document.createElement('tr');
+                        row.appendChild(lineNumber);
+                        row.appendChild(code);
+
                         if (codeLine == location.line) {
-                            row.style.backgroundColor = '#f99';
-                            row.style.color = '#600';
-                            row.style.borderRadius = padding;
+                            code.style.backgroundColor = '#f99';
+                            code.style.color = '#600';
+                            code.style.borderRadius = padding;
                         }
 
                         wrapper.appendChild(row);
                     }
 
+                    wrapper.style.borderSpacing = '0';
                     wrapper.style.padding = padding;
                     wrapper.style.backgroundColor = '#333';
                     wrapper.style.color = '#ddd';
+                    wrapper.style.width = '100%';
 
                     return  wrapper;
                 },
