@@ -546,7 +546,7 @@ module PrettyPrinter {
             if (globals.globalVariablesMissing > 0)
                 container.appendChild(block(notice(globals.globalVariablesMissing + " global variables missing...")));
 
-            if (staticVariables.length != globals.staticPropertiesMissing)
+            if (globals.staticPropertiesMissing > 0)
                 container.appendChild(block(notice(globals.staticPropertiesMissing + " static variables missing...")));
 
             return container;
