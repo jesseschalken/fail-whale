@@ -181,7 +181,7 @@ s;
             $id = count($this->stringIds);
 
             $string               = new String1;
-            $string->bytes        = substr($value, 0, $this->limits->maxStringLength);
+            $string->bytes        = (string) substr($value, 0, $this->limits->maxStringLength);
             $string->bytesMissing = strlen($value) - strlen($string->bytes);
 
             $this->root->strings[$id] = $string;
