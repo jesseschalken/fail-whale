@@ -449,7 +449,7 @@ var FailWhale;
             for (var i = 0; i < staticVariables.length; i++) {
                 var v = staticVariables[i];
                 var pieces = document.createDocumentFragment();
-                pieces.appendChild(HTML.keyword('functionName'));
+                pieces.appendChild(HTML.keyword('function'));
                 pieces.appendChild(HTML.plain(' '));
 
                 if (v.className)
