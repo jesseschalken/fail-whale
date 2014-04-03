@@ -1,6 +1,6 @@
 <?php
 
-namespace ErrorHandler;
+namespace FailWhale;
 
 interface ExceptionHasFullTrace {
     /**

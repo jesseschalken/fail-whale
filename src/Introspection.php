@@ -1,6 +1,6 @@
 <?php
 
-namespace ErrorHandler;
+namespace FailWhale;
 
 class IntrospectionSettings {
     public $maxArrayEntries = 1000;

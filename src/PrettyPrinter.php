@@ -1,6 +1,6 @@
 <?php
 
-namespace ErrorHandler;
+namespace FailWhale;
 
 final class PrettyPrinterSettings {
     public $escapeTabsInStrings = false;

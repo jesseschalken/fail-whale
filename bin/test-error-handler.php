@@ -1,6 +1,6 @@
 <?php
 
-namespace ErrorHandler;
+namespace FailWhale;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 

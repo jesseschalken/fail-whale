@@ -1,6 +1,6 @@
 <?php
 
-namespace ErrorHandler;
+namespace FailWhale;
 
 class Value {
     static function introspect($value, IntrospectionSettings $settings = null) {
@@ -42,7 +42,7 @@ class Value {
         $js = <<<js
 document.addEventListener('DOMContentLoaded', function () {
     var json = document.getElementById('the-json').textContent;
-    var value = PrettyPrinter.renderJSON(json);
+    var value = FailWhale.renderJSON(json);
     var body = document.getElementsByTagName('body')[0];
 
     body.innerHTML = '';

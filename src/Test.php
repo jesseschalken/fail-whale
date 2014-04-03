@@ -1,6 +1,6 @@
 <?php
 
-namespace ErrorHandler;
+namespace FailWhale;
 
 class DummyClass1 {
     private static /** @noinspection PhpUnusedPrivateFieldInspection */

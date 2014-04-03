@@ -1,4 +1,4 @@
-module PrettyPrinter {
+module FailWhale {
 
     function rescroll() {
         function view() {

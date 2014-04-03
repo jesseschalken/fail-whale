@@ -1,6 +1,6 @@
 <?php
 
-namespace ErrorHandler;
+namespace FailWhale;
 
 /**
  * Provides versions of json_encode and json_decode which work with arbitrary byte strings, not just valid UTF-8 ones.
