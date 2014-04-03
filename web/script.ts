@@ -592,7 +592,7 @@ module PrettyPrinter {
                     if (!location.source)
                         return notice('no source code');
 
-                    var inner = document.createDocumentFragment();
+                    var wrapper = document.createElement('div');
 
                     for (var codeLine in location.source) {
                         if (!location.source.hasOwnProperty(codeLine))
@@ -615,10 +615,9 @@ module PrettyPrinter {
                             row.style.borderRadius = padding;
                         }
 
-                        inner.appendChild(row);
+                        wrapper.appendChild(row);
                     }
 
-                    var wrapper = block(inner);
                     wrapper.style.padding = padding;
                     wrapper.style.backgroundColor = '#333';
                     wrapper.style.color = '#ddd';
