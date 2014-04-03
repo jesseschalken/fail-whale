@@ -78,7 +78,7 @@ js;
     function toString(PrettyPrinterSettings $settings = null) {
         $visitor = new PrettyPrinter($this->root, $settings);
 
-        return $visitor->renderRoot()->toString();
+        return $visitor->render()->toString();
     }
 }
 

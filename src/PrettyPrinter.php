@@ -26,11 +26,11 @@ class PrettyPrinter {
         $this->root     = $root;
     }
 
-    function renderRoot() {
-        return $this->render($this->root->root);
+    function render() {
+        return $this->renderValue($this->root->root);
     }
 
-    private function render(ValueImpl $v) {
+    private function renderValue(ValueImpl $v) {
         switch ($v->type) {
             case Type::STRING:
                 return $this->visitString($this->root->strings[$v->string]);
@@ -91,8 +91,8 @@ class PrettyPrinter {
         $rows = array();
 
         foreach ($array->entries as $keyValuePair) {
-            $key   = $this->render($keyValuePair->key);
-            $value = $this->render($keyValuePair->value);
+            $key   = $this->renderValue($keyValuePair->key);
+            $value = $this->renderValue($keyValuePair->value);
 
             if (count($rows) != count($array->entries) - 1)
                 $value->append(',');
@@ -257,7 +257,7 @@ class PrettyPrinter {
         foreach ($variables as $k => $variable) {
             $prefix = new Text($prefixes[$k]);
             $prefix->appendLines($this->renderVariable($variable->name));
-            $value = $this->render($variable->value);
+            $value = $this->renderValue($variable->value);
             $value->wrap(' = ', ';');
             $rows[] = array($prefix, $value,);
         }
@@ -412,7 +412,7 @@ class PrettyPrinter {
         $isMultiLine = false;
 
         foreach ($frame->args as $arg) {
-            $pretty      = $this->render($arg);
+            $pretty      = $this->renderValue($arg);
             $isMultiLine = $isMultiLine || $pretty->count() > 1;
             $pretties[]  = $pretty;
         }
