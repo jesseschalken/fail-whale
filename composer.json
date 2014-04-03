@@ -1,16 +1,18 @@
 {
     "name": "fail-whale/fail-whale",
     "description": "A robust error handler and pretty printer for PHP",
+    "minimum-stability": "stable",
+    "license": "MIT",
     "authors": [
         {
             "name": "Jesse Schalken",
             "email": "me@jesseschalken.com"
         }
     ],
-    "require": {
-        "phpunit/phpunit": "3.7.*"
+    "require-dev": {
+        "phpunit/phpunit": "*"
     },
     "autoload": {
-        "classmap": [ "src/" ]
+        "classmap": ["src/"]
     }
 }
