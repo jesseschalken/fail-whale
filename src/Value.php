@@ -28,7 +28,7 @@ class Value {
 
     static function fromJSON($json) {
         $root = new Root;
-        $root->pushJson(JSON::decode($json));
+        $root->pushJSON(JSON::decode($json));
         return new self($root);
     }
 
@@ -72,7 +72,7 @@ js;
     }
 
     function toJSON($pretty = true) {
-        return JSON::encode($this->root->pullJson(), $pretty);
+        return JSON::encode($this->root->pullJSON(), $pretty);
     }
 
     function toString(PrettyPrinterSettings $settings = null) {
