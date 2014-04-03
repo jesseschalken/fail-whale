@@ -40,7 +40,7 @@ class ErrorHandler {
             $phpBug61767Fixed, $handleIgnoredError
         ) {
             $lastError    = error_get_last();
-            $ignore       = error_reporting() & $severity === 0;
+            $ignore       = !(error_reporting() & $severity);
             $handleIgnore = is_callable($handleIgnoredError);
             if (!$ignore || $handleIgnore) {
                 $e = new ErrorException($severity, $message, $file, $line, $localVars,
