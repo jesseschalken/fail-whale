@@ -165,6 +165,7 @@ module FailWhale {
             wrapped.appendChild(HTML.plain(t));
             wrapped.style.fontStyle = 'italic';
             wrapped.style.padding = Settings.padding;
+            wrapped.style.display = 'inline-block';
             return wrapped;
         }
 
