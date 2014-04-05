@@ -13,6 +13,7 @@ class IntrospectionSettings {
     public $maxGlobalVariables = 100;
     public $maxFunctionArguments = 10;
     public $maxSourceCodeContext = 10;
+    public $includeSourceCode = true;
 }
 
 class Introspection {
@@ -414,6 +415,9 @@ s;
     }
 
     private function introspectSourceCode($file, $line) {
+        if (!$this->limits->includeSourceCode)
+            return null;
+
         if (!@is_readable($file))
             return null;
 
