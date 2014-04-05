@@ -7,11 +7,11 @@ class IntrospectionSettings {
     public $maxObjectProperties = 100;
     public $maxStringLength = 10000;
     public $maxStackFrames = 100;
-    public $maxLocalVariables = 10;
+    public $maxLocalVariables = 100;
     public $maxStaticProperties = 100;
     public $maxStaticVariables = 100;
     public $maxGlobalVariables = 100;
-    public $maxFunctionArguments = 10;
+    public $maxFunctionArguments = 100;
     public $maxSourceCodeContext = 10;
     public $includeSourceCode = true;
 }
