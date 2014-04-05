@@ -14,6 +14,7 @@ final class PrettyPrinterSettings {
     public $showStringContents = true;
     public $longStringThreshold = 100;
     public $useShortArraySyntax = false;
+    public $align = true;
 }
 
 class PrettyPrinter {
@@ -81,7 +82,7 @@ class PrettyPrinter {
             } else {
                 $rendered = true;
                 $result   = new Text("&$idString ");
-                $result->appendLines($this->renderString($string));
+                $result->appendLines($this->renderString($string), $this->settings->align);
                 return $result;
             }
         } else {
@@ -101,7 +102,7 @@ class PrettyPrinter {
             } else {
                 $rendered = true;
                 $result   = new Text("&$idString ");
-                $result->appendLines($this->renderArrayBody($array));
+                $result->appendLines($this->renderArrayBody($array), $this->settings->align);
                 return $result;
             }
         } else {
@@ -121,7 +122,7 @@ class PrettyPrinter {
             } else {
                 $rendered = true;
                 $result   = new Text("&$idString ");
-                $result->appendLines($this->renderObjectBody($object));
+                $result->appendLines($this->renderObjectBody($object), $this->settings->align);
                 return $result;
             }
         } else {
@@ -148,24 +149,35 @@ class PrettyPrinter {
         foreach ($array->entries as $keyValuePair) {
             $key   = $this->renderValue($keyValuePair->key);
             $value = $this->renderValue($keyValuePair->value);
-            $value->append(',');
+
+            if (count($rows) != count($array->entries) - 1 ||
+                $array->entriesMissing != 0 ||
+                !$this->settings->align
+            ) {
+                $value->append(',');
+            }
 
             if ($array->isAssociative) {
-                $value->prepend(' => ');
+                $value->prepend(' => ', $this->settings->align);
                 $rows[] = array($key, $value);
             } else {
                 $rows[] = array($value);
             }
         }
 
-        $result = Text::table($rows);
+        $result = Text::table($rows, $this->settings->align);
 
         if ($array->entriesMissing != 0)
             $result->addLine("$array->entriesMissing more...");
 
-        $result->indent();
-        $result->indent();
-        $result->wrapLines($start, $end);
+        if ($this->settings->align) {
+            $result->wrap("$start ", " $end");
+        } else {
+            $result->indent();
+            $result->indent();
+            $result->wrapLines($start, $end);
+        }
+
         return $result;
     }
 
@@ -303,13 +315,13 @@ class PrettyPrinter {
 
         foreach ($variables as $k => $variable) {
             $prefix = new Text($prefixes[$k]);
-            $prefix->appendLines($this->renderVariable($variable->name));
+            $prefix->appendLines($this->renderVariable($variable->name), $this->settings->align);
             $value = $this->renderValue($variable->value);
-            $value->wrap(' = ', ';');
+            $value->wrap(' = ', ';', $this->settings->align);
             $rows[] = array($prefix, $value,);
         }
 
-        $result = Text::table($rows);
+        $result = Text::table($rows, $this->settings->align);
 
         if ($missing != 0)
             $result->addLine("$missing more...");
@@ -375,7 +387,15 @@ class PrettyPrinter {
         $string->bytesMissing = 0;
 
         $result = $this->renderString($string);
-        $result->wrap('${', '}');
+
+        if ($result->count() > 1 && !$this->settings->align) {
+            $result->indent();
+            $result->indent();
+            $result->wrapLines('${', '}');
+        } else {
+            $result->wrap('${', '}');
+        }
+
         return $result;
     }
 
@@ -573,12 +593,7 @@ class RefCounts {
 }
 
 class Text {
-    /**
-     * @param array $rows
-     *
-     * @return self
-     */
-    static function table(array $rows) {
+    static function table(array $rows, $align = true) {
         $columnWidths = array();
 
         /** @var $cell self */
@@ -603,7 +618,7 @@ class Text {
                 if ($column !== $lastColumn)
                     $cell->padWidth($columnWidths[$column]);
 
-                $row->appendLines($cell);
+                $row->appendLines($cell, $align);
             }
 
             $result->addLines($row);
@@ -630,8 +645,8 @@ class Text {
         $this->append(str_repeat(' ', $width - $this->width()));
     }
 
-    function appendLines(self $append) {
-        $space = str_repeat(' ', $this->width());
+    function appendLines(self $append, $align = true) {
+        $space = $align ? str_repeat(' ', $this->width()) : '';
 
         foreach ($append->lines as $k => $line)
             if ($k == 0 && $this->lines)
@@ -688,17 +703,17 @@ class Text {
                 $this->lines[$k] = "  $line";
     }
 
-    function wrap($prepend, $append) {
-        $this->prepend($prepend);
-        $this->append($append);
+    function wrap($prepend, $append, $align = true) {
+        $this->prepend($prepend, $align);
+        $this->append($append, $align);
     }
 
-    function prepend($string) {
-        $this->prependLines(new self($string));
+    function prepend($string, $align = true) {
+        $this->prependLines(new self($string), $align);
     }
 
-    function prependLines(self $lines) {
-        $this->appendLines($this->swapLines($lines));
+    function prependLines(self $lines, $align = true) {
+        $this->appendLines($this->swapLines($lines), $align);
     }
 
     function wrapLines($prepend = '', $append = '') {
