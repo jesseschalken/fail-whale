@@ -731,7 +731,3 @@ module FailWhale {
 }
 
 declare function escape(s:string):string;
-
-interface CSSStyleDeclaration {
-    MozBoxSizing:string;
-}
