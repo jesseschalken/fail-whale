@@ -13,6 +13,7 @@ final class PrettyPrinterSettings {
     public $showArrayEntries = true;
     public $showStringContents = true;
     public $longStringThreshold = 100;
+    public $useShortArraySyntax = false;
 }
 
 class PrettyPrinter {
@@ -129,19 +130,25 @@ class PrettyPrinter {
     }
 
     private function renderArrayBody(Array1 $array) {
+        if ($this->settings->useShortArraySyntax) {
+            $start = "[";
+            $end   = "]";
+        } else {
+            $start = "array(";
+            $end   = ")";
+        }
+
         if (!($array->entries) && $array->entriesMissing == 0)
-            return new Text("array()");
+            return new Text("$start$end");
         else if (!$this->settings->showArrayEntries)
-            return new Text("array(...)");
+            return new Text("$start...$end");
 
         $rows = array();
 
         foreach ($array->entries as $keyValuePair) {
             $key   = $this->renderValue($keyValuePair->key);
             $value = $this->renderValue($keyValuePair->value);
-
-            if (count($rows) != count($array->entries) - 1 || $array->entriesMissing)
-                $value->append(',');
+            $value->append(',');
 
             if ($array->isAssociative) {
                 $value->prepend(' => ');
@@ -156,7 +163,9 @@ class PrettyPrinter {
         if ($array->entriesMissing != 0)
             $result->addLine("$array->entriesMissing more...");
 
-        $result->wrap("array( ", " )");
+        $result->indent();
+        $result->indent();
+        $result->wrapLines($start, $end);
         return $result;
     }
 
