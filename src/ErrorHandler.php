@@ -70,37 +70,6 @@ class ErrorHandler {
         );
 
         set_exception_handler($handleException);
-
-        assert_options(ASSERT_CALLBACK, function ($file, $line, $expression, $message = 'Assertion failed') {
-            throw new AssertionFailedException($file, $line, $expression, $message, 1);
-        });
-    }
-}
-
-class AssertionFailedException extends \LogicException {
-    private $expression;
-
-    /**
-     * @param string $file
-     * @param int $line
-     * @param string $expression
-     * @param string $message
-     * @param int $traceSkip
-     */
-    function __construct($file, $line, $expression, $message, $traceSkip = 0) {
-        parent::__construct($message);
-
-        $this->file       = $file;
-        $this->line       = $line;
-        $this->expression = $expression;
-
-        $prop = new \ReflectionProperty('Exception', 'trace');
-        $prop->setAccessible(true);
-        $prop->setValue($this, array_slice(debug_backtrace(), 1 + $traceSkip));
-    }
-
-    function getExpression() {
-        return $this->expression;
     }
 }
 
