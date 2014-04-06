@@ -1,0 +1,7 @@
+<phpunit>
+    <testsuites>
+        <testsuite name="FailWhale">
+            <file>src/Test.php</file>
+        </testsuite>
+    </testsuites>
+</phpunit>
