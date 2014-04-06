@@ -4,7 +4,15 @@ namespace FailWhale;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-ErrorHandler::bind(ErrorHandler::simpleHandler());
+ErrorHandler::bind(
+    function (\Exception $e) {
+        $v = Value::introspectException($e);
+        if (PHP_SAPI === 'cli')
+            print $v->toString();
+        else
+            print $v->toHTML();
+    }
+);
 
 ini_set('display_errors', 1);
 

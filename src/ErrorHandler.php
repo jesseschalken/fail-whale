@@ -93,37 +93,6 @@ class ErrorHandler {
         set_exception_handler($handleException);
         assert_options(ASSERT_CALLBACK, $handleAssert);
     }
-
-    static function simpleHandler() {
-        return function (\Exception $e) {
-            while (ob_get_level() > 0 && ob_end_clean()) ;
-
-            if (PHP_SAPI === 'cli') {
-                $limits                       = new IntrospectionSettings;
-                $limits->maxStringLength      = 100;
-                $limits->maxArrayEntries      = 10;
-                $limits->maxObjectProperties  = 10;
-                $limits->maxSourceCodeContext = 3;
-
-                $settings                               = new PrettyPrinterSettings;
-                $settings->showExceptionGlobalVariables = false;
-                $settings->showExceptionStackTrace      = true;
-                $settings->showExceptionLocalVariables  = true;
-                $settings->showExceptionSourceCode      = true;
-                $settings->showObjectProperties         = false;
-                $settings->showArrayEntries             = false;
-
-                fwrite(STDERR, Value::introspectException($e, $limits)->toString($settings));
-            } else {
-                if (!headers_sent()) {
-                    header('HTTP/1.1 500 Internal Server Error', true, 500);
-                    header("Content-Type: text/html; charset=UTF-8", true);
-                }
-
-                echo Value::introspectException($e)->toHTML();
-            }
-        };
-    }
 }
 
 class AssertionFailedException extends \LogicException implements ExceptionHasFullTrace {
