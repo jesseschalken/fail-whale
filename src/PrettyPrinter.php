@@ -14,7 +14,9 @@ final class PrettyPrinterSettings {
     public $showStringContents = true;
     public $longStringThreshold = 1000;
     public $useShortArraySyntax = false;
-    public $align = true;
+    public $alignText = false;
+    public $alignVariables = true;
+    public $alignArrayEntries = true;
 }
 
 class PrettyPrinter {
@@ -82,7 +84,7 @@ class PrettyPrinter {
             } else {
                 $rendered = true;
                 $result   = new Text("&$idString ");
-                $result->appendLines($this->renderString($string), $this->settings->align);
+                $result->appendLines($this->renderString($string), $this->settings->alignText);
                 return $result;
             }
         } else {
@@ -94,7 +96,7 @@ class PrettyPrinter {
         $array    = $this->root->arrays[$id];
         $refCount =& $this->refCounts->arrays[$id];
 
-        if ($refCount > 1) {
+        if ($refCount > 1 && (count($array->entries) > 0 || $array->entriesMissing > 0)) {
             $rendered =& $this->arraysRendered[$id];
             $idString = sprintf("array%03d", $id);
             if ($rendered) {
@@ -102,7 +104,7 @@ class PrettyPrinter {
             } else {
                 $rendered = true;
                 $result   = new Text("&$idString ");
-                $result->appendLines($this->renderArrayBody($array), $this->settings->align);
+                $result->appendLines($this->renderArrayBody($array), $this->settings->alignText);
                 return $result;
             }
         } else {
@@ -122,7 +124,7 @@ class PrettyPrinter {
             } else {
                 $rendered = true;
                 $result   = new Text("&$idString ");
-                $result->appendLines($this->renderObjectBody($object), $this->settings->align);
+                $result->appendLines($this->renderObjectBody($object), $this->settings->alignText);
                 return $result;
             }
         } else {
@@ -152,25 +154,25 @@ class PrettyPrinter {
 
             if (count($rows) != count($array->entries) - 1 ||
                 $array->entriesMissing != 0 ||
-                !$this->settings->align
+                !$this->settings->alignText
             ) {
                 $value->append(',');
             }
 
             if ($array->isAssociative) {
-                $value->prepend(' => ', $this->settings->align);
+                $value->prepend(' => ', $this->settings->alignText);
                 $rows[] = array($key, $value);
             } else {
                 $rows[] = array($value);
             }
         }
 
-        $result = Text::table($rows, $this->settings->align);
+        $result = Text::table($rows, $this->settings->alignText, $this->settings->alignArrayEntries);
 
         if ($array->entriesMissing != 0)
             $result->addLine("$array->entriesMissing more...");
 
-        if ($this->settings->align) {
+        if ($this->settings->alignText) {
             $result->wrap("$start ", " $end");
         } else {
             $result->indent();
@@ -315,13 +317,13 @@ class PrettyPrinter {
 
         foreach ($variables as $k => $variable) {
             $prefix = new Text($prefixes[$k]);
-            $prefix->appendLines($this->renderVariable($variable->name), $this->settings->align);
+            $prefix->appendLines($this->renderVariable($variable->name), $this->settings->alignText);
             $value = $this->renderValue($variable->value);
-            $value->wrap(' = ', ';', $this->settings->align);
+            $value->wrap(' = ', ';', $this->settings->alignText);
             $rows[] = array($prefix, $value,);
         }
 
-        $result = Text::table($rows, $this->settings->align);
+        $result = Text::table($rows, $this->settings->alignText, $this->settings->alignVariables);
 
         if ($missing != 0)
             $result->addLine("$missing more...");
@@ -388,7 +390,7 @@ class PrettyPrinter {
 
         $result = $this->renderString($string);
 
-        if ($result->count() > 1 && !$this->settings->align) {
+        if ($result->count() > 1 && !$this->settings->alignText) {
             $result->indent();
             $result->indent();
             $result->wrapLines('${', '}');
@@ -409,9 +411,11 @@ class PrettyPrinter {
         $rows = array();
 
         foreach ($code as $codeLine => $codeText) {
-            $rows[] = array(new Text($codeLine == $line ? "> " : ''),
-                            new Text("$codeLine "),
-                            new Text($codeText));
+            $rows[] = array(
+                new Text($codeLine == $line ? "> " : ''),
+                new Text("$codeLine "),
+                new Text($codeText),
+            );
         }
 
         return Text::table($rows);
@@ -448,7 +452,7 @@ class PrettyPrinter {
     private function renderExceptionStackFrame(Stack $frame) {
         $result = $this->renderExceptionStackFramePrefix($frame);
         $result->append($frame->functionName);
-        $result->appendLines($this->renderExceptionStackFrameArgs($frame));
+        $result->appendLines($this->renderExceptionStackFrameArgs($frame), $this->settings->alignText);
         return $result;
     }
 
@@ -503,7 +507,14 @@ class PrettyPrinter {
                 $result->append(', ');
         }
 
-        $result->wrap("( ", " )");
+        if (!$this->settings->alignText && $isMultiLine) {
+            $result->indent();
+            $result->indent();
+            $result->wrapLines("(", ")");
+        } else {
+            $result->wrap("( ", " )");
+        }
+
         return $result;
     }
 }
@@ -593,17 +604,19 @@ class RefCounts {
 }
 
 class Text {
-    static function table(array $rows, $align = true) {
+    static function table(array $rows, $alignText = true, $alignColumns = true) {
         $columnWidths = array();
 
-        /** @var $cell self */
-        foreach (self::flipArray($rows) as $colNo => $column) {
-            $width = 0;
+        if ($alignColumns) {
+            /** @var $cell self */
+            foreach (self::flipArray($rows) as $colNo => $column) {
+                $width = 0;
 
-            foreach ($column as $cell)
-                $width = max($width, $cell->width());
+                foreach ($column as $cell)
+                    $width = max($width, $cell->width());
 
-            $columnWidths[$colNo] = $width;
+                $columnWidths[$colNo] = $width;
+            }
         }
 
         $result = new self;
@@ -615,10 +628,10 @@ class Text {
             foreach ($cells as $column => $cell) {
                 $cell = clone $cell;
 
-                if ($column !== $lastColumn)
+                if ($alignColumns && $column !== $lastColumn)
                     $cell->padWidth($columnWidths[$column]);
 
-                $row->appendLines($cell, $align);
+                $row->appendLines($cell, $alignText);
             }
 
             $result->addLines($row);
