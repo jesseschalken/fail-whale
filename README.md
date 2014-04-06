@@ -51,14 +51,14 @@ use FailWhale\Value;
 class A {
     private $foo      = "bar";
     protected $an_int = 967;
+    public $an_array  = array(
+        'key'  => 'value',
+        'key2' => 'value2',
+        8      => 762.192,
+    );
 }
 
 $a = new A;
-$a->an_array = array(
-    'key'  => 'value',
-    'key2' => 'value2',
-    8      => 762.192
-);
 
 print Value::introspect($a)->toString();
 ```
@@ -67,9 +67,11 @@ print Value::introspect($a)->toString();
 new A {
     private $foo      = "bar";
     protected $an_int = 967;
-    public $an_array  = array( "key"  => "value",
-                               "key2" => "value2",
-                               8      => 762.192 );
+    public $an_array  = array(
+        "key"  => "value",
+        "key2" => "value2",
+        8      => 762.192,
+    );
 }
 ```
 
