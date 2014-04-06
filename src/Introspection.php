@@ -294,7 +294,6 @@ s;
 
         $this->arrayIdRefs[$id]  =& $array;
         $this->root->arrays[$id] = $this->introspectArray($array);
-        unset($this->arrayIdRefs[$id]);
 
         return $id;
     }
