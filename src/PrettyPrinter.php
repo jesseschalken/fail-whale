@@ -12,7 +12,7 @@ final class PrettyPrinterSettings {
     public $showObjectProperties = true;
     public $showArrayEntries = true;
     public $showStringContents = true;
-    public $longStringThreshold = 100;
+    public $longStringThreshold = 1000;
     public $useShortArraySyntax = false;
     public $align = true;
 }
