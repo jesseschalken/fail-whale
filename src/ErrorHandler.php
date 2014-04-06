@@ -2,20 +2,6 @@
 
 namespace FailWhale;
 
-interface ExceptionHasFullTrace {
-    /**
-     * @return array
-     */
-    function getFullTrace();
-}
-
-interface ExceptionHasLocalVariables {
-    /**
-     * @return array|null
-     */
-    function getLocalVariables();
-}
-
 class ErrorHandler {
     /**
      * @param callable $handleException
@@ -34,102 +20,105 @@ class ErrorHandler {
 
         $lastError = error_get_last();
 
-        $handleError = function ($severity, $message, $file = null, $line = null,
-                                 $localVars = null) use (
-            &$lastError, $handleException,
-            $phpBug61767Fixed, $handleIgnoredError
-        ) {
-            $lastError    = error_get_last();
-            $ignore       = !(error_reporting() & $severity);
-            $handleIgnore = is_callable($handleIgnoredError);
-            if (!$ignore || $handleIgnore) {
-                $e = new ErrorException($severity, $message, $file, $line, $localVars,
-                                        array_slice(debug_backtrace(), 1));
+        set_error_handler(
+            $handleError = function ($severity, $message, $file = null, $line = null, $context = null) use (
+                &$lastError, $handleException, $phpBug61767Fixed, $handleIgnoredError
+            ) {
+                $lastError = error_get_last();
 
-                if (!$ignore)
+                if (error_reporting() & $severity) {
+                    $error = new ErrorException($message, $severity, $file, $line, $context, 1);
+
                     if ($phpBug61767Fixed)
-                        throw $e;
+                        throw $error;
                     else if ($severity & (E_USER_ERROR | E_USER_WARNING | E_USER_NOTICE | E_USER_DEPRECATED))
-                        throw $e;
+                        throw $error;
                     else
-                        call_user_func($handleException, $e);
-                else if ($handleIgnore)
-                    call_user_func($handleIgnoredError, $e);
+                        call_user_func($handleException, $error);
+                } else if (is_callable($handleIgnoredError)) {
+                    $error = new ErrorException($message, $severity, $file, $line, $context, 1);
+
+                    call_user_func($handleIgnoredError, $error);
+                }
+
+                return true;
             }
+        );
 
-            return true;
-        };
+        register_shutdown_function(
+            function () use (&$lastError, $handleError, $handleException) {
+                $error = error_get_last();
 
-        $handleShutdown = function () use (&$lastError, $handleError, $handleException) {
-            $e = error_get_last();
+                if ($error === null || $error === $lastError)
+                    return;
 
-            if ($e === null || $e === $lastError)
-                return;
+                $x = set_error_handler($handleError);
+                restore_error_handler();
 
-            $x = set_error_handler($handleError);
-            restore_error_handler();
+                if ($x !== $handleError)
+                    return;
 
-            if ($x !== $handleError)
-                return;
+                ini_set('memory_limit', '-1');
 
-            ini_set('memory_limit', '-1');
+                $type    = $error['type'];
+                $message = $error['message'];
+                $file    = $error['file'];
+                $line    = $error['line'];
+                $error   = new ErrorException($message, $type, $file, $line, null, 1);
+                call_user_func($handleException, $error);
+            }
+        );
 
-            call_user_func($handleException, new ErrorException(
-                $e['type'],
-                $e['message'],
-                $e['file'],
-                $e['line'],
-                null,
-                array_slice(debug_backtrace(), 1)
-            ));
-        };
-
-        $handleAssert = function ($file, $line, $expression, $message = 'Assertion failed') {
-            throw new AssertionFailedException($file, $line, $expression, $message, array_slice(debug_backtrace(), 1));
-        };
-
-        set_error_handler($handleError);
-        register_shutdown_function($handleShutdown);
         set_exception_handler($handleException);
-        assert_options(ASSERT_CALLBACK, $handleAssert);
+
+        assert_options(ASSERT_CALLBACK, function ($file, $line, $expression, $message = 'Assertion failed') {
+            throw new AssertionFailedException($file, $line, $expression, $message, 1);
+        });
     }
 }
 
-class AssertionFailedException extends \LogicException implements ExceptionHasFullTrace {
-    private $expression, $fullStackTrace;
+class AssertionFailedException extends \LogicException {
+    private $expression;
 
     /**
      * @param string $file
      * @param int $line
      * @param string $expression
      * @param string $message
-     * @param array $fullStackTrace
+     * @param int $traceSkip
      */
-    function __construct($file, $line, $expression, $message, array $fullStackTrace) {
+    function __construct($file, $line, $expression, $message, $traceSkip = 0) {
         parent::__construct($message);
 
-        $this->file           = $file;
-        $this->line           = $line;
-        $this->expression     = $expression;
-        $this->fullStackTrace = $fullStackTrace;
+        $this->file       = $file;
+        $this->line       = $line;
+        $this->expression = $expression;
+
+        $prop = new \ReflectionProperty('Exception', 'trace');
+        $prop->setAccessible(true);
+        $prop->setValue($this, array_slice(debug_backtrace(), 1 + $traceSkip));
     }
 
     function getExpression() {
         return $this->expression;
     }
-
-    function getFullTrace() {
-        return $this->fullStackTrace;
-    }
 }
 
-class ErrorException extends \ErrorException implements ExceptionHasFullTrace, ExceptionHasLocalVariables {
-    private $localVariables, $stackTrace;
+class ErrorException extends \ErrorException {
+    private $context;
 
-    function __construct($severity, $message, $file, $line, array $localVariables = null, array $stackTrace) {
+    /**
+     * @param string $message
+     * @param int $severity
+     * @param string $file
+     * @param int $line
+     * @param array|null $context
+     * @param int $traceSkip
+     */
+    function __construct($message, $severity, $file, $line, array $context = null, $traceSkip = 0) {
         parent::__construct($message, 0, $severity, $file, $line);
 
-        $constants = array(
+        $constants  = array(
             E_ERROR             => 'E_ERROR',
             E_WARNING           => 'E_WARNING',
             E_PARSE             => 'E_PARSE',
@@ -146,40 +135,37 @@ class ErrorException extends \ErrorException implements ExceptionHasFullTrace, E
             E_DEPRECATED        => 'E_DEPRECATED',
             E_USER_DEPRECATED   => 'E_USER_DEPRECATED',
         );
+        $this->code = isset($constants[$severity]) ? $constants[$severity] : 'E_?';
 
-        $this->localVariables = $localVariables;
-        $this->stackTrace     = $stackTrace;
-        $this->code           = isset($constants[$severity]) ? $constants[$severity] : 'E_?';
+        $this->context = $context;
+
+        $prop = new \ReflectionProperty('Exception', 'trace');
+        $prop->setAccessible(true);
+        $prop->setValue($this, array_slice(debug_backtrace(), 1 + $traceSkip));
     }
 
-    function getFullTrace() {
-        return $this->stackTrace;
-    }
-
-    function getLocalVariables() {
-        return $this->localVariables;
+    function getContext() {
+        return $this->context;
     }
 }
 
 /**
- * Same as \Exception except it includes a full stack trace
+ * Same as \Exception except it includes a stack trace with $this for each stack frame
  *
  * @package ErrorHandler
  */
-class Exception extends \Exception implements ExceptionHasFullTrace {
-    private $stackTrace;
-
+class Exception extends \Exception {
     function __construct($message = "", $code = 0, \Exception $previous = null) {
+        parent::__construct($message, $code, $previous);
+
         $trace = debug_backtrace();
 
         for ($i = 0; isset($trace[$i]['object']) && $trace[$i]['object'] === $this; $i++) ;
 
-        $this->stackTrace = array_slice($trace, $i);
+        $trace = array_slice($trace, $i);
 
-        parent::__construct($message, $code, $previous);
-    }
-
-    function getFullTrace() {
-        return $this->stackTrace;
+        $prop = new \ReflectionProperty('Exception', 'trace');
+        $prop->setAccessible(true);
+        $prop->setValue($this, $trace);
     }
 }

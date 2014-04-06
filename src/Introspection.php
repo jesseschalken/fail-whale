@@ -318,8 +318,7 @@ s;
         if (!$e)
             return null;
 
-        $locals = $e instanceof ExceptionHasLocalVariables ? $e->getLocalVariables() : null;
-        $stack  = $e instanceof ExceptionHasFullTrace ? $e->getFullTrace() : $e->getTrace();
+        $locals = $e instanceof ErrorException ? $e->getContext() : null;
 
         $result            = new ExceptionImpl;
         $result->className = get_class($e);
@@ -329,7 +328,7 @@ s;
         $result->globals   = $includeGlobals ? $this->introspectGlobals() : null;
         $result->locals    = $this->introspectVariables($locals, $result->localsMissing,
                                                         $this->limits->maxLocalVariables);
-        $result->stack     = $this->introspectStack($stack, $result->stackMissing);
+        $result->stack     = $this->introspectStack($e->getTrace(), $result->stackMissing);
         $result->previous  = $this->introspectException2($e->getPrevious(), false);
         return $result;
     }
