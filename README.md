@@ -5,15 +5,7 @@ A universal PHP error handler, pretty printer and PHP value browser.
 ## Usage
 ### Error Handler
 
-`ErrorHandler::bind()` takes a `callable` which accepts an `Exception`, and calls it when the current PHP process fails for *any* reason, such as:
-
-- an uncaught `Exception`
-- an internal PHP error
-- a call to `trigger_error()` (or `user_error()`)
-- a *fatal* PHP error
-- a failed `assert()`
-
-No PHP failure will go undetected by `ErrorHandler::bind()`.
+`ErrorHandler::bind()` takes a `callable` which accepts an `Exception`, and calls it when the current PHP process fails for any reason - either an uncaught `Exception` or a PHP error, including fatal errors. No PHP failure will go undetected by `ErrorHandler::bind()`.
 
 Example:
 
