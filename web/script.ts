@@ -215,7 +215,9 @@ module FailWhale {
             var open = content.open;
 
             function refresh() {
-                if (open && body.innerHTML.length == 0) {
+                body.innerHTML = '';
+
+                if (open) {
                     var td = document.createElement('td');
                     var tr = document.createElement('tr');
                     td.style.padding = '0';
