@@ -96,7 +96,10 @@ class PrettyPrinter {
         $array    = $this->root->arrays[$id];
         $refCount =& $this->refCounts->arrays[$id];
 
-        if ($refCount > 1 && (count($array->entries) > 0 || $array->entriesMissing > 0)) {
+        if ($refCount > 1 &&
+            (count($array->entries) > 0 || $array->entriesMissing > 0) &&
+            $this->settings->showArrayEntries
+        ) {
             $rendered =& $this->arraysRendered[$id];
             $idString = sprintf("array%03d", $id);
             if ($rendered) {
@@ -116,11 +119,11 @@ class PrettyPrinter {
         $object   = $this->root->objects[$id];
         $refCount =& $this->refCounts->objects[$id];
 
-        if ($refCount > 1) {
+        if ($refCount > 1 && $this->settings->showObjectProperties) {
             $rendered =& $this->objectsRendered[$id];
             $idString = sprintf("object%03d", $id);
             if ($rendered) {
-                return new Text("*$idString");
+                return new Text("*$idString new $object->className");
             } else {
                 $rendered = true;
                 $result   = new Text("&$idString ");
@@ -144,7 +147,7 @@ class PrettyPrinter {
         if (!($array->entries) && $array->entriesMissing == 0)
             return new Text("$start$end");
         else if (!$this->settings->showArrayEntries)
-            return new Text("$start...$end");
+            return new Text("array");
 
         $rows = array();
 
@@ -187,7 +190,7 @@ class PrettyPrinter {
         if (!$object->properties && $object->propertiesMissing == 0) {
             return new Text("new $object->className {}");
         } else if (!$this->settings->showObjectProperties) {
-            return new Text("new $object->className {...}");
+            return new Text("new $object->className");
         } else {
             $prefixes = array();
 
@@ -267,6 +270,9 @@ class PrettyPrinter {
     }
 
     private function renderString(String1 $string) {
+           if (!$this->settings->showStringContents)
+                   return new Text("string");
+
         $characterEscapeCache = array(
             "\\" => '\\\\',
             "\$" => '\$',
