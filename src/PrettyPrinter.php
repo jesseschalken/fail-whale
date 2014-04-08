@@ -17,6 +17,7 @@ final class PrettyPrinterSettings {
     public $alignText = false;
     public $alignVariables = true;
     public $alignArrayEntries = true;
+    public $indentStackTraceFunctions = true;
 }
 
 class PrettyPrinter {
@@ -270,8 +271,8 @@ class PrettyPrinter {
     }
 
     private function renderString(String1 $string) {
-           if (!$this->settings->showStringContents)
-                   return new Text("string");
+        if (!$this->settings->showStringContents)
+            return new Text("string");
 
         $characterEscapeCache = array(
             "\\" => '\\\\',
@@ -428,31 +429,38 @@ class PrettyPrinter {
     }
 
     private function renderExceptionStack(ExceptionImpl $exception) {
-        $text = new Text;
+        $rows = array();
         $i    = 1;
 
         foreach ($exception->stack as $frame) {
             $location = $frame->location;
-            $location = $location
-                ? "$location->file:$location->line"
-                : '[internal function]';
-            $text->addLine("#$i {$location}");
+            $location = $location ? "$location->file:$location->line" : '[internal function]';
+
+            $text = new Text("#$i {$location}");
             $call = $this->renderExceptionStackFrame($frame);
-            $call->append(';');
-            $call->indent();
-            $call->indent();
-            $call->indent();
-            $text->addLines($call);
-            $text->addLine();
+
+            if ($this->settings->indentStackTraceFunctions) {
+                $call->append(';');
+                $call->indent();
+                $call->indent();
+                $call->indent();
+                $text->addLines($call);
+                $text->addLine();
+                $rows[] = array($text);
+            } else {
+                $rows[] = array($text, new Text(' '), $call);
+            }
             $i++;
         }
 
-        if ($exception->stackMissing != 0)
-            $text->addLine("$exception->stackMissing more...");
-        else
-            $text->addLine("#$i {main}");
+        $result = Text::table($rows);
 
-        return $text;
+        if ($exception->stackMissing != 0)
+            $result->addLine("$exception->stackMissing more...");
+        else
+            $result->addLine("#$i {main}");
+
+        return $result;
     }
 
     private function renderExceptionStackFrame(Stack $frame) {
