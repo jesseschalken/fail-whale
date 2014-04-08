@@ -39,36 +39,36 @@ class Value {
     }
 
     function toHTML() {
-        $js = <<<js
-document.addEventListener('DOMContentLoaded', function () {
-    var json = document.getElementById('the-json').textContent;
-    var value = FailWhale.renderJSON(json);
-    var body = document.getElementsByTagName('body')[0];
+        $scriptJs = file_get_contents(__DIR__ . '/../web/script.js');
+        $jsonHtml = htmlspecialchars($this->toJSON(), ENT_COMPAT, 'UTF-8');
 
-    body.innerHTML = '';
-    body.appendChild(value);
-});
-js;
+        ob_start();
+        ?>
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="utf-8">
+                <title>fail whale PHP explorer</title>
+                <script>
+                    <?= $scriptJs ?>
+                </script>
+                <script type="text/javascript">
+                    document.addEventListener('DOMContentLoaded', function () {
+                        var json = document.getElementById('the-json');
+                        var body = document.getElementsByTagName('body')[0];
 
-        $document           = new \DOMDocument;
-        $document->encoding = 'UTF-8';
-        $document->loadHTML('<!DOCTYPE html>');
+                        body.innerHTML = '';
+                        body.appendChild(FailWhale.renderJSON(json.textContent));
+                    });
+                </script>
+            </head>
+            <body>
+                <pre id="the-json"><?= $jsonHtml ?></pre>
+            </body>
+        </html>
+        <?php
 
-        $script1 = $document->createElement('script');
-        $script1->appendChild($document->createTextNode(file_get_contents(__DIR__ . '/../web/script.js')));
-
-        $script2 = $document->createElement('script');
-        $script2->appendChild($document->createTextNode($js));
-
-        $pre = $document->createElement('pre');
-        $pre->setAttribute('id', 'the-json');
-        $pre->appendChild($document->createTextNode($this->toJSON()));
-
-        $document->appendChild($script1);
-        $document->appendChild($script2);
-        $document->appendChild($pre);
-
-        return $document->saveHTML();
+        return ob_get_clean();
     }
 
     function toJSON($pretty = true) {
