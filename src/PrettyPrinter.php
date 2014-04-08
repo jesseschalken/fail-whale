@@ -164,8 +164,7 @@ class PrettyPrinter {
             }
 
             if ($array->isAssociative) {
-                $value->prepend(' => ', $this->settings->alignText);
-                $rows[] = array($key, $value);
+                $rows[] = array($key, new Text('=>'), $value);
             } else {
                 $rows[] = array($value);
             }
@@ -282,28 +281,41 @@ class PrettyPrinter {
             "\f" => '\f',
             "\"" => '\"',
             "\t" => $this->settings->escapeTabsInStrings ? '\t' : "\t",
-            "\n" => $this->settings->splitMultiLineStrings ? "\\n\" .\n\"" : '\n',
+            "\n" => '\n',
         );
 
         $escaped = '';
         $length  = strlen($string->bytes);
 
         for ($i = 0; $i < $length; $i++) {
-            $char        = $string->bytes[$i];
-            $charEscaped =& $characterEscapeCache[$char];
+            $char  = $string->bytes[$i];
+            $char2 =& $characterEscapeCache[$char];
 
-            if (!isset($charEscaped)) {
-                $ord         = ord($char);
-                $charEscaped = $ord >= 32 && $ord <= 126 ? $char : '\x' . substr('00' . dechex($ord), -2);
+            if (!isset($char2)) {
+                $ord   = ord($char);
+                $char2 = $ord >= 32 && $ord <= 126 ? $char : '\x' . substr('00' . dechex($ord), -2);
             }
 
-            $escaped .= $charEscaped;
+            $escaped .= $char2;
+
+            if ($char === "\n" &&
+                $i !== $length - 1 &&
+                $this->settings->splitMultiLineStrings
+            ) {
+                $escaped .= "\" .\n\"";
+            }
         }
 
         $result = new Text("\"$escaped\"");
 
         if ($string->bytesMissing != 0)
             $result->append(" $string->bytesMissing more bytes...");
+
+        if ( $result->count() > 1 && !$this->settings->alignText ) {
+            $result->indent();
+            $result->indent();
+            $result->prependLine();
+        }
 
         return $result;
     }
@@ -326,8 +338,8 @@ class PrettyPrinter {
             $prefix = new Text($prefixes[$k]);
             $prefix->appendLines($this->renderVariable($variable->name), $this->settings->alignText);
             $value = $this->renderValue($variable->value);
-            $value->wrap(' = ', ';', $this->settings->alignText);
-            $rows[] = array($prefix, $value,);
+            $value->append(';');
+            $rows[] = array($prefix, new Text('='), $value,);
         }
 
         $result = Text::table($rows, $this->settings->alignText, $this->settings->alignVariables);
@@ -419,8 +431,8 @@ class PrettyPrinter {
 
         foreach ($code as $codeLine => $codeText) {
             $rows[] = array(
-                new Text($codeLine == $line ? "> " : ''),
-                new Text("$codeLine "),
+                new Text($codeLine == $line ? ">" : ''),
+                new Text($codeLine),
                 new Text($codeText),
             );
         }
@@ -435,30 +447,28 @@ class PrettyPrinter {
         foreach ($exception->stack as $frame) {
             $location = $frame->location;
             $location = $location ? "$location->file:$location->line" : '[internal function]';
-
-            $text = new Text("#$i {$location}");
-            $call = $this->renderExceptionStackFrame($frame);
+            $call     = $this->renderExceptionStackFrame($frame);
 
             if ($this->settings->indentStackTraceFunctions) {
                 $call->append(';');
                 $call->indent();
                 $call->indent();
                 $call->indent();
-                $text->addLines($call);
-                $text->addLine();
-                $rows[] = array($text);
+                $call->wrapLines($location);
+                $rows[] = array(new Text("#$i"), $call);
             } else {
-                $rows[] = array($text, new Text(' '), $call);
+                $rows[] = array(new Text("#$i"), new Text("$location"), $call);
             }
             $i++;
         }
+
+        if ($exception->stackMissing == 0)
+            $rows[] = array(new Text("#$i"), new Text("{main}"));
 
         $result = Text::table($rows);
 
         if ($exception->stackMissing != 0)
             $result->addLine("$exception->stackMissing more...");
-        else
-            $result->addLine("#$i {main}");
 
         return $result;
     }
@@ -643,7 +653,7 @@ class Text {
                 $cell = clone $cell;
 
                 if ($alignColumns && $column !== $lastColumn)
-                    $cell->padWidth($columnWidths[$column]);
+                    $cell->padWidth($columnWidths[$column] + 1);
 
                 $row->appendLines($cell, $alignText);
             }

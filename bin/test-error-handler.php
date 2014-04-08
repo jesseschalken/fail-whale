@@ -62,7 +62,7 @@ WHERE foo.id = 4";
     // private $b = 7;
     var $c = array(array("SELECT blarg",
                          "FROM \"foo\"",
-                         "WHERE foo.blah = 'lol'",
+                         "WHERE fo\no.blah = 'lol'",
                          "  · AND foo.boo < 3",
                          "GROUP BY blarg.lol"),
                    array(4.0),
