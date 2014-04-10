@@ -2,6 +2,10 @@
 
 A universal PHP error handler, pretty printer and PHP value browser.
 
+## Installation
+
+Install [the Composer package](https://packagist.org/packages/fail-whale/fail-whale)
+
 ## Usage
 ### Error Handler
 
@@ -27,6 +31,8 @@ ErrorHandler::bind(
 - Set your exception handler using `set_exception_handler()`.
 - Bind a shutdown handler using `register_shutdown_function()` to catch fatal PHP errors (which bypass the error handler set with `set_error_handler()`) and call your exception handler directly with the resulting `ErrorException`.
 - Check for PHP Bug 61767 and call your exception handler directly with an `ErrorException` if it is not safe to throw it.
+
+You can also handle errors ignored by the `error_reporting` setting (to log them, for example) by passing another `callable` as the second parameter to `ErrorHandler::bind()`. It will be called with the ignored `ErrorException` as its first parameter.
 
 That's it. Easy.
 
