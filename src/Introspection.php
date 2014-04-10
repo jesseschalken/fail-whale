@@ -14,6 +14,18 @@ class IntrospectionSettings {
     public $maxFunctionArguments = 100;
     public $maxSourceCodeContext = 10;
     public $includeSourceCode = true;
+    /**
+     * This prefix will be removed from the start of all file paths if present.
+     *
+     * @var string
+     */
+    public $fileNamePrefix = '';
+    /**
+     * This prefix will be removed from the start of all names of classes and functions.
+     *
+     * @var string
+     */
+    public $namespacePrefix = '\\';
 }
 
 class Introspection {
@@ -182,7 +194,7 @@ s;
             $id = count($this->stringIds);
 
             $string               = new String1;
-            $string->bytes        = (string) substr($value, 0, $this->limits->maxStringLength);
+            $string->bytes        = (string)substr($value, 0, $this->limits->maxStringLength);
             $string->bytesMissing = strlen($value) - strlen($string->bytes);
 
             $this->root->strings[$id] = $string;
@@ -201,10 +213,20 @@ s;
 
     private function introspectObject($object) {
         $result             = new Object1;
-        $result->className  = get_class($object);
+        $result->className  = $this->removeNamespacePrefix(get_class($object));
         $result->hash       = spl_object_hash($object);
         $result->properties = $this->introspectObjectProperties($object, $result->propertiesMissing);
         return $result;
+    }
+
+    private function removeNamespacePrefix($name) {
+        $name   = "\\$name";
+        $prefix = $this->limits->namespacePrefix;
+
+        if (substr($name, 0, strlen($prefix)) === $prefix)
+            return (string) substr($name, strlen($prefix));
+        else
+            return $name;
     }
 
     private function introspectArray(array $array) {
@@ -267,7 +289,7 @@ s;
     private function introspectProperty(\ReflectionProperty $property, $object = null) {
         $property->setAccessible(true);
         $result            = new Property;
-        $result->className = $property->class;
+        $result->className = $this->removeNamespacePrefix($property->class);
         $result->name      = $property->name;
         $result->value     = $this->introspect($property->getValue($object));
         $result->isDefault = $property->isDefault();
@@ -321,7 +343,7 @@ s;
         $locals = $e instanceof ErrorException ? $e->getContext() : null;
 
         $result            = new ExceptionImpl;
-        $result->className = get_class($e);
+        $result->className = $this->removeNamespacePrefix(get_class($e));
         $result->code      = $e->getCode();
         $result->message   = $e->getMessage();
         $result->location  = $this->introspectLocation($e->getFile(), $e->getLine());
@@ -337,10 +359,19 @@ s;
         if (!$file)
             return null;
         $result         = new Location;
-        $result->file   = $file;
+        $result->file   = $this->removeFileNamePrefix($file);
         $result->line   = $line;
         $result->source = $this->introspectSourceCode($file, $line);
         return $result;
+    }
+
+    private function removeFileNamePrefix($file) {
+        $prefix = $this->limits->fileNamePrefix;
+
+        if (substr($file, 0, strlen($prefix)) === $prefix)
+            return (string)substr($file, strlen($prefix));
+        else
+            return $file;
     }
 
     private function introspectGlobals() {
@@ -387,9 +418,9 @@ s;
                 $args     =& $frame['args'];
 
                 $result               = new Stack;
-                $result->functionName = $function;
+                $result->functionName = $class === null ? $this->removeNamespacePrefix($function) : $function;
                 $result->location     = $this->introspectLocation($file, $line);
-                $result->className    = $class;
+                $result->className    = $class === null ? null : $this->removeNamespacePrefix($class);
                 $result->object       = $this->objectId($object);
 
                 if ($type === '::')
@@ -473,7 +504,7 @@ s;
                         $variable               = new StaticVariable;
                         $variable->name         = $name;
                         $variable->value        = $this->introspectRef($value);
-                        $variable->className    = $method->class;
+                        $variable->className    = $this->removeNamespacePrefix($method->class);
                         $variable->functionName = $method->getName();
                         $globals[]              = $variable;
                     }
@@ -493,7 +524,7 @@ s;
                         $variable               = new StaticVariable;
                         $variable->name         = $name;
                         $variable->value        = $this->introspectRef($value2);
-                        $variable->functionName = $function;
+                        $variable->functionName = $this->removeNamespacePrefix($function);
                         $globals[]              = $variable;
                     }
                 }
