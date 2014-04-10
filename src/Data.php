@@ -46,9 +46,12 @@ class Base {
     }
 
     final function toJSON($pretty = true) {
-        $flags = JSON_UNESCAPED_SLASHES;
+        $flags = 0;
 
-        if ($pretty)
+        if (defined('JSON_UNESCAPED_SLASHES'))
+            $flags |= JSON_UNESCAPED_SLASHES;
+
+        if ($pretty && defined('JSON_PRETTY_PRINT'))
             $flags |= JSON_PRETTY_PRINT;
 
         $value = $this;
