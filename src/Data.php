@@ -3,43 +3,85 @@
 namespace FailWhale;
 
 class Base {
-    static function convertJSONs(&$json) {
+    protected static function convertJSONs(&$json) {
         if ($json) {
             foreach ($json as &$json2)
                 static::convertJSON($json2);
         }
     }
 
-    static function convertJSON(&$json) {
+    protected static function convertJSON(&$json) {
         if ($json) {
             /** @var self $self */
             $self = new static;
-            $self->pushJSON($json);;
+            $self->pushJSON($json);
             $json = $self;
         }
     }
 
-    function pushJSON(array $json) {
-        foreach (get_object_vars($this) as $name => $value)
-            if (isset($json[$name]))
-                $this->$name = $json[$name];
-            else
-                $this->$name = null;
+    private static function JSONify(&$v) {
+        if ($v instanceof self)
+            $v = $v->pullJSON();
+
+        if (is_string($v)) {
+            $v = utf8_encode($v);
+        } else if (is_array($v)) {
+            foreach ($v as &$v2)
+                self::JSONify($v2);
+        }
     }
 
-    function pullJSON() {
-        $json = get_object_vars($this);
-        foreach ($json as $k => &$value) {
-            if ($value === null) {
-                unset($json[$k]);
-            } else if (is_array($value)) {
-                foreach ($value as &$v)
-                    if ($v instanceof self)
-                        $v = $v->pullJSON();
-            } else if ($value instanceof self) {
-                $value = $value->pullJSON();
-            }
+    private static function unJSONify(&$json) {
+        if (is_string($json)) {
+            $json = utf8_decode($json);
+        } else if (is_array($json)) {
+            foreach ($json as &$json2)
+                self::unJSONify($json2);
         }
+    }
+
+    private static function checkJSONError() {
+        if (json_last_error() !== JSON_ERROR_NONE)
+            throw new \Exception("JSON Error", json_last_error());
+    }
+
+    final function toJSON($pretty = true) {
+        $flags = JSON_UNESCAPED_SLASHES;
+
+        if ($pretty)
+            $flags |= JSON_PRETTY_PRINT;
+
+        $value = $this;
+        self::JSONify($value);
+        $json = json_encode($value, $flags);
+
+        self::checkJSONError();
+
+        return $json;
+    }
+
+    /**
+     * @param string $json
+     */
+    final function fromJSON($json) {
+        $json = json_decode($json, true);
+        self::checkJSONError();
+        self::unJSONify($json);
+        $this->pushJSON($json);
+    }
+
+    protected function pushJSON(array $json) {
+        foreach (get_object_vars($this) as $name => $v) {
+            $value       =& $json[$name];
+            $this->$name = $value;
+        }
+    }
+
+    protected function pullJSON() {
+        $json = get_object_vars($this);
+        foreach ($json as $k => &$value)
+            if ($value === null)
+                unset($json[$k]);
         return $json;
     }
 }
@@ -54,7 +96,7 @@ class Root extends Base {
     /** @var Array1[] */
     public $arrays = array();
 
-    function pushJSON(array $json) {
+    protected function pushJSON(array $json) {
         parent::pushJSON($json);
         ValueImpl::convertJSON($this->root);
         String1::convertJSONs($this->strings);
@@ -78,7 +120,7 @@ class Array1 extends Base {
     /** @var bool */
     public $isAssociative;
 
-    function pushJSON(array $json) {
+    protected function pushJSON(array $json) {
         parent::pushJSON($json);
         ArrayEntry::convertJSONs($this->entries);
     }
@@ -90,7 +132,7 @@ class ArrayEntry extends Base {
     /** @var ValueImpl */
     public $value;
 
-    function pushJSON(array $json) {
+    protected function pushJSON(array $json) {
         parent::pushJSON($json);
         ValueImpl::convertJSON($this->key);
         ValueImpl::convertJSON($this->value);
@@ -107,7 +149,7 @@ class Object1 extends Base {
     /** @var int */
     public $propertiesMissing = 0;
 
-    function pushJSON(array $json) {
+    protected function pushJSON(array $json) {
         parent::pushJSON($json);
         Property::convertJSONs($this->properties);
     }
@@ -119,7 +161,7 @@ class Variable extends Base {
     /** @var ValueImpl */
     public $value;
 
-    function pushJSON(array $json) {
+    protected function pushJSON(array $json) {
         parent::pushJSON($json);
         ValueImpl::convertJSON($this->value);
     }
@@ -155,7 +197,7 @@ class Globals extends Base {
     /** @var int */
     public $globalVariablesMissing = 0;
 
-    function pushJSON(array $json) {
+    protected function pushJSON(array $json) {
         parent::pushJSON($json);
         Property::convertJSONs($this->staticProperties);
         StaticVariable::convertJSONs($this->staticVariables);
@@ -185,7 +227,7 @@ class ExceptionImpl extends Base {
     /** @var ExceptionImpl */
     public $previous;
 
-    function pushJSON(array $json) {
+    protected function pushJSON(array $json) {
         parent::pushJSON($json);
         Variable::convertJSONs($this->locals);
         Globals::convertJSON($this->globals);
@@ -211,7 +253,7 @@ class Stack extends Base {
     /** @var Location */
     public $location;
 
-    function pushJSON(array $json) {
+    protected function pushJSON(array $json) {
         parent::pushJSON($json);
         ValueImpl::convertJSONs($this->args);
         Location::convertJSON($this->location);
@@ -236,7 +278,7 @@ class ValueImpl extends Base {
     /** @var Resource1 */
     public $resource;
 
-    function pushJSON(array $json) {
+    protected function pushJSON(array $json) {
         parent::pushJSON($json);
         ExceptionImpl::convertJSON($this->exception);
         Resource1::convertJSON($this->resource);
