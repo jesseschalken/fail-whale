@@ -603,9 +603,11 @@ module FailWhale {
 
         function renderLocation(location:Data.Location, open:boolean = false):Node {
             return HTML.inline(HTML.expandable({
-                head: HTML.collect([HTML.plain(location.file + ':'), renderNumber(String(location.line))]),
+                head: location
+                    ? HTML.collect([HTML.plain(location.file + ':'), renderNumber(String(location.line))])
+                    : HTML.plain('[internal function]'),
                 body: function () {
-                    if (!location.source)
+                    if (!location || !location.source)
                         return HTML.notice('no source code');
 
                     var wrapper = document.createElement('table');

@@ -528,9 +528,9 @@ var FailWhale;
         function renderLocation(location, open) {
             if (typeof open === "undefined") { open = false; }
             return HTML.inline(HTML.expandable({
-                head: HTML.collect([HTML.plain(location.file + ':'), renderNumber(String(location.line))]),
+                head: location ? HTML.collect([HTML.plain(location.file + ':'), renderNumber(String(location.line))]) : HTML.plain('[internal function]'),
                 body: function () {
-                    if (!location.source)
+                    if (!location || !location.source)
                         return HTML.notice('no source code');
 
                     var wrapper = document.createElement('table');
