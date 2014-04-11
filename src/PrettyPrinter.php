@@ -145,10 +145,10 @@ class PrettyPrinter {
             $end   = ")";
         }
 
-        if (!($array->entries) && $array->entriesMissing == 0)
-            return new Text("$start$end");
-        else if (!$this->settings->showArrayEntries)
+        if (!$this->settings->showArrayEntries)
             return new Text("array");
+        else if (!($array->entries) && $array->entriesMissing == 0)
+            return new Text("$start$end");
 
         $rows = array();
 
@@ -187,10 +187,10 @@ class PrettyPrinter {
     }
 
     private function renderObjectBody(Object1 $object) {
-        if (!$object->properties && $object->propertiesMissing == 0) {
-            return new Text("new $object->className {}");
-        } else if (!$this->settings->showObjectProperties) {
+        if (!$this->settings->showObjectProperties) {
             return new Text("new $object->className");
+        } else if (!$object->properties && $object->propertiesMissing == 0) {
+            return new Text("new $object->className {}");
         } else {
             $prefixes = array();
 
