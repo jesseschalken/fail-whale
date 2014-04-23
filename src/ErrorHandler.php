@@ -35,6 +35,8 @@ class ErrorHandler {
                         throw $error;
                     else
                         call_user_func($handleException, $error);
+
+                    exit;
                 } else if (is_callable($handleIgnoredError)) {
                     $error = new ErrorException($message, $severity, $file, $line, $context, 1);
 
