@@ -69,7 +69,15 @@ class ErrorHandler {
             }
         );
 
-        set_exception_handler($handleException);
+        set_exception_handler(
+            function (\Exception $exception) use (&$lastError, $handleException) {
+                // \DateTime->__construct() both throws an exception _and_ triggers a PHP error on invalid input.
+                // The PHP error bypasses set_error_handler, so to avoid it being treated as a fatal error by the
+                // shutdown handler, we have to set $lastError when handling the exception.
+                $lastError = error_get_last();
+                $handleException($exception);
+            }
+        );
     }
 }
 
