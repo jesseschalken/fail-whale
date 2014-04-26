@@ -63,28 +63,32 @@ local variables:
 
 stack trace:
   #1 /path/to/muh/file:9000
-        new FailWhale\DummyClass1 {
-            private $private1     = null;
-            protected $protected1 = null;
-            public $public1       = null;
-        }->DummyClass1::aFunction( new FailWhale\DummyClass1 {
-                                       private $private1     = null;
-                                       protected $protected1 = null;
-                                       public $public1       = null;
-                                   }, 
-                                   3 more... );
-
+           new FailWhale\DummyClass1 {
+               private $private1     = null;
+               protected $protected1 = null;
+               public $public1       = null;
+           }->DummyClass1::aFunction(
+               new FailWhale\DummyClass1 {
+                   private $private1     = null;
+                   protected $protected1 = null;
+                   public $public1       = null;
+               }, 
+               3 more...
+           );
+     
   #2 /path/to/muh/file:9000
-        aFunction( new FailWhale\DummyClass2 {
-                       private $private2     = null;
-                       protected $protected2 = null;
-                       public $public2       = null;
-                       private $private1     = null;
-                       protected $protected1 = null;
-                       public $public1       = null;
-                   }, 
-                   6 more... );
-
+           aFunction(
+               new FailWhale\DummyClass2 {
+                   private $private2     = null;
+                   protected $protected2 = null;
+                   public $public2       = null;
+                   private $private1     = null;
+                   protected $protected1 = null;
+                   public $public1       = null;
+               }, 
+               6 more...
+           );
+     
   8 more...
 
 previous exception:
@@ -108,10 +112,12 @@ s
         $settings->maxArrayEntries = 3;
         self::assertEquals(
             <<<'s'
-array( 1,
-       2,
-       3,
-       7 more... )
+array(
+    1,
+    2,
+    3,
+    7 more...
+)
 
 s
                 ,
@@ -122,8 +128,10 @@ s
         );
         self::assertEquals(
             <<<'s'
-array( "blarg" => "foo",
-       "bar"   => "bar" )
+array(
+    "blarg" => "foo",
+    "bar"   => "bar",
+)
 
 s
                 ,
@@ -135,10 +143,12 @@ s
         );
         self::assertEquals(
             <<<'s'
-array( "blarg"    => "foo",
-       "bar"      => "bar",
-       "bawreara" => "wrjenrg",
-       1 more... )
+array(
+    "blarg"    => "foo",
+    "bar"      => "bar",
+    "bawreara" => "wrjenrg",
+    1 more...
+)
 
 s
                 ,
@@ -194,14 +204,15 @@ b
 s
             ,
             <<<'s'
-" weaf waef 8we 7f8tweyufgij2k3e wef f\n" .
-"sdf wf wef\n" .
-"    wef\n" .
-"\n" .
-"\n" .
-"\n" .
-"\n" .
-"b"
+
+    " weaf waef 8we 7f8tweyufgij2k3e wef f\n" .
+    "sdf wf wef\n" .
+    "    wef\n" .
+    "\n" .
+    "\n" .
+    "\n" .
+    "\n" .
+    "b"
 s
         );
     }
@@ -212,9 +223,13 @@ s
         $object->foo =& $array;
 
         self::assertPrettyRefIs($array, <<<'s'
-array( &object001 new stdClass {
-                      public $foo = array( *object001 );
-                  } )
+array(
+    &object001 new stdClass {
+        public $foo = array(
+            *object001 new stdClass,
+        );
+    },
+)
 
 s
         );
@@ -240,9 +255,21 @@ s
 
         self::assertPrettyIs(array(&$recursiveArray, $recursiveArray, $recursiveArray),
             <<<'s'
-array( &array002 array( "recurse" => *array002 ),
-       array( "recurse" => &array004 array( "recurse" => *array004 ) ),
-       array( "recurse" => &array006 array( "recurse" => *array006 ) ) )
+array(
+    &array002 array(
+        "recurse" => *array002,
+    ),
+    array(
+        "recurse" => &array004 array(
+            "recurse" => *array004,
+        ),
+    ),
+    array(
+        "recurse" => &array006 array(
+            "recurse" => *array006,
+        ),
+    ),
+)
 s
         );
     }
@@ -268,11 +295,19 @@ s
         self::assertPrettyIs(2.2250738585072e-308, "2.2250738585072E-308");
         self::assertPrettyIs("lol", '"lol"');
         self::assertPrettyIs(array(), "array()");
-        self::assertPrettyIs(array("foo"), 'array( "foo" )');
+        self::assertPrettyIs(array("foo"),
+            <<<'s'
+array(
+    "foo",
+)
+s
+        );
         self::assertPrettyIs(array("foo", "foo"),
             <<<'s'
-array( "foo",
-       "foo" )
+array(
+    "foo",
+    "foo",
+)
 s
         );
     }
