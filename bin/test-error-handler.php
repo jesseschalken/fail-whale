@@ -74,7 +74,10 @@ WHERE foo.id = 4";
         $blarg = array(null);
     protected $foo = array();
     private $recursiveArray = array();
+    static $nums;
 }
+
+A::$nums = array(NAN, INF, -INF, 0, 0.0, 1 / 3, pi());
 
 class Blarg {
     static function foo() {

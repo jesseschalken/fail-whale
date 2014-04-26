@@ -302,11 +302,11 @@ module FailWhale {
                 case Data.Type.STRING:
                     return renderString(root.strings[x.string]);
                 case Data.Type.POS_INF:
-                    return HTML.keyword('INF');
+                    return renderNumber('INF');
                 case Data.Type.NEG_INF:
-                    return HTML.collect([ HTML.plain('-'), HTML.keyword('INF')]);
+                    return HTML.collect([HTML.plain('-'), renderNumber('INF')]);
                 case Data.Type.NAN:
-                    return HTML.keyword('NAN');
+                    return renderNumber('NAN');
                 case Data.Type.ARRAY:
                     return renderArray(x.array);
                 case Data.Type.OBJECT:
