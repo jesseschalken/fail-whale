@@ -71,9 +71,15 @@ var FailWhale;
         }
         HTML.plain = plain;
 
-        function italics(t) {
+        function span(t) {
             var wrapped = document.createElement('span');
-            wrapped.appendChild(HTML.plain(t));
+            wrapped.appendChild(plain(t));
+            return wrapped;
+        }
+        HTML.span = span;
+
+        function italics(t) {
+            var wrapped = span(t);
             wrapped.style.display = 'inline';
             wrapped.style.fontStyle = 'italic';
             return wrapped;
@@ -81,8 +87,7 @@ var FailWhale;
         HTML.italics = italics;
 
         function notice(t) {
-            var wrapped = document.createElement('span');
-            wrapped.appendChild(HTML.plain(t));
+            var wrapped = span(t);
             wrapped.style.fontStyle = 'italic';
             wrapped.style.padding = Settings.padding;
             wrapped.style.display = 'inline-block';
@@ -182,16 +187,14 @@ var FailWhale;
         HTML.table = table;
 
         function bold(content) {
-            var box = document.createElement('span');
-            box.appendChild(HTML.plain(content));
+            var box = span(content);
             box.style.fontWeight = 'bold';
             return box;
         }
         HTML.bold = bold;
 
         function keyword(word) {
-            var box = document.createElement('span');
-            box.appendChild(HTML.plain(word));
+            var box = span(word);
             box.style.color = '#008';
             box.style.fontWeight = 'bold';
             return box;
@@ -240,7 +243,9 @@ var FailWhale;
                 case Data.Type.NULL:
                     return HTML.keyword('null');
                 case Data.Type.UNKNOWN:
-                    return HTML.keyword('unknown type');
+                    var span = HTML.span('unknown type');
+                    span.style.fontStyle = 'italic';
+                    return span;
                 default:
                     throw "unknown type " + x.type;
             }
@@ -372,8 +377,7 @@ var FailWhale;
 
         function renderVariable(name) {
             function red(v) {
-                var result = document.createElement('span');
-                result.appendChild(HTML.plain(v));
+                var result = HTML.span(v);
                 result.style.color = '#600';
                 return result;
             }
@@ -645,8 +649,7 @@ var FailWhale;
         }
 
         function renderNumber(x) {
-            var result = document.createElement('span');
-            result.appendChild(HTML.plain(x));
+            var result = HTML.span(x);
             result.style.color = '#00f';
             return result;
         }

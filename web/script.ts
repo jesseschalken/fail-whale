@@ -152,17 +152,21 @@ module FailWhale {
             return document.createTextNode(content);
         }
 
-        export function italics(t:string):Node {
+        export function span(t:string):HTMLElement {
             var wrapped = document.createElement('span');
-            wrapped.appendChild(HTML.plain(t));
+            wrapped.appendChild(plain(t));
+            return wrapped;
+        }
+
+        export function italics(t:string):Node {
+            var wrapped = span(t);
             wrapped.style.display = 'inline';
             wrapped.style.fontStyle = 'italic';
             return wrapped;
         }
 
         export function notice(t:string):Node {
-            var wrapped = document.createElement('span');
-            wrapped.appendChild(HTML.plain(t));
+            var wrapped = span(t);
             wrapped.style.fontStyle = 'italic';
             wrapped.style.padding = Settings.padding;
             wrapped.style.display = 'inline-block';
@@ -241,7 +245,7 @@ module FailWhale {
             return container;
         }
 
-        export function table(data:Node[][]):HTMLTableElement {
+        export function table(data:Node[][]):Node {
             var table = document.createElement('table');
             table.style.borderSpacing = '0';
             table.style.padding = '0';
@@ -262,15 +266,13 @@ module FailWhale {
         }
 
         export function bold(content:string):Node {
-            var box = document.createElement('span');
-            box.appendChild(HTML.plain(content));
+            var box = span(content);
             box.style.fontWeight = 'bold';
             return box;
         }
 
         export function keyword(word:string) {
-            var box = document.createElement('span');
-            box.appendChild(HTML.plain(word));
+            var box = span(word);
             box.style.color = '#008';
             box.style.fontWeight = 'bold';
             return box;
@@ -318,7 +320,9 @@ module FailWhale {
                 case Data.Type.NULL:
                     return HTML.keyword('null');
                 case Data.Type.UNKNOWN:
-                    return HTML.keyword('unknown type');
+                    var span = HTML.span('unknown type');
+                    span.style.fontStyle = 'italic';
+                    return span;
                 default:
                     throw "unknown type " + x.type;
             }
@@ -450,8 +454,7 @@ module FailWhale {
 
         function renderVariable(name:string):Node {
             function red(v:string) {
-                var result = document.createElement('span');
-                result.appendChild(HTML.plain(v));
+                var result = HTML.span(v);
                 result.style.color = '#600';
                 return result;
             }
@@ -722,8 +725,7 @@ module FailWhale {
         }
 
         function renderNumber(x:string):Node {
-            var result = document.createElement('span');
-            result.appendChild(HTML.plain(x));
+            var result = HTML.span(x);
             result.style.color = '#00f';
             return result;
         }
