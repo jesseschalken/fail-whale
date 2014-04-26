@@ -1,4 +1,3 @@
 - Make HTML UI indicate which objects are the same object and which ones are different.
 - Enable capture and rendering of the _names_ of function arguments on the call stack. (Requires the creation of a `ReflectionFunctionAbstract` for the called function/method.)
 - Make `unknown type` show as plain black text in the HTML UI.
-- Make `INF`, `-INF` and `NAN` show in blue like other kinds of numbers.
