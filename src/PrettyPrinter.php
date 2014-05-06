@@ -311,7 +311,7 @@ class PrettyPrinter {
         if ($string->bytesMissing != 0)
             $result->append(" $string->bytesMissing more bytes...");
 
-        if ( $result->count() > 1 && !$this->settings->alignText ) {
+        if ($result->count() > 1 && !$this->settings->alignText) {
             $result->indent();
             $result->indent();
             $result->prependLine();
@@ -370,13 +370,9 @@ class PrettyPrinter {
             $text->addLines($source);
         }
 
-        if ($this->settings->showExceptionLocalVariables) {
-            if (!is_array($e->locals)) {
-                $locals = new Text('not available');
-            } else {
-                $prefixes = array_fill(0, count($e->locals), '');
-                $locals   = $this->renderVariables($e->locals, 'none', $e->localsMissing, $prefixes);
-            }
+        if ($this->settings->showExceptionLocalVariables && is_array($e->locals)) {
+            $prefixes = array_fill(0, count($e->locals), '');
+            $locals   = $this->renderVariables($e->locals, 'none', $e->localsMissing, $prefixes);
 
             $locals->indent();
             $locals->wrapLines("local variables:");
@@ -390,11 +386,13 @@ class PrettyPrinter {
             $text->addLines($stack);
         }
 
-        $previous = $e->previous ? $this->renderException($e->previous) : new Text('none');
-        $previous->indent();
-        $previous->indent();
-        $previous->wrapLines("previous exception:");
-        $text->addLines($previous);
+        if ($e->previous) {
+            $previous = $this->renderException($e->previous);
+            $previous->indent();
+            $previous->indent();
+            $previous->wrapLines("previous exception:");
+            $text->addLines($previous);
+        }
 
         return $text;
     }
