@@ -351,7 +351,7 @@ class PrettyPrinter {
     }
 
     private function renderException(ExceptionImpl $e) {
-        $text = new Text("$e->className $e->code in {$e->location->file}:{$e->location->line}");
+        $text = new Text("$e->className $e->code in {$this->renderLocation($e->location)}");
 
         $message = new Text($e->message);
         $message->indent();
@@ -443,8 +443,7 @@ class PrettyPrinter {
         $i    = 1;
 
         foreach ($exception->stack as $frame) {
-            $location = $frame->location;
-            $location = $location ? "$location->file:$location->line" : '[internal function]';
+            $location = $this->renderLocation($frame->location);
             $call     = $this->renderExceptionStackFrame($frame);
 
             if ($this->settings->indentStackTraceFunctions) {
@@ -538,6 +537,10 @@ class PrettyPrinter {
         }
 
         return $result;
+    }
+
+    private function renderLocation(Location $location = null) {
+        return $location ? "$location->file:$location->line" : '[internal function]';
     }
 }
 
