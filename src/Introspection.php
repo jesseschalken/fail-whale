@@ -107,8 +107,14 @@ s;
 
         $mock->locals = array($local1, $local2);
 
+        $arg1              = new FunctionArg;
+        $arg1->name        = 'arg1';
+        $arg1->value       = $this->introspect(new DummyClass1);
+        $arg1->typeHint    = get_class(new DummyClass1);
+        $arg1->isReference = false;
+
         $stack1               = new Stack;
-        $stack1->args         = array($this->introspect(new DummyClass1));
+        $stack1->args         = array($arg1);
         $stack1->functionName = 'aFunction';
         $stack1->className    = 'DummyClass1';
         $stack1->isStatic     = false;
@@ -116,8 +122,14 @@ s;
         $stack1->object       = $this->objectId(new DummyClass1);
         $stack1->argsMissing  = 3;
 
+        $arg2              = new FunctionArg;
+        $arg2->name        = 'anArray';
+        $arg2->value       = $this->introspect(new DummyClass2);
+        $arg2->isReference = true;
+        $arg2->typeHint    = 'array';
+
         $stack2               = new Stack;
-        $stack2->args         = array($this->introspect(new DummyClass2));
+        $stack2->args         = array($arg2);
         $stack2->functionName = 'aFunction';
         $stack2->className    = null;
         $stack2->isStatic     = null;

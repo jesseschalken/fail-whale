@@ -63,32 +63,32 @@ local variables:
 
 stack trace:
   #1 /path/to/muh/file:9000
-           new FailWhale\DummyClass1 {
-               private $private1     = null;
-               protected $protected1 = null;
-               public $public1       = null;
-           }->DummyClass1::aFunction(
-               new FailWhale\DummyClass1 {
-                   private $private1     = null;
-                   protected $protected1 = null;
-                   public $public1       = null;
-               }, 
-               3 more...
-           );
-     
+        new FailWhale\DummyClass1 {
+            private $private1     = null;
+            protected $protected1 = null;
+            public $public1       = null;
+        }->DummyClass1::aFunction(
+            FailWhale\DummyClass1 $arg1 = new FailWhale\DummyClass1 {
+                private $private1     = null;
+                protected $protected1 = null;
+                public $public1       = null;
+            }, 
+            3 more...
+        );
+
   #2 /path/to/muh/file:9000
-           aFunction(
-               new FailWhale\DummyClass2 {
-                   private $private2     = null;
-                   protected $protected2 = null;
-                   public $public2       = null;
-                   private $private1     = null;
-                   protected $protected1 = null;
-                   public $public1       = null;
-               }, 
-               6 more...
-           );
-     
+        aFunction(
+            array &$anArray = new FailWhale\DummyClass2 {
+                private $private2     = null;
+                protected $protected2 = null;
+                public $public2       = null;
+                private $private1     = null;
+                protected $protected1 = null;
+                public $public1       = null;
+            }, 
+            6 more...
+        );
+
   8 more...
 
 previous exception:

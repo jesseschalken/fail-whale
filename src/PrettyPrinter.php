@@ -16,8 +16,8 @@ final class PrettyPrinterSettings {
     public $maxStringLength = 1000;
     public $useShortArraySyntax = false;
     public $alignText = false;
-    public $alignVariables = false;
-    public $alignArrayEntries = false;
+    public $alignVariables = true;
+    public $alignArrayEntries = true;
     public $indentStackTraceFunctions = true;
 }
 
@@ -471,15 +471,15 @@ class PrettyPrinter {
                 $call->indent();
                 $call->indent();
                 $call->wrapLines($location);
-                $rows[] = array($this->text("#$i"), $call);
+                $rows[] = array($this->text("#$i "), $call);
             } else {
-                $rows[] = array($this->text("#$i"), $this->text("$location"), $call);
+                $rows[] = array($this->text("#$i "), $this->text("$location "), $call);
             }
             $i++;
         }
 
         if ($exception->stackMissing == 0)
-            $rows[] = array($this->text("#$i"), $this->text("{main}"));
+            $rows[] = array($this->text("#$i "), $this->text("{main}"));
 
         $result = $this->table($rows, true);
 
