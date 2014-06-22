@@ -482,7 +482,7 @@ module FailWhale {
         function renderVariable(name:string):Node {
             function red(v:string) {
                 var result = HTML.span(v);
-                result.style.color = '#900';
+                result.style.color = '#600';
                 return result;
             }
 

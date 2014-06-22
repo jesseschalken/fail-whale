@@ -400,7 +400,7 @@ var FailWhale;
         function renderVariable(name) {
             function red(v) {
                 var result = HTML.span(v);
-                result.style.color = '#900';
+                result.style.color = '#600';
                 return result;
             }
 
