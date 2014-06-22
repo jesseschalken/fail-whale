@@ -330,7 +330,29 @@ var FailWhale;
                     if (i != 0)
                         result.appendChild(HTML.plain(', '));
 
-                    result.appendChild(renderValue(call.args[i]));
+                    var arg = call.args[i];
+                    if (arg.name) {
+                        if (arg.typeHint) {
+                            var typeHint;
+                            switch (arg.typeHint) {
+                                case 'array':
+                                case 'callable':
+                                    typeHint = HTML.keyword(arg.typeHint);
+                                    break;
+                                default:
+                                    typeHint = HTML.plain(arg.typeHint);
+                            }
+                            result.appendChild(typeHint);
+                            result.appendChild(HTML.plain(' '));
+                        }
+                        if (arg.isReference) {
+                            result.appendChild(HTML.plain('&'));
+                        }
+                        result.appendChild(renderVariable(arg.name));
+                        result.appendChild(HTML.plain(' = '));
+                    }
+
+                    result.appendChild(renderValue(arg.value));
                 }
 
                 if (call.argsMissing > 0) {
@@ -378,7 +400,7 @@ var FailWhale;
         function renderVariable(name) {
             function red(v) {
                 var result = HTML.span(v);
-                result.style.color = '#600';
+                result.style.color = '#900';
                 return result;
             }
 

@@ -224,7 +224,7 @@ s;
         $prefix = $this->limits->namespacePrefix;
 
         if (substr($name, 0, strlen($prefix)) === $prefix)
-            return (string) substr($name, strlen($prefix));
+            return (string)substr($name, strlen($prefix));
         else
             return $name;
     }
@@ -432,9 +432,31 @@ s;
                     $result->isStatic = null;
 
                 if ($args !== null) {
+                    $reflection = $class === null
+                        ? new \ReflectionFunction($function)
+                        : new \ReflectionMethod($class, $function);
+                    $parameters = $reflection->getParameters();
+
                     $result->args = array();
-                    foreach ($args as &$arg)
-                        $result->args[] = $this->introspectRef($arg);
+                    foreach ($args as $i => &$arg) {
+                        $param = isset($parameters[$i]) ? $parameters[$i] : null;
+
+                        $arg1              = new FunctionArg;
+                        $arg1->name        = $param ? $param->getName() : null;
+                        $arg1->value       = $this->introspectRef($arg);
+                        $arg1->isReference = $param ? $param->isPassedByReference() : null;
+
+                        if (!$param)
+                            $arg1->typeHint = null;
+                        else if ($param->isArray())
+                            $arg1->typeHint = 'array';
+                        else if ($param->isCallable())
+                            $arg1->typeHint = 'callable';
+                        else
+                            $arg1->typeHint = $this->removeNamespacePrefix($param->getClass()->name);
+
+                        $result->args[] = $arg1;
+                    }
                 }
 
                 $results[] = $result;

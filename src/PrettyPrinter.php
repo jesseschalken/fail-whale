@@ -15,8 +15,8 @@ final class PrettyPrinterSettings {
     public $longStringThreshold = 1000;
     public $useShortArraySyntax = false;
     public $alignText = false;
-    public $alignVariables = true;
-    public $alignArrayEntries = true;
+    public $alignVariables = false;
+    public $alignArrayEntries = false;
     public $indentStackTraceFunctions = true;
 }
 
@@ -38,6 +38,14 @@ class PrettyPrinter {
         return $this->renderValue($this->root->root);
     }
 
+    private function text($text = '') {
+        return new Text($text, $this->settings->alignText);
+    }
+
+    private function table(array $rows, $alignColumns) {
+        return Text::table($rows, $this->settings->alignText, $alignColumns);
+    }
+
     private function renderValue(ValueImpl $v) {
         switch ($v->type) {
             case Type::STRING:
@@ -47,13 +55,13 @@ class PrettyPrinter {
             case Type::OBJECT:
                 return $this->visitObject($v->object);
             case Type::INT:
-                return new Text("$v->int");
+                return $this->text("$v->int");
             case Type::TRUE:
-                return new Text('true');
+                return $this->text('true');
             case Type::FALSE:
-                return new Text('false');
+                return $this->text('false');
             case Type::NULL:
-                return new Text('null');
+                return $this->text('null');
             case Type::POS_INF:
                 return $this->visitFloat(INF);
             case Type::NEG_INF:
@@ -61,15 +69,15 @@ class PrettyPrinter {
             case Type::NAN:
                 return $this->visitFloat(NAN);
             case Type::UNKNOWN:
-                return new Text('unknown type');
+                return $this->text('unknown type');
             case Type::FLOAT:
                 return $this->visitFloat($v->float);
             case Type::RESOURCE:
-                return new Text("{$v->resource->type}");
+                return $this->text("{$v->resource->type}");
             case Type::EXCEPTION:
                 return $this->visitException($v->exception);
             default:
-                return new Text("unknown type $v->type");
+                return $this->text("unknown type $v->type");
         }
     }
 
@@ -81,11 +89,11 @@ class PrettyPrinter {
             $rendered =& $this->stringsRendered[$id];
             $idString = sprintf("string%03d", $id);
             if ($rendered) {
-                return new Text("*$idString");
+                return $this->text("*$idString");
             } else {
                 $rendered = true;
-                $result   = new Text("&$idString ");
-                $result->appendLines($this->renderString($string), $this->settings->alignText);
+                $result   = $this->text("&$idString ");
+                $result->appendLines($this->renderString($string));
                 return $result;
             }
         } else {
@@ -104,11 +112,11 @@ class PrettyPrinter {
             $rendered =& $this->arraysRendered[$id];
             $idString = sprintf("array%03d", $id);
             if ($rendered) {
-                return new Text("*$idString");
+                return $this->text("*$idString");
             } else {
                 $rendered = true;
-                $result   = new Text("&$idString ");
-                $result->appendLines($this->renderArrayBody($array), $this->settings->alignText);
+                $result   = $this->text("&$idString ");
+                $result->appendLines($this->renderArrayBody($array));
                 return $result;
             }
         } else {
@@ -124,11 +132,11 @@ class PrettyPrinter {
             $rendered =& $this->objectsRendered[$id];
             $idString = sprintf("object%03d", $id);
             if ($rendered) {
-                return new Text("*$idString new $object->className");
+                return $this->text("*$idString new $object->className");
             } else {
                 $rendered = true;
-                $result   = new Text("&$idString ");
-                $result->appendLines($this->renderObjectBody($object), $this->settings->alignText);
+                $result   = $this->text("&$idString ");
+                $result->appendLines($this->renderObjectBody($object));
                 return $result;
             }
         } else {
@@ -146,9 +154,9 @@ class PrettyPrinter {
         }
 
         if (!$this->settings->showArrayEntries)
-            return new Text("array");
+            return $this->text("array");
         else if (!($array->entries) && $array->entriesMissing == 0)
-            return new Text("$start$end");
+            return $this->text("$start$end");
 
         $rows = array();
 
@@ -164,13 +172,13 @@ class PrettyPrinter {
             }
 
             if ($array->isAssociative) {
-                $rows[] = array($key, new Text('=>'), $value);
+                $rows[] = array($key, $this->text(' => '), $value);
             } else {
                 $rows[] = array($value);
             }
         }
 
-        $result = Text::table($rows, $this->settings->alignText, $this->settings->alignArrayEntries);
+        $result = $this->table($rows, $this->settings->alignArrayEntries);
 
         if ($array->entriesMissing != 0)
             $result->addLine("$array->entriesMissing more...");
@@ -188,9 +196,9 @@ class PrettyPrinter {
 
     private function renderObjectBody(Object1 $object) {
         if (!$this->settings->showObjectProperties) {
-            return new Text("new $object->className");
+            return $this->text("new $object->className");
         } else if (!$object->properties && $object->propertiesMissing == 0) {
-            return new Text("new $object->className {}");
+            return $this->text("new $object->className {}");
         } else {
             $prefixes = array();
 
@@ -208,7 +216,7 @@ class PrettyPrinter {
     private function visitFloat($float) {
         $int = (int)$float;
 
-        return new Text("$int" === "$float" ? "$float.0" : "$float");
+        return $this->text("$int" === "$float" ? "$float.0" : "$float");
     }
 
     private function visitException(ExceptionImpl $exception) {
@@ -257,7 +265,7 @@ class PrettyPrinter {
 
                 $t = $this->renderVariables($variables, 'none', $missing, $prefixes);
             } else {
-                $t = new Text('not available');
+                $t = $this->text('not available');
             }
 
             $t->indent();
@@ -271,7 +279,7 @@ class PrettyPrinter {
 
     private function renderString(String1 $string) {
         if (!$this->settings->showStringContents)
-            return new Text("string");
+            return $this->text("string");
 
         $characterEscapeCache = array(
             "\\" => '\\\\',
@@ -306,12 +314,12 @@ class PrettyPrinter {
             }
         }
 
-        $result = new Text("\"$escaped\"");
+        $result = $this->text("\"$escaped\"");
 
         if ($string->bytesMissing != 0)
             $result->append(" $string->bytesMissing more bytes...");
 
-        if ( $result->count() > 1 && !$this->settings->alignText ) {
+        if ($result->count() > 1 && !$this->settings->alignText) {
             $result->indent();
             $result->indent();
             $result->prependLine();
@@ -330,19 +338,19 @@ class PrettyPrinter {
      */
     private function renderVariables(array $variables, $noneText, $missing, array $prefixes) {
         if (!$variables && $missing == 0)
-            return new Text($noneText);
+            return $this->text($noneText);
 
         $rows = array();
 
         foreach ($variables as $k => $variable) {
-            $prefix = new Text($prefixes[$k]);
-            $prefix->appendLines($this->renderVariable($variable->name), $this->settings->alignText);
+            $prefix = $this->text($prefixes[$k]);
+            $prefix->appendLines($this->renderVariable($variable->name));
             $value = $this->renderValue($variable->value);
             $value->append(';');
-            $rows[] = array($prefix, new Text('='), $value,);
+            $rows[] = array($prefix, $this->text(' = '), $value,);
         }
 
-        $result = Text::table($rows, $this->settings->alignText, $this->settings->alignVariables);
+        $result = $this->table($rows, $this->settings->alignVariables);
 
         if ($missing != 0)
             $result->addLine("$missing more...");
@@ -351,9 +359,9 @@ class PrettyPrinter {
     }
 
     private function renderException(ExceptionImpl $e) {
-        $text = new Text("$e->className $e->code in {$e->location->file}:{$e->location->line}");
+        $text = $this->text("$e->className $e->code in {$e->location->file}:{$e->location->line}");
 
-        $message = new Text($e->message);
+        $message = $this->text($e->message);
         $message->indent();
         $message->indent();
         $message->wrapLines();
@@ -361,7 +369,7 @@ class PrettyPrinter {
 
         if ($this->settings->showExceptionSourceCode) {
             if (!$e->location->source)
-                $source = new Text('not available');
+                $source = $this->text('not available');
             else
                 $source = $this->renderSourceCode($e->location->source, $e->location->line);
 
@@ -372,7 +380,7 @@ class PrettyPrinter {
 
         if ($this->settings->showExceptionLocalVariables) {
             if (!is_array($e->locals)) {
-                $locals = new Text('not available');
+                $locals = $this->text('not available');
             } else {
                 $prefixes = array_fill(0, count($e->locals), '');
                 $locals   = $this->renderVariables($e->locals, 'none', $e->localsMissing, $prefixes);
@@ -390,7 +398,7 @@ class PrettyPrinter {
             $text->addLines($stack);
         }
 
-        $previous = $e->previous ? $this->renderException($e->previous) : new Text('none');
+        $previous = $e->previous ? $this->renderException($e->previous) : $this->text('none');
         $previous->indent();
         $previous->indent();
         $previous->wrapLines("previous exception:");
@@ -401,7 +409,7 @@ class PrettyPrinter {
 
     private function renderVariable($name) {
         if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name))
-            return new Text("$$name");
+            return $this->text("$$name");
 
         $string               = new String1;
         $string->bytes        = $name;
@@ -431,13 +439,13 @@ class PrettyPrinter {
 
         foreach ($code as $codeLine => $codeText) {
             $rows[] = array(
-                new Text($codeLine == $line ? ">" : ''),
-                new Text($codeLine),
-                new Text($codeText),
+                $this->text($codeLine == $line ? "> " : ''),
+                $this->text("$codeLine "),
+                $this->text($codeText),
             );
         }
 
-        return Text::table($rows);
+        return $this->table($rows, true);
     }
 
     private function renderExceptionStack(ExceptionImpl $exception) {
@@ -455,17 +463,17 @@ class PrettyPrinter {
                 $call->indent();
                 $call->indent();
                 $call->wrapLines($location);
-                $rows[] = array(new Text("#$i"), $call);
+                $rows[] = array($this->text("#$i"), $call);
             } else {
-                $rows[] = array(new Text("#$i"), new Text("$location"), $call);
+                $rows[] = array($this->text("#$i"), $this->text("$location"), $call);
             }
             $i++;
         }
 
         if ($exception->stackMissing == 0)
-            $rows[] = array(new Text("#$i"), new Text("{main}"));
+            $rows[] = array($this->text("#$i"), $this->text("{main}"));
 
-        $result = Text::table($rows);
+        $result = $this->table($rows, true);
 
         if ($exception->stackMissing != 0)
             $result->addLine("$exception->stackMissing more...");
@@ -476,7 +484,7 @@ class PrettyPrinter {
     private function renderExceptionStackFrame(Stack $frame) {
         $result = $this->renderExceptionStackFramePrefix($frame);
         $result->append($frame->functionName);
-        $result->appendLines($this->renderExceptionStackFrameArgs($frame), $this->settings->alignText);
+        $result->appendLines($this->renderExceptionStackFrameArgs($frame));
         return $result;
     }
 
@@ -490,36 +498,45 @@ class PrettyPrinter {
 
             return $prefix;
         } else if ($frame->className) {
-            $prefix = new Text;
+            $prefix = $this->text();
             $prefix->append($frame->className);
             $prefix->append($frame->isStatic ? '::' : '->');
             return $prefix;
         } else {
-            return new Text;
+            return $this->text();
         }
     }
 
     private function renderExceptionStackFrameArgs(Stack $frame) {
         if (!is_array($frame->args))
-            return new Text("( ? )");
+            return $this->text("( ? )");
 
         if ($frame->args === array())
-            return new Text("()");
+            return $this->text("()");
 
         /** @var Text[] $pretties */
         $pretties    = array();
         $isMultiLine = false;
 
         foreach ($frame->args as $arg) {
-            $pretty      = $this->renderValue($arg);
+            /** @var FunctionArg $arg */
+            $pretty = $this->renderValue($arg->value);
+            if ($arg->name) {
+                $pretty->prepend(' = ');
+                $pretty->prependLines($this->renderVariable($arg->name));
+                if ($arg->isReference)
+                    $pretty->prepend('&');
+                if ($arg->typeHint !== null)
+                    $pretty->prepend("$arg->typeHint ");
+            }
             $isMultiLine = $isMultiLine || $pretty->count() > 1;
             $pretties[]  = $pretty;
         }
 
         if ($frame->argsMissing != 0)
-            $pretties[] = new Text("$frame->argsMissing more...");
+            $pretties[] = $this->text("$frame->argsMissing more...");
 
-        $result = new Text;
+        $result = $this->text();
 
         foreach ($pretties as $k => $pretty) {
             if ($isMultiLine)
@@ -618,7 +635,7 @@ class RefCounts {
 
                 if ($stack->args)
                     foreach ($stack->args as $arg)
-                        $this->doValue($arg);
+                        $this->doValue($arg->value);
             }
         }
 
@@ -628,7 +645,7 @@ class RefCounts {
 }
 
 class Text {
-    static function table(array $rows, $alignText = true, $alignColumns = true) {
+    static function table(array $rows, $align, $alignColumns) {
         $columnWidths = array();
 
         if ($alignColumns) {
@@ -643,19 +660,19 @@ class Text {
             }
         }
 
-        $result = new self;
+        $result = new self('', $align);
 
         foreach ($rows as $cells) {
-            $row        = new self;
+            $row        = new self('', $align);
             $lastColumn = count($cells) - 1;
 
             foreach ($cells as $column => $cell) {
                 $cell = clone $cell;
 
                 if ($alignColumns && $column !== $lastColumn)
-                    $cell->padWidth($columnWidths[$column] + 1);
+                    $cell->padWidth($columnWidths[$column]);
 
-                $row->appendLines($cell, $alignText);
+                $row->appendLines($cell);
             }
 
             $result->addLines($row);
@@ -682,8 +699,8 @@ class Text {
         $this->append(str_repeat(' ', $width - $this->width()));
     }
 
-    function appendLines(self $append, $align = true) {
-        $space = $align ? str_repeat(' ', $this->width()) : '';
+    function appendLines(self $append) {
+        $space = $this->align ? str_repeat(' ', $this->width()) : '';
 
         foreach ($append->lines as $k => $line)
             if ($k == 0 && $this->lines)
@@ -698,19 +715,21 @@ class Text {
     }
 
     function append($string) {
-        $this->appendLines(new self($string));
+        $this->appendLines($this->text($string));
     }
 
     /** @var string[] */
     private $lines;
+    private $align;
 
-    function __construct($text = '') {
+    function __construct($text, $align) {
         $lines = explode("\n", $text);
 
         if ($lines && $lines[count($lines) - 1] === "")
             array_pop($lines);
 
         $this->lines = $lines;
+        $this->align = $align;
     }
 
     function toString() {
@@ -740,17 +759,17 @@ class Text {
                 $this->lines[$k] = "  $line";
     }
 
-    function wrap($prepend, $append, $align = true) {
-        $this->prepend($prepend, $align);
-        $this->append($append, $align);
+    function wrap($prepend, $append) {
+        $this->prepend($prepend);
+        $this->append($append);
     }
 
-    function prepend($string, $align = true) {
-        $this->prependLines(new self($string), $align);
+    function prepend($string) {
+        $this->prependLines($this->text($string));
     }
 
-    function prependLines(self $lines, $align = true) {
-        $this->appendLines($this->swapLines($lines), $align);
+    function prependLines(self $lines) {
+        $this->appendLines($this->swapLines($lines));
     }
 
     function wrapLines($prepend = '', $append = '') {
@@ -759,10 +778,14 @@ class Text {
     }
 
     function prependLine($line = "") {
-        $this->addLines($this->swapLines(new self("$line\n")));
+        $this->addLines($this->swapLines($this->text("$line\n")));
     }
 
     function addLine($line = "") {
-        $this->addLines(new self("$line\n"));
+        $this->addLines($this->text("$line\n"));
+    }
+
+    private function text($text) {
+        return new self($text, $this->align);
     }
 }

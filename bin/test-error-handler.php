@@ -27,11 +27,12 @@ $f = curl_init();
 
 class A {
     function __construct() {
-        $this->blarg($this);
+        $v = array($this);
+        $this->blarg($v);
     }
 
     private function blarg(/** @noinspection PhpUnusedParameterInspection */
-        A $aaaaaa) {
+        array &$aaaaaa) {
         for ($i = 0; $i < 256; $i++)
             $this->allBytes .= chr($i);
 

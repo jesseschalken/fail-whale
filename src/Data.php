@@ -243,7 +243,7 @@ class ExceptionImpl extends Base {
 class Stack extends Base {
     /** @var string */
     public $functionName;
-    /** @var ValueImpl[] */
+    /** @var FunctionArg[] */
     public $args;
     /** @var int */
     public $argsMissing = 0;
@@ -258,8 +258,24 @@ class Stack extends Base {
 
     protected function pushJSON(array $json) {
         parent::pushJSON($json);
-        ValueImpl::convertJSONs($this->args);
+        FunctionArg::convertJSONs($this->args);
         Location::convertJSON($this->location);
+    }
+}
+
+class FunctionArg extends Base {
+    /** @var string */
+    public $name;
+    /** @var ValueImpl */
+    public $value;
+    /** @var string */
+    public $typeHint;
+    /** @var bool */
+    public $isReference;
+
+    protected function pushJSON(array $json) {
+        parent::pushJSON($json);
+        ValueImpl::convertJSON($this->value);
     }
 }
 
