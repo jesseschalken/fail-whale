@@ -367,7 +367,7 @@ class PrettyPrinter {
     }
 
     private function renderException(ExceptionImpl $e) {
-        $text = $this->text("$e->className $e->code in {$e->location->file}:{$e->location->line}");
+        $text = $this->text("$e->className $e->code in {$this->renderLocation($e->location)}");
 
         $message = $this->text($e->message);
         $message->indent();
@@ -386,13 +386,9 @@ class PrettyPrinter {
             $text->addLines($source);
         }
 
-        if ($this->settings->showExceptionLocalVariables) {
-            if (!is_array($e->locals)) {
-                $locals = $this->text('not available');
-            } else {
-                $prefixes = array_fill(0, count($e->locals), '');
-                $locals   = $this->renderVariables($e->locals, 'none', $e->localsMissing, $prefixes);
-            }
+        if ($this->settings->showExceptionLocalVariables && is_array($e->locals)) {
+            $prefixes = array_fill(0, count($e->locals), '');
+            $locals   = $this->renderVariables($e->locals, 'none', $e->localsMissing, $prefixes);
 
             $locals->indent();
             $locals->wrapLines("local variables:");
@@ -406,11 +402,13 @@ class PrettyPrinter {
             $text->addLines($stack);
         }
 
-        $previous = $e->previous ? $this->renderException($e->previous) : $this->text('none');
-        $previous->indent();
-        $previous->indent();
-        $previous->wrapLines("previous exception:");
-        $text->addLines($previous);
+        if ($e->previous) {
+            $previous = $this->renderException($e->previous);
+            $previous->indent();
+            $previous->indent();
+            $previous->wrapLines("previous exception:");
+            $text->addLines($previous);
+        }
 
         return $text;
     }
@@ -461,8 +459,7 @@ class PrettyPrinter {
         $i    = 1;
 
         foreach ($exception->stack as $frame) {
-            $location = $frame->location;
-            $location = $location ? "$location->file:$location->line" : '[internal function]';
+            $location = $this->renderLocation($frame->location);
             $call     = $this->renderExceptionStackFrame($frame);
 
             if ($this->settings->indentStackTraceFunctions) {
@@ -565,6 +562,10 @@ class PrettyPrinter {
         }
 
         return $result;
+    }
+
+    private function renderLocation(Location $location = null) {
+        return $location ? "$location->file:$location->line" : '[internal function]';
     }
 }
 
