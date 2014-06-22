@@ -640,37 +640,37 @@ module FailWhale {
                     if (!location || !location.source)
                         return HTML.notice('no source code');
 
-                    var wrapper = document.createElement('table');
+                    var lineNumber = document.createElement('td');
+                    lineNumber.style.padding = '0';
+                    lineNumber.style.paddingRight = '0.5em';
+                    lineNumber.style.textAlign = 'right';
+                    lineNumber.style.opacity = '0.6';
+
+                    var code = document.createElement('td');
+                    code.style.padding = '0';
+                    code.style.width = '100%';
 
                     for (var codeLine in location.source) {
                         if (!location.source.hasOwnProperty(codeLine))
                             continue;
 
-                        var lineNumber = document.createElement('td');
-                        lineNumber.appendChild(HTML.plain(String(codeLine)));
-                        lineNumber.style.padding = '0';
-                        lineNumber.style.paddingRight = '0.5em';
-                        lineNumber.style.textAlign = 'right';
-                        lineNumber.style.opacity = '0.6';
-
-                        var code = document.createElement('td');
-                        code.appendChild(HTML.plain(decodeUTF8(location.source[codeLine])));
-                        code.style.padding = '0';
-                        code.style.width = '100%';
-
-                        var row = document.createElement('tr');
-                        row.appendChild(lineNumber);
-                        row.appendChild(code);
-
+                        var lineDiv = document.createElement('div');
                         if (codeLine == location.line) {
-                            code.style.backgroundColor = '#f99';
-                            code.style.color = '#600';
-                            code.style.borderRadius = Settings.padding;
+                            lineDiv.style.backgroundColor = '#f99';
+                            lineDiv.style.color = '#600';
+                            lineDiv.style.borderRadius = Settings.padding;
                         }
-
-                        wrapper.appendChild(row);
+                        lineNumber.appendChild(HTML.plain(String(codeLine) + "\n"));
+                        lineDiv.appendChild(HTML.plain(decodeUTF8(location.source[codeLine]) + "\n"));
+                        code.appendChild(lineDiv);
                     }
 
+                    var row = document.createElement('tr');
+                    row.appendChild(lineNumber);
+                    row.appendChild(code);
+
+                    var wrapper = document.createElement('table');
+                    wrapper.appendChild(row);
                     wrapper.style.borderSpacing = '0';
                     wrapper.style.padding = Settings.padding;
                     wrapper.style.backgroundColor = '#333';
