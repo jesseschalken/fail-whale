@@ -13,6 +13,7 @@ final class PrettyPrinterSettings {
     public $showArrayEntries = true;
     public $showStringContents = true;
     public $longStringThreshold = 1000;
+    public $maxStringLength = 1000;
     public $useShortArraySyntax = false;
     public $alignText = false;
     public $alignVariables = false;
@@ -293,10 +294,11 @@ class PrettyPrinter {
         );
 
         $escaped = '';
-        $length  = strlen($string->bytes);
+        $string1 = (string)substr($string->bytes, 0, $this->settings->maxStringLength);
+        $length  = strlen($string1);
 
         for ($i = 0; $i < $length; $i++) {
-            $char  = $string->bytes[$i];
+            $char  = $string1[$i];
             $char2 =& $characterEscapeCache[$char];
 
             if (!isset($char2)) {
@@ -314,10 +316,16 @@ class PrettyPrinter {
             }
         }
 
-        $result = $this->text("\"$escaped\"");
-
-        if ($string->bytesMissing != 0)
-            $result->append(" $string->bytesMissing more bytes...");
+        $result  = $this->text($escaped);
+        $skipped = max(0, strlen($string->bytes) - strlen($string1));
+        $missing = $string->bytesMissing;
+        if ($skipped != 0) {
+            $result->wrap('"', "...");
+        } else if ($missing != 0) {
+            $result->wrap('"', "\" $missing more bytes...");
+        } else {
+            $result->wrap('"', '"');
+        }
 
         if ($result->count() > 1 && !$this->settings->alignText) {
             $result->indent();
