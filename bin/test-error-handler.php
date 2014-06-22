@@ -90,5 +90,8 @@ function lololololl() {
     Blarg::foo(34523466, "\n", 423452345);
 }
 
-lololololl();
+$f = function () {
+    lololololl();
+};
 
+$f();

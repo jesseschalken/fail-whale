@@ -444,14 +444,18 @@ s;
                     $result->isStatic = null;
 
                 if ($args !== null) {
-                    $reflection = $class === null
-                        ? new \ReflectionFunction($function)
-                        : new \ReflectionMethod($class, $function);
-                    $parameters = $reflection->getParameters();
+                    if ($class === null && function_exists($function))
+                        $reflection = new \ReflectionFunction($function);
+                    else if ($class !== null && method_exists($class, $function))
+                        $reflection = new \ReflectionMethod($class, $function);
+                    else
+                        $reflection = null;
+
+                    $params = $reflection ? $reflection->getParameters() : null;
 
                     $result->args = array();
                     foreach ($args as $i => &$arg) {
-                        $param = isset($parameters[$i]) ? $parameters[$i] : null;
+                        $param = $params && isset($params[$i]) ? $params[$i] : null;
 
                         $arg1              = new FunctionArg;
                         $arg1->name        = $param ? $param->getName() : null;
