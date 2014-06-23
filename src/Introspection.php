@@ -469,7 +469,7 @@ s;
                         else if ($param->isCallable())
                             $arg1->typeHint = 'callable';
                         else
-                            $arg1->typeHint = $param->getClass() ? $this->removeNamespacePrefix($param->getClass()->name) : null;
+                            $arg1->typeHint = $this->getParameterClass($param);
 
                         $result->args[] = $arg1;
                     }
@@ -480,6 +480,11 @@ s;
         }
 
         return $results;
+    }
+
+    private function getParameterClass(\ReflectionParameter $param) {
+        preg_match('/\[ \<.*?> (.*?) /s', $param->__toString(), $matches);
+        return isset($matches[1]) ? $this->removeNamespacePrefix($matches[1]) : null;
     }
 
     private function introspectSourceCode($file, $line) {

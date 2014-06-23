@@ -86,12 +86,16 @@ class Blarg {
     }
 }
 
-function lololololl() {
+class Lol {
+}
+
+function lololololl(/** @noinspection PhpUnusedParameterInspection */
+    Lol $foo) {
     Blarg::foo(34523466, "\n", 423452345);
 }
 
 $f = function () {
-    lololololl();
+    lololololl(new Lol);
 };
 
 $f();
