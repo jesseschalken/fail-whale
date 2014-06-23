@@ -466,7 +466,7 @@ s;
                             $arg1->typeHint = null;
                         else if ($param->isArray())
                             $arg1->typeHint = 'array';
-                        else if ($param->isCallable())
+                        else if (method_exists($param, 'isCallable') && $param->isCallable())
                             $arg1->typeHint = 'callable';
                         else
                             $arg1->typeHint = $this->getParameterClass($param);
