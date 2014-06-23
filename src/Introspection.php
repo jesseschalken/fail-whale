@@ -483,7 +483,7 @@ s;
     }
 
     private function getParameterClass(\ReflectionParameter $param) {
-        preg_match('/\[ \<.*?> (.*?) /s', $param->__toString(), $matches);
+        preg_match(':^Parameter #\d+ \[ \<.*?> (.*?) &?\$\w+ \]$:s', "$param", $matches);
         return isset($matches[1]) ? $this->removeNamespacePrefix($matches[1]) : null;
     }
 
