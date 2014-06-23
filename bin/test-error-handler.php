@@ -26,7 +26,7 @@ error_reporting(-1);
 $f = curl_init();
 
 class A {
-    function __construct() {
+    function __construct($blah) {
         $v = array($this);
         $this->blarg($v);
     }

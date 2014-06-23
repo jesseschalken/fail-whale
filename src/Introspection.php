@@ -469,7 +469,7 @@ s;
                         else if ($param->isCallable())
                             $arg1->typeHint = 'callable';
                         else
-                            $arg1->typeHint = $this->removeNamespacePrefix($param->getClass()->name);
+                            $arg1->typeHint = $param->getClass() ? $this->removeNamespacePrefix($param->getClass()->name) : null;
 
                         $result->args[] = $arg1;
                     }
