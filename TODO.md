@@ -1,2 +1,1 @@
 - Make HTML UI indicate which objects are the same object and which ones are different.
-- Enable capture and rendering of the _names_ of function arguments on the call stack. (Requires the creation of a `ReflectionFunctionAbstract` for the called function/method.)
