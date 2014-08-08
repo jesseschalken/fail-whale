@@ -387,7 +387,7 @@ class PrettyPrinter {
         }
 
         if ($this->settings->showExceptionLocalVariables && is_array($e->locals)) {
-            $prefixes = array_fill(0, count($e->locals), '');
+            $prefixes = $e->locals ? array_fill(0, count($e->locals), '') : array();
             $locals   = $this->renderVariables($e->locals, 'none', $e->localsMissing, $prefixes);
 
             $locals->indent();
