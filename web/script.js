@@ -58,14 +58,6 @@ var FailWhale;
 
     var HTML;
     (function (HTML) {
-        function inline(inner) {
-            var s = document.createElement('div');
-            s.style.display = 'inline-block';
-            s.appendChild(inner);
-            return s;
-        }
-        HTML.inline = inline;
-
         function plain(content) {
             return document.createTextNode(content);
         }
@@ -105,6 +97,8 @@ var FailWhale;
 
         function expandable(content) {
             var container = document.createElement('div');
+            var inline = content.inline === undefined ? true : false;
+            container.style.display = inline ? 'inline-block' : 'block';
 
             var head = document.createElement('div');
             head.style.backgroundColor = '#eee';
@@ -124,7 +118,7 @@ var FailWhale;
             head.appendChild(content.head);
             container.appendChild(head);
 
-            var body = document.createElement('table');
+            var body = document.createElement('div');
             body.style.borderSpacing = '0';
             body.style.padding = '0';
             body.style.backgroundColor = 'white';
@@ -132,7 +126,6 @@ var FailWhale;
             body.style.borderWidth = Settings.borderWidth;
             body.style.borderTopWidth = '0px';
             body.style.borderStyle = 'solid';
-            body.style.width = '100%';
             container.appendChild(body);
 
             var open = content.open;
@@ -141,15 +134,10 @@ var FailWhale;
                 body.innerHTML = '';
 
                 if (open) {
-                    var td = document.createElement('td');
-                    var tr = document.createElement('tr');
-                    td.style.padding = '0';
-                    td.appendChild(content.body());
-                    tr.appendChild(td);
-                    body.appendChild(tr);
+                    body.appendChild(content.body());
                 }
 
-                body.style.display = open ? 'table' : 'none';
+                body.style.display = open ? 'block' : 'none';
             }
 
             refresh();
@@ -176,7 +164,6 @@ var FailWhale;
                 for (var j = 0; j < data[i].length; j++) {
                     var td = document.createElement('td');
                     td.style.padding = Settings.padding;
-                    td.style.verticalAlign = 'baseline';
                     td.appendChild(data[i][j]);
                     tr.appendChild(td);
                 }
@@ -253,7 +240,7 @@ var FailWhale;
 
         function renderArray(id) {
             var array = root.arrays[id];
-            return HTML.inline(HTML.expandable({
+            return HTML.expandable({
                 head: HTML.keyword('array'),
                 body: function () {
                     if (array.entries.length == 0 && array.entriesMissing == 0)
@@ -273,11 +260,11 @@ var FailWhale;
                     return container;
                 },
                 open: false
-            }));
+            });
         }
 
         function renderObject(object) {
-            return HTML.inline(HTML.expandable({
+            return HTML.expandable({
                 head: HTML.collect([HTML.keyword('new'), HTML.plain(' ' + object.className)]),
                 body: function () {
                     if (object.properties.length == 0 && object.propertiesMissing == 0)
@@ -306,7 +293,7 @@ var FailWhale;
                     return container;
                 },
                 open: false
-            }));
+            });
         }
 
         function renderStack(stack, missing) {
@@ -378,13 +365,13 @@ var FailWhale;
             if (missing == 0) {
                 rows.push([
                     HTML.plain('#' + String(x + 1)),
-                    HTML.inline(HTML.expandable({
+                    HTML.expandable({
                         head: HTML.plain('{main}'),
                         body: function () {
                             return HTML.notice('no source code');
                         },
                         open: false
-                    })),
+                    }),
                     HTML.collect([])
                 ]);
             }
@@ -519,41 +506,57 @@ var FailWhale;
             if (!x)
                 return HTML.italics('none');
 
-            return HTML.inline(HTML.expandable({
+            return HTML.expandable({
                 head: HTML.collect([HTML.keyword('exception'), HTML.plain(' ' + x.className)]),
                 body: function () {
                     var body = document.createElement('div');
                     body.appendChild(HTML.expandable({
-                        open: true, head: HTML.bold('exception'), body: function () {
+                        inline: false,
+                        open: true,
+                        head: HTML.bold('exception'),
+                        body: function () {
                             return HTML.table([
                                 [HTML.bold('code'), HTML.plain(x.code)],
                                 [HTML.bold('message'), HTML.plain(x.message)],
                                 [HTML.bold('location'), renderLocation(x.location, true)],
                                 [HTML.bold('previous'), renderException(x.previous)]
                             ]);
-                        } }));
+                        }
+                    }));
                     body.appendChild(HTML.expandable({
-                        open: true, head: HTML.bold('locals'), body: function () {
+                        inline: false,
+                        open: true,
+                        head: HTML.bold('locals'),
+                        body: function () {
                             return renderLocals(x.locals, x.localsMissing);
-                        } }));
+                        }
+                    }));
                     body.appendChild(HTML.expandable({
-                        open: true, head: HTML.bold('stack'), body: function () {
+                        inline: false,
+                        open: true,
+                        head: HTML.bold('stack'),
+                        body: function () {
                             return renderStack(x.stack, x.stackMissing);
-                        } }));
+                        }
+                    }));
                     body.appendChild(HTML.expandable({
-                        open: true, head: HTML.bold('globals'), body: function () {
+                        inline: false,
+                        open: true,
+                        head: HTML.bold('globals'),
+                        body: function () {
                             return renderGlobals(x.globals);
-                        } }));
+                        }
+                    }));
                     body.style.padding = Settings.padding;
                     return body;
                 },
                 open: true
-            }));
+            });
         }
 
         function renderLocation(location, open) {
             if (typeof open === "undefined") { open = false; }
-            return HTML.inline(HTML.expandable({
+            return HTML.expandable({
                 head: location ? HTML.collect([HTML.plain(location.file + ':'), renderNumber(String(location.line))]) : HTML.plain('[internal function]'),
                 body: function () {
                     if (!location || !location.source)
@@ -599,7 +602,7 @@ var FailWhale;
                     return wrapper;
                 },
                 open: open
-            }));
+            });
         }
 
         function renderString(x) {
@@ -665,7 +668,7 @@ var FailWhale;
             }
 
             if (visualLength > 200 || x.bytes.indexOf("\n") != -1)
-                return HTML.inline(HTML.expandable({ open: false, head: HTML.keyword('string'), body: doRender }));
+                return HTML.expandable({ open: false, head: HTML.keyword('string'), body: doRender });
             else
                 return doRender();
         }

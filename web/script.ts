@@ -146,13 +146,6 @@ module FailWhale {
     }
 
     module HTML {
-        export function inline(inner:Node):Node {
-            var s = document.createElement('div');
-            s.style.display = 'inline-block';
-            s.appendChild(inner);
-            return s;
-        }
-
         export function plain(content:string):Node {
             return document.createTextNode(content);
         }
@@ -189,8 +182,11 @@ module FailWhale {
             head:Node;
             body:() => Node;
             open:boolean;
+            inline?:boolean;
         }):Node {
             var container = document.createElement('div');
+            var inline = content.inline === undefined ? true : false;
+            container.style.display = inline ? 'inline-block' : 'block';
 
             var head = document.createElement('div');
             head.style.backgroundColor = '#eee';
@@ -210,7 +206,7 @@ module FailWhale {
             head.appendChild(content.head);
             container.appendChild(head);
 
-            var body = document.createElement('table');
+            var body = document.createElement('div');
             body.style.borderSpacing = '0';
             body.style.padding = '0';
             body.style.backgroundColor = 'white';
@@ -218,7 +214,6 @@ module FailWhale {
             body.style.borderWidth = Settings.borderWidth;
             body.style.borderTopWidth = '0px';
             body.style.borderStyle = 'solid';
-            body.style.width = '100%';
             container.appendChild(body);
 
             var open = content.open;
@@ -227,15 +222,10 @@ module FailWhale {
                 body.innerHTML = '';
 
                 if (open) {
-                    var td = document.createElement('td');
-                    var tr = document.createElement('tr');
-                    td.style.padding = '0';
-                    td.appendChild(content.body());
-                    tr.appendChild(td);
-                    body.appendChild(tr);
+                    body.appendChild(content.body());
                 }
 
-                body.style.display = open ? 'table' : 'none';
+                body.style.display = open ? 'block' : 'none';
             }
 
             refresh();
@@ -261,7 +251,6 @@ module FailWhale {
                 for (var j = 0; j < data[i].length; j++) {
                     var td = document.createElement('td');
                     td.style.padding = Settings.padding;
-                    td.style.verticalAlign = 'baseline';
                     td.appendChild(data[i][j]);
                     tr.appendChild(td);
                 }
@@ -335,7 +324,7 @@ module FailWhale {
 
         function renderArray(id:number):Node {
             var array = root.arrays[id];
-            return HTML.inline(HTML.expandable({
+            return HTML.expandable({
                 head: HTML.keyword('array'),
                 body: function () {
                     if (array.entries.length == 0 && array.entriesMissing == 0)
@@ -355,11 +344,11 @@ module FailWhale {
                     return container;
                 },
                 open: false
-            }));
+            });
         }
 
         function renderObject(object:Data.Object1):Node {
-            return HTML.inline(HTML.expandable({
+            return HTML.expandable({
                 head: HTML.collect([HTML.keyword('new'), HTML.plain(' ' + object.className)]),
                 body: function () {
                     if (object.properties.length == 0 && object.propertiesMissing == 0)
@@ -388,7 +377,7 @@ module FailWhale {
                     return container;
                 },
                 open: false
-            }));
+            });
         }
 
         function renderStack(stack:Data.Stack[], missing:number):Node {
@@ -460,13 +449,13 @@ module FailWhale {
             if (missing == 0) {
                 rows.push([
                     HTML.plain('#' + String(x + 1)),
-                    HTML.inline(HTML.expandable({
+                    HTML.expandable({
                         head: HTML.plain('{main}'),
                         body: function () {
                             return HTML.notice('no source code');
                         },
                         open: false
-                    })),
+                    }),
                     HTML.collect([])
                 ]);
             }
@@ -602,37 +591,57 @@ module FailWhale {
             if (!x)
                 return HTML.italics('none');
 
-            return HTML.inline(HTML.expandable({
+            return HTML.expandable({
                 head: HTML.collect([HTML.keyword('exception'), HTML.plain(' ' + x.className)]),
                 body: function () {
 
                     var body = document.createElement('div');
-                    body.appendChild(HTML.expandable({open: true, head: HTML.bold('exception'), body: function () {
-                        return HTML.table([
-                            [HTML.bold('code'), HTML.plain(x.code)],
-                            [HTML.bold('message'), HTML.plain(x.message)],
-                            [HTML.bold('location'), renderLocation(x.location, true)],
-                            [HTML.bold('previous'), renderException(x.previous)]
-                        ]);
-                    }}));
-                    body.appendChild(HTML.expandable({open: true, head: HTML.bold('locals'), body: function () {
-                        return renderLocals(x.locals, x.localsMissing);
-                    }}));
-                    body.appendChild(HTML.expandable({open: true, head: HTML.bold('stack'), body: function () {
-                        return renderStack(x.stack, x.stackMissing);
-                    }}));
-                    body.appendChild(HTML.expandable({open: true, head: HTML.bold('globals'), body: function () {
-                        return renderGlobals(x.globals);
-                    }}));
+                    body.appendChild(HTML.expandable({
+                        inline: false,
+                        open: true,
+                        head: HTML.bold('exception'),
+                        body: function () {
+                            return HTML.table([
+                                [HTML.bold('code'), HTML.plain(x.code)],
+                                [HTML.bold('message'), HTML.plain(x.message)],
+                                [HTML.bold('location'), renderLocation(x.location, true)],
+                                [HTML.bold('previous'), renderException(x.previous)]
+                            ]);
+                        }
+                    }));
+                    body.appendChild(HTML.expandable({
+                        inline: false,
+                        open: true,
+                        head: HTML.bold('locals'),
+                        body: function () {
+                            return renderLocals(x.locals, x.localsMissing);
+                        }
+                    }));
+                    body.appendChild(HTML.expandable({
+                        inline: false,
+                        open: true,
+                        head: HTML.bold('stack'),
+                        body: function () {
+                            return renderStack(x.stack, x.stackMissing);
+                        }
+                    }));
+                    body.appendChild(HTML.expandable({
+                        inline: false,
+                        open: true,
+                        head: HTML.bold('globals'),
+                        body: function () {
+                            return renderGlobals(x.globals);
+                        }
+                    }));
                     body.style.padding = Settings.padding;
                     return body;
                 },
                 open: true
-            }));
+            });
         }
 
         function renderLocation(location:Data.Location, open:boolean = false):Node {
-            return HTML.inline(HTML.expandable({
+            return HTML.expandable({
                 head: location
                     ? HTML.collect([HTML.plain(location.file + ':'), renderNumber(String(location.line))])
                     : HTML.plain('[internal function]'),
@@ -680,7 +689,7 @@ module FailWhale {
                     return  wrapper;
                 },
                 open: open
-            }));
+            });
         }
 
         function renderString(x:Data.String1):Node {
@@ -746,7 +755,7 @@ module FailWhale {
             }
 
             if (visualLength > 200 || x.bytes.indexOf("\n") != -1)
-                return HTML.inline(HTML.expandable({open: false, head: HTML.keyword('string'), body: doRender}));
+                return HTML.expandable({open: false, head: HTML.keyword('string'), body: doRender});
             else
                 return doRender();
         }
