@@ -59,19 +59,14 @@ var FailWhale;
     var HTML;
     (function (HTML) {
         function plain(content) {
-            return document.createTextNode(content);
+            var span = document.createElement('span');
+            span.appendChild(document.createTextNode(content));
+            return span;
         }
         HTML.plain = plain;
 
-        function span(t) {
-            var wrapped = document.createElement('span');
-            wrapped.appendChild(plain(t));
-            return wrapped;
-        }
-        HTML.span = span;
-
         function italics(t) {
-            var wrapped = span(t);
+            var wrapped = plain(t);
             wrapped.style.display = 'inline';
             wrapped.style.fontStyle = 'italic';
             return wrapped;
@@ -79,7 +74,7 @@ var FailWhale;
         HTML.italics = italics;
 
         function notice(t) {
-            var wrapped = span(t);
+            var wrapped = plain(t);
             wrapped.style.fontStyle = 'italic';
             wrapped.style.padding = Settings.padding;
             wrapped.style.display = 'inline-block';
@@ -98,7 +93,7 @@ var FailWhale;
         function expandable(content) {
             var container = document.createElement('div');
             var inline = content.inline === undefined ? true : false;
-            container.style.display = inline ? 'inline-block' : 'block';
+            container.style.display = inline ? 'inline-table' : 'block';
 
             var head = document.createElement('div');
             head.style.backgroundColor = '#eee';
@@ -164,6 +159,7 @@ var FailWhale;
                 for (var j = 0; j < data[i].length; j++) {
                     var td = document.createElement('td');
                     td.style.padding = Settings.padding;
+                    td.style.verticalAlign = 'baseline';
                     td.appendChild(data[i][j]);
                     tr.appendChild(td);
                 }
@@ -174,14 +170,14 @@ var FailWhale;
         HTML.table = table;
 
         function bold(content) {
-            var box = span(content);
+            var box = plain(content);
             box.style.fontWeight = 'bold';
             return box;
         }
         HTML.bold = bold;
 
         function keyword(word) {
-            var box = span(word);
+            var box = plain(word);
             box.style.color = '#008';
             box.style.fontWeight = 'bold';
             return box;
@@ -230,7 +226,7 @@ var FailWhale;
                 case Data.Type.NULL:
                     return HTML.keyword('null');
                 case Data.Type.UNKNOWN:
-                    var span = HTML.span('unknown type');
+                    var span = HTML.plain('unknown type');
                     span.style.fontStyle = 'italic';
                     return span;
                 default:
@@ -386,7 +382,7 @@ var FailWhale;
 
         function renderVariable(name) {
             function red(v) {
-                var result = HTML.span(v);
+                var result = HTML.plain(v);
                 result.style.color = '#600';
                 return result;
             }
@@ -562,15 +558,16 @@ var FailWhale;
                     if (!location || !location.source)
                         return HTML.notice('no source code');
 
-                    var lineNumber = document.createElement('td');
+                    var lineNumber = document.createElement('div');
+                    lineNumber.style.display = 'inline-block';
                     lineNumber.style.padding = '0';
                     lineNumber.style.paddingRight = '0.5em';
                     lineNumber.style.textAlign = 'right';
                     lineNumber.style.opacity = '0.6';
 
-                    var code = document.createElement('td');
+                    var code = document.createElement('div');
+                    code.style.display = 'inline-block';
                     code.style.padding = '0';
-                    code.style.width = '100%';
 
                     for (var codeLine in location.source) {
                         if (!location.source.hasOwnProperty(codeLine))
@@ -587,17 +584,12 @@ var FailWhale;
                         code.appendChild(lineDiv);
                     }
 
-                    var row = document.createElement('tr');
-                    row.appendChild(lineNumber);
-                    row.appendChild(code);
-
-                    var wrapper = document.createElement('table');
-                    wrapper.appendChild(row);
-                    wrapper.style.borderSpacing = '0';
+                    var wrapper = document.createElement('div');
+                    wrapper.appendChild(lineNumber);
+                    wrapper.appendChild(code);
                     wrapper.style.padding = Settings.padding;
                     wrapper.style.backgroundColor = '#333';
                     wrapper.style.color = '#ddd';
-                    wrapper.style.width = '100%';
 
                     return wrapper;
                 },
@@ -674,7 +666,7 @@ var FailWhale;
         }
 
         function renderNumber(x) {
-            var result = HTML.span(x);
+            var result = HTML.plain(x);
             result.style.color = '#00f';
             return result;
         }

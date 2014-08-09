@@ -146,25 +146,21 @@ module FailWhale {
     }
 
     module HTML {
-        export function plain(content:string):Node {
-            return document.createTextNode(content);
-        }
-
-        export function span(t:string):HTMLElement {
-            var wrapped = document.createElement('span');
-            wrapped.appendChild(plain(t));
-            return wrapped;
+        export function plain(content:string):HTMLElement {
+            var span = document.createElement('span');
+            span.appendChild(document.createTextNode(content));
+            return span;
         }
 
         export function italics(t:string):Node {
-            var wrapped = span(t);
+            var wrapped = plain(t);
             wrapped.style.display = 'inline';
             wrapped.style.fontStyle = 'italic';
             return wrapped;
         }
 
         export function notice(t:string):Node {
-            var wrapped = span(t);
+            var wrapped = plain(t);
             wrapped.style.fontStyle = 'italic';
             wrapped.style.padding = Settings.padding;
             wrapped.style.display = 'inline-block';
@@ -186,7 +182,7 @@ module FailWhale {
         }):Node {
             var container = document.createElement('div');
             var inline = content.inline === undefined ? true : false;
-            container.style.display = inline ? 'inline-block' : 'block';
+            container.style.display = inline ? 'inline-table' : 'block';
 
             var head = document.createElement('div');
             head.style.backgroundColor = '#eee';
@@ -251,6 +247,7 @@ module FailWhale {
                 for (var j = 0; j < data[i].length; j++) {
                     var td = document.createElement('td');
                     td.style.padding = Settings.padding;
+                    td.style.verticalAlign = 'baseline';
                     td.appendChild(data[i][j]);
                     tr.appendChild(td);
                 }
@@ -260,13 +257,13 @@ module FailWhale {
         }
 
         export function bold(content:string):Node {
-            var box = span(content);
+            var box = plain(content);
             box.style.fontWeight = 'bold';
             return box;
         }
 
         export function keyword(word:string) {
-            var box = span(word);
+            var box = plain(word);
             box.style.color = '#008';
             box.style.fontWeight = 'bold';
             return box;
@@ -314,7 +311,7 @@ module FailWhale {
                 case Data.Type.NULL:
                     return HTML.keyword('null');
                 case Data.Type.UNKNOWN:
-                    var span = HTML.span('unknown type');
+                    var span = HTML.plain('unknown type');
                     span.style.fontStyle = 'italic';
                     return span;
                 default:
@@ -470,7 +467,7 @@ module FailWhale {
 
         function renderVariable(name:string):Node {
             function red(v:string) {
-                var result = HTML.span(v);
+                var result = HTML.plain(v);
                 result.style.color = '#600';
                 return result;
             }
@@ -649,15 +646,16 @@ module FailWhale {
                     if (!location || !location.source)
                         return HTML.notice('no source code');
 
-                    var lineNumber = document.createElement('td');
+                    var lineNumber = document.createElement('div');
+                    lineNumber.style.display = 'inline-block';
                     lineNumber.style.padding = '0';
                     lineNumber.style.paddingRight = '0.5em';
                     lineNumber.style.textAlign = 'right';
                     lineNumber.style.opacity = '0.6';
 
-                    var code = document.createElement('td');
+                    var code = document.createElement('div');
+                    code.style.display = 'inline-block';
                     code.style.padding = '0';
-                    code.style.width = '100%';
 
                     for (var codeLine in location.source) {
                         if (!location.source.hasOwnProperty(codeLine))
@@ -674,17 +672,12 @@ module FailWhale {
                         code.appendChild(lineDiv);
                     }
 
-                    var row = document.createElement('tr');
-                    row.appendChild(lineNumber);
-                    row.appendChild(code);
-
-                    var wrapper = document.createElement('table');
-                    wrapper.appendChild(row);
-                    wrapper.style.borderSpacing = '0';
+                    var wrapper = document.createElement('div');
+                    wrapper.appendChild(lineNumber);
+                    wrapper.appendChild(code);
                     wrapper.style.padding = Settings.padding;
                     wrapper.style.backgroundColor = '#333';
                     wrapper.style.color = '#ddd';
-                    wrapper.style.width = '100%';
 
                     return  wrapper;
                 },
@@ -761,7 +754,7 @@ module FailWhale {
         }
 
         function renderNumber(x:string):Node {
-            var result = HTML.span(x);
+            var result = HTML.plain(x);
             result.style.color = '#00f';
             return result;
         }
