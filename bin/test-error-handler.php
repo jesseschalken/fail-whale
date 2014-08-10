@@ -6,7 +6,9 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 ErrorHandler::bind(
     function (\Exception $e) {
-        $v = Value::introspectException($e);
+        $i = new IntrospectionSettings;
+        $i->fileNamePrefix = dirname(__DIR__) . DIRECTORY_SEPARATOR;
+        $v = Value::introspectException($e, $i);
         if (PHP_SAPI === 'cli')
             print $v->toString();
         else
