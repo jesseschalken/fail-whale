@@ -729,7 +729,7 @@ module FailWhale {
                 span.appendChild(plain(buffer + '"'));
 
                 var container = document.createElement('div');
-                container.style.display = 'inline-block';
+                container.style.display = 'inline-table';
                 container.appendChild(span);
 
                 if (x.bytesMissing > 0) {
@@ -748,7 +748,8 @@ module FailWhale {
                 visualLength += isPrintable ? 1 : 4;
             }
 
-            if (visualLength > 200 || x.bytes.indexOf("\n") != -1)
+            var numLines = x.bytes.split("\n").length;
+            if (visualLength > 200 || numLines > 20)
                 return expandable({open: false, head: keyword('string'), body: doRender});
             else
                 return doRender();
