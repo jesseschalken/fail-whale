@@ -140,130 +140,128 @@ module FailWhale {
 
     var padding = '3px';
 
-    module HTML {
-        export function plain(content:string, inline:boolean=true):HTMLElement {
-            var span = document.createElement(inline ? 'span' : 'div');
-            span.appendChild(document.createTextNode(content));
-            return span;
-        }
+    function plain(content:string, inline:boolean = true):HTMLElement {
+        var span = document.createElement(inline ? 'span' : 'div');
+        span.appendChild(document.createTextNode(content));
+        return span;
+    }
 
-        export function italics(t:string):Node {
-            var wrapped = plain(t);
-            wrapped.style.display = 'inline';
-            wrapped.style.fontStyle = 'italic';
-            return wrapped;
-        }
+    function italics(t:string):Node {
+        var wrapped = plain(t);
+        wrapped.style.display = 'inline';
+        wrapped.style.fontStyle = 'italic';
+        return wrapped;
+    }
 
-        export function notice(t:string):Node {
-            var wrapped = plain(t);
-            wrapped.style.fontStyle = 'italic';
-            wrapped.style.padding = padding;
-            wrapped.style.display = 'inline-block';
-            return wrapped;
-        }
+    function notice(t:string):Node {
+        var wrapped = plain(t);
+        wrapped.style.fontStyle = 'italic';
+        wrapped.style.padding = padding;
+        wrapped.style.display = 'inline-block';
+        return wrapped;
+    }
 
-        export function collect(nodes:Node[]):Node {
-            var x = document.createDocumentFragment();
-            for (var i = 0; i < nodes.length; i++)
-                x.appendChild(nodes[i]);
-            return x;
-        }
+    function collect(nodes:Node[]):Node {
+        var x = document.createDocumentFragment();
+        for (var i = 0; i < nodes.length; i++)
+            x.appendChild(nodes[i]);
+        return x;
+    }
 
-        export function expandable(content:{
-            head:Node;
-            body:() => Node;
-            open:boolean;
-            inline?:boolean;
-        }):Node {
-            var container = document.createElement('div');
-            var inline = content.inline === undefined ? true : false;
-            if (inline)
-                container.style.display = 'inline-table';
+    function expandable(content:{
+        head:Node;
+        body:() => Node;
+        open:boolean;
+        inline?:boolean;
+    }):Node {
+        var container = document.createElement('div');
+        var inline = content.inline === undefined ? true : false;
+        if (inline)
+            container.style.display = 'inline-table';
 
-            var head = document.createElement('div');
+        var head = document.createElement('div');
+        head.style.backgroundColor = '#eee';
+        head.style.cursor = 'pointer';
+        head.style.padding = padding;
+        head.addEventListener('mouseenter', function () {
+            head.style.backgroundColor = '#ddd';
+            body.style.borderColor = '#ddd';
+        });
+        head.addEventListener('mouseleave', function () {
             head.style.backgroundColor = '#eee';
-            head.style.cursor = 'pointer';
-            head.style.padding = padding;
-            head.addEventListener('mouseenter', function () {
-                head.style.backgroundColor = '#ddd';
-                body.style.borderColor = '#ddd';
-            });
-            head.addEventListener('mouseleave', function () {
-                head.style.backgroundColor = '#eee';
-                body.style.borderColor = '#eee';
-            });
-            head.addEventListener('mousedown', function (e) {
-                e.preventDefault();
-            });
-            head.appendChild(content.head);
-            container.appendChild(head);
-
-            var body = document.createElement('div');
-            body.style.borderSpacing = '0';
-            body.style.padding = '0';
-            body.style.backgroundColor = 'white';
             body.style.borderColor = '#eee';
-            body.style.borderWidth = '1px';
-            body.style.borderTopWidth = '0';
-            body.style.borderStyle = 'solid';
-            container.appendChild(body);
+        });
+        head.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+        });
+        head.appendChild(content.head);
+        container.appendChild(head);
 
-            var open = content.open;
+        var body = document.createElement('div');
+        body.style.borderSpacing = '0';
+        body.style.padding = '0';
+        body.style.backgroundColor = 'white';
+        body.style.borderColor = '#eee';
+        body.style.borderWidth = '1px';
+        body.style.borderTopWidth = '0';
+        body.style.borderStyle = 'solid';
+        container.appendChild(body);
 
-            function refresh() {
-                body.innerHTML = '';
+        var open = content.open;
 
-                if (open) {
-                    body.appendChild(content.body());
-                }
+        function refresh() {
+            body.innerHTML = '';
 
-                body.style.display = open ? 'block' : 'none';
+            if (open) {
+                body.appendChild(content.body());
             }
 
+            body.style.display = open ? 'block' : 'none';
+        }
+
+        refresh();
+
+        head.addEventListener('click', function () {
+            var scroll = rescroll();
+            open = !open;
             refresh();
+            scroll();
+        });
 
-            head.addEventListener('click', function () {
-                var scroll = rescroll();
-                open = !open;
-                refresh();
-                scroll();
-            });
+        return container;
+    }
 
-            return container;
-        }
+    function table(data:Node[][]):Node {
+        var table = document.createElement('table');
+        table.style.borderSpacing = '0';
+        table.style.padding = '0';
 
-        export function table(data:Node[][]):Node {
-            var table = document.createElement('table');
-            table.style.borderSpacing = '0';
-            table.style.padding = '0';
-
-            for (var i = 0; i < data.length; i++) {
-                var tr = document.createElement('tr');
-                table.appendChild(tr);
-                for (var j = 0; j < data[i].length; j++) {
-                    var td = document.createElement('td');
-                    td.style.padding = padding;
-                    td.style.verticalAlign = 'baseline';
-                    td.appendChild(data[i][j]);
-                    tr.appendChild(td);
-                }
+        for (var i = 0; i < data.length; i++) {
+            var tr = document.createElement('tr');
+            table.appendChild(tr);
+            for (var j = 0; j < data[i].length; j++) {
+                var td = document.createElement('td');
+                td.style.padding = padding;
+                td.style.verticalAlign = 'baseline';
+                td.appendChild(data[i][j]);
+                tr.appendChild(td);
             }
-
-            return table;
         }
 
-        export function bold(content:string):Node {
-            var box = plain(content);
-            box.style.fontWeight = 'bold';
-            return box;
-        }
+        return table;
+    }
 
-        export function keyword(word:string) {
-            var box = plain(word);
-            box.style.color = '#009';
-            box.style.fontWeight = 'bold';
-            return box;
-        }
+    function bold(content:string):Node {
+        var box = plain(content);
+        box.style.fontWeight = 'bold';
+        return box;
+    }
+
+    function keyword(word:string) {
+        var box = plain(word);
+        box.style.color = '#009';
+        box.style.fontWeight = 'bold';
+        return box;
     }
 
     export function renderJSON(json:string):Node {
@@ -286,15 +284,15 @@ module FailWhale {
                     str = x.float % 1 == 0 ? str + '.0' : str;
                     return renderNumber(str);
                 case Data.Type.TRUE:
-                    return HTML.keyword('true');
+                    return keyword('true');
                 case Data.Type.FALSE:
-                    return HTML.keyword('false');
+                    return keyword('false');
                 case Data.Type.STRING:
                     return renderString(root.strings[x.string]);
                 case Data.Type.POS_INF:
                     return renderNumber('INF');
                 case Data.Type.NEG_INF:
-                    return HTML.collect([HTML.plain('-'), renderNumber('INF')]);
+                    return collect([plain('-'), renderNumber('INF')]);
                 case Data.Type.NAN:
                     return renderNumber('NAN');
                 case Data.Type.ARRAY:
@@ -304,11 +302,11 @@ module FailWhale {
                 case Data.Type.EXCEPTION:
                     return renderException(x.exception);
                 case Data.Type.RESOURCE:
-                    return HTML.collect([HTML.keyword('resource'), HTML.plain(' ' + x.resource.type)]);
+                    return collect([keyword('resource'), plain(' ' + x.resource.type)]);
                 case Data.Type.NULL:
-                    return HTML.keyword('null');
+                    return keyword('null');
                 case Data.Type.UNKNOWN:
-                    var span = HTML.plain('unknown type');
+                    var span = plain('unknown type');
                     span.style.fontStyle = 'italic';
                     return span;
                 default:
@@ -318,22 +316,22 @@ module FailWhale {
 
         function renderArray(id:number):Node {
             var array = root.arrays[id];
-            return HTML.expandable({
-                head: HTML.keyword('array'),
+            return expandable({
+                head: keyword('array'),
                 body: function () {
                     if (array.entries.length == 0 && array.entriesMissing == 0)
-                        return HTML.notice('empty');
+                        return notice('empty');
 
                     var container = document.createDocumentFragment();
-                    container.appendChild(HTML.table(array.entries.map(function (x) {
+                    container.appendChild(table(array.entries.map(function (x) {
                         return [
                             renderValue(x.key),
-                            HTML.plain('=>'),
+                            plain('=>'),
                             renderValue(x.value)
                         ];
                     })));
                     if (array.entriesMissing > 0)
-                        container.appendChild(HTML.notice(array.entriesMissing + " entries missing..."));
+                        container.appendChild(notice(array.entriesMissing + " entries missing..."));
 
                     return container;
                 },
@@ -342,31 +340,31 @@ module FailWhale {
         }
 
         function renderObject(object:Data.Object1):Node {
-            return HTML.expandable({
-                head: HTML.collect([HTML.keyword('new'), HTML.plain(' ' + object.className)]),
+            return expandable({
+                head: collect([keyword('new'), plain(' ' + object.className)]),
                 body: function () {
                     if (object.properties.length == 0 && object.propertiesMissing == 0)
-                        return HTML.notice('empty');
+                        return notice('empty');
 
                     var container = document.createDocumentFragment();
-                    container.appendChild(HTML.table(object.properties.map(function (property) {
+                    container.appendChild(table(object.properties.map(function (property) {
                         var prefix = '';
                         if (property.className != object.className)
                             prefix = property.className + '::';
 
                         return [
-                            HTML.collect([
-                                HTML.keyword(property.access),
-                                HTML.plain(' ' + prefix),
+                            collect([
+                                keyword(property.access),
+                                plain(' ' + prefix),
                                 renderVariable(property.name)
                             ]),
-                            HTML.plain('='),
+                            plain('='),
                             renderValue(property.value)
                         ];
                     })));
 
                     if (object.propertiesMissing > 0)
-                        container.appendChild(HTML.notice(object.propertiesMissing + " properties missing..."));
+                        container.appendChild(notice(object.propertiesMissing + " properties missing..."));
 
                     return container;
                 },
@@ -389,11 +387,11 @@ module FailWhale {
                     prefix += call.isStatic ? '::' : '->';
                 }
 
-                result.appendChild(HTML.plain(prefix + call.functionName + '('));
+                result.appendChild(plain(prefix + call.functionName + '('));
 
                 for (var i = 0; i < call.args.length; i++) {
                     if (i != 0)
-                        result.appendChild(HTML.plain(', '));
+                        result.appendChild(plain(', '));
 
                     var arg = call.args[i];
                     if (arg.name) {
@@ -402,30 +400,30 @@ module FailWhale {
                             switch (arg.typeHint) {
                                 case 'array':
                                 case 'callable':
-                                    typeHint = HTML.keyword(arg.typeHint);
+                                    typeHint = keyword(arg.typeHint);
                                     break;
                                 default:
-                                    typeHint = HTML.plain(arg.typeHint);
+                                    typeHint = plain(arg.typeHint);
                             }
                             result.appendChild(typeHint);
-                            result.appendChild(HTML.plain(' '));
+                            result.appendChild(plain(' '));
                         }
                         if (arg.isReference) {
-                            result.appendChild(HTML.plain('&'));
+                            result.appendChild(plain('&'));
                         }
                         result.appendChild(renderVariable(arg.name));
-                        result.appendChild(HTML.plain(' = '));
+                        result.appendChild(plain(' = '));
                     }
 
                     result.appendChild(renderValue(arg.value));
                 }
 
                 if (call.argsMissing > 0) {
-                    result.appendChild(HTML.plain(', '));
-                    result.appendChild(HTML.italics(call.argsMissing + ' arguments missing...'));
+                    result.appendChild(plain(', '));
+                    result.appendChild(italics(call.argsMissing + ' arguments missing...'));
                 }
 
-                result.appendChild(HTML.plain(')'));
+                result.appendChild(plain(')'));
 
                 return result;
             }
@@ -434,7 +432,7 @@ module FailWhale {
 
             for (var x = 0; x < stack.length; x++) {
                 rows.push([
-                    HTML.plain('#' + String(x + 1)),
+                    plain('#' + String(x + 1)),
                     renderLocation(stack[x].location),
                     renderFunctionCall(stack[x])
                 ]);
@@ -442,29 +440,29 @@ module FailWhale {
 
             if (missing == 0) {
                 rows.push([
-                    HTML.plain('#' + String(x + 1)),
-                    HTML.expandable({
-                        head: HTML.plain('{main}'),
+                    plain('#' + String(x + 1)),
+                    expandable({
+                        head: plain('{main}'),
                         body: function () {
-                            return HTML.notice('no source code');
+                            return notice('no source code');
                         },
                         open: false
                     }),
-                    HTML.collect([])
+                    collect([])
                 ]);
             }
 
             var container = document.createDocumentFragment();
-            container.appendChild(HTML.table(rows));
+            container.appendChild(table(rows));
             if (missing > 0)
-                container.appendChild(HTML.notice(missing + " stack frames missing..."));
+                container.appendChild(notice(missing + " stack frames missing..."));
 
             return container;
         }
 
         function renderVariable(name:string):Node {
             function red(v:string) {
-                var result = HTML.plain(v);
+                var result = plain(v);
                 result.style.color = '#700';
                 return result;
             }
@@ -472,34 +470,34 @@ module FailWhale {
             if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name))
                 return red('$' + name);
             else
-                return HTML.collect([red('$' + '{'), renderString({bytes: name, bytesMissing: 0}), red('}')])
+                return collect([red('$' + '{'), renderString({bytes: name, bytesMissing: 0}), red('}')])
         }
 
         function renderLocals(locals:Data.Variable[], missing:number):Node {
             if (!(locals instanceof Array))
-                return HTML.notice('not available');
+                return notice('not available');
 
             if (locals.length == 0 && missing == 0)
-                return HTML.notice('none');
+                return notice('none');
 
             var container = document.createDocumentFragment();
-            container.appendChild(HTML.table(locals.map(function (local) {
+            container.appendChild(table(locals.map(function (local) {
                 return [
                     renderVariable(local.name),
-                    HTML.plain('='),
+                    plain('='),
                     renderValue(local.value)
                 ];
             })));
 
             if (missing > 0)
-                container.appendChild(HTML.notice(missing + " variables missing..."));
+                container.appendChild(notice(missing + " variables missing..."));
 
             return container;
         }
 
         function renderGlobals(globals:Data.Globals) {
             if (!globals)
-                return HTML.notice('not available');
+                return notice('not available');
 
             var staticVariables = globals.staticVariables;
             var staticProperties = globals.staticProperties;
@@ -521,47 +519,47 @@ module FailWhale {
                     '_ENV'
                 ];
                 if (superGlobals.indexOf(v2.name) == -1) {
-                    pieces.appendChild(HTML.keyword('global'));
-                    pieces.appendChild(HTML.plain(' '));
+                    pieces.appendChild(keyword('global'));
+                    pieces.appendChild(plain(' '));
                 }
                 pieces.appendChild(renderVariable(v2.name));
 
-                rows.push([pieces, HTML.plain('='), renderValue(v2.value)]);
+                rows.push([pieces, plain('='), renderValue(v2.value)]);
 
             }
 
             for (var i = 0; i < staticProperties.length; i++) {
                 var p = staticProperties[i];
                 var pieces = document.createDocumentFragment();
-                pieces.appendChild(HTML.keyword(p.access));
-                pieces.appendChild(HTML.plain(' '));
-                pieces.appendChild(HTML.plain(p.className + '::'));
+                pieces.appendChild(keyword(p.access));
+                pieces.appendChild(plain(' '));
+                pieces.appendChild(plain(p.className + '::'));
                 pieces.appendChild(renderVariable(p.name));
 
-                rows.push([pieces, HTML.plain('='), renderValue(p.value)]);
+                rows.push([pieces, plain('='), renderValue(p.value)]);
             }
 
             for (var i = 0; i < staticVariables.length; i++) {
                 var v = staticVariables[i];
                 var pieces = document.createDocumentFragment();
-                pieces.appendChild(HTML.keyword('function'));
-                pieces.appendChild(HTML.plain(' '));
+                pieces.appendChild(keyword('function'));
+                pieces.appendChild(plain(' '));
 
                 if (v.className)
-                    pieces.appendChild(HTML.plain(v.className + '::'));
+                    pieces.appendChild(plain(v.className + '::'));
 
-                pieces.appendChild(HTML.plain(v.functionName + '()::'));
+                pieces.appendChild(plain(v.functionName + '()::'));
                 pieces.appendChild(renderVariable(v.name));
 
                 rows.push([
                     pieces,
-                    HTML.plain('='),
+                    plain('='),
                     renderValue(v.value)
                 ]);
             }
 
             var container = document.createDocumentFragment();
-            container.appendChild(HTML.table(rows));
+            container.appendChild(table(rows));
 
             function block(node:Node):Node {
                 var div = document.createElement('div');
@@ -570,60 +568,60 @@ module FailWhale {
             }
 
             if (globals.staticPropertiesMissing > 0)
-                container.appendChild(block(HTML.notice(globals.staticPropertiesMissing + " static properties missing...")));
+                container.appendChild(block(notice(globals.staticPropertiesMissing + " static properties missing...")));
 
             if (globals.globalVariablesMissing > 0)
-                container.appendChild(block(HTML.notice(globals.globalVariablesMissing + " global variables missing...")));
+                container.appendChild(block(notice(globals.globalVariablesMissing + " global variables missing...")));
 
             if (globals.staticPropertiesMissing > 0)
-                container.appendChild(block(HTML.notice(globals.staticPropertiesMissing + " static variables missing...")));
+                container.appendChild(block(notice(globals.staticPropertiesMissing + " static variables missing...")));
 
             return container;
         }
 
         function renderException(x:Data.Exception):Node {
             if (!x)
-                return HTML.italics('none');
+                return italics('none');
 
-            return HTML.expandable({
-                head: HTML.collect([HTML.keyword('exception'), HTML.plain(' ' + x.className)]),
+            return expandable({
+                head: collect([keyword('exception'), plain(' ' + x.className)]),
                 body: function () {
 
                     var body = document.createElement('div');
-                    body.appendChild(HTML.expandable({
+                    body.appendChild(expandable({
                         inline: false,
-                        open: true,
-                        head: HTML.bold('exception'),
-                        body: function () {
-                            return HTML.table([
-                                [HTML.bold('code'), HTML.plain(x.code)],
-                                [HTML.bold('message'), HTML.plain(x.message)],
-                                [HTML.bold('location'), renderLocation(x.location, true)],
-                                [HTML.bold('previous'), renderException(x.previous)]
+                        open:   true,
+                        head:   bold('exception'),
+                        body:   function () {
+                            return table([
+                                [bold('code'), plain(x.code)],
+                                [bold('message'), plain(x.message)],
+                                [bold('location'), renderLocation(x.location, true)],
+                                [bold('previous'), renderException(x.previous)]
                             ]);
                         }
                     }));
-                    body.appendChild(HTML.expandable({
+                    body.appendChild(expandable({
                         inline: false,
-                        open: true,
-                        head: HTML.bold('locals'),
-                        body: function () {
+                        open:   true,
+                        head:   bold('locals'),
+                        body:   function () {
                             return renderLocals(x.locals, x.localsMissing);
                         }
                     }));
-                    body.appendChild(HTML.expandable({
+                    body.appendChild(expandable({
                         inline: false,
-                        open: true,
-                        head: HTML.bold('stack'),
-                        body: function () {
+                        open:   true,
+                        head:   bold('stack'),
+                        body:   function () {
                             return renderStack(x.stack, x.stackMissing);
                         }
                     }));
-                    body.appendChild(HTML.expandable({
+                    body.appendChild(expandable({
                         inline: false,
-                        open: true,
-                        head: HTML.bold('globals'),
-                        body: function () {
+                        open:   true,
+                        head:   bold('globals'),
+                        body:   function () {
                             return renderGlobals(x.globals);
                         }
                     }));
@@ -635,13 +633,13 @@ module FailWhale {
         }
 
         function renderLocation(location:Data.Location, open:boolean = false):Node {
-            return HTML.expandable({
+            return expandable({
                 head: location
-                    ? HTML.collect([HTML.plain(location.file + ':'), renderNumber(String(location.line))])
-                    : HTML.plain('[internal function]'),
+                    ? collect([plain(location.file + ':'), renderNumber(String(location.line))])
+                    : plain('[internal function]'),
                 body: function () {
                     if (!location || !location.source)
-                        return HTML.notice('no source code');
+                        return notice('no source code');
 
                     var padding = '4px';
                     var lineNumber = document.createElement('div');
@@ -672,17 +670,17 @@ module FailWhale {
                         if (!location.source.hasOwnProperty(codeLine))
                             continue;
 
-                        var lineDiv = HTML.plain(decodeUTF8(location.source[codeLine]) + "\n", false);
+                        var lineDiv = plain(decodeUTF8(location.source[codeLine]) + "\n", false);
                         if (codeLine == location.line) {
                             lineDiv.style.backgroundColor = '#f88';
                             lineDiv.style.color = '#300';
                             lineDiv.style.borderRadius = padding;
                         }
-                        lineNumber.appendChild(HTML.plain(String(codeLine) + "\n", false));
+                        lineNumber.appendChild(plain(String(codeLine) + "\n", false));
                         codeDiv.appendChild(lineDiv);
                     }
 
-                    return HTML.collect([lineNumber,code]);
+                    return collect([lineNumber, code]);
                 },
                 open: open
             });
@@ -719,24 +717,24 @@ module FailWhale {
 
                     if (escaped !== undefined) {
                         if (buffer.length > 0)
-                            span.appendChild(HTML.plain(buffer));
+                            span.appendChild(plain(buffer));
 
                         buffer = "";
-                        span.appendChild(HTML.keyword(escaped));
+                        span.appendChild(keyword(escaped));
                     } else {
                         buffer += char;
                     }
                 }
 
-                span.appendChild(HTML.plain(buffer + '"'));
+                span.appendChild(plain(buffer + '"'));
 
                 var container = document.createElement('div');
                 container.style.display = 'inline-block';
                 container.appendChild(span);
 
                 if (x.bytesMissing > 0) {
-                    container.appendChild(HTML.plain(' '));
-                    container.appendChild(HTML.italics(x.bytesMissing + ' bytes missing...'));
+                    container.appendChild(plain(' '));
+                    container.appendChild(italics(x.bytesMissing + ' bytes missing...'));
                 }
 
                 return container;
@@ -751,13 +749,13 @@ module FailWhale {
             }
 
             if (visualLength > 200 || x.bytes.indexOf("\n") != -1)
-                return HTML.expandable({open: false, head: HTML.keyword('string'), body: doRender});
+                return expandable({open: false, head: keyword('string'), body: doRender});
             else
                 return doRender();
         }
 
         function renderNumber(x:string):Node {
-            var result = HTML.plain(x);
+            var result = plain(x);
             result.style.color = '#00f';
             return result;
         }
