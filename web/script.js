@@ -81,7 +81,9 @@ var FailWhale;
 
     function expandable(content) {
         var container = document.createElement('div');
-        var inline = content.inline === undefined ? true : false;
+        var inline = content.inline;
+        if (inline === undefined)
+            inline = true;
         if (inline)
             container.style.display = 'inline-table';
 
