@@ -294,7 +294,7 @@ module FailWhale {
                 case Data.Type.POS_INF:
                     return renderNumber('INF');
                 case Data.Type.NEG_INF:
-                    return collect([plain('-'), renderNumber('INF')]);
+                    return renderNumber('-INF');
                 case Data.Type.NAN:
                     return renderNumber('NAN');
                 case Data.Type.ARRAY:
