@@ -138,16 +138,11 @@ module FailWhale {
         }
     }
 
-    module Settings {
-        export var fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
-        export var fontSize = '10pt';
-        export var padding = '0.25em';
-        export var borderWidth = '0.125em';
-    }
+    var padding = '3px';
 
     module HTML {
-        export function plain(content:string):HTMLElement {
-            var span = document.createElement('span');
+        export function plain(content:string, inline:boolean=true):HTMLElement {
+            var span = document.createElement(inline ? 'span' : 'div');
             span.appendChild(document.createTextNode(content));
             return span;
         }
@@ -162,7 +157,7 @@ module FailWhale {
         export function notice(t:string):Node {
             var wrapped = plain(t);
             wrapped.style.fontStyle = 'italic';
-            wrapped.style.padding = Settings.padding;
+            wrapped.style.padding = padding;
             wrapped.style.display = 'inline-block';
             return wrapped;
         }
@@ -182,12 +177,13 @@ module FailWhale {
         }):Node {
             var container = document.createElement('div');
             var inline = content.inline === undefined ? true : false;
-            container.style.display = inline ? 'inline-table' : 'block';
+            if (inline)
+                container.style.display = 'inline-table';
 
             var head = document.createElement('div');
             head.style.backgroundColor = '#eee';
             head.style.cursor = 'pointer';
-            head.style.padding = Settings.padding;
+            head.style.padding = padding;
             head.addEventListener('mouseenter', function () {
                 head.style.backgroundColor = '#ddd';
                 body.style.borderColor = '#ddd';
@@ -207,8 +203,8 @@ module FailWhale {
             body.style.padding = '0';
             body.style.backgroundColor = 'white';
             body.style.borderColor = '#eee';
-            body.style.borderWidth = Settings.borderWidth;
-            body.style.borderTopWidth = '0px';
+            body.style.borderWidth = '1px';
+            body.style.borderTopWidth = '0';
             body.style.borderStyle = 'solid';
             container.appendChild(body);
 
@@ -246,7 +242,7 @@ module FailWhale {
                 table.appendChild(tr);
                 for (var j = 0; j < data[i].length; j++) {
                     var td = document.createElement('td');
-                    td.style.padding = Settings.padding;
+                    td.style.padding = padding;
                     td.style.verticalAlign = 'baseline';
                     td.appendChild(data[i][j]);
                     tr.appendChild(td);
@@ -264,7 +260,7 @@ module FailWhale {
 
         export function keyword(word:string) {
             var box = plain(word);
-            box.style.color = '#008';
+            box.style.color = '#009';
             box.style.fontWeight = 'bold';
             return box;
         }
@@ -275,8 +271,9 @@ module FailWhale {
 
         var container = document.createElement('div');
         container.style.whiteSpace = 'pre';
-        container.style.fontFamily = Settings.fontFamily;
-        container.style.fontSize = Settings.fontSize;
+        container.style.fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
+        container.style.fontSize = "10pt";
+        container.style.lineHeight = '16px';
         container.appendChild(renderValue(root.root));
         return container;
 
@@ -468,7 +465,7 @@ module FailWhale {
         function renderVariable(name:string):Node {
             function red(v:string) {
                 var result = HTML.plain(v);
-                result.style.color = '#600';
+                result.style.color = '#700';
                 return result;
             }
 
@@ -630,7 +627,7 @@ module FailWhale {
                             return renderGlobals(x.globals);
                         }
                     }));
-                    body.style.padding = Settings.padding;
+                    body.style.padding = padding;
                     return body;
                 },
                 open: true
@@ -646,40 +643,46 @@ module FailWhale {
                     if (!location || !location.source)
                         return HTML.notice('no source code');
 
+                    var padding = '4px';
                     var lineNumber = document.createElement('div');
                     lineNumber.style.display = 'inline-block';
-                    lineNumber.style.padding = '0';
-                    lineNumber.style.paddingRight = '0.5em';
+                    lineNumber.style.padding = padding;
                     lineNumber.style.textAlign = 'right';
-                    lineNumber.style.opacity = '0.6';
+                    lineNumber.style.color = '#999';
+                    lineNumber.style.backgroundColor = '#333';
+                    lineNumber.style.borderRightColor = '#666';
+                    lineNumber.style.borderRightWidth = '1px';
+                    lineNumber.style.borderRightStyle = 'dashed';
+                    lineNumber.style.verticalAlign = 'top';
 
                     var code = document.createElement('div');
                     code.style.display = 'inline-block';
-                    code.style.padding = '0';
+                    code.style.padding = padding;
+                    code.style.width = '800px';
+                    code.style.overflowX = 'auto';
+                    code.style.backgroundColor = '#222';
+                    code.style.color = '#ccc';
+                    code.style.verticalAlign = 'top';
+                    var codeDiv = document.createElement('div');
+                    code.appendChild(codeDiv);
+                    codeDiv.style.display = 'inline-block';
+                    codeDiv.style.minWidth = '100%';
 
                     for (var codeLine in location.source) {
                         if (!location.source.hasOwnProperty(codeLine))
                             continue;
 
-                        var lineDiv = document.createElement('div');
+                        var lineDiv = HTML.plain(decodeUTF8(location.source[codeLine]) + "\n", false);
                         if (codeLine == location.line) {
-                            lineDiv.style.backgroundColor = '#f99';
-                            lineDiv.style.color = '#600';
-                            lineDiv.style.borderRadius = Settings.padding;
+                            lineDiv.style.backgroundColor = '#f88';
+                            lineDiv.style.color = '#300';
+                            lineDiv.style.borderRadius = padding;
                         }
-                        lineNumber.appendChild(HTML.plain(String(codeLine) + "\n"));
-                        lineDiv.appendChild(HTML.plain(decodeUTF8(location.source[codeLine]) + "\n"));
-                        code.appendChild(lineDiv);
+                        lineNumber.appendChild(HTML.plain(String(codeLine) + "\n", false));
+                        codeDiv.appendChild(lineDiv);
                     }
 
-                    var wrapper = document.createElement('div');
-                    wrapper.appendChild(lineNumber);
-                    wrapper.appendChild(code);
-                    wrapper.style.padding = Settings.padding;
-                    wrapper.style.backgroundColor = '#333';
-                    wrapper.style.color = '#ddd';
-
-                    return  wrapper;
+                    return HTML.collect([lineNumber,code]);
                 },
                 open: open
             });
