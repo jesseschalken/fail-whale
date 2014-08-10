@@ -91,9 +91,6 @@ stack trace:
 
   8 more...
 
-previous exception:
-    none
-
 global variables:
   private static BlahClass::$blahProperty                    = null;
   function blahFunction()::static ${"variable name"}         = true;
