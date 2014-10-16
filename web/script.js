@@ -297,33 +297,37 @@ var FailWhale;
 
                 result.appendChild(plain(prefix + call.functionName + '('));
 
-                for (var i = 0; i < call.args.length; i++) {
-                    if (i != 0)
-                        result.appendChild(plain(', '));
+                if (call.args instanceof Array) {
+                    for (var i = 0; i < call.args.length; i++) {
+                        if (i != 0)
+                            result.appendChild(plain(', '));
 
-                    var arg = call.args[i];
-                    if (arg.name) {
-                        if (arg.typeHint) {
-                            var typeHint;
-                            switch (arg.typeHint) {
-                                case 'array':
-                                case 'callable':
-                                    typeHint = keyword(arg.typeHint);
-                                    break;
-                                default:
-                                    typeHint = plain(arg.typeHint);
+                        var arg = call.args[i];
+                        if (arg.name) {
+                            if (arg.typeHint) {
+                                var typeHint;
+                                switch (arg.typeHint) {
+                                    case 'array':
+                                    case 'callable':
+                                        typeHint = keyword(arg.typeHint);
+                                        break;
+                                    default:
+                                        typeHint = plain(arg.typeHint);
+                                }
+                                result.appendChild(typeHint);
+                                result.appendChild(plain(' '));
                             }
-                            result.appendChild(typeHint);
-                            result.appendChild(plain(' '));
+                            if (arg.isReference) {
+                                result.appendChild(plain('&'));
+                            }
+                            result.appendChild(renderVariable(arg.name));
+                            result.appendChild(plain(' = '));
                         }
-                        if (arg.isReference) {
-                            result.appendChild(plain('&'));
-                        }
-                        result.appendChild(renderVariable(arg.name));
-                        result.appendChild(plain(' = '));
-                    }
 
-                    result.appendChild(renderValue(arg.value));
+                        result.appendChild(renderValue(arg.value));
+                    }
+                } else {
+                    result.appendChild(italics('not available'));
                 }
 
                 if (call.argsMissing > 0) {
