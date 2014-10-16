@@ -133,7 +133,7 @@ var FailWhale;
             var scroll = rescroll();
             open = !open;
             refresh();
-            scroll();
+            scroll.call();
         });
 
         return container;
