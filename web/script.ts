@@ -389,47 +389,56 @@ module FailWhale {
                     prefix += call.isStatic ? '::' : '->';
                 }
 
-                result.appendChild(plain(prefix + call.functionName + '('));
+                result.appendChild(plain(prefix + call.functionName));
 
                 if (call.args instanceof Array) {
-                    for (var i = 0; i < call.args.length; i++) {
-                        if (i != 0)
-                            result.appendChild(plain(', '));
+                    if (call.args.length == 0 && call.argsMissing == 0) {
+                        result.appendChild(plain('()'));
+                    } else {
+                        result.appendChild(plain('( '));
 
-                        var arg = call.args[i];
-                        if (arg.name) {
-                            if (arg.typeHint) {
-                                var typeHint:Node;
-                                switch (arg.typeHint) {
-                                    case 'array':
-                                    case 'callable':
-                                        typeHint = keyword(arg.typeHint);
-                                        break;
-                                    default:
-                                        typeHint = plain(arg.typeHint);
+                        for (var i = 0; i < call.args.length; i++) {
+                            if (i != 0)
+                                result.appendChild(plain(', '));
+
+                            var arg = call.args[i];
+                            if (arg.name) {
+                                if (arg.typeHint) {
+                                    var typeHint:Node;
+                                    switch (arg.typeHint) {
+                                        case 'array':
+                                        case 'callable':
+                                            typeHint = keyword(arg.typeHint);
+                                            break;
+                                        default:
+                                            typeHint = plain(arg.typeHint);
+                                    }
+                                    result.appendChild(typeHint);
+                                    result.appendChild(plain(' '));
                                 }
-                                result.appendChild(typeHint);
-                                result.appendChild(plain(' '));
+                                if (arg.isReference) {
+                                    result.appendChild(plain('&'));
+                                }
+                                result.appendChild(renderVariable(arg.name));
+                                result.appendChild(plain(' = '));
                             }
-                            if (arg.isReference) {
-                                result.appendChild(plain('&'));
-                            }
-                            result.appendChild(renderVariable(arg.name));
-                            result.appendChild(plain(' = '));
+
+                            result.appendChild(renderValue(arg.value));
                         }
 
-                        result.appendChild(renderValue(arg.value));
+                        if (call.argsMissing > 0) {
+                            if (i != 0)
+                                result.appendChild(plain(', '));
+                            result.appendChild(italics(call.argsMissing + ' arguments missing...'));
+                        }
+
+                        result.appendChild(plain(' )'));
                     }
                 } else {
+                    result.appendChild(plain('( '));
                     result.appendChild(italics('not available'));
+                    result.appendChild(plain(' )'));
                 }
-
-                if (call.argsMissing > 0) {
-                    result.appendChild(plain(', '));
-                    result.appendChild(italics(call.argsMissing + ' arguments missing...'));
-                }
-
-                result.appendChild(plain(')'));
 
                 return result;
             }
