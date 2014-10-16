@@ -96,8 +96,9 @@ function lololololl(/** @noinspection PhpUnusedParameterInspection */
     Blarg::foo(34523466, "\n", 423452345);
 }
 
+/** @noinspection PhpUnusedLocalVariableInspection */
 $f = function () {
     lololololl(new Lol);
 };
 
-$f();
+eval('$f();');
