@@ -84,7 +84,7 @@ The full list of methods for `Value` are:
 - `Value->toString()`
 - `Value->toHTML()`
 
-`Value::introspect()` (and `Value::introspectRef()`) will handle arbitrary PHP values, including recursive arrays (such as `$a = [&$a]`) and objects.
+`Value::introspect()` (and `Value::introspectRef()`) will handle arbitrary PHP values, including recursive arrays (such as `$a = [&$a]`) and recursive objects.
 
 `Value::introspectException()` will handle any `Exception` and retrieve:
 - it's code, message, file and line
