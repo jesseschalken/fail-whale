@@ -227,7 +227,7 @@ module FailWhale {
             var scroll = rescroll();
             open = !open;
             refresh();
-            scroll.call();
+            scroll();
         });
 
         return container;
@@ -667,6 +667,7 @@ module FailWhale {
                     lineNumber.style.borderRightWidth = '1px';
                     lineNumber.style.borderRightStyle = 'dashed';
                     lineNumber.style.verticalAlign = 'top';
+                    lineNumber.style.minWidth = '32px';
 
                     var code = document.createElement('div');
                     code.style.display = 'inline-block';
