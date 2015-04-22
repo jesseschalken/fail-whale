@@ -62,12 +62,12 @@ print Value::introspect($a)->toString();
 
 ```
 new A {
-    private $foo      = "bar";
+    private $foo = "bar";
     protected $an_int = 967;
-    public $an_array  = array(
-        "key"  => "value",
+    public $an_array = array(
+        "key" => "value",
         "key2" => "value2",
-        8      => 762.192,
+        8 => 762.192,
     );
 }
 ```
