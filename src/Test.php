@@ -64,39 +64,33 @@ local variables:
 stack trace:
   #1 /path/to/muh/file:9000
         new FailWhale\DummyClass1 {
-            private $private1     = null;
+            private $private1 = null;
             protected $protected1 = null;
-            public $public1       = null;
-        }->DummyClass1::aFunction(
-            FailWhale\DummyClass1 $arg1 = new FailWhale\DummyClass1 {
-                private $private1     = null;
-                protected $protected1 = null;
-                public $public1       = null;
-            }, 
-            3 more...
-        );
+            public $public1 = null;
+        }->DummyClass1::aFunction( FailWhale\DummyClass1 $arg1 = new FailWhale\DummyClass1 {
+            private $private1 = null;
+            protected $protected1 = null;
+            public $public1 = null;
+        }, 3 more... );
 
   #2 /path/to/muh/file:9000
-        aFunction(
-            array &$anArray = new FailWhale\DummyClass2 {
-                private $private2     = null;
-                protected $protected2 = null;
-                public $public2       = null;
-                private $private1     = null;
-                protected $protected1 = null;
-                public $public1       = null;
-            }, 
-            6 more...
-        );
+        aFunction( array &$anArray = new FailWhale\DummyClass2 {
+            private $private2 = null;
+            protected $protected2 = null;
+            public $public2 = null;
+            private $private1 = null;
+            protected $protected1 = null;
+            public $public1 = null;
+        }, 6 more... );
 
   8 more...
 
 global variables:
-  private static BlahClass::$blahProperty                    = null;
-  function blahFunction()::static ${"variable name"}         = true;
+  private static BlahClass::$blahProperty = null;
+  function blahFunction()::static ${"variable name"} = true;
   function BlahAnotherClass::blahMethod()::static $lolStatic = null;
-  $_SESSION                                                  = true;
-  global $globalVariable                                     = -2734;
+  $_SESSION = true;
+  global $globalVariable = -2734;
   27 more...
 
 
@@ -127,7 +121,7 @@ s
             <<<'s'
 array(
     "blarg" => "foo",
-    "bar"   => "bar",
+    "bar" => "bar",
 )
 
 s
@@ -141,8 +135,8 @@ s
         self::assertEquals(
             <<<'s'
 array(
-    "blarg"    => "foo",
-    "bar"      => "bar",
+    "blarg" => "foo",
+    "bar" => "bar",
     "bawreara" => "wrjenrg",
     1 more...
 )
@@ -165,10 +159,10 @@ s
         self::assertEquals(
             <<<'s'
 new FailWhale\DummyClass2 {
-    private $private2     = null;
+    private $private2 = null;
     protected $protected2 = null;
-    public $public2       = null;
-    private $private1     = null;
+    public $public2 = null;
+    private $private1 = null;
     protected $protected1 = null;
     1 more...
 }
@@ -201,15 +195,14 @@ b
 s
             ,
             <<<'s'
+" weaf waef 8we 7f8tweyufgij2k3e wef f
+sdf wf wef
+    wef
 
-    " weaf waef 8we 7f8tweyufgij2k3e wef f\n" .
-    "sdf wf wef\n" .
-    "    wef\n" .
-    "\n" .
-    "\n" .
-    "\n" .
-    "\n" .
-    "b"
+
+
+
+b"
 s
         );
     }
@@ -235,12 +228,12 @@ s
     function testObjectProperties() {
         self::assertPrettyIs(new DummyClass2, <<<'s'
 new FailWhale\DummyClass2 {
-    private $private2     = null;
+    private $private2 = null;
     protected $protected2 = null;
-    public $public2       = null;
-    private $private1     = null;
+    public $public2 = null;
+    private $private1 = null;
     protected $protected1 = null;
-    public $public1       = null;
+    public $public1 = null;
 }
 s
         );

@@ -3,15 +3,15 @@
 namespace FailWhale;
 
 class IntrospectionSettings {
-    public $maxArrayEntries = 1000;
-    public $maxObjectProperties = 100;
-    public $maxStringLength = 10000;
-    public $maxStackFrames = 100;
-    public $maxLocalVariables = 100;
-    public $maxStaticProperties = 100;
-    public $maxStaticVariables = 100;
-    public $maxGlobalVariables = 100;
-    public $maxFunctionArguments = 100;
+    public $maxArrayEntries = INF;
+    public $maxObjectProperties = INF;
+    public $maxStringLength = INF;
+    public $maxStackFrames = INF;
+    public $maxLocalVariables = INF;
+    public $maxStaticProperties = INF;
+    public $maxStaticVariables = INF;
+    public $maxGlobalVariables = INF;
+    public $maxFunctionArguments = INF;
     public $maxSourceCodeContext = 10;
     public $includeSourceCode = true;
     /**
@@ -205,8 +205,11 @@ s;
         if ($id === null) {
             $id = count($this->stringIds);
 
+            $maxLength = $this->limits->maxStringLength;
+            $maxLength = $maxLength === INF ? PHP_INT_MAX : $maxLength;
+
             $string               = new String1;
-            $string->bytes        = (string)substr($value, 0, $this->limits->maxStringLength);
+            $string->bytes        = (string)substr($value, 0, $maxLength);
             $string->bytesMissing = strlen($value) - strlen($string->bytes);
 
             $this->root->strings[$id] = $string;

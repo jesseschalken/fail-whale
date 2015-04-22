@@ -4,20 +4,17 @@ namespace FailWhale;
 
 final class PrettyPrinterSettings {
     public $escapeTabsInStrings = false;
+    public $escapeNewlineInStrings = false;
     public $showExceptionGlobalVariables = true;
     public $showExceptionLocalVariables = true;
     public $showExceptionStackTrace = true;
-    public $splitMultiLineStrings = true;
     public $showExceptionSourceCode = true;
     public $showObjectProperties = true;
     public $showArrayEntries = true;
     public $showStringContents = true;
-    public $longStringThreshold = 1000;
-    public $maxStringLength = 1000;
+    public $longStringThreshold = INF;
+    public $maxStringLength = INF;
     public $useShortArraySyntax = false;
-    public $alignText = false;
-    public $alignVariables = true;
-    public $alignArrayEntries = true;
     public $indentStackTraceFunctions = true;
 }
 
@@ -40,11 +37,11 @@ class PrettyPrinter {
     }
 
     private function text($text = '') {
-        return new Text($text, $this->settings->alignText);
+        return new Text($text);
     }
 
     private function table(array $rows, $alignColumns) {
-        return Text::table($rows, $this->settings->alignText, $alignColumns);
+        return Text::table($rows, $alignColumns);
     }
 
     private function renderValue(ValueImpl $v) {
@@ -164,13 +161,7 @@ class PrettyPrinter {
         foreach ($array->entries as $keyValuePair) {
             $key   = $this->renderValue($keyValuePair->key);
             $value = $this->renderValue($keyValuePair->value);
-
-            if (count($rows) != count($array->entries) - 1 ||
-                $array->entriesMissing != 0 ||
-                !$this->settings->alignText
-            ) {
-                $value->append(',');
-            }
+            $value->append(',');
 
             if ($array->isAssociative) {
                 $rows[] = array($key, $this->text(' => '), $value);
@@ -179,18 +170,14 @@ class PrettyPrinter {
             }
         }
 
-        $result = $this->table($rows, $this->settings->alignArrayEntries);
+        $result = $this->table($rows, false);
 
         if ($array->entriesMissing != 0)
             $result->addLine("$array->entriesMissing more...");
 
-        if ($this->settings->alignText) {
-            $result->wrap("$start ", " $end");
-        } else {
-            $result->indent();
-            $result->indent();
-            $result->wrapLines($start, $end);
-        }
+        $result->indent();
+        $result->indent();
+        $result->wrapLines($start, $end);
 
         return $result;
     }
@@ -290,11 +277,14 @@ class PrettyPrinter {
             "\f" => '\f',
             "\"" => '\"',
             "\t" => $this->settings->escapeTabsInStrings ? '\t' : "\t",
-            "\n" => '\n',
+            "\n" => $this->settings->escapeNewlineInStrings ? '\n' : "\n",
         );
 
+        $maxLength = $this->settings->maxStringLength;
+        $maxLength = $maxLength === INF ? PHP_INT_MAX : $maxLength;
+
         $escaped = '';
-        $string1 = (string)substr($string->bytes, 0, $this->settings->maxStringLength);
+        $string1 = (string)substr($string->bytes, 0, $maxLength);
         $length  = strlen($string1);
 
         for ($i = 0; $i < $length; $i++) {
@@ -307,13 +297,6 @@ class PrettyPrinter {
             }
 
             $escaped .= $char2;
-
-            if ($char === "\n" &&
-                $i !== $length - 1 &&
-                $this->settings->splitMultiLineStrings
-            ) {
-                $escaped .= "\" .\n\"";
-            }
         }
 
         $result  = $this->text($escaped);
@@ -325,12 +308,6 @@ class PrettyPrinter {
             $result->wrap('"', "\" $missing more bytes...");
         } else {
             $result->wrap('"', '"');
-        }
-
-        if ($result->count() > 1 && !$this->settings->alignText) {
-            $result->indent();
-            $result->indent();
-            $result->prependLine();
         }
 
         return $result;
@@ -358,7 +335,7 @@ class PrettyPrinter {
             $rows[] = array($prefix, $this->text(' = '), $value,);
         }
 
-        $result = $this->table($rows, $this->settings->alignVariables);
+        $result = $this->table($rows, false);
 
         if ($missing != 0)
             $result->addLine("$missing more...");
@@ -422,14 +399,7 @@ class PrettyPrinter {
         $string->bytesMissing = 0;
 
         $result = $this->renderString($string);
-
-        if ($result->count() > 1 && !$this->settings->alignText) {
-            $result->indent();
-            $result->indent();
-            $result->wrapLines('${', '}');
-        } else {
-            $result->wrap('${', '}');
-        }
+        $result->wrap('${', '}');
 
         return $result;
     }
@@ -520,8 +490,7 @@ class PrettyPrinter {
             return $this->text("()");
 
         /** @var Text[] $pretties */
-        $pretties    = array();
-        $isMultiLine = false;
+        $pretties = array();
 
         foreach ($frame->args as $arg) {
             /** @var FunctionArg $arg */
@@ -534,8 +503,7 @@ class PrettyPrinter {
                 if ($arg->typeHint !== null)
                     $pretty->prepend("$arg->typeHint ");
             }
-            $isMultiLine = $isMultiLine || $pretty->count() > 1;
-            $pretties[]  = $pretty;
+            $pretties[] = $pretty;
         }
 
         if ($frame->argsMissing != 0)
@@ -544,22 +512,13 @@ class PrettyPrinter {
         $result = $this->text();
 
         foreach ($pretties as $k => $pretty) {
-            if ($isMultiLine)
-                $result->addLines($pretty);
-            else
-                $result->appendLines($pretty);
+            $result->appendLines($pretty);
 
             if ($k != count($pretties) - 1)
                 $result->append(', ');
         }
 
-        if (!$this->settings->alignText && $isMultiLine) {
-            $result->indent();
-            $result->indent();
-            $result->wrapLines("(", ")");
-        } else {
-            $result->wrap("( ", " )");
-        }
+        $result->wrap("( ", " )");
 
         return $result;
     }
@@ -654,7 +613,7 @@ class RefCounts {
 }
 
 class Text {
-    static function table(array $rows, $align, $alignColumns) {
+    static function table(array $rows, $alignColumns) {
         $columnWidths = array();
 
         if ($alignColumns) {
@@ -669,10 +628,10 @@ class Text {
             }
         }
 
-        $result = new self('', $align);
+        $result = new self('');
 
         foreach ($rows as $cells) {
-            $row        = new self('', $align);
+            $row        = new self('');
             $lastColumn = count($cells) - 1;
 
             foreach ($cells as $column => $cell) {
@@ -709,7 +668,7 @@ class Text {
     }
 
     function appendLines(self $append) {
-        $space = $this->align ? str_repeat(' ', $this->width()) : '';
+        $space = '';
 
         foreach ($append->lines as $k => $line)
             if ($k == 0 && $this->lines)
@@ -729,16 +688,14 @@ class Text {
 
     /** @var string[] */
     private $lines;
-    private $align;
 
-    function __construct($text, $align) {
+    function __construct($text) {
         $lines = explode("\n", $text);
 
         if ($lines && $lines[count($lines) - 1] === "")
             array_pop($lines);
 
         $this->lines = $lines;
-        $this->align = $align;
     }
 
     function toString() {
@@ -795,6 +752,6 @@ class Text {
     }
 
     private function text($text) {
-        return new self($text, $this->align);
+        return new self($text);
     }
 }
