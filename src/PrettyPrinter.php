@@ -9,6 +9,7 @@ final class PrettyPrinterSettings {
     public $showExceptionLocalVariables = true;
     public $showExceptionStackTrace = true;
     public $showExceptionSourceCode = true;
+    public $showExceptionFunctionArguments = true;
     public $showObjectProperties = true;
     public $showArrayEntries = true;
     public $showStringContents = true;
@@ -488,6 +489,9 @@ class PrettyPrinter {
 
         if ($frame->args === array())
             return $this->text("()");
+
+        if (!$this->settings->showExceptionFunctionArguments)
+            return $this->text("( ... )");
 
         /** @var Text[] $pretties */
         $pretties = array();
