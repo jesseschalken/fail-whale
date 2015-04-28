@@ -10,6 +10,7 @@ final class PrettyPrinterSettings {
     public $showExceptionStackTrace = true;
     public $showExceptionSourceCode = true;
     public $showExceptionFunctionArguments = true;
+    public $showExceptionFunctionObject = true;
     public $showObjectProperties = true;
     public $showArrayEntries = true;
     public $showStringContents = true;
@@ -465,7 +466,7 @@ class PrettyPrinter {
     }
 
     private function renderExceptionStackFramePrefix(Stack $frame) {
-        if ($frame->object) {
+        if ($frame->object && $this->settings->showExceptionFunctionObject) {
             $prefix = $this->visitObject($frame->object);
             $prefix->append('->');
 
