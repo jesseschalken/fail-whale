@@ -58,7 +58,7 @@ class Value {
                         var body = document.getElementsByTagName('body')[0];
 
                         body.innerHTML = '';
-                        body.appendChild(FailWhale.renderJSON(json.textContent));
+                        body.appendChild(FailWhale.renderJSON(json.textContent, document));
                     });
                 </script>
             </head>

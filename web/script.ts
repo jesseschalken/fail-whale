@@ -1,6 +1,6 @@
 module FailWhale {
 
-    function rescroll() {
+    function rescroll(document:Document) {
         function view() {
             return {
                 x: document.documentElement.scrollLeft || document.body.scrollLeft,
@@ -203,190 +203,234 @@ module FailWhale {
         }
     }
 
-    var padding = '3px';
+    class Renderer implements Data.ValueVisitor<Node> {
+        private root:Data.Root;
+        private document:Document;
+        private padding = '3px';
 
-    function plain(content:string, inline:boolean = true):HTMLElement {
-        var span = document.createElement(inline ? 'span' : 'div');
-        span.appendChild(document.createTextNode(content));
-        return span;
-    }
+        constructor(root:Data.Root, document:Document) {
+            this.root = root;
+            this.document = document;
+        }
 
-    function italics(t:string):Node {
-        var wrapped = plain(t);
-        wrapped.style.display = 'inline';
-        wrapped.style.fontStyle = 'italic';
-        return wrapped;
-    }
+        private plain(content:string, inline:boolean = true):HTMLElement {
+            var span = this.document.createElement(inline ? 'span' : 'div');
+            span.appendChild(this.document.createTextNode(content));
+            return span;
+        }
 
-    function notice(t:string):Node {
-        var wrapped = plain(t);
-        wrapped.style.fontStyle = 'italic';
-        wrapped.style.padding = padding;
-        wrapped.style.display = 'inline-block';
-        return wrapped;
-    }
+        private italics(t:string):Node {
+            var wrapped = this.plain(t);
+            wrapped.style.display = 'inline';
+            wrapped.style.fontStyle = 'italic';
+            return wrapped;
+        }
 
-    function collect(nodes:Node[]):Node {
-        var x = document.createDocumentFragment();
-        for (var i = 0; i < nodes.length; i++)
-            x.appendChild(nodes[i]);
-        return x;
-    }
+        private notice(t:string):Node {
+            var wrapped = this.plain(t);
+            wrapped.style.fontStyle = 'italic';
+            wrapped.style.padding = this.padding;
+            wrapped.style.display = 'inline-block';
+            return wrapped;
+        }
 
-    function expandable(content:{
-        head:Node;
-        body:() => Node;
-        open:boolean;
-        inline?:boolean;
-    }):Node {
-        var container = document.createElement('div');
-        var inline = content.inline;
-        if (inline === undefined)
-            inline = true;
-        if (inline)
-            container.style.display = 'inline-table';
+        private collect(nodes:Node[]):Node {
+            var x = this.document.createDocumentFragment();
+            for (var i = 0; i < nodes.length; i++)
+                x.appendChild(nodes[i]);
+            return x;
+        }
 
-        var head = document.createElement('div');
-        head.style.backgroundColor = '#eee';
-        head.style.cursor = 'pointer';
-        head.style.padding = padding;
-        head.addEventListener('mouseenter', () => {
-            head.style.backgroundColor = '#ddd';
-            body.style.borderColor = '#ddd';
-        });
-        head.addEventListener('mouseleave', () => {
+        private expandable(content:{
+            head:Node;
+            body:() => Node;
+            open:boolean;
+            inline?:boolean;
+        }):Node {
+            var container = this.document.createElement('div');
+            var inline = content.inline;
+            if (inline === undefined)
+                inline = true;
+            if (inline)
+                container.style.display = 'inline-table';
+
+            var head = this.document.createElement('div');
             head.style.backgroundColor = '#eee';
-            body.style.borderColor = '#eee';
-        });
-        head.addEventListener('mousedown', (e) => {
-            e.preventDefault();
-        });
-        head.appendChild(content.head);
-        container.appendChild(head);
-
-        var body = document.createElement('div');
-        body.style.borderSpacing = '0';
-        body.style.padding = '0';
-        body.style.backgroundColor = 'white';
-        body.style.borderColor = '#eee';
-        body.style.borderWidth = '1px';
-        body.style.borderTopWidth = '0';
-        body.style.borderStyle = 'solid';
-        container.appendChild(body);
-
-        var open = content.open;
-
-        function refresh() {
-            body.innerHTML = '';
-
-            if (open) {
-                body.appendChild(content.body());
-            }
-
-            body.style.display = open ? 'block' : 'none';
-        }
-
-        refresh();
-
-        head.addEventListener('click', () => {
-            var scroll = rescroll();
-            open = !open;
-            refresh();
-            scroll();
-        });
-
-        return container;
-    }
-
-    function table(data:Node[][]):Node {
-        var table = document.createElement('table');
-        table.style.borderSpacing = '0';
-        table.style.padding = '0';
-
-        for (var i = 0; i < data.length; i++) {
-            var tr = document.createElement('tr');
-            table.appendChild(tr);
-            for (var j = 0; j < data[i].length; j++) {
-                var td = document.createElement('td');
-                td.style.padding = padding;
-                td.style.verticalAlign = 'baseline';
-                td.appendChild(data[i][j]);
-                tr.appendChild(td);
-            }
-        }
-
-        return table;
-    }
-
-    function bold(content:string):Node {
-        var box = plain(content);
-        box.style.fontWeight = 'bold';
-        return box;
-    }
-
-    function keyword(word:string) {
-        var box = plain(word);
-        box.style.color = '#009';
-        box.style.fontWeight = 'bold';
-        return box;
-    }
-
-    export function renderJSON(json:string):Node {
-        var root:Data.Root = JSON.parse(json);
-
-        var container = document.createElement('div');
-        container.style.whiteSpace = 'pre';
-        container.style.fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
-        container.style.fontSize = "10pt";
-        container.style.lineHeight = '16px';
-        container.appendChild(renderValue(root.root));
-        return container;
-
-        function renderValue(x:Data.Value) {
-            return Data.visit(x, {
-                visitInt:       (val:number) => renderNumber(String(val)),
-                visitFloat:     (val:number) => {
-                    var str = String(val);
-                    str = x.float % 1 == 0 ? str + '.0' : str;
-                    return renderNumber(str);
-                },
-                visitTrue:      () => keyword('true'),
-                visitFalse:     () => keyword('false'),
-                visitString:    (id:number) => renderString(root.strings[id]),
-                visitPosInf:    () => renderNumber('INF'),
-                visitNegInf:    () => renderNumber('-INF'),
-                visitNaN:       () => renderNumber('NAN'),
-                visitArray:     (id:number) => renderArray(id),
-                visitObject:    (id:number) => renderObject(root.objects[id]),
-                visitException: (val:Data.Exception) => renderException(val),
-                visitResource:  (val:Data.Resource) => collect([keyword('resource'), plain(' ' + val.type)]),
-                visitNull:      () => keyword('null'),
-                visitUnknown:   () => {
-                    var span = plain('unknown type');
-                    span.style.fontStyle = 'italic';
-                    return span;
-                },
+            head.style.cursor = 'pointer';
+            head.style.padding = this.padding;
+            head.addEventListener('mouseenter', () => {
+                head.style.backgroundColor = '#ddd';
+                body.style.borderColor = '#ddd';
             });
+            head.addEventListener('mouseleave', () => {
+                head.style.backgroundColor = '#eee';
+                body.style.borderColor = '#eee';
+            });
+            head.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+            });
+            head.appendChild(content.head);
+            container.appendChild(head);
+
+            var body = this.document.createElement('div');
+            body.style.borderSpacing = '0';
+            body.style.padding = '0';
+            body.style.backgroundColor = 'white';
+            body.style.borderColor = '#eee';
+            body.style.borderWidth = '1px';
+            body.style.borderTopWidth = '0';
+            body.style.borderStyle = 'solid';
+            container.appendChild(body);
+
+            var open = content.open;
+
+            function refresh() {
+                body.innerHTML = '';
+
+                if (open) {
+                    body.appendChild(content.body());
+                }
+
+                body.style.display = open ? 'block' : 'none';
+            }
+
+            refresh();
+
+            head.addEventListener('click', () => {
+                var scroll = rescroll(this.document);
+                open = !open;
+                refresh();
+                scroll();
+            });
+
+            return container;
         }
 
-        function renderArray(id:number):Node {
-            var array = root.arrays[id];
-            return expandable({
-                head: keyword('array'),
+        private table(data:Node[][]):Node {
+            var table = this.document.createElement('table');
+            table.style.borderSpacing = '0';
+            table.style.padding = '0';
+
+            for (var i = 0; i < data.length; i++) {
+                var tr = this.document.createElement('tr');
+                table.appendChild(tr);
+                for (var j = 0; j < data[i].length; j++) {
+                    var td = this.document.createElement('td');
+                    td.style.padding = this.padding;
+                    td.style.verticalAlign = 'baseline';
+                    td.appendChild(data[i][j]);
+                    tr.appendChild(td);
+                }
+            }
+
+            return table;
+        }
+
+        private bold(content:string):Node {
+            var box = this.plain(content);
+            box.style.fontWeight = 'bold';
+            return box;
+        }
+
+        private keyword(word:string) {
+            var box = this.plain(word);
+            box.style.color = '#009';
+            box.style.fontWeight = 'bold';
+            return box;
+        }
+
+        renderRoot() {
+            var container = document.createElement('div');
+            container.style.whiteSpace = 'pre';
+            container.style.fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
+            container.style.fontSize = "10pt";
+            container.style.lineHeight = '16px';
+            container.appendChild(this.renderValue(this.root.root));
+            return container;
+        }
+
+        private renderValue(value:Data.Value):Node {
+            return Data.visit(value, this);
+        }
+
+        visitInt(val:number) {
+            return this.renderNumber(String(val));
+        }
+
+        visitFloat(val:number) {
+            var str = String(val);
+            str = val % 1 == 0 ? str + '.0' : str;
+            return this.renderNumber(str);
+        }
+
+        visitTrue() {
+            return this.keyword('true');
+        }
+
+        visitFalse() {
+            return this.keyword('false');
+        }
+
+        visitString(id:number) {
+            return this.renderString(this.root.strings[id]);
+        }
+
+        visitPosInf() {
+            return this.renderNumber('INF');
+        }
+
+        visitNegInf() {
+            return this.renderNumber('-INF');
+        }
+
+        visitNaN() {
+            return this.renderNumber('NAN');
+        }
+
+        visitArray(id:number) {
+            return this.renderArray(id);
+        }
+
+        visitObject(id:number) {
+            return this.renderObject(this.root.objects[id]);
+        }
+
+        visitException(val:Data.Exception) {
+            return this.renderException(val);
+        }
+
+        visitResource(val:Data.Resource) {
+            return this.collect([this.keyword('resource'), this.plain(' ' + val.type)]);
+        }
+
+        visitNull() {
+            return this.keyword('null');
+        }
+
+        visitUnknown() {
+            var span = this.plain('unknown type');
+            span.style.fontStyle = 'italic';
+            return span;
+        }
+
+        private renderArray(id:number):Node {
+            var array = this.root.arrays[id];
+            return this.expandable({
+                head: this.keyword('array'),
                 body: () => {
                     if (array.entries.length == 0 && array.entriesMissing == 0)
-                        return notice('empty');
+                        return this.notice('empty');
 
-                    var container = document.createDocumentFragment();
-                    container.appendChild(table(array.entries.map((x) => {
+                    var container = this.document.createDocumentFragment();
+                    container.appendChild(this.table(array.entries.map((x) => {
                         return [
-                            renderValue(x.key),
-                            plain('=>'),
-                            renderValue(x.value)
+                            this.renderValue(x.key),
+                            this.plain('=>'),
+                            this.renderValue(x.value)
                         ];
                     })));
                     if (array.entriesMissing > 0)
-                        container.appendChild(notice(array.entriesMissing + " entries missing..."));
+                        container.appendChild(this.notice(array.entriesMissing + " entries missing..."));
 
                     return container;
                 },
@@ -394,32 +438,32 @@ module FailWhale {
             });
         }
 
-        function renderObject(object:Data.Object1):Node {
-            return expandable({
-                head: collect([keyword('new'), plain(' ' + object.className)]),
+        private renderObject(object:Data.Object1):Node {
+            return this.expandable({
+                head: this.collect([this.keyword('new'), this.plain(' ' + object.className)]),
                 body: () => {
                     if (object.properties.length == 0 && object.propertiesMissing == 0)
-                        return notice('empty');
+                        return this.notice('empty');
 
-                    var container = document.createDocumentFragment();
-                    container.appendChild(table(object.properties.map((property) => {
+                    var container = this.document.createDocumentFragment();
+                    container.appendChild(this.table(object.properties.map((property) => {
                         var prefix = '';
                         if (property.className != object.className)
                             prefix = property.className + '::';
 
                         return [
-                            collect([
-                                keyword(property.access),
-                                plain(' ' + prefix),
-                                renderVariable(property.name)
+                            this.collect([
+                                this.keyword(property.access),
+                                this.plain(' ' + prefix),
+                                this.renderVariable(property.name)
                             ]),
-                            plain('='),
-                            renderValue(property.value)
+                            this.plain('='),
+                            this.renderValue(property.value)
                         ];
                     })));
 
                     if (object.propertiesMissing > 0)
-                        container.appendChild(notice(object.propertiesMissing + " properties missing..."));
+                        container.appendChild(this.notice(object.propertiesMissing + " properties missing..."));
 
                     return container;
                 },
@@ -427,13 +471,13 @@ module FailWhale {
             });
         }
 
-        function renderStack(stack:Data.Stack[], missing:number):Node {
+        private renderStack(stack:Data.Stack[], missing:number):Node {
             function renderFunctionCall(call:Data.Stack):Node {
-                var result = document.createDocumentFragment();
+                var result = this.document.createDocumentFragment();
                 var prefix = '';
                 if (call.object) {
-                    var object = root.objects[call.object];
-                    result.appendChild(renderObject(object));
+                    var object = this.root.objects[call.object];
+                    result.appendChild(this.renderObject(object));
                     prefix += '->';
                     if (object.className !== call.className)
                         prefix += call.className + '::';
@@ -442,17 +486,17 @@ module FailWhale {
                     prefix += call.isStatic ? '::' : '->';
                 }
 
-                result.appendChild(plain(prefix + call.functionName));
+                result.appendChild(this.plain(prefix + call.functionName));
 
                 if (call.args instanceof Array) {
                     if (call.args.length == 0 && call.argsMissing == 0) {
-                        result.appendChild(plain('()'));
+                        result.appendChild(this.plain('()'));
                     } else {
-                        result.appendChild(plain('( '));
+                        result.appendChild(this.plain('( '));
 
                         for (var i = 0; i < call.args.length; i++) {
                             if (i != 0)
-                                result.appendChild(plain(', '));
+                                result.appendChild(this.plain(', '));
 
                             var arg = call.args[i];
                             if (arg.name) {
@@ -461,36 +505,36 @@ module FailWhale {
                                     switch (arg.typeHint) {
                                         case 'array':
                                         case 'callable':
-                                            typeHint = keyword(arg.typeHint);
+                                            typeHint = this.keyword(arg.typeHint);
                                             break;
                                         default:
-                                            typeHint = plain(arg.typeHint);
+                                            typeHint = this.plain(arg.typeHint);
                                     }
                                     result.appendChild(typeHint);
-                                    result.appendChild(plain(' '));
+                                    result.appendChild(this.plain(' '));
                                 }
                                 if (arg.isReference) {
-                                    result.appendChild(plain('&'));
+                                    result.appendChild(this.plain('&'));
                                 }
-                                result.appendChild(renderVariable(arg.name));
-                                result.appendChild(plain(' = '));
+                                result.appendChild(this.renderVariable(arg.name));
+                                result.appendChild(this.plain(' = '));
                             }
 
-                            result.appendChild(renderValue(arg.value));
+                            result.appendChild(this.renderValue(arg.value));
                         }
 
                         if (call.argsMissing > 0) {
                             if (i != 0)
-                                result.appendChild(plain(', '));
-                            result.appendChild(italics(call.argsMissing + ' arguments missing...'));
+                                result.appendChild(this.plain(', '));
+                            result.appendChild(this.italics(call.argsMissing + ' arguments missing...'));
                         }
 
-                        result.appendChild(plain(' )'));
+                        result.appendChild(this.plain(' )'));
                     }
                 } else {
-                    result.appendChild(plain('( '));
-                    result.appendChild(italics('not available'));
-                    result.appendChild(plain(' )'));
+                    result.appendChild(this.plain('( '));
+                    result.appendChild(this.italics('not available'));
+                    result.appendChild(this.plain(' )'));
                 }
 
                 return result;
@@ -500,37 +544,37 @@ module FailWhale {
 
             for (var x = 0; x < stack.length; x++) {
                 rows.push([
-                    plain('#' + String(x + 1)),
-                    renderLocation(stack[x].location),
+                    this.plain('#' + String(x + 1)),
+                    this.renderLocation(stack[x].location),
                     renderFunctionCall(stack[x])
                 ]);
             }
 
             if (missing == 0) {
                 rows.push([
-                    plain('#' + String(x + 1)),
-                    expandable({
-                        head: plain('{main}'),
+                    this.plain('#' + String(x + 1)),
+                    this.expandable({
+                        head: this.plain('{main}'),
                         body: () => {
-                            return notice('no source code');
+                            return this.notice('no source code');
                         },
                         open: false
                     }),
-                    collect([])
+                    this.collect([])
                 ]);
             }
 
-            var container = document.createDocumentFragment();
-            container.appendChild(table(rows));
+            var container = this.document.createDocumentFragment();
+            container.appendChild(this.table(rows));
             if (missing > 0)
-                container.appendChild(notice(missing + " stack frames missing..."));
+                container.appendChild(this.notice(missing + " stack frames missing..."));
 
             return container;
         }
 
-        function renderVariable(name:string):Node {
+        private renderVariable(name:string):Node {
             function red(v:string) {
-                var result = plain(v);
+                var result = this.plain(v);
                 result.style.color = '#700';
                 return result;
             }
@@ -538,34 +582,34 @@ module FailWhale {
             if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name))
                 return red('$' + name);
             else
-                return collect([red('$' + '{'), renderString({bytes: name, bytesMissing: 0}), red('}')])
+                return this.collect([red('$' + '{'), this.renderString({bytes: name, bytesMissing: 0}), red('}')])
         }
 
-        function renderLocals(locals:Data.Variable[], missing:number):Node {
+        private renderLocals(locals:Data.Variable[], missing:number):Node {
             if (!(locals instanceof Array))
-                return notice('not available');
+                return this.notice('not available');
 
             if (locals.length == 0 && missing == 0)
-                return notice('none');
+                return this.notice('none');
 
-            var container = document.createDocumentFragment();
-            container.appendChild(table(locals.map((local) => {
+            var container = this.document.createDocumentFragment();
+            container.appendChild(this.table(locals.map((local) => {
                 return [
-                    renderVariable(local.name),
-                    plain('='),
-                    renderValue(local.value)
+                    this.renderVariable(local.name),
+                    this.plain('='),
+                    this.renderValue(local.value)
                 ];
             })));
 
             if (missing > 0)
-                container.appendChild(notice(missing + " variables missing..."));
+                container.appendChild(this.notice(missing + " variables missing..."));
 
             return container;
         }
 
-        function renderGlobals(globals:Data.Globals) {
+        private renderGlobals(globals:Data.Globals) {
             if (!globals)
-                return notice('not available');
+                return this.notice('not available');
 
             var staticVariables = globals.staticVariables;
             var staticProperties = globals.staticProperties;
@@ -573,7 +617,7 @@ module FailWhale {
             var rows:Node[][] = [];
 
             for (var i = 0; i < globalVariables.length; i++) {
-                var pieces = document.createDocumentFragment();
+                var pieces = this.document.createDocumentFragment();
                 var v2 = globalVariables[i];
                 var superGlobals = [
                     'GLOBALS',
@@ -587,47 +631,47 @@ module FailWhale {
                     '_ENV'
                 ];
                 if (superGlobals.indexOf(v2.name) == -1) {
-                    pieces.appendChild(keyword('global'));
-                    pieces.appendChild(plain(' '));
+                    pieces.appendChild(this.keyword('global'));
+                    pieces.appendChild(this.plain(' '));
                 }
-                pieces.appendChild(renderVariable(v2.name));
+                pieces.appendChild(this.renderVariable(v2.name));
 
-                rows.push([pieces, plain('='), renderValue(v2.value)]);
+                rows.push([pieces, this.plain('='), this.renderValue(v2.value)]);
 
             }
 
             for (var i = 0; i < staticProperties.length; i++) {
                 var p = staticProperties[i];
-                var pieces = document.createDocumentFragment();
-                pieces.appendChild(keyword(p.access));
-                pieces.appendChild(plain(' '));
-                pieces.appendChild(plain(p.className + '::'));
-                pieces.appendChild(renderVariable(p.name));
+                var pieces = this.document.createDocumentFragment();
+                pieces.appendChild(this.keyword(p.access));
+                pieces.appendChild(this.plain(' '));
+                pieces.appendChild(this.plain(p.className + '::'));
+                pieces.appendChild(this.renderVariable(p.name));
 
-                rows.push([pieces, plain('='), renderValue(p.value)]);
+                rows.push([pieces, this.plain('='), this.renderValue(p.value)]);
             }
 
             for (var i = 0; i < staticVariables.length; i++) {
                 var v = staticVariables[i];
-                var pieces = document.createDocumentFragment();
-                pieces.appendChild(keyword('function'));
-                pieces.appendChild(plain(' '));
+                var pieces = this.document.createDocumentFragment();
+                pieces.appendChild(this.keyword('function'));
+                pieces.appendChild(this.plain(' '));
 
                 if (v.className)
-                    pieces.appendChild(plain(v.className + '::'));
+                    pieces.appendChild(this.plain(v.className + '::'));
 
-                pieces.appendChild(plain(v.functionName + '()::'));
-                pieces.appendChild(renderVariable(v.name));
+                pieces.appendChild(this.plain(v.functionName + '()::'));
+                pieces.appendChild(this.renderVariable(v.name));
 
                 rows.push([
                     pieces,
-                    plain('='),
-                    renderValue(v.value)
+                    this.plain('='),
+                    this.renderValue(v.value)
                 ]);
             }
 
-            var container = document.createDocumentFragment();
-            container.appendChild(table(rows));
+            var container = this.document.createDocumentFragment();
+            container.appendChild(this.table(rows));
 
             function block(node:Node):Node {
                 var div = document.createElement('div');
@@ -636,81 +680,81 @@ module FailWhale {
             }
 
             if (globals.staticPropertiesMissing > 0)
-                container.appendChild(block(notice(globals.staticPropertiesMissing + " static properties missing...")));
+                container.appendChild(block(this.notice(globals.staticPropertiesMissing + " static properties missing...")));
 
             if (globals.globalVariablesMissing > 0)
-                container.appendChild(block(notice(globals.globalVariablesMissing + " global variables missing...")));
+                container.appendChild(block(this.notice(globals.globalVariablesMissing + " global variables missing...")));
 
             if (globals.staticPropertiesMissing > 0)
-                container.appendChild(block(notice(globals.staticPropertiesMissing + " static variables missing...")));
+                container.appendChild(block(this.notice(globals.staticPropertiesMissing + " static variables missing...")));
 
             return container;
         }
 
-        function renderException(x:Data.Exception):Node {
+        private renderException(x:Data.Exception):Node {
             if (!x)
-                return italics('none');
+                return this.italics('none');
 
-            return expandable({
-                head: collect([keyword('exception'), plain(' ' + x.className)]),
+            return this.expandable({
+                head: this.collect([this.keyword('exception'), this.plain(' ' + x.className)]),
                 body: () => {
 
-                    var body = document.createElement('div');
-                    body.appendChild(expandable({
+                    var body = this.document.createElement('div');
+                    body.appendChild(this.expandable({
                         inline: false,
                         open:   true,
-                        head:   bold('exception'),
+                        head:   this.bold('exception'),
                         body:   () => {
-                            return table([
-                                [bold('code'), plain(x.code)],
-                                [bold('message'), plain(x.message)],
-                                [bold('location'), renderLocation(x.location, true)],
-                                [bold('previous'), renderException(x.previous)]
+                            return this.table([
+                                [this.bold('code'), this.plain(x.code)],
+                                [this.bold('message'), this.plain(x.message)],
+                                [this.bold('location'), this.renderLocation(x.location, true)],
+                                [this.bold('previous'), this.renderException(x.previous)]
                             ]);
                         }
                     }));
-                    body.appendChild(expandable({
+                    body.appendChild(this.expandable({
                         inline: false,
                         open:   true,
-                        head:   bold('locals'),
+                        head:   this.bold('locals'),
                         body:   () => {
-                            return renderLocals(x.locals, x.localsMissing);
+                            return this.renderLocals(x.locals, x.localsMissing);
                         }
                     }));
-                    body.appendChild(expandable({
+                    body.appendChild(this.expandable({
                         inline: false,
                         open:   true,
-                        head:   bold('stack'),
+                        head:   this.bold('stack'),
                         body:   () => {
-                            return renderStack(x.stack, x.stackMissing);
+                            return this.renderStack(x.stack, x.stackMissing);
                         }
                     }));
-                    body.appendChild(expandable({
+                    body.appendChild(this.expandable({
                         inline: false,
                         open:   true,
-                        head:   bold('globals'),
+                        head:   this.bold('globals'),
                         body:   () => {
-                            return renderGlobals(x.globals);
+                            return this.renderGlobals(x.globals);
                         }
                     }));
-                    body.style.padding = padding;
+                    body.style.padding = this.padding;
                     return body;
                 },
                 open: true
             });
         }
 
-        function renderLocation(location:Data.Location, open:boolean = false):Node {
-            return expandable({
+        private renderLocation(location:Data.Location, open:boolean = false):Node {
+            return this.expandable({
                 head: location
-                          ? collect([plain(location.file + ':'), renderNumber(String(location.line))])
-                          : plain('[internal function]'),
+                          ? this.collect([this.plain(location.file + ':'), this.renderNumber(String(location.line))])
+                          : this.plain('[internal function]'),
                 body: () => {
                     if (!location || !location.source)
-                        return notice('no source code');
+                        return this.notice('no source code');
 
                     var padding = '4px';
-                    var lineNumber = document.createElement('div');
+                    var lineNumber = this.document.createElement('div');
                     lineNumber.style.display = 'inline-block';
                     lineNumber.style.padding = padding;
                     lineNumber.style.textAlign = 'right';
@@ -722,7 +766,7 @@ module FailWhale {
                     lineNumber.style.verticalAlign = 'top';
                     lineNumber.style.minWidth = '32px';
 
-                    var code = document.createElement('div');
+                    var code = this.document.createElement('div');
                     code.style.display = 'inline-block';
                     code.style.padding = padding;
                     code.style.width = '800px';
@@ -730,7 +774,7 @@ module FailWhale {
                     code.style.backgroundColor = '#222';
                     code.style.color = '#ccc';
                     code.style.verticalAlign = 'top';
-                    var codeDiv = document.createElement('div');
+                    var codeDiv = this.document.createElement('div');
                     code.appendChild(codeDiv);
                     codeDiv.style.display = 'inline-block';
                     codeDiv.style.minWidth = '100%';
@@ -739,25 +783,25 @@ module FailWhale {
                         if (!location.source.hasOwnProperty(codeLine))
                             continue;
 
-                        var lineDiv = plain(decodeUTF8(location.source[codeLine]) + "\n", false);
+                        var lineDiv = this.plain(decodeUTF8(location.source[codeLine]) + "\n", false);
                         if (codeLine == location.line) {
                             lineDiv.style.backgroundColor = '#f88';
                             lineDiv.style.color = '#300';
                             lineDiv.style.borderRadius = padding;
                         }
-                        lineNumber.appendChild(plain(String(codeLine) + "\n", false));
+                        lineNumber.appendChild(this.plain(String(codeLine) + "\n", false));
                         codeDiv.appendChild(lineDiv);
                     }
 
-                    return collect([lineNumber, code]);
+                    return this.collect([lineNumber, code]);
                 },
                 open: open
             });
         }
 
-        function renderString(x:Data.String1):Node {
+        private renderString(x:Data.String1):Node {
             function doRender():Node {
-                var span = document.createElement('span');
+                var span = this.document.createElement('span');
                 span.style.color = '#080';
                 span.style.fontWeight = 'bold';
 
@@ -786,24 +830,24 @@ module FailWhale {
 
                     if (escaped !== undefined) {
                         if (buffer.length > 0)
-                            span.appendChild(plain(buffer));
+                            span.appendChild(this.plain(buffer));
 
                         buffer = "";
-                        span.appendChild(keyword(escaped));
+                        span.appendChild(this.keyword(escaped));
                     } else {
                         buffer += char;
                     }
                 }
 
-                span.appendChild(plain(buffer + '"'));
+                span.appendChild(this.plain(buffer + '"'));
 
-                var container = document.createElement('div');
+                var container = this.document.createElement('div');
                 container.style.display = 'inline-table';
                 container.appendChild(span);
 
                 if (x.bytesMissing > 0) {
-                    container.appendChild(plain(' '));
-                    container.appendChild(italics(x.bytesMissing + ' bytes missing...'));
+                    container.appendChild(this.plain(' '));
+                    container.appendChild(this.italics(x.bytesMissing + ' bytes missing...'));
                 }
 
                 return container;
@@ -819,16 +863,22 @@ module FailWhale {
 
             var numLines = x.bytes.split("\n").length;
             if (visualLength > 200 || numLines > 20)
-                return expandable({open: false, head: keyword('string'), body: doRender});
+                return this.expandable({open: false, head: this.keyword('string'), body: doRender});
             else
                 return doRender();
         }
 
-        function renderNumber(x:string):Node {
-            var result = plain(x);
+        private renderNumber(x:string):Node {
+            var result = this.plain(x);
             result.style.color = '#00f';
             return result;
         }
+    }
+
+    export function renderJSON(json:string, document:Document):Node {
+        var root:Data.Root = JSON.parse(json);
+
+        return new Renderer(root, document).renderRoot();
     }
 
     function decodeUTF8(utf8Bytes:string):string {

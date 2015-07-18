@@ -1,6 +1,6 @@
 var FailWhale;
 (function (FailWhale) {
-    function rescroll() {
+    function rescroll(document) {
         function view() {
             return {
                 x: document.documentElement.scrollLeft || document.body.scrollLeft,
@@ -77,202 +77,234 @@ var FailWhale;
         }
         Data.visit = visit;
     })(Data || (Data = {}));
-    var padding = '3px';
-    function plain(content, inline) {
-        if (inline === void 0) { inline = true; }
-        var span = document.createElement(inline ? 'span' : 'div');
-        span.appendChild(document.createTextNode(content));
-        return span;
-    }
-    function italics(t) {
-        var wrapped = plain(t);
-        wrapped.style.display = 'inline';
-        wrapped.style.fontStyle = 'italic';
-        return wrapped;
-    }
-    function notice(t) {
-        var wrapped = plain(t);
-        wrapped.style.fontStyle = 'italic';
-        wrapped.style.padding = padding;
-        wrapped.style.display = 'inline-block';
-        return wrapped;
-    }
-    function collect(nodes) {
-        var x = document.createDocumentFragment();
-        for (var i = 0; i < nodes.length; i++)
-            x.appendChild(nodes[i]);
-        return x;
-    }
-    function expandable(content) {
-        var container = document.createElement('div');
-        var inline = content.inline;
-        if (inline === undefined)
-            inline = true;
-        if (inline)
-            container.style.display = 'inline-table';
-        var head = document.createElement('div');
-        head.style.backgroundColor = '#eee';
-        head.style.cursor = 'pointer';
-        head.style.padding = padding;
-        head.addEventListener('mouseenter', function () {
-            head.style.backgroundColor = '#ddd';
-            body.style.borderColor = '#ddd';
-        });
-        head.addEventListener('mouseleave', function () {
+    var Renderer = (function () {
+        function Renderer(root, document) {
+            this.padding = '3px';
+            this.root = root;
+            this.document = document;
+        }
+        Renderer.prototype.plain = function (content, inline) {
+            if (inline === void 0) { inline = true; }
+            var span = this.document.createElement(inline ? 'span' : 'div');
+            span.appendChild(this.document.createTextNode(content));
+            return span;
+        };
+        Renderer.prototype.italics = function (t) {
+            var wrapped = this.plain(t);
+            wrapped.style.display = 'inline';
+            wrapped.style.fontStyle = 'italic';
+            return wrapped;
+        };
+        Renderer.prototype.notice = function (t) {
+            var wrapped = this.plain(t);
+            wrapped.style.fontStyle = 'italic';
+            wrapped.style.padding = this.padding;
+            wrapped.style.display = 'inline-block';
+            return wrapped;
+        };
+        Renderer.prototype.collect = function (nodes) {
+            var x = this.document.createDocumentFragment();
+            for (var i = 0; i < nodes.length; i++)
+                x.appendChild(nodes[i]);
+            return x;
+        };
+        Renderer.prototype.expandable = function (content) {
+            var _this = this;
+            var container = this.document.createElement('div');
+            var inline = content.inline;
+            if (inline === undefined)
+                inline = true;
+            if (inline)
+                container.style.display = 'inline-table';
+            var head = this.document.createElement('div');
             head.style.backgroundColor = '#eee';
-            body.style.borderColor = '#eee';
-        });
-        head.addEventListener('mousedown', function (e) {
-            e.preventDefault();
-        });
-        head.appendChild(content.head);
-        container.appendChild(head);
-        var body = document.createElement('div');
-        body.style.borderSpacing = '0';
-        body.style.padding = '0';
-        body.style.backgroundColor = 'white';
-        body.style.borderColor = '#eee';
-        body.style.borderWidth = '1px';
-        body.style.borderTopWidth = '0';
-        body.style.borderStyle = 'solid';
-        container.appendChild(body);
-        var open = content.open;
-        function refresh() {
-            body.innerHTML = '';
-            if (open) {
-                body.appendChild(content.body());
-            }
-            body.style.display = open ? 'block' : 'none';
-        }
-        refresh();
-        head.addEventListener('click', function () {
-            var scroll = rescroll();
-            open = !open;
-            refresh();
-            scroll();
-        });
-        return container;
-    }
-    function table(data) {
-        var table = document.createElement('table');
-        table.style.borderSpacing = '0';
-        table.style.padding = '0';
-        for (var i = 0; i < data.length; i++) {
-            var tr = document.createElement('tr');
-            table.appendChild(tr);
-            for (var j = 0; j < data[i].length; j++) {
-                var td = document.createElement('td');
-                td.style.padding = padding;
-                td.style.verticalAlign = 'baseline';
-                td.appendChild(data[i][j]);
-                tr.appendChild(td);
-            }
-        }
-        return table;
-    }
-    function bold(content) {
-        var box = plain(content);
-        box.style.fontWeight = 'bold';
-        return box;
-    }
-    function keyword(word) {
-        var box = plain(word);
-        box.style.color = '#009';
-        box.style.fontWeight = 'bold';
-        return box;
-    }
-    function renderJSON(json) {
-        var root = JSON.parse(json);
-        var container = document.createElement('div');
-        container.style.whiteSpace = 'pre';
-        container.style.fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
-        container.style.fontSize = "10pt";
-        container.style.lineHeight = '16px';
-        container.appendChild(renderValue(root.root));
-        return container;
-        function renderValue(x) {
-            return Data.visit(x, {
-                visitInt: function (val) { return renderNumber(String(val)); },
-                visitFloat: function (val) {
-                    var str = String(val);
-                    str = x.float % 1 == 0 ? str + '.0' : str;
-                    return renderNumber(str);
-                },
-                visitTrue: function () { return keyword('true'); },
-                visitFalse: function () { return keyword('false'); },
-                visitString: function (id) { return renderString(root.strings[id]); },
-                visitPosInf: function () { return renderNumber('INF'); },
-                visitNegInf: function () { return renderNumber('-INF'); },
-                visitNaN: function () { return renderNumber('NAN'); },
-                visitArray: function (id) { return renderArray(id); },
-                visitObject: function (id) { return renderObject(root.objects[id]); },
-                visitException: function (val) { return renderException(val); },
-                visitResource: function (val) { return collect([keyword('resource'), plain(' ' + val.type)]); },
-                visitNull: function () { return keyword('null'); },
-                visitUnknown: function () {
-                    var span = plain('unknown type');
-                    span.style.fontStyle = 'italic';
-                    return span;
-                }
+            head.style.cursor = 'pointer';
+            head.style.padding = this.padding;
+            head.addEventListener('mouseenter', function () {
+                head.style.backgroundColor = '#ddd';
+                body.style.borderColor = '#ddd';
             });
-        }
-        function renderArray(id) {
-            var array = root.arrays[id];
-            return expandable({
-                head: keyword('array'),
+            head.addEventListener('mouseleave', function () {
+                head.style.backgroundColor = '#eee';
+                body.style.borderColor = '#eee';
+            });
+            head.addEventListener('mousedown', function (e) {
+                e.preventDefault();
+            });
+            head.appendChild(content.head);
+            container.appendChild(head);
+            var body = this.document.createElement('div');
+            body.style.borderSpacing = '0';
+            body.style.padding = '0';
+            body.style.backgroundColor = 'white';
+            body.style.borderColor = '#eee';
+            body.style.borderWidth = '1px';
+            body.style.borderTopWidth = '0';
+            body.style.borderStyle = 'solid';
+            container.appendChild(body);
+            var open = content.open;
+            function refresh() {
+                body.innerHTML = '';
+                if (open) {
+                    body.appendChild(content.body());
+                }
+                body.style.display = open ? 'block' : 'none';
+            }
+            refresh();
+            head.addEventListener('click', function () {
+                var scroll = rescroll(_this.document);
+                open = !open;
+                refresh();
+                scroll();
+            });
+            return container;
+        };
+        Renderer.prototype.table = function (data) {
+            var table = this.document.createElement('table');
+            table.style.borderSpacing = '0';
+            table.style.padding = '0';
+            for (var i = 0; i < data.length; i++) {
+                var tr = this.document.createElement('tr');
+                table.appendChild(tr);
+                for (var j = 0; j < data[i].length; j++) {
+                    var td = this.document.createElement('td');
+                    td.style.padding = this.padding;
+                    td.style.verticalAlign = 'baseline';
+                    td.appendChild(data[i][j]);
+                    tr.appendChild(td);
+                }
+            }
+            return table;
+        };
+        Renderer.prototype.bold = function (content) {
+            var box = this.plain(content);
+            box.style.fontWeight = 'bold';
+            return box;
+        };
+        Renderer.prototype.keyword = function (word) {
+            var box = this.plain(word);
+            box.style.color = '#009';
+            box.style.fontWeight = 'bold';
+            return box;
+        };
+        Renderer.prototype.renderRoot = function () {
+            var container = document.createElement('div');
+            container.style.whiteSpace = 'pre';
+            container.style.fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
+            container.style.fontSize = "10pt";
+            container.style.lineHeight = '16px';
+            container.appendChild(this.renderValue(this.root.root));
+            return container;
+        };
+        Renderer.prototype.renderValue = function (value) {
+            return Data.visit(value, this);
+        };
+        Renderer.prototype.visitInt = function (val) {
+            return this.renderNumber(String(val));
+        };
+        Renderer.prototype.visitFloat = function (val) {
+            var str = String(val);
+            str = val % 1 == 0 ? str + '.0' : str;
+            return this.renderNumber(str);
+        };
+        Renderer.prototype.visitTrue = function () {
+            return this.keyword('true');
+        };
+        Renderer.prototype.visitFalse = function () {
+            return this.keyword('false');
+        };
+        Renderer.prototype.visitString = function (id) {
+            return this.renderString(this.root.strings[id]);
+        };
+        Renderer.prototype.visitPosInf = function () {
+            return this.renderNumber('INF');
+        };
+        Renderer.prototype.visitNegInf = function () {
+            return this.renderNumber('-INF');
+        };
+        Renderer.prototype.visitNaN = function () {
+            return this.renderNumber('NAN');
+        };
+        Renderer.prototype.visitArray = function (id) {
+            return this.renderArray(id);
+        };
+        Renderer.prototype.visitObject = function (id) {
+            return this.renderObject(this.root.objects[id]);
+        };
+        Renderer.prototype.visitException = function (val) {
+            return this.renderException(val);
+        };
+        Renderer.prototype.visitResource = function (val) {
+            return this.collect([this.keyword('resource'), this.plain(' ' + val.type)]);
+        };
+        Renderer.prototype.visitNull = function () {
+            return this.keyword('null');
+        };
+        Renderer.prototype.visitUnknown = function () {
+            var span = this.plain('unknown type');
+            span.style.fontStyle = 'italic';
+            return span;
+        };
+        Renderer.prototype.renderArray = function (id) {
+            var _this = this;
+            var array = this.root.arrays[id];
+            return this.expandable({
+                head: this.keyword('array'),
                 body: function () {
                     if (array.entries.length == 0 && array.entriesMissing == 0)
-                        return notice('empty');
-                    var container = document.createDocumentFragment();
-                    container.appendChild(table(array.entries.map(function (x) {
+                        return _this.notice('empty');
+                    var container = _this.document.createDocumentFragment();
+                    container.appendChild(_this.table(array.entries.map(function (x) {
                         return [
-                            renderValue(x.key),
-                            plain('=>'),
-                            renderValue(x.value)
+                            _this.renderValue(x.key),
+                            _this.plain('=>'),
+                            _this.renderValue(x.value)
                         ];
                     })));
                     if (array.entriesMissing > 0)
-                        container.appendChild(notice(array.entriesMissing + " entries missing..."));
+                        container.appendChild(_this.notice(array.entriesMissing + " entries missing..."));
                     return container;
                 },
                 open: false
             });
-        }
-        function renderObject(object) {
-            return expandable({
-                head: collect([keyword('new'), plain(' ' + object.className)]),
+        };
+        Renderer.prototype.renderObject = function (object) {
+            var _this = this;
+            return this.expandable({
+                head: this.collect([this.keyword('new'), this.plain(' ' + object.className)]),
                 body: function () {
                     if (object.properties.length == 0 && object.propertiesMissing == 0)
-                        return notice('empty');
-                    var container = document.createDocumentFragment();
-                    container.appendChild(table(object.properties.map(function (property) {
+                        return _this.notice('empty');
+                    var container = _this.document.createDocumentFragment();
+                    container.appendChild(_this.table(object.properties.map(function (property) {
                         var prefix = '';
                         if (property.className != object.className)
                             prefix = property.className + '::';
                         return [
-                            collect([
-                                keyword(property.access),
-                                plain(' ' + prefix),
-                                renderVariable(property.name)
+                            _this.collect([
+                                _this.keyword(property.access),
+                                _this.plain(' ' + prefix),
+                                _this.renderVariable(property.name)
                             ]),
-                            plain('='),
-                            renderValue(property.value)
+                            _this.plain('='),
+                            _this.renderValue(property.value)
                         ];
                     })));
                     if (object.propertiesMissing > 0)
-                        container.appendChild(notice(object.propertiesMissing + " properties missing..."));
+                        container.appendChild(_this.notice(object.propertiesMissing + " properties missing..."));
                     return container;
                 },
                 open: false
             });
-        }
-        function renderStack(stack, missing) {
+        };
+        Renderer.prototype.renderStack = function (stack, missing) {
+            var _this = this;
             function renderFunctionCall(call) {
-                var result = document.createDocumentFragment();
+                var result = this.document.createDocumentFragment();
                 var prefix = '';
                 if (call.object) {
-                    var object = root.objects[call.object];
-                    result.appendChild(renderObject(object));
+                    var object = this.root.objects[call.object];
+                    result.appendChild(this.renderObject(object));
                     prefix += '->';
                     if (object.className !== call.className)
                         prefix += call.className + '::';
@@ -281,16 +313,16 @@ var FailWhale;
                     prefix += call.className;
                     prefix += call.isStatic ? '::' : '->';
                 }
-                result.appendChild(plain(prefix + call.functionName));
+                result.appendChild(this.plain(prefix + call.functionName));
                 if (call.args instanceof Array) {
                     if (call.args.length == 0 && call.argsMissing == 0) {
-                        result.appendChild(plain('()'));
+                        result.appendChild(this.plain('()'));
                     }
                     else {
-                        result.appendChild(plain('( '));
+                        result.appendChild(this.plain('( '));
                         for (var i = 0; i < call.args.length; i++) {
                             if (i != 0)
-                                result.appendChild(plain(', '));
+                                result.appendChild(this.plain(', '));
                             var arg = call.args[i];
                             if (arg.name) {
                                 if (arg.typeHint) {
@@ -298,101 +330,102 @@ var FailWhale;
                                     switch (arg.typeHint) {
                                         case 'array':
                                         case 'callable':
-                                            typeHint = keyword(arg.typeHint);
+                                            typeHint = this.keyword(arg.typeHint);
                                             break;
                                         default:
-                                            typeHint = plain(arg.typeHint);
+                                            typeHint = this.plain(arg.typeHint);
                                     }
                                     result.appendChild(typeHint);
-                                    result.appendChild(plain(' '));
+                                    result.appendChild(this.plain(' '));
                                 }
                                 if (arg.isReference) {
-                                    result.appendChild(plain('&'));
+                                    result.appendChild(this.plain('&'));
                                 }
-                                result.appendChild(renderVariable(arg.name));
-                                result.appendChild(plain(' = '));
+                                result.appendChild(this.renderVariable(arg.name));
+                                result.appendChild(this.plain(' = '));
                             }
-                            result.appendChild(renderValue(arg.value));
+                            result.appendChild(this.renderValue(arg.value));
                         }
                         if (call.argsMissing > 0) {
                             if (i != 0)
-                                result.appendChild(plain(', '));
-                            result.appendChild(italics(call.argsMissing + ' arguments missing...'));
+                                result.appendChild(this.plain(', '));
+                            result.appendChild(this.italics(call.argsMissing + ' arguments missing...'));
                         }
-                        result.appendChild(plain(' )'));
+                        result.appendChild(this.plain(' )'));
                     }
                 }
                 else {
-                    result.appendChild(plain('( '));
-                    result.appendChild(italics('not available'));
-                    result.appendChild(plain(' )'));
+                    result.appendChild(this.plain('( '));
+                    result.appendChild(this.italics('not available'));
+                    result.appendChild(this.plain(' )'));
                 }
                 return result;
             }
             var rows = [];
             for (var x = 0; x < stack.length; x++) {
                 rows.push([
-                    plain('#' + String(x + 1)),
-                    renderLocation(stack[x].location),
+                    this.plain('#' + String(x + 1)),
+                    this.renderLocation(stack[x].location),
                     renderFunctionCall(stack[x])
                 ]);
             }
             if (missing == 0) {
                 rows.push([
-                    plain('#' + String(x + 1)),
-                    expandable({
-                        head: plain('{main}'),
+                    this.plain('#' + String(x + 1)),
+                    this.expandable({
+                        head: this.plain('{main}'),
                         body: function () {
-                            return notice('no source code');
+                            return _this.notice('no source code');
                         },
                         open: false
                     }),
-                    collect([])
+                    this.collect([])
                 ]);
             }
-            var container = document.createDocumentFragment();
-            container.appendChild(table(rows));
+            var container = this.document.createDocumentFragment();
+            container.appendChild(this.table(rows));
             if (missing > 0)
-                container.appendChild(notice(missing + " stack frames missing..."));
+                container.appendChild(this.notice(missing + " stack frames missing..."));
             return container;
-        }
-        function renderVariable(name) {
+        };
+        Renderer.prototype.renderVariable = function (name) {
             function red(v) {
-                var result = plain(v);
+                var result = this.plain(v);
                 result.style.color = '#700';
                 return result;
             }
             if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name))
                 return red('$' + name);
             else
-                return collect([red('$' + '{'), renderString({ bytes: name, bytesMissing: 0 }), red('}')]);
-        }
-        function renderLocals(locals, missing) {
+                return this.collect([red('$' + '{'), this.renderString({ bytes: name, bytesMissing: 0 }), red('}')]);
+        };
+        Renderer.prototype.renderLocals = function (locals, missing) {
+            var _this = this;
             if (!(locals instanceof Array))
-                return notice('not available');
+                return this.notice('not available');
             if (locals.length == 0 && missing == 0)
-                return notice('none');
-            var container = document.createDocumentFragment();
-            container.appendChild(table(locals.map(function (local) {
+                return this.notice('none');
+            var container = this.document.createDocumentFragment();
+            container.appendChild(this.table(locals.map(function (local) {
                 return [
-                    renderVariable(local.name),
-                    plain('='),
-                    renderValue(local.value)
+                    _this.renderVariable(local.name),
+                    _this.plain('='),
+                    _this.renderValue(local.value)
                 ];
             })));
             if (missing > 0)
-                container.appendChild(notice(missing + " variables missing..."));
+                container.appendChild(this.notice(missing + " variables missing..."));
             return container;
-        }
-        function renderGlobals(globals) {
+        };
+        Renderer.prototype.renderGlobals = function (globals) {
             if (!globals)
-                return notice('not available');
+                return this.notice('not available');
             var staticVariables = globals.staticVariables;
             var staticProperties = globals.staticProperties;
             var globalVariables = globals.globalVariables;
             var rows = [];
             for (var i = 0; i < globalVariables.length; i++) {
-                var pieces = document.createDocumentFragment();
+                var pieces = this.document.createDocumentFragment();
                 var v2 = globalVariables[i];
                 var superGlobals = [
                     'GLOBALS',
@@ -406,112 +439,114 @@ var FailWhale;
                     '_ENV'
                 ];
                 if (superGlobals.indexOf(v2.name) == -1) {
-                    pieces.appendChild(keyword('global'));
-                    pieces.appendChild(plain(' '));
+                    pieces.appendChild(this.keyword('global'));
+                    pieces.appendChild(this.plain(' '));
                 }
-                pieces.appendChild(renderVariable(v2.name));
-                rows.push([pieces, plain('='), renderValue(v2.value)]);
+                pieces.appendChild(this.renderVariable(v2.name));
+                rows.push([pieces, this.plain('='), this.renderValue(v2.value)]);
             }
             for (var i = 0; i < staticProperties.length; i++) {
                 var p = staticProperties[i];
-                var pieces = document.createDocumentFragment();
-                pieces.appendChild(keyword(p.access));
-                pieces.appendChild(plain(' '));
-                pieces.appendChild(plain(p.className + '::'));
-                pieces.appendChild(renderVariable(p.name));
-                rows.push([pieces, plain('='), renderValue(p.value)]);
+                var pieces = this.document.createDocumentFragment();
+                pieces.appendChild(this.keyword(p.access));
+                pieces.appendChild(this.plain(' '));
+                pieces.appendChild(this.plain(p.className + '::'));
+                pieces.appendChild(this.renderVariable(p.name));
+                rows.push([pieces, this.plain('='), this.renderValue(p.value)]);
             }
             for (var i = 0; i < staticVariables.length; i++) {
                 var v = staticVariables[i];
-                var pieces = document.createDocumentFragment();
-                pieces.appendChild(keyword('function'));
-                pieces.appendChild(plain(' '));
+                var pieces = this.document.createDocumentFragment();
+                pieces.appendChild(this.keyword('function'));
+                pieces.appendChild(this.plain(' '));
                 if (v.className)
-                    pieces.appendChild(plain(v.className + '::'));
-                pieces.appendChild(plain(v.functionName + '()::'));
-                pieces.appendChild(renderVariable(v.name));
+                    pieces.appendChild(this.plain(v.className + '::'));
+                pieces.appendChild(this.plain(v.functionName + '()::'));
+                pieces.appendChild(this.renderVariable(v.name));
                 rows.push([
                     pieces,
-                    plain('='),
-                    renderValue(v.value)
+                    this.plain('='),
+                    this.renderValue(v.value)
                 ]);
             }
-            var container = document.createDocumentFragment();
-            container.appendChild(table(rows));
+            var container = this.document.createDocumentFragment();
+            container.appendChild(this.table(rows));
             function block(node) {
                 var div = document.createElement('div');
                 div.appendChild(node);
                 return div;
             }
             if (globals.staticPropertiesMissing > 0)
-                container.appendChild(block(notice(globals.staticPropertiesMissing + " static properties missing...")));
+                container.appendChild(block(this.notice(globals.staticPropertiesMissing + " static properties missing...")));
             if (globals.globalVariablesMissing > 0)
-                container.appendChild(block(notice(globals.globalVariablesMissing + " global variables missing...")));
+                container.appendChild(block(this.notice(globals.globalVariablesMissing + " global variables missing...")));
             if (globals.staticPropertiesMissing > 0)
-                container.appendChild(block(notice(globals.staticPropertiesMissing + " static variables missing...")));
+                container.appendChild(block(this.notice(globals.staticPropertiesMissing + " static variables missing...")));
             return container;
-        }
-        function renderException(x) {
+        };
+        Renderer.prototype.renderException = function (x) {
+            var _this = this;
             if (!x)
-                return italics('none');
-            return expandable({
-                head: collect([keyword('exception'), plain(' ' + x.className)]),
+                return this.italics('none');
+            return this.expandable({
+                head: this.collect([this.keyword('exception'), this.plain(' ' + x.className)]),
                 body: function () {
-                    var body = document.createElement('div');
-                    body.appendChild(expandable({
+                    var body = _this.document.createElement('div');
+                    body.appendChild(_this.expandable({
                         inline: false,
                         open: true,
-                        head: bold('exception'),
+                        head: _this.bold('exception'),
                         body: function () {
-                            return table([
-                                [bold('code'), plain(x.code)],
-                                [bold('message'), plain(x.message)],
-                                [bold('location'), renderLocation(x.location, true)],
-                                [bold('previous'), renderException(x.previous)]
+                            return _this.table([
+                                [_this.bold('code'), _this.plain(x.code)],
+                                [_this.bold('message'), _this.plain(x.message)],
+                                [_this.bold('location'), _this.renderLocation(x.location, true)],
+                                [_this.bold('previous'), _this.renderException(x.previous)]
                             ]);
                         }
                     }));
-                    body.appendChild(expandable({
+                    body.appendChild(_this.expandable({
                         inline: false,
                         open: true,
-                        head: bold('locals'),
+                        head: _this.bold('locals'),
                         body: function () {
-                            return renderLocals(x.locals, x.localsMissing);
+                            return _this.renderLocals(x.locals, x.localsMissing);
                         }
                     }));
-                    body.appendChild(expandable({
+                    body.appendChild(_this.expandable({
                         inline: false,
                         open: true,
-                        head: bold('stack'),
+                        head: _this.bold('stack'),
                         body: function () {
-                            return renderStack(x.stack, x.stackMissing);
+                            return _this.renderStack(x.stack, x.stackMissing);
                         }
                     }));
-                    body.appendChild(expandable({
+                    body.appendChild(_this.expandable({
                         inline: false,
                         open: true,
-                        head: bold('globals'),
+                        head: _this.bold('globals'),
                         body: function () {
-                            return renderGlobals(x.globals);
+                            return _this.renderGlobals(x.globals);
                         }
                     }));
-                    body.style.padding = padding;
+                    body.style.padding = _this.padding;
                     return body;
                 },
                 open: true
             });
-        }
-        function renderLocation(location, open) {
+        };
+        Renderer.prototype.renderLocation = function (location, open) {
+            var _this = this;
             if (open === void 0) { open = false; }
-            return expandable({
+            return this.expandable({
                 head: location
-                    ? collect([plain(location.file + ':'), renderNumber(String(location.line))])
-                    : plain('[internal function]'),
+                    ? this.collect([this.plain(location.file + ':'), this.renderNumber(String(location.line))])
+                    : this.plain('[internal function]'),
                 body: function () {
                     if (!location || !location.source)
-                        return notice('no source code');
+                        return _this.notice('no source code');
                     var padding = '4px';
-                    var lineNumber = document.createElement('div');
+                    var lineNumber = _this.document.createElement('div');
                     lineNumber.style.display = 'inline-block';
                     lineNumber.style.padding = padding;
                     lineNumber.style.textAlign = 'right';
@@ -522,7 +557,7 @@ var FailWhale;
                     lineNumber.style.borderRightStyle = 'dashed';
                     lineNumber.style.verticalAlign = 'top';
                     lineNumber.style.minWidth = '32px';
-                    var code = document.createElement('div');
+                    var code = _this.document.createElement('div');
                     code.style.display = 'inline-block';
                     code.style.padding = padding;
                     code.style.width = '800px';
@@ -530,30 +565,30 @@ var FailWhale;
                     code.style.backgroundColor = '#222';
                     code.style.color = '#ccc';
                     code.style.verticalAlign = 'top';
-                    var codeDiv = document.createElement('div');
+                    var codeDiv = _this.document.createElement('div');
                     code.appendChild(codeDiv);
                     codeDiv.style.display = 'inline-block';
                     codeDiv.style.minWidth = '100%';
                     for (var codeLine in location.source) {
                         if (!location.source.hasOwnProperty(codeLine))
                             continue;
-                        var lineDiv = plain(decodeUTF8(location.source[codeLine]) + "\n", false);
+                        var lineDiv = _this.plain(decodeUTF8(location.source[codeLine]) + "\n", false);
                         if (codeLine == location.line) {
                             lineDiv.style.backgroundColor = '#f88';
                             lineDiv.style.color = '#300';
                             lineDiv.style.borderRadius = padding;
                         }
-                        lineNumber.appendChild(plain(String(codeLine) + "\n", false));
+                        lineNumber.appendChild(_this.plain(String(codeLine) + "\n", false));
                         codeDiv.appendChild(lineDiv);
                     }
-                    return collect([lineNumber, code]);
+                    return _this.collect([lineNumber, code]);
                 },
                 open: open
             });
-        }
-        function renderString(x) {
+        };
+        Renderer.prototype.renderString = function (x) {
             function doRender() {
-                var span = document.createElement('span');
+                var span = this.document.createElement('span');
                 span.style.color = '#080';
                 span.style.fontWeight = 'bold';
                 var translate = {
@@ -579,21 +614,21 @@ var FailWhale;
                     }
                     if (escaped !== undefined) {
                         if (buffer.length > 0)
-                            span.appendChild(plain(buffer));
+                            span.appendChild(this.plain(buffer));
                         buffer = "";
-                        span.appendChild(keyword(escaped));
+                        span.appendChild(this.keyword(escaped));
                     }
                     else {
                         buffer += char;
                     }
                 }
-                span.appendChild(plain(buffer + '"'));
-                var container = document.createElement('div');
+                span.appendChild(this.plain(buffer + '"'));
+                var container = this.document.createElement('div');
                 container.style.display = 'inline-table';
                 container.appendChild(span);
                 if (x.bytesMissing > 0) {
-                    container.appendChild(plain(' '));
-                    container.appendChild(italics(x.bytesMissing + ' bytes missing...'));
+                    container.appendChild(this.plain(' '));
+                    container.appendChild(this.italics(x.bytesMissing + ' bytes missing...'));
                 }
                 return container;
             }
@@ -605,15 +640,20 @@ var FailWhale;
             }
             var numLines = x.bytes.split("\n").length;
             if (visualLength > 200 || numLines > 20)
-                return expandable({ open: false, head: keyword('string'), body: doRender });
+                return this.expandable({ open: false, head: this.keyword('string'), body: doRender });
             else
                 return doRender();
-        }
-        function renderNumber(x) {
-            var result = plain(x);
+        };
+        Renderer.prototype.renderNumber = function (x) {
+            var result = this.plain(x);
             result.style.color = '#00f';
             return result;
-        }
+        };
+        return Renderer;
+    })();
+    function renderJSON(json, document) {
+        var root = JSON.parse(json);
+        return new Renderer(root, document).renderRoot();
     }
     FailWhale.renderJSON = renderJSON;
     function decodeUTF8(utf8Bytes) {
