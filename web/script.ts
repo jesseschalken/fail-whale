@@ -517,7 +517,7 @@ module FailWhale {
             var staticVariables = globals.staticVariables;
             var staticProperties = globals.staticProperties;
             var globalVariables = globals.globalVariables;
-            var rows = [];
+            var rows:Node[][] = [];
 
             for (var i = 0; i < globalVariables.length; i++) {
                 var pieces = document.createDocumentFragment();
@@ -650,8 +650,8 @@ module FailWhale {
         function renderLocation(location:Data.Location, open:boolean = false):Node {
             return expandable({
                 head: location
-                    ? collect([plain(location.file + ':'), renderNumber(String(location.line))])
-                    : plain('[internal function]'),
+                          ? collect([plain(location.file + ':'), renderNumber(String(location.line))])
+                          : plain('[internal function]'),
                 body: function () {
                     if (!location || !location.source)
                         return notice('no source code');
@@ -708,7 +708,7 @@ module FailWhale {
                 span.style.color = '#080';
                 span.style.fontWeight = 'bold';
 
-                var translate = {
+                var translate:{[index:string]: string} = {
                     '\\': '\\\\',
                     '$':  '\\$',
                     '\r': '\\r',
