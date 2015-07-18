@@ -481,7 +481,9 @@ var FailWhale;
         function renderLocation(location, open) {
             if (open === void 0) { open = false; }
             return expandable({
-                head: location ? collect([plain(location.file + ':'), renderNumber(String(location.line))]) : plain('[internal function]'),
+                head: location
+                    ? collect([plain(location.file + ':'), renderNumber(String(location.line))])
+                    : plain('[internal function]'),
                 body: function () {
                     if (!location || !location.source)
                         return notice('no source code');
