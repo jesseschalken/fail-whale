@@ -250,15 +250,15 @@ module FailWhale {
         head.style.backgroundColor = '#eee';
         head.style.cursor = 'pointer';
         head.style.padding = padding;
-        head.addEventListener('mouseenter', function () {
+        head.addEventListener('mouseenter', () => {
             head.style.backgroundColor = '#ddd';
             body.style.borderColor = '#ddd';
         });
-        head.addEventListener('mouseleave', function () {
+        head.addEventListener('mouseleave', () => {
             head.style.backgroundColor = '#eee';
             body.style.borderColor = '#eee';
         });
-        head.addEventListener('mousedown', function (e) {
+        head.addEventListener('mousedown', (e) => {
             e.preventDefault();
         });
         head.appendChild(content.head);
@@ -288,7 +288,7 @@ module FailWhale {
 
         refresh();
 
-        head.addEventListener('click', function () {
+        head.addEventListener('click', () => {
             var scroll = rescroll();
             open = !open;
             refresh();
@@ -373,12 +373,12 @@ module FailWhale {
             var array = root.arrays[id];
             return expandable({
                 head: keyword('array'),
-                body: function () {
+                body: () => {
                     if (array.entries.length == 0 && array.entriesMissing == 0)
                         return notice('empty');
 
                     var container = document.createDocumentFragment();
-                    container.appendChild(table(array.entries.map(function (x) {
+                    container.appendChild(table(array.entries.map((x) => {
                         return [
                             renderValue(x.key),
                             plain('=>'),
@@ -397,12 +397,12 @@ module FailWhale {
         function renderObject(object:Data.Object1):Node {
             return expandable({
                 head: collect([keyword('new'), plain(' ' + object.className)]),
-                body: function () {
+                body: () => {
                     if (object.properties.length == 0 && object.propertiesMissing == 0)
                         return notice('empty');
 
                     var container = document.createDocumentFragment();
-                    container.appendChild(table(object.properties.map(function (property) {
+                    container.appendChild(table(object.properties.map((property) => {
                         var prefix = '';
                         if (property.className != object.className)
                             prefix = property.className + '::';
@@ -511,7 +511,7 @@ module FailWhale {
                     plain('#' + String(x + 1)),
                     expandable({
                         head: plain('{main}'),
-                        body: function () {
+                        body: () => {
                             return notice('no source code');
                         },
                         open: false
@@ -549,7 +549,7 @@ module FailWhale {
                 return notice('none');
 
             var container = document.createDocumentFragment();
-            container.appendChild(table(locals.map(function (local) {
+            container.appendChild(table(locals.map((local) => {
                 return [
                     renderVariable(local.name),
                     plain('='),
@@ -653,14 +653,14 @@ module FailWhale {
 
             return expandable({
                 head: collect([keyword('exception'), plain(' ' + x.className)]),
-                body: function () {
+                body: () => {
 
                     var body = document.createElement('div');
                     body.appendChild(expandable({
                         inline: false,
                         open:   true,
                         head:   bold('exception'),
-                        body:   function () {
+                        body:   () => {
                             return table([
                                 [bold('code'), plain(x.code)],
                                 [bold('message'), plain(x.message)],
@@ -673,7 +673,7 @@ module FailWhale {
                         inline: false,
                         open:   true,
                         head:   bold('locals'),
-                        body:   function () {
+                        body:   () => {
                             return renderLocals(x.locals, x.localsMissing);
                         }
                     }));
@@ -681,7 +681,7 @@ module FailWhale {
                         inline: false,
                         open:   true,
                         head:   bold('stack'),
-                        body:   function () {
+                        body:   () => {
                             return renderStack(x.stack, x.stackMissing);
                         }
                     }));
@@ -689,7 +689,7 @@ module FailWhale {
                         inline: false,
                         open:   true,
                         head:   bold('globals'),
-                        body:   function () {
+                        body:   () => {
                             return renderGlobals(x.globals);
                         }
                     }));
@@ -705,7 +705,7 @@ module FailWhale {
                 head: location
                           ? collect([plain(location.file + ':'), renderNumber(String(location.line))])
                           : plain('[internal function]'),
-                body: function () {
+                body: () => {
                     if (!location || !location.source)
                         return notice('no source code');
 
