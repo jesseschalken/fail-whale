@@ -44,33 +44,33 @@ var FailWhale;
         function visit(x, f) {
             switch (x.type) {
                 case Data.Type.INT:
-                    return f.int(x.int);
+                    return f.visitInt(x.int);
                 case Data.Type.FLOAT:
-                    return f.float(x.float);
+                    return f.visitFloat(x.float);
                 case Data.Type.TRUE:
-                    return f.true_();
+                    return f.visitTrue();
                 case Data.Type.FALSE:
-                    return f.false_();
+                    return f.visitFalse();
                 case Data.Type.STRING:
-                    return f.string(x.string);
+                    return f.visitString(x.string);
                 case Data.Type.POS_INF:
-                    return f.posInf();
+                    return f.visitPosInf();
                 case Data.Type.NEG_INF:
-                    return f.negInf();
+                    return f.visitNegInf();
                 case Data.Type.NAN:
-                    return f.nan();
+                    return f.visitNaN();
                 case Data.Type.ARRAY:
-                    return f.array(x.array);
+                    return f.visitArray(x.array);
                 case Data.Type.OBJECT:
-                    return f.object(x.object);
+                    return f.visitObject(x.object);
                 case Data.Type.EXCEPTION:
-                    return f.exception(x.exception);
+                    return f.visitException(x.exception);
                 case Data.Type.RESOURCE:
-                    return f.resource(x.resource);
+                    return f.visitResource(x.resource);
                 case Data.Type.NULL:
-                    return f.null_();
+                    return f.visitNull();
                 case Data.Type.UNKNOWN:
-                    return f.unknown();
+                    return f.visitUnknown();
                 default:
                     throw "unknown type " + x.type;
             }
@@ -192,24 +192,24 @@ var FailWhale;
         return container;
         function renderValue(x) {
             return Data.visit(x, {
-                int: function (val) { return renderNumber(String(val)); },
-                float: function (val) {
+                visitInt: function (val) { return renderNumber(String(val)); },
+                visitFloat: function (val) {
                     var str = String(val);
                     str = x.float % 1 == 0 ? str + '.0' : str;
                     return renderNumber(str);
                 },
-                true_: function () { return keyword('true'); },
-                false_: function () { return keyword('false'); },
-                string: function (id) { return renderString(root.strings[id]); },
-                posInf: function () { return renderNumber('INF'); },
-                negInf: function () { return renderNumber('-INF'); },
-                nan: function () { return renderNumber('NAN'); },
-                array: function (id) { return renderArray(id); },
-                object: function (id) { return renderObject(root.objects[id]); },
-                exception: function (val) { return renderException(val); },
-                resource: function (val) { return collect([keyword('resource'), plain(' ' + val.type)]); },
-                null_: function () { return keyword('null'); },
-                unknown: function () {
+                visitTrue: function () { return keyword('true'); },
+                visitFalse: function () { return keyword('false'); },
+                visitString: function (id) { return renderString(root.strings[id]); },
+                visitPosInf: function () { return renderNumber('INF'); },
+                visitNegInf: function () { return renderNumber('-INF'); },
+                visitNaN: function () { return renderNumber('NAN'); },
+                visitArray: function (id) { return renderArray(id); },
+                visitObject: function (id) { return renderObject(root.objects[id]); },
+                visitException: function (val) { return renderException(val); },
+                visitResource: function (val) { return collect([keyword('resource'), plain(' ' + val.type)]); },
+                visitNull: function () { return keyword('null'); },
+                visitUnknown: function () {
                     var span = plain('unknown type');
                     span.style.fontStyle = 'italic';
                     return span;

@@ -151,52 +151,52 @@ module FailWhale {
         }
 
         export interface ValueVisitor<T> {
-            string:    (id:number) => T,
-            array:     (id:number) => T,
-            object:    (id:number) => T,
-            int:       (val:number) => T,
-            true_:     () => T,
-            false_:    () => T,
-            null_:     () => T,
-            posInf:    () => T,
-            negInf:    () => T,
-            nan:       () => T,
-            unknown:   () => T,
-            float:     (val:number) => T,
-            resource:  (val:Resource) => T,
-            exception: (val:Exception) => T
+            visitString:    (id:number) => T,
+            visitArray:     (id:number) => T,
+            visitObject:    (id:number) => T,
+            visitInt:       (val:number) => T,
+            visitTrue:      () => T,
+            visitFalse:     () => T,
+            visitNull:      () => T,
+            visitPosInf:    () => T,
+            visitNegInf:    () => T,
+            visitNaN:       () => T,
+            visitUnknown:   () => T,
+            visitFloat:     (val:number) => T,
+            visitResource:  (val:Resource) => T,
+            visitException: (val:Exception) => T
         }
 
         export function visit<T>(x:Value, f:ValueVisitor<T>):T {
             switch (x.type) {
                 case Data.Type.INT:
-                    return f.int(x.int);
+                    return f.visitInt(x.int);
                 case Data.Type.FLOAT:
-                    return f.float(x.float);
+                    return f.visitFloat(x.float);
                 case Data.Type.TRUE:
-                    return f.true_();
+                    return f.visitTrue();
                 case Data.Type.FALSE:
-                    return f.false_();
+                    return f.visitFalse();
                 case Data.Type.STRING:
-                    return f.string(x.string);
+                    return f.visitString(x.string);
                 case Data.Type.POS_INF:
-                    return f.posInf();
+                    return f.visitPosInf();
                 case Data.Type.NEG_INF:
-                    return f.negInf();
+                    return f.visitNegInf();
                 case Data.Type.NAN:
-                    return f.nan();
+                    return f.visitNaN();
                 case Data.Type.ARRAY:
-                    return f.array(x.array);
+                    return f.visitArray(x.array);
                 case Data.Type.OBJECT:
-                    return f.object(x.object);
+                    return f.visitObject(x.object);
                 case Data.Type.EXCEPTION:
-                    return f.exception(x.exception);
+                    return f.visitException(x.exception);
                 case Data.Type.RESOURCE:
-                    return f.resource(x.resource);
+                    return f.visitResource(x.resource);
                 case Data.Type.NULL:
-                    return f.null_();
+                    return f.visitNull();
                 case Data.Type.UNKNOWN:
-                    return f.unknown();
+                    return f.visitUnknown();
                 default:
                     throw "unknown type " + x.type;
             }
@@ -344,24 +344,24 @@ module FailWhale {
 
         function renderValue(x:Data.Value) {
             return Data.visit(x, {
-                int:       (val:number) => renderNumber(String(val)),
-                float:     (val:number) => {
+                visitInt:       (val:number) => renderNumber(String(val)),
+                visitFloat:     (val:number) => {
                     var str = String(val);
                     str = x.float % 1 == 0 ? str + '.0' : str;
                     return renderNumber(str);
                 },
-                true_:     () => keyword('true'),
-                false_:    () => keyword('false'),
-                string:    (id:number) => renderString(root.strings[id]),
-                posInf:    () => renderNumber('INF'),
-                negInf:    () => renderNumber('-INF'),
-                nan:       () => renderNumber('NAN'),
-                array:     (id:number) => renderArray(id),
-                object:    (id:number) => renderObject(root.objects[id]),
-                exception: (val:Data.Exception) => renderException(val),
-                resource:  (val:Data.Resource) => collect([keyword('resource'), plain(' ' + val.type)]),
-                null_:     () => keyword('null'),
-                unknown:   () => {
+                visitTrue:      () => keyword('true'),
+                visitFalse:     () => keyword('false'),
+                visitString:    (id:number) => renderString(root.strings[id]),
+                visitPosInf:    () => renderNumber('INF'),
+                visitNegInf:    () => renderNumber('-INF'),
+                visitNaN:       () => renderNumber('NAN'),
+                visitArray:     (id:number) => renderArray(id),
+                visitObject:    (id:number) => renderObject(root.objects[id]),
+                visitException: (val:Data.Exception) => renderException(val),
+                visitResource:  (val:Data.Resource) => collect([keyword('resource'), plain(' ' + val.type)]),
+                visitNull:      () => keyword('null'),
+                visitUnknown:   () => {
                     var span = plain('unknown type');
                     span.style.fontStyle = 'italic';
                     return span;
