@@ -41,6 +41,41 @@ var FailWhale;
             RESOURCE: 'resource',
             EXCEPTION: 'exception'
         };
+        function visit(x, f) {
+            switch (x.type) {
+                case Data.Type.INT:
+                    return f.int(x.int);
+                case Data.Type.FLOAT:
+                    return f.float(x.float);
+                case Data.Type.TRUE:
+                    return f.true_();
+                case Data.Type.FALSE:
+                    return f.false_();
+                case Data.Type.STRING:
+                    return f.string(x.string);
+                case Data.Type.POS_INF:
+                    return f.posInf();
+                case Data.Type.NEG_INF:
+                    return f.negInf();
+                case Data.Type.NAN:
+                    return f.nan();
+                case Data.Type.ARRAY:
+                    return f.array(x.array);
+                case Data.Type.OBJECT:
+                    return f.object(x.object);
+                case Data.Type.EXCEPTION:
+                    return f.exception(x.exception);
+                case Data.Type.RESOURCE:
+                    return f.resource(x.resource);
+                case Data.Type.NULL:
+                    return f.null_();
+                case Data.Type.UNKNOWN:
+                    return f.unknown();
+                default:
+                    throw "unknown type " + x.type;
+            }
+        }
+        Data.visit = visit;
     })(Data || (Data = {}));
     var padding = '3px';
     function plain(content, inline) {
@@ -156,42 +191,30 @@ var FailWhale;
         container.appendChild(renderValue(root.root));
         return container;
         function renderValue(x) {
-            switch (x.type) {
-                case Data.Type.INT:
-                    return renderNumber(String(x.int));
-                case Data.Type.FLOAT:
-                    var str = String(x.float);
+            return Data.visit(x, {
+                int: function (val) { return renderNumber(String(val)); },
+                float: function (val) {
+                    var str = String(val);
                     str = x.float % 1 == 0 ? str + '.0' : str;
                     return renderNumber(str);
-                case Data.Type.TRUE:
-                    return keyword('true');
-                case Data.Type.FALSE:
-                    return keyword('false');
-                case Data.Type.STRING:
-                    return renderString(root.strings[x.string]);
-                case Data.Type.POS_INF:
-                    return renderNumber('INF');
-                case Data.Type.NEG_INF:
-                    return renderNumber('-INF');
-                case Data.Type.NAN:
-                    return renderNumber('NAN');
-                case Data.Type.ARRAY:
-                    return renderArray(x.array);
-                case Data.Type.OBJECT:
-                    return renderObject(root.objects[x.object]);
-                case Data.Type.EXCEPTION:
-                    return renderException(x.exception);
-                case Data.Type.RESOURCE:
-                    return collect([keyword('resource'), plain(' ' + x.resource.type)]);
-                case Data.Type.NULL:
-                    return keyword('null');
-                case Data.Type.UNKNOWN:
+                },
+                true_: function () { return keyword('true'); },
+                false_: function () { return keyword('false'); },
+                string: function (id) { return renderString(root.strings[id]); },
+                posInf: function () { return renderNumber('INF'); },
+                negInf: function () { return renderNumber('-INF'); },
+                nan: function () { return renderNumber('NAN'); },
+                array: function (id) { return renderArray(id); },
+                object: function (id) { return renderObject(root.objects[id]); },
+                exception: function (val) { return renderException(val); },
+                resource: function (val) { return collect([keyword('resource'), plain(' ' + val.type)]); },
+                null_: function () { return keyword('null'); },
+                unknown: function () {
                     var span = plain('unknown type');
                     span.style.fontStyle = 'italic';
                     return span;
-                default:
-                    throw "unknown type " + x.type;
-            }
+                }
+            });
         }
         function renderArray(id) {
             var array = root.arrays[id];
