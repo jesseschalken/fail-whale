@@ -355,7 +355,7 @@ class PrettyPrinter {
         $text->addLines($message);
 
         if ($this->settings->showExceptionSourceCode) {
-            if (!$e->location->source)
+            if (!$e->location || !$e->location->source)
                 $source = $this->text('not available');
             else
                 $source = $this->renderSourceCode($e->location->source, $e->location->line);

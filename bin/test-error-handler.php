@@ -4,17 +4,18 @@ namespace FailWhale;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-ErrorHandler::bind(
-    function (\Exception $e) {
-        $i = new IntrospectionSettings;
-        $i->fileNamePrefix = dirname(__DIR__) . DIRECTORY_SEPARATOR;
-        $v = Value::introspectException($e, $i);
-        if (PHP_SAPI === 'cli')
-            print $v->toString();
-        else
-            print $v->toHTML();
-    }
-);
+set_error_and_exception_handler(function (\Exception $e) {
+    $i = new IntrospectionSettings;
+
+    $i->fileNamePrefix  = dirname(__DIR__) . DIRECTORY_SEPARATOR;
+    $i->namespacePrefix = '\\FailWhale\\';
+
+    $v = Value::introspectException($e, $i);
+    if (PHP_SAPI === 'cli')
+        print $v->toString();
+    else
+        print $v->toHTML();
+});
 
 ini_set('display_errors', 1);
 
@@ -93,6 +94,7 @@ class Lol {
 
 function lololololl(/** @noinspection PhpUnusedParameterInspection */
     Lol $foo) {
+    /** @noinspection PhpMethodParametersCountMismatchInspection */
     Blarg::foo(34523466, "\n", 423452345);
 }
 
