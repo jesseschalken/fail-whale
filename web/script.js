@@ -143,13 +143,13 @@ var FailWhale;
             body.style.borderStyle = 'solid';
             container.appendChild(body);
             var open = content.open;
-            function refresh() {
+            var refresh = function () {
                 body.innerHTML = '';
                 if (open) {
                     body.appendChild(content.body());
                 }
                 body.style.display = open ? 'block' : 'none';
-            }
+            };
             refresh();
             head.addEventListener('click', function () {
                 var scroll = rescroll(_this.document);
@@ -188,7 +188,7 @@ var FailWhale;
             return box;
         };
         Renderer.prototype.renderRoot = function () {
-            var container = document.createElement('div');
+            var container = this.document.createElement('div');
             container.style.whiteSpace = 'pre';
             container.style.fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
             container.style.fontSize = "10pt";
@@ -299,12 +299,12 @@ var FailWhale;
         };
         Renderer.prototype.renderStack = function (stack, missing) {
             var _this = this;
-            function renderFunctionCall(call) {
-                var result = this.document.createDocumentFragment();
+            var renderFunctionCall = function (call) {
+                var result = _this.document.createDocumentFragment();
                 var prefix = '';
                 if (call.object) {
-                    var object = this.root.objects[call.object];
-                    result.appendChild(this.renderObject(object));
+                    var object = _this.root.objects[call.object];
+                    result.appendChild(_this.renderObject(object));
                     prefix += '->';
                     if (object.className !== call.className)
                         prefix += call.className + '::';
@@ -313,16 +313,16 @@ var FailWhale;
                     prefix += call.className;
                     prefix += call.isStatic ? '::' : '->';
                 }
-                result.appendChild(this.plain(prefix + call.functionName));
+                result.appendChild(_this.plain(prefix + call.functionName));
                 if (call.args instanceof Array) {
                     if (call.args.length == 0 && call.argsMissing == 0) {
-                        result.appendChild(this.plain('()'));
+                        result.appendChild(_this.plain('()'));
                     }
                     else {
-                        result.appendChild(this.plain('( '));
+                        result.appendChild(_this.plain('( '));
                         for (var i = 0; i < call.args.length; i++) {
                             if (i != 0)
-                                result.appendChild(this.plain(', '));
+                                result.appendChild(_this.plain(', '));
                             var arg = call.args[i];
                             if (arg.name) {
                                 if (arg.typeHint) {
@@ -330,37 +330,37 @@ var FailWhale;
                                     switch (arg.typeHint) {
                                         case 'array':
                                         case 'callable':
-                                            typeHint = this.keyword(arg.typeHint);
+                                            typeHint = _this.keyword(arg.typeHint);
                                             break;
                                         default:
-                                            typeHint = this.plain(arg.typeHint);
+                                            typeHint = _this.plain(arg.typeHint);
                                     }
                                     result.appendChild(typeHint);
-                                    result.appendChild(this.plain(' '));
+                                    result.appendChild(_this.plain(' '));
                                 }
                                 if (arg.isReference) {
-                                    result.appendChild(this.plain('&'));
+                                    result.appendChild(_this.plain('&'));
                                 }
-                                result.appendChild(this.renderVariable(arg.name));
-                                result.appendChild(this.plain(' = '));
+                                result.appendChild(_this.renderVariable(arg.name));
+                                result.appendChild(_this.plain(' = '));
                             }
-                            result.appendChild(this.renderValue(arg.value));
+                            result.appendChild(_this.renderValue(arg.value));
                         }
                         if (call.argsMissing > 0) {
                             if (i != 0)
-                                result.appendChild(this.plain(', '));
-                            result.appendChild(this.italics(call.argsMissing + ' arguments missing...'));
+                                result.appendChild(_this.plain(', '));
+                            result.appendChild(_this.italics(call.argsMissing + ' arguments missing...'));
                         }
-                        result.appendChild(this.plain(' )'));
+                        result.appendChild(_this.plain(' )'));
                     }
                 }
                 else {
-                    result.appendChild(this.plain('( '));
-                    result.appendChild(this.italics('not available'));
-                    result.appendChild(this.plain(' )'));
+                    result.appendChild(_this.plain('( '));
+                    result.appendChild(_this.italics('not available'));
+                    result.appendChild(_this.plain(' )'));
                 }
                 return result;
-            }
+            };
             var rows = [];
             for (var x = 0; x < stack.length; x++) {
                 rows.push([
@@ -389,11 +389,12 @@ var FailWhale;
             return container;
         };
         Renderer.prototype.renderVariable = function (name) {
-            function red(v) {
-                var result = this.plain(v);
+            var _this = this;
+            var red = function (v) {
+                var result = _this.plain(v);
                 result.style.color = '#700';
                 return result;
-            }
+            };
             if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name))
                 return red('$' + name);
             else
@@ -418,6 +419,7 @@ var FailWhale;
             return container;
         };
         Renderer.prototype.renderGlobals = function (globals) {
+            var _this = this;
             if (!globals)
                 return this.notice('not available');
             var staticVariables = globals.staticVariables;
@@ -471,11 +473,11 @@ var FailWhale;
             }
             var container = this.document.createDocumentFragment();
             container.appendChild(this.table(rows));
-            function block(node) {
-                var div = document.createElement('div');
+            var block = function (node) {
+                var div = _this.document.createElement('div');
                 div.appendChild(node);
                 return div;
-            }
+            };
             if (globals.staticPropertiesMissing > 0)
                 container.appendChild(block(this.notice(globals.staticPropertiesMissing + " static properties missing...")));
             if (globals.globalVariablesMissing > 0)
@@ -587,8 +589,9 @@ var FailWhale;
             });
         };
         Renderer.prototype.renderString = function (x) {
-            function doRender() {
-                var span = this.document.createElement('span');
+            var _this = this;
+            var doRender = function () {
+                var span = _this.document.createElement('span');
                 span.style.color = '#080';
                 span.style.fontWeight = 'bold';
                 var translate = {
@@ -614,24 +617,24 @@ var FailWhale;
                     }
                     if (escaped !== undefined) {
                         if (buffer.length > 0)
-                            span.appendChild(this.plain(buffer));
+                            span.appendChild(_this.plain(buffer));
                         buffer = "";
-                        span.appendChild(this.keyword(escaped));
+                        span.appendChild(_this.keyword(escaped));
                     }
                     else {
                         buffer += char;
                     }
                 }
-                span.appendChild(this.plain(buffer + '"'));
-                var container = this.document.createElement('div');
+                span.appendChild(_this.plain(buffer + '"'));
+                var container = _this.document.createElement('div');
                 container.style.display = 'inline-table';
                 container.appendChild(span);
                 if (x.bytesMissing > 0) {
-                    container.appendChild(this.plain(' '));
-                    container.appendChild(this.italics(x.bytesMissing + ' bytes missing...'));
+                    container.appendChild(_this.plain(' '));
+                    container.appendChild(_this.italics(x.bytesMissing + ' bytes missing...'));
                 }
                 return container;
-            }
+            };
             var visualLength = 0;
             for (var i = 0; i < x.bytes.length; i++) {
                 var code = x.bytes.charCodeAt(i);

@@ -284,7 +284,7 @@ module FailWhale {
 
             var open = content.open;
 
-            function refresh() {
+            var refresh = () => {
                 body.innerHTML = '';
 
                 if (open) {
@@ -292,7 +292,7 @@ module FailWhale {
                 }
 
                 body.style.display = open ? 'block' : 'none';
-            }
+            };
 
             refresh();
 
@@ -340,7 +340,7 @@ module FailWhale {
         }
 
         renderRoot() {
-            var container = document.createElement('div');
+            var container = this.document.createElement('div');
             container.style.whiteSpace = 'pre';
             container.style.fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
             container.style.fontSize = "10pt";
@@ -472,7 +472,7 @@ module FailWhale {
         }
 
         private renderStack(stack:Data.Stack[], missing:number):Node {
-            function renderFunctionCall(call:Data.Stack):Node {
+            var renderFunctionCall = (call:Data.Stack):Node => {
                 var result = this.document.createDocumentFragment();
                 var prefix = '';
                 if (call.object) {
@@ -538,7 +538,7 @@ module FailWhale {
                 }
 
                 return result;
-            }
+            };
 
             var rows:Node[][] = [];
 
@@ -573,11 +573,11 @@ module FailWhale {
         }
 
         private renderVariable(name:string):Node {
-            function red(v:string) {
+            var red = (v:string) => {
                 var result = this.plain(v);
                 result.style.color = '#700';
                 return result;
-            }
+            };
 
             if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name))
                 return red('$' + name);
@@ -673,11 +673,11 @@ module FailWhale {
             var container = this.document.createDocumentFragment();
             container.appendChild(this.table(rows));
 
-            function block(node:Node):Node {
-                var div = document.createElement('div');
+            var block = (node:Node):Node => {
+                var div = this.document.createElement('div');
                 div.appendChild(node);
                 return div;
-            }
+            };
 
             if (globals.staticPropertiesMissing > 0)
                 container.appendChild(block(this.notice(globals.staticPropertiesMissing + " static properties missing...")));
@@ -800,7 +800,7 @@ module FailWhale {
         }
 
         private renderString(x:Data.String1):Node {
-            function doRender():Node {
+            var doRender = ():Node => {
                 var span = this.document.createElement('span');
                 span.style.color = '#080';
                 span.style.fontWeight = 'bold';
@@ -851,7 +851,7 @@ module FailWhale {
                 }
 
                 return container;
-            }
+            };
 
             var visualLength = 0;
 
