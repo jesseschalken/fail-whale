@@ -118,9 +118,7 @@ class ErrorException extends \ErrorException {
 
         $this->context = $context;
 
-        $prop = new \ReflectionProperty('Exception', 'trace');
-        $prop->setAccessible(true);
-        $prop->setValue($this, array_slice(debug_backtrace(), 1 + $traceSkip));
+        set_exception_trace($this, array_slice(debug_backtrace(), 1 + $traceSkip));
     }
 
     function getContext() {
@@ -143,8 +141,6 @@ class Exception extends \Exception {
 
         $trace = array_slice($trace, $i);
 
-        $prop = new \ReflectionProperty('Exception', 'trace');
-        $prop->setAccessible(true);
-        $prop->setValue($this, $trace);
+        set_exception_trace($this, $trace);
     }
 }

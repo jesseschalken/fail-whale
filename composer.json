@@ -13,6 +13,7 @@
         "phpunit/phpunit": "*"
     },
     "autoload": {
-        "classmap": ["src/"]
+        "classmap": ["src/"],
+        "files": ["src/functions.php"]
     }
 }
