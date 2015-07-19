@@ -80,7 +80,7 @@ All `Value::introspect*()` methods optionally accept a `IntrospectionSettings` o
 
 #### `\FailWhale\set_exception_trace()`, `\FailWhale\Exception`
 
-In order to see the `$this` object (current object) for each stack frame in an exception, you should overwrite the default trace for an exception with one provided by `debug_backtrace()` using `set_exception_trace()`:
+In order to see the `$this` object (current object) for each stack frame in an exception, you should overwrite the default trace for an exception with one provided by `debug_backtrace()` using `\FailWhale\set_exception_trace()`:
 
 ```php
 $e = new \Exception('oh no!');
@@ -112,8 +112,8 @@ throw new \FailWhale\Exception('oh no!');
 You can also use `\FailWhale\set_exception_trace()` to remove the top stack frame from an exception, to avoid your error handler appearing in the trace, for example.
 
 ```php
-\set_error_handler(function ($errno, $errstr, $errfile, $errline, $errcontext = null) {
-    $e = new \ErrorException($errstr, 0, $errno, $errfile, $errline);
+\set_error_handler(function ($type, $message, $file, $line, $context = null) {
+    $e = new \ErrorException($message, 0, $type, $file, $line);
     \FailWhale\set_exception_trace($e, array_slice($e->getTrace(), 1)); // <=
     throw $e;
 })
@@ -121,12 +121,12 @@ You can also use `\FailWhale\set_exception_trace()` to remove the top stack fram
 
 #### `\FailWhale\ErrorException`
 
-In order to see the local variables for PHP errors, you should use `\FailWhale\ErrorException` in place of `\ErrorException` in your error handler, and call `$e->setContext()` with the `$errcontext` array provided to your error handler from `\set_error_handler()`. For example:
+In order to see the local variables for PHP errors, you should use `\FailWhale\ErrorException` in place of `\ErrorException` in your error handler, and call `$e->setContext()` with the `$context` array provided to your error handler from `\set_error_handler()`. For example:
 
 ```php
-\set_error_handler(function ($errno, $errstr, $errfile, $errline, $errcontext = null) {
-    $e = new \FailWhale\ErrorException($errstr, 0, $errno, $errfile, $errline);
-    $e->setContext($errcontext); // <=
+\set_error_handler(function ($type, $message, $file, $line, $context = null) {
+    $e = new \FailWhale\ErrorException($message, 0, $type, $file, $line);
+    $e->setContext($context); // <=
     throw $e;
 })
 ```
@@ -143,9 +143,9 @@ print \FailWhale\php_error_name(E_PARSE); // Parse Error
 This can be useful for setting the code (as opposed to the severity/level/type) for an `\ErrorException`, which is usually set to _0_. Since `new \ErrorException(...)` only accepts integers for `$code`, you should use `\FailWhale\ErrorException` instead and call `setCode()`. For example:
 
 ```php
-\set_error_handler(function ($errno, $errstr, $errfile, $errline, $errcontext = null) {
-    $e = new \FailWhale\ErrorException($errstr, 0, $errno, $errfile, $errline);
-    $e->setCode(\FailWhale\php_error_constant($errno)); // <=
+\set_error_handler(function ($type, $message, $file, $line, $context = null) {
+    $e = new \FailWhale\ErrorException($message, 0, $type, $file, $line);
+    $e->setCode(\FailWhale\php_error_constant($type)); // <=
     throw $e;
 })
 ```
