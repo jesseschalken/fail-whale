@@ -109,16 +109,16 @@ function set_error_and_exception_handler(callable $handler) {
     register_shutdown_function(function () use ($handler) {
         $e = error_get_last();
         if ($e !== null && ($e['type'] & (E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR))) {
-            $e = new ErrorException(
+            $ex = new ErrorException(
                 $e['message'],
                 0,
                 $e['type'],
                 $e['file'],
                 $e['line']
             );
-            $e->setCode(php_error_constant($e['type']));
-            set_exception_trace($e, array());
-            $handler($e);
+            $ex->setCode(php_error_constant($e['type']));
+            set_exception_trace($ex, array());
+            $handler($ex);
         }
     });
 }
