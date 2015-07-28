@@ -10,10 +10,10 @@
         }
     ],
     "require-dev": {
-        "phpunit/phpunit": "*"
+        "phpunit/phpunit": "*",
+        "jesseschalken/autoload-generator": "dev-master"
     },
     "autoload": {
-        "classmap": ["src/"],
-        "files": ["src/error helpers.php"]
+        "files": ["src/include.php"]
     }
 }
