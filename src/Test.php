@@ -1,6 +1,9 @@
 <?php
 
-namespace FailWhale;
+namespace FailWhale\Test;
+
+use FailWhale\IntrospectionSettings;
+use FailWhale\Value;
 
 class DummyClass1 {
     private static /** @noinspection PhpUnusedPrivateFieldInspection */
