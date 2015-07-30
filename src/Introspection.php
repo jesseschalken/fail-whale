@@ -43,7 +43,7 @@ class Introspection {
     }
 
     function mockException() {
-        $mock                = new Data\ExceptionImpl;
+        $mock                = new Data\Exception_;
         $mock->className     = 'MuhMockException';
         $mock->code          = 'Dummy exception code';
         $mock->message       = <<<'s'
@@ -139,14 +139,14 @@ s;
 
         $mock->stack = array($stack1, $stack2);
 
-        $value            = new Data\ValueImpl;
+        $value            = new Data\Value_;
         $value->type      = Data\Type::EXCEPTION;
         $value->exception = $mock;
         return $value;
     }
 
     function introspect($value) {
-        $result = new Data\ValueImpl;
+        $result = new Data\Value_;
 
         if (is_string($value)) {
             $result->type   = Data\Type::STRING;
@@ -177,7 +177,7 @@ s;
             $result->object = $this->objectId($value);
         } else if (is_resource($value)) {
             $result->type           = Data\Type::RESOURCE;
-            $result->resource       = new Data\Resource1;
+            $result->resource       = new Data\Resource_;
             $result->resource->id   = (int)$value;
             $result->resource->type = get_resource_type($value);
         } else {
@@ -208,7 +208,7 @@ s;
             $maxLength = $this->limits->maxStringLength;
             $maxLength = $maxLength === INF ? PHP_INT_MAX : $maxLength;
 
-            $string               = new Data\String1;
+            $string               = new Data\String_;
             $string->bytes        = (string)substr($value, 0, $maxLength);
             $string->bytesMissing = strlen($value) - strlen($string->bytes);
 
@@ -227,7 +227,7 @@ s;
     }
 
     private function introspectObject($object) {
-        $result             = new Data\Object1;
+        $result             = new Data\Object_;
         $result->className  = $this->removeNamespacePrefix(get_class($object));
         $result->hash       = spl_object_hash($object);
         $result->properties = $this->introspectObjectProperties($object, $result->propertiesMissing);
@@ -245,7 +245,7 @@ s;
     }
 
     private function introspectArray(array $array) {
-        $result                = new Data\Array1;
+        $result                = new Data\Array_;
         $result->isAssociative = self::isAssoc($array);
 
         foreach ($array as $key => &$value) {
@@ -292,7 +292,7 @@ s;
 
     function introspectRef(&$value) {
         if (is_array($value)) {
-            $result        = new Data\ValueImpl;
+            $result        = new Data\Value_;
             $result->type  = Data\Type::ARRAY1;
             $result->array = $this->arrayRefId($value);
             return $result;
@@ -346,7 +346,7 @@ s;
     }
 
     function introspectException(\Exception $e) {
-        $result            = new Data\ValueImpl;
+        $result            = new Data\Value_;
         $result->type      = Data\Type::EXCEPTION;
         $result->exception = $this->introspectException2($e);
         return $result;
@@ -358,7 +358,7 @@ s;
 
         $locals = $e instanceof ErrorException ? $e->getContext() : null;
 
-        $result            = new Data\ExceptionImpl;
+        $result            = new Data\Exception_;
         $result->className = $this->removeNamespacePrefix(get_class($e));
         $result->code      = $e->getCode();
         $result->message   = $e->getMessage();
@@ -581,7 +581,7 @@ s;
         return $globals;
     }
 
-    function root(Data\ValueImpl $value) {
+    function root(Data\Value_ $value) {
         $root       = clone $this->root;
         $root->root = $value;
         return $root;

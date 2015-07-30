@@ -90,32 +90,32 @@ class Base {
 }
 
 class Root extends Base {
-    /** @var ValueImpl */
+    /** @var Value_ */
     public $root;
-    /** @var String1[] */
+    /** @var String_[] */
     public $strings = array();
-    /** @var Object1[] */
+    /** @var Object_[] */
     public $objects = array();
-    /** @var Array1[] */
+    /** @var Array_[] */
     public $arrays = array();
 
     protected function pushJSON(array $json) {
         parent::pushJSON($json);
-        ValueImpl::convertJSON($this->root);
-        String1::convertJSONs($this->strings);
-        Object1::convertJSONs($this->objects);
-        Array1::convertJSONs($this->arrays);
+        Value_::convertJSON($this->root);
+        String_::convertJSONs($this->strings);
+        Object_::convertJSONs($this->objects);
+        Array_::convertJSONs($this->arrays);
     }
 }
 
-class String1 extends Base {
+class String_ extends Base {
     /** @var string */
     public $bytes;
     /** @var int */
     public $bytesMissing = 0;
 }
 
-class Array1 extends Base {
+class Array_ extends Base {
     /** @var int */
     public $entriesMissing = 0;
     /** @var ArrayEntry[] */
@@ -130,19 +130,19 @@ class Array1 extends Base {
 }
 
 class ArrayEntry extends Base {
-    /** @var ValueImpl */
+    /** @var Value_ */
     public $key;
-    /** @var ValueImpl */
+    /** @var Value_ */
     public $value;
 
     protected function pushJSON(array $json) {
         parent::pushJSON($json);
-        ValueImpl::convertJSON($this->key);
-        ValueImpl::convertJSON($this->value);
+        Value_::convertJSON($this->key);
+        Value_::convertJSON($this->value);
     }
 }
 
-class Object1 extends Base {
+class Object_ extends Base {
     /** @var string */
     public $hash;
     /** @var string */
@@ -161,12 +161,12 @@ class Object1 extends Base {
 class Variable extends Base {
     /** @var string */
     public $name;
-    /** @var ValueImpl */
+    /** @var Value_ */
     public $value;
 
     protected function pushJSON(array $json) {
         parent::pushJSON($json);
-        ValueImpl::convertJSON($this->value);
+        Value_::convertJSON($this->value);
     }
 }
 
@@ -208,7 +208,7 @@ class Globals extends Base {
     }
 }
 
-class ExceptionImpl extends Base {
+class Exception_ extends Base {
     /** @var Variable[] */
     public $locals;
     /** @var int */
@@ -227,7 +227,7 @@ class ExceptionImpl extends Base {
     public $message;
     /** @var Location */
     public $location;
-    /** @var ExceptionImpl */
+    /** @var Exception_ */
     public $previous;
 
     protected function pushJSON(array $json) {
@@ -266,7 +266,7 @@ class Stack extends Base {
 class FunctionArg extends Base {
     /** @var string */
     public $name;
-    /** @var ValueImpl */
+    /** @var Value_ */
     public $value;
     /** @var string */
     public $typeHint;
@@ -275,14 +275,14 @@ class FunctionArg extends Base {
 
     protected function pushJSON(array $json) {
         parent::pushJSON($json);
-        ValueImpl::convertJSON($this->value);
+        Value_::convertJSON($this->value);
     }
 }
 
-class ValueImpl extends Base {
+class Value_ extends Base {
     /** @var string */
     public $type;
-    /** @var ExceptionImpl */
+    /** @var Exception_ */
     public $exception;
     /** @var int */
     public $object;
@@ -294,13 +294,13 @@ class ValueImpl extends Base {
     public $int;
     /** @var float */
     public $float;
-    /** @var Resource1 */
+    /** @var Resource_ */
     public $resource;
 
     protected function pushJSON(array $json) {
         parent::pushJSON($json);
-        ExceptionImpl::convertJSON($this->exception);
-        Resource1::convertJSON($this->resource);
+        Exception_::convertJSON($this->exception);
+        Resource_::convertJSON($this->resource);
     }
 }
 
@@ -321,7 +321,7 @@ class Type {
     const EXCEPTION = 'exception';
 }
 
-class Resource1 extends Base {
+class Resource_ extends Base {
     /** @var string */
     public $type;
     /** @var int */

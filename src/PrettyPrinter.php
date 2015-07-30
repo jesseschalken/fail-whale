@@ -46,7 +46,7 @@ class PrettyPrinter {
         return Text::table($rows, $alignColumns);
     }
 
-    private function renderValue(Data\ValueImpl $v) {
+    private function renderValue(Data\Value_ $v) {
         switch ($v->type) {
             case Data\Type::STRING:
                 return $this->visitString($v->string);
@@ -144,7 +144,7 @@ class PrettyPrinter {
         }
     }
 
-    private function renderArrayBody(Data\Array1 $array) {
+    private function renderArrayBody(Data\Array_ $array) {
         if ($this->settings->useShortArraySyntax) {
             $start = "[";
             $end   = "]";
@@ -184,7 +184,7 @@ class PrettyPrinter {
         return $result;
     }
 
-    private function renderObjectBody(Data\Object1 $object) {
+    private function renderObjectBody(Data\Object_ $object) {
         if (!$this->settings->showObjectProperties) {
             return $this->text("new $object->className");
         } else if (!$object->properties && $object->propertiesMissing == 0) {
@@ -209,7 +209,7 @@ class PrettyPrinter {
         return $this->text("$int" === "$float" ? "$float.0" : "$float");
     }
 
-    private function visitException(Data\ExceptionImpl $exception) {
+    private function visitException(Data\Exception_ $exception) {
         $text = $this->renderException($exception);
 
         if ($this->settings->showExceptionGlobalVariables) {
@@ -267,7 +267,7 @@ class PrettyPrinter {
         return $text;
     }
 
-    private function renderString(Data\String1 $string) {
+    private function renderString(Data\String_ $string) {
         if (!$this->settings->showStringContents)
             return $this->text("string");
 
@@ -345,7 +345,7 @@ class PrettyPrinter {
         return $result;
     }
 
-    private function renderException(Data\ExceptionImpl $e) {
+    private function renderException(Data\Exception_ $e) {
         $text = $this->text("$e->className $e->code in {$this->renderLocation($e->location)}");
 
         $message = $this->text($e->message);
@@ -396,7 +396,7 @@ class PrettyPrinter {
         if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name))
             return $this->text("$$name");
 
-        $string               = new Data\String1;
+        $string               = new Data\String_;
         $string->bytes        = $name;
         $string->bytesMissing = 0;
 
@@ -426,7 +426,7 @@ class PrettyPrinter {
         return $this->table($rows, true);
     }
 
-    private function renderExceptionStack(Data\ExceptionImpl $exception) {
+    private function renderExceptionStack(Data\Exception_ $exception) {
         $rows = array();
         $i    = 1;
 
@@ -544,7 +544,7 @@ class RefCounts {
         $this->doValue($root->root);
     }
 
-    private function doValue(Data\ValueImpl $value) {
+    private function doValue(Data\Value_ $value) {
         switch ($value->type) {
             case Data\Type::ARRAY1:
                 $this->doArray($value->array);
@@ -587,7 +587,7 @@ class RefCounts {
         }
     }
 
-    private function doException(Data\ExceptionImpl $e) {
+    private function doException(Data\Exception_ $e) {
         if ($e->locals)
             foreach ($e->locals as $local)
                 $this->doValue($local->value);
