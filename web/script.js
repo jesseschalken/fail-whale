@@ -541,9 +541,7 @@ var FailWhale;
             var _this = this;
             if (open === void 0) { open = false; }
             return this.expandable({
-                head: location
-                    ? this.collect([this.plain(location.file + ':'), this.renderNumber(String(location.line))])
-                    : this.plain('[internal function]'),
+                head: location ? this.collect([this.plain(location.file + ':'), this.renderNumber(String(location.line))]) : this.plain('[internal function]'),
                 body: function () {
                     if (!location || !location.source)
                         return _this.notice('no source code');

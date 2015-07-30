@@ -151,20 +151,20 @@ module FailWhale {
         }
 
         export interface ValueVisitor<T> {
-            visitString:    (id:number) => T,
-            visitArray:     (id:number) => T,
-            visitObject:    (id:number) => T,
-            visitInt:       (val:number) => T,
-            visitTrue:      () => T,
-            visitFalse:     () => T,
-            visitNull:      () => T,
-            visitPosInf:    () => T,
-            visitNegInf:    () => T,
-            visitNaN:       () => T,
-            visitUnknown:   () => T,
-            visitFloat:     (val:number) => T,
-            visitResource:  (val:Resource) => T,
-            visitException: (val:Exception) => T
+            visitString:    (id:number) => T;
+            visitArray:     (id:number) => T;
+            visitObject:    (id:number) => T;
+            visitInt:       (val:number) => T;
+            visitTrue:      () => T;
+            visitFalse:     () => T;
+            visitNull:      () => T;
+            visitPosInf:    () => T;
+            visitNegInf:    () => T;
+            visitNaN:       () => T;
+            visitUnknown:   () => T;
+            visitFloat:     (val:number) => T;
+            visitResource:  (val:Resource) => T;
+            visitException: (val:Exception) => T;
         }
 
         export function visit<T>(x:Value, f:ValueVisitor<T>):T {
@@ -875,7 +875,7 @@ module FailWhale {
         }
     }
 
-    export function renderJSON(json:string, document:Document):Node {
+    export function renderJSON(json:string, document:HTMLDocument):Node {
         var root:Data.Root = JSON.parse(json);
 
         return new Renderer(root, document).renderRoot();
