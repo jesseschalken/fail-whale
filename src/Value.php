@@ -57,14 +57,14 @@ final class Value {
     }
 
     static function fromJSON($json) {
-        $root = new Root;
+        $root = new Data\Root;
         $root->fromJSON($json);
         return new self($root);
     }
 
     private $root;
 
-    private function __construct(Root $root) {
+    private function __construct(Data\Root $root) {
         $this->root = $root;
     }
 

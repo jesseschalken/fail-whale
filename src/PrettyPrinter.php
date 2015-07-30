@@ -25,10 +25,10 @@ class PrettyPrinter {
     private $arraysRendered = array();
     private $objectsRendered = array();
     private $stringsRendered = array();
-    /** @var Root */
+    /** @var Data\Root */
     private $root;
 
-    function __construct(Root $root, PrettyPrinterSettings $settings = null) {
+    function __construct(Data\Root $root, PrettyPrinterSettings $settings = null) {
         $this->settings  = $settings ? : new PrettyPrinterSettings;
         $this->root      = $root;
         $this->refCounts = new RefCounts($root);
@@ -46,35 +46,35 @@ class PrettyPrinter {
         return Text::table($rows, $alignColumns);
     }
 
-    private function renderValue(ValueImpl $v) {
+    private function renderValue(Data\ValueImpl $v) {
         switch ($v->type) {
-            case Type::STRING:
+            case Data\Type::STRING:
                 return $this->visitString($v->string);
-            case Type::ARRAY1:
+            case Data\Type::ARRAY1:
                 return $this->visitArray($v->array);
-            case Type::OBJECT:
+            case Data\Type::OBJECT:
                 return $this->visitObject($v->object);
-            case Type::INT:
+            case Data\Type::INT:
                 return $this->text("$v->int");
-            case Type::TRUE:
+            case Data\Type::TRUE:
                 return $this->text('true');
-            case Type::FALSE:
+            case Data\Type::FALSE:
                 return $this->text('false');
-            case Type::NULL:
+            case Data\Type::NULL:
                 return $this->text('null');
-            case Type::POS_INF:
+            case Data\Type::POS_INF:
                 return $this->visitFloat(INF);
-            case Type::NEG_INF:
+            case Data\Type::NEG_INF:
                 return $this->visitFloat(-INF);
-            case Type::NAN:
+            case Data\Type::NAN:
                 return $this->visitFloat(NAN);
-            case Type::UNKNOWN:
+            case Data\Type::UNKNOWN:
                 return $this->text('unknown type');
-            case Type::FLOAT:
+            case Data\Type::FLOAT:
                 return $this->visitFloat($v->float);
-            case Type::RESOURCE:
+            case Data\Type::RESOURCE:
                 return $this->text("{$v->resource->type}");
-            case Type::EXCEPTION:
+            case Data\Type::EXCEPTION:
                 return $this->visitException($v->exception);
             default:
                 return $this->text("unknown type $v->type");
@@ -144,7 +144,7 @@ class PrettyPrinter {
         }
     }
 
-    private function renderArrayBody(Array1 $array) {
+    private function renderArrayBody(Data\Array1 $array) {
         if ($this->settings->useShortArraySyntax) {
             $start = "[";
             $end   = "]";
@@ -184,7 +184,7 @@ class PrettyPrinter {
         return $result;
     }
 
-    private function renderObjectBody(Object1 $object) {
+    private function renderObjectBody(Data\Object1 $object) {
         if (!$this->settings->showObjectProperties) {
             return $this->text("new $object->className");
         } else if (!$object->properties && $object->propertiesMissing == 0) {
@@ -209,7 +209,7 @@ class PrettyPrinter {
         return $this->text("$int" === "$float" ? "$float.0" : "$float");
     }
 
-    private function visitException(ExceptionImpl $exception) {
+    private function visitException(Data\ExceptionImpl $exception) {
         $text = $this->renderException($exception);
 
         if ($this->settings->showExceptionGlobalVariables) {
@@ -267,7 +267,7 @@ class PrettyPrinter {
         return $text;
     }
 
-    private function renderString(String1 $string) {
+    private function renderString(Data\String1 $string) {
         if (!$this->settings->showStringContents)
             return $this->text("string");
 
@@ -316,7 +316,7 @@ class PrettyPrinter {
     }
 
     /**
-     * @param Variable[] $variables
+     * @param Data\Variable[] $variables
      * @param string $noneText
      * @param int $missing
      * @param string[] $prefixes
@@ -345,7 +345,7 @@ class PrettyPrinter {
         return $result;
     }
 
-    private function renderException(ExceptionImpl $e) {
+    private function renderException(Data\ExceptionImpl $e) {
         $text = $this->text("$e->className $e->code in {$this->renderLocation($e->location)}");
 
         $message = $this->text($e->message);
@@ -396,7 +396,7 @@ class PrettyPrinter {
         if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name))
             return $this->text("$$name");
 
-        $string               = new String1;
+        $string               = new Data\String1;
         $string->bytes        = $name;
         $string->bytesMissing = 0;
 
@@ -426,7 +426,7 @@ class PrettyPrinter {
         return $this->table($rows, true);
     }
 
-    private function renderExceptionStack(ExceptionImpl $exception) {
+    private function renderExceptionStack(Data\ExceptionImpl $exception) {
         $rows = array();
         $i    = 1;
 
@@ -458,14 +458,14 @@ class PrettyPrinter {
         return $result;
     }
 
-    private function renderExceptionStackFrame(Stack $frame) {
+    private function renderExceptionStackFrame(Data\Stack $frame) {
         $result = $this->renderExceptionStackFramePrefix($frame);
         $result->append($frame->functionName);
         $result->appendLines($this->renderExceptionStackFrameArgs($frame));
         return $result;
     }
 
-    private function renderExceptionStackFramePrefix(Stack $frame) {
+    private function renderExceptionStackFramePrefix(Data\Stack $frame) {
         if ($frame->object && $this->settings->showExceptionFunctionObject) {
             $prefix = $this->visitObject($frame->object);
             $prefix->append('->');
@@ -484,7 +484,7 @@ class PrettyPrinter {
         }
     }
 
-    private function renderExceptionStackFrameArgs(Stack $frame) {
+    private function renderExceptionStackFrameArgs(Data\Stack $frame) {
         if (!is_array($frame->args))
             return $this->text("( ? )");
 
@@ -498,7 +498,7 @@ class PrettyPrinter {
         $pretties = array();
 
         foreach ($frame->args as $arg) {
-            /** @var FunctionArg $arg */
+            /** @var Data\FunctionArg $arg */
             $pretty = $this->renderValue($arg->value);
             if ($arg->name) {
                 $pretty->prepend(' = ');
@@ -528,7 +528,7 @@ class PrettyPrinter {
         return $result;
     }
 
-    private function renderLocation(Location $location = null) {
+    private function renderLocation(Data\Location $location = null) {
         return $location ? "$location->file:$location->line" : '[internal function]';
     }
 }
@@ -539,24 +539,24 @@ class RefCounts {
     public $objects = array();
     private $root;
 
-    function __construct(Root $root) {
+    function __construct(Data\Root $root) {
         $this->root = $root;
         $this->doValue($root->root);
     }
 
-    private function doValue(ValueImpl $value) {
+    private function doValue(Data\ValueImpl $value) {
         switch ($value->type) {
-            case Type::ARRAY1:
+            case Data\Type::ARRAY1:
                 $this->doArray($value->array);
                 break;
-            case Type::OBJECT:
+            case Data\Type::OBJECT:
                 $this->doObject($value->object);
                 break;
-            case Type::STRING:
+            case Data\Type::STRING:
                 $refCount =& $this->strings[$value->string];
                 $refCount++;
                 break;
-            case Type::EXCEPTION:
+            case Data\Type::EXCEPTION:
                 $this->doException($value->exception);
         }
     }
@@ -587,7 +587,7 @@ class RefCounts {
         }
     }
 
-    private function doException(ExceptionImpl $e) {
+    private function doException(Data\ExceptionImpl $e) {
         if ($e->locals)
             foreach ($e->locals as $local)
                 $this->doValue($local->value);

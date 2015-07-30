@@ -29,7 +29,7 @@ class IntrospectionSettings {
 }
 
 class Introspection {
-    /** @var Root */
+    /** @var Data\Root */
     private $root;
     private $stringIds = array();
     private $objectIds = array();
@@ -38,12 +38,12 @@ class Introspection {
     private $limits;
 
     function __construct(IntrospectionSettings $limits = null) {
-        $this->root   = new Root;
+        $this->root   = new Data\Root;
         $this->limits = $limits ? : new IntrospectionSettings;
     }
 
     function mockException() {
-        $mock                = new ExceptionImpl;
+        $mock                = new Data\ExceptionImpl;
         $mock->className     = 'MuhMockException';
         $mock->code          = 'Dummy exception code';
         $mock->message       = <<<'s'
@@ -55,16 +55,16 @@ s;
         $mock->stackMissing  = 8;
         $mock->localsMissing = 5;
 
-        $mock->location       = new Location;
+        $mock->location       = new Data\Location;
         $mock->location->file = '/path/to/muh/file';
         $mock->location->line = 9000;
 
-        $mock->globals                          = new Globals;
+        $mock->globals                          = new Data\Globals;
         $mock->globals->staticPropertiesMissing = 1;
         $mock->globals->globalVariablesMissing  = 19;
         $mock->globals->staticVariablesMissing  = 7;
 
-        $prop1            = new Property;
+        $prop1            = new Data\Property;
         $prop1->value     = $this->introspect(null);
         $prop1->name      = 'blahProperty';
         $prop1->access    = 'private';
@@ -73,13 +73,13 @@ s;
 
         $mock->globals->staticProperties = array($prop1);
 
-        $static1               = new StaticVariable;
+        $static1               = new Data\StaticVariable;
         $static1->name         = 'variable name';
         $static1->value        = $this->introspect(true);
         $static1->functionName = 'blahFunction';
         $static1->className    = null;
 
-        $static2               = new StaticVariable;
+        $static2               = new Data\StaticVariable;
         $static2->name         = 'lolStatic';
         $static2->value        = $this->introspect(null);
         $static2->functionName = 'blahMethod';
@@ -87,33 +87,33 @@ s;
 
         $mock->globals->staticVariables = array($static1, $static2);
 
-        $global1        = new Variable;
+        $global1        = new Data\Variable;
         $global1->name  = '_SESSION';
         $global1->value = $this->introspect(true);
 
-        $global2        = new Variable;
+        $global2        = new Data\Variable;
         $global2->name  = 'globalVariable';
         $global2->value = $this->introspect(-2734);
 
         $mock->globals->globalVariables = array($global1, $global2);
 
-        $local1        = new Variable;
+        $local1        = new Data\Variable;
         $local1->name  = 'lol';
         $local1->value = $this->introspect(8);
 
-        $local2        = new Variable;
+        $local2        = new Data\Variable;
         $local2->name  = 'foo';
         $local2->value = $this->introspect('bar');
 
         $mock->locals = array($local1, $local2);
 
-        $arg1              = new FunctionArg;
+        $arg1              = new Data\FunctionArg;
         $arg1->name        = 'arg1';
         $arg1->value       = $this->introspect(new DummyClass1);
         $arg1->typeHint    = get_class(new DummyClass1);
         $arg1->isReference = false;
 
-        $stack1               = new Stack;
+        $stack1               = new Data\Stack;
         $stack1->args         = array($arg1);
         $stack1->functionName = 'aFunction';
         $stack1->className    = 'DummyClass1';
@@ -122,13 +122,13 @@ s;
         $stack1->object       = $this->objectId(new DummyClass1);
         $stack1->argsMissing  = 3;
 
-        $arg2              = new FunctionArg;
+        $arg2              = new Data\FunctionArg;
         $arg2->name        = 'anArray';
         $arg2->value       = $this->introspect(new DummyClass2);
         $arg2->isReference = true;
         $arg2->typeHint    = 'array';
 
-        $stack2               = new Stack;
+        $stack2               = new Data\Stack;
         $stack2->args         = array($arg2);
         $stack2->functionName = 'aFunction';
         $stack2->className    = null;
@@ -139,49 +139,49 @@ s;
 
         $mock->stack = array($stack1, $stack2);
 
-        $value            = new ValueImpl;
-        $value->type      = Type::EXCEPTION;
+        $value            = new Data\ValueImpl;
+        $value->type      = Data\Type::EXCEPTION;
         $value->exception = $mock;
         return $value;
     }
 
     function introspect($value) {
-        $result = new ValueImpl;
+        $result = new Data\ValueImpl;
 
         if (is_string($value)) {
-            $result->type   = Type::STRING;
+            $result->type   = Data\Type::STRING;
             $result->string = $this->stringId($value);
         } else if (is_int($value)) {
-            $result->type = Type::INT;
+            $result->type = Data\Type::INT;
             $result->int  = $value;
         } else if (is_bool($value)) {
-            $result->type = $value ? Type::TRUE : Type::FALSE;
+            $result->type = $value ? Data\Type::TRUE : Data\Type::FALSE;
         } else if (is_null($value)) {
-            $result->type = Type::NULL;
+            $result->type = Data\Type::NULL;
         } else if (is_float($value)) {
             if ($value === INF) {
-                $result->type = Type::POS_INF;
+                $result->type = Data\Type::POS_INF;
             } else if ($value === -INF) {
-                $result->type = Type::NEG_INF;
+                $result->type = Data\Type::NEG_INF;
             } else if (is_nan($value)) {
-                $result->type = Type::NAN;
+                $result->type = Data\Type::NAN;
             } else {
-                $result->type  = Type::FLOAT;
+                $result->type  = Data\Type::FLOAT;
                 $result->float = $value;
             }
         } else if (is_array($value)) {
-            $result->type  = Type::ARRAY1;
+            $result->type  = Data\Type::ARRAY1;
             $result->array = $this->arrayId($value);
         } else if (is_object($value)) {
-            $result->type   = Type::OBJECT;
+            $result->type   = Data\Type::OBJECT;
             $result->object = $this->objectId($value);
         } else if (is_resource($value)) {
-            $result->type           = Type::RESOURCE;
-            $result->resource       = new Resource1;
+            $result->type           = Data\Type::RESOURCE;
+            $result->resource       = new Data\Resource1;
             $result->resource->id   = (int)$value;
             $result->resource->type = get_resource_type($value);
         } else {
-            $result->type = Type::UNKNOWN;
+            $result->type = Data\Type::UNKNOWN;
         }
 
         return $result;
@@ -208,7 +208,7 @@ s;
             $maxLength = $this->limits->maxStringLength;
             $maxLength = $maxLength === INF ? PHP_INT_MAX : $maxLength;
 
-            $string               = new String1;
+            $string               = new Data\String1;
             $string->bytes        = (string)substr($value, 0, $maxLength);
             $string->bytesMissing = strlen($value) - strlen($string->bytes);
 
@@ -227,7 +227,7 @@ s;
     }
 
     private function introspectObject($object) {
-        $result             = new Object1;
+        $result             = new Data\Object1;
         $result->className  = $this->removeNamespacePrefix(get_class($object));
         $result->hash       = spl_object_hash($object);
         $result->properties = $this->introspectObjectProperties($object, $result->propertiesMissing);
@@ -245,14 +245,14 @@ s;
     }
 
     private function introspectArray(array $array) {
-        $result                = new Array1;
+        $result                = new Data\Array1;
         $result->isAssociative = self::isAssoc($array);
 
         foreach ($array as $key => &$value) {
             if (count($result->entries) >= $this->limits->maxArrayEntries) {
                 $result->entriesMissing++;
             } else {
-                $entry             = new ArrayEntry;
+                $entry             = new Data\ArrayEntry;
                 $entry->key        = $this->introspect($key);
                 $entry->value      = $this->introspectRef($value);
                 $result->entries[] = $entry;
@@ -263,7 +263,7 @@ s;
     }
 
     private function introspectObjectProperties($object, &$missing) {
-        /** @var Property[] $results */
+        /** @var Data\Property[] $results */
         $results = array();
 
         for ($reflection = new \ReflectionObject($object);
@@ -292,8 +292,8 @@ s;
 
     function introspectRef(&$value) {
         if (is_array($value)) {
-            $result        = new ValueImpl;
-            $result->type  = Type::ARRAY1;
+            $result        = new Data\ValueImpl;
+            $result->type  = Data\Type::ARRAY1;
             $result->array = $this->arrayRefId($value);
             return $result;
         } else {
@@ -303,7 +303,7 @@ s;
 
     private function introspectProperty(\ReflectionProperty $property, $object = null) {
         $property->setAccessible(true);
-        $result            = new Property;
+        $result            = new Data\Property;
         $result->className = $this->removeNamespacePrefix($property->class);
         $result->name      = $property->name;
         $result->value     = $this->introspect($property->getValue($object));
@@ -346,8 +346,8 @@ s;
     }
 
     function introspectException(\Exception $e) {
-        $result            = new ValueImpl;
-        $result->type      = Type::EXCEPTION;
+        $result            = new Data\ValueImpl;
+        $result->type      = Data\Type::EXCEPTION;
         $result->exception = $this->introspectException2($e);
         return $result;
     }
@@ -358,7 +358,7 @@ s;
 
         $locals = $e instanceof ErrorException ? $e->getContext() : null;
 
-        $result            = new ExceptionImpl;
+        $result            = new Data\ExceptionImpl;
         $result->className = $this->removeNamespacePrefix(get_class($e));
         $result->code      = $e->getCode();
         $result->message   = $e->getMessage();
@@ -374,7 +374,7 @@ s;
     private function introspectLocation($file, $line) {
         if (!$file)
             return null;
-        $result         = new Location;
+        $result         = new Data\Location;
         $result->file   = $this->removeFileNamePrefix($file);
         $result->line   = $line;
         $result->source = $this->introspectSourceCode($file, $line);
@@ -391,7 +391,7 @@ s;
     }
 
     private function introspectGlobals() {
-        $result                   = new Globals;
+        $result                   = new Data\Globals;
         $result->globalVariables  = $this->introspectVariables($GLOBALS, $result->globalVariablesMissing,
                                                                $this->limits->maxGlobalVariables);
         $result->staticProperties = $this->introspectStaticProperties($result->staticPropertiesMissing);
@@ -402,14 +402,14 @@ s;
     private function introspectVariables(array &$variables = null, &$missing, $max) {
         if (!is_array($variables))
             return null;
-        /** @var Variable[] $results */
+        /** @var Data\Variable[] $results */
         $results = array();
 
         foreach ($variables as $name => &$value) {
             if (count($results) >= $max) {
                 $missing++;
             } else {
-                $result        = new Variable;
+                $result        = new Data\Variable;
                 $result->name  = $name;
                 $result->value = $this->introspectRef($value);
                 $results[]     = $result;
@@ -433,7 +433,7 @@ s;
                 $type     =& $frame['type'];
                 $args     =& $frame['args'];
 
-                $result               = new Stack;
+                $result               = new Data\Stack;
                 $result->functionName = $class === null ? $this->removeNamespacePrefix($function) : $function;
                 $result->location     = $this->introspectLocation($file, $line);
                 $result->className    = $class === null ? null : $this->removeNamespacePrefix($class);
@@ -460,7 +460,7 @@ s;
                     foreach ($args as $i => &$arg) {
                         $param = $params && isset($params[$i]) ? $params[$i] : null;
 
-                        $arg1              = new FunctionArg;
+                        $arg1              = new Data\FunctionArg;
                         $arg1->name        = $param ? $param->getName() : null;
                         $arg1->value       = $this->introspectRef($arg);
                         $arg1->isReference = $param ? $param->isPassedByReference() : null;
@@ -548,7 +548,7 @@ s;
                     if (count($globals) >= $this->limits->maxStaticVariables) {
                         $missing++;
                     } else {
-                        $variable               = new StaticVariable;
+                        $variable               = new Data\StaticVariable;
                         $variable->name         = $name;
                         $variable->value        = $this->introspectRef($value);
                         $variable->className    = $this->removeNamespacePrefix($method->class);
@@ -568,7 +568,7 @@ s;
                     if (count($globals) >= $this->limits->maxStaticVariables) {
                         $missing++;
                     } else {
-                        $variable               = new StaticVariable;
+                        $variable               = new Data\StaticVariable;
                         $variable->name         = $name;
                         $variable->value        = $this->introspectRef($value2);
                         $variable->functionName = $this->removeNamespacePrefix($function);
@@ -581,7 +581,7 @@ s;
         return $globals;
     }
 
-    function root(ValueImpl $value) {
+    function root(Data\ValueImpl $value) {
         $root       = clone $this->root;
         $root->root = $value;
         return $root;

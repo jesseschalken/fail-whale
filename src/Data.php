@@ -1,6 +1,6 @@
 <?php
 
-namespace FailWhale;
+namespace FailWhale\Data;
 
 class Base {
     protected static function convertJSONs(&$json) {
