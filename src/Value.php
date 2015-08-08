@@ -2,37 +2,9 @@
 
 namespace FailWhale;
 
+use PureJSON\JSON;
+
 final class Value {
-    /**
-     * Convert multiple values into HTML
-     *
-     * @param self[] $values
-     * @return string
-     */
-    static function manyToHTML(array $values) {
-        $html = '';
-        $hasJS = false;
-        foreach ($values as $value) {
-            $html .= $value->toInlineHTML(!$hasJS);
-            $hasJS = true;
-        }
-
-        ob_start();
-
-        ?>
-        <!DOCTYPE html>
-        <html lang="en">
-            <head>
-                <meta charset="utf-8">
-                <title>fail whale PHP explorer</title>
-            </head>
-            <body><?= $html ?></body>
-        </html>
-        <?php
-
-        return ob_get_clean();
-    }
-
     static function introspect($value, IntrospectionSettings $settings = null) {
         $i = new Introspection($settings);
 
@@ -57,9 +29,7 @@ final class Value {
     }
 
     static function fromJSON($json) {
-        $root = new Data\Root;
-        $root->fromJSON($json);
-        return new self($root);
+        return new self(Data\Root::fromArray(JSON::decode($json, true)));
     }
 
     private $root;
@@ -73,7 +43,18 @@ final class Value {
      * @return string
      */
     function toHTML() {
-        return self::manyToHTML(array($this));
+        $html = $this->toInlineHTML(true);
+
+        return <<<html
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>fail whale PHP explorer</title>
+    </head>
+    <body>$html</body>
+</html>
+html;
     }
 
     /**
@@ -84,36 +65,23 @@ final class Value {
      * @return string
      */
     function toInlineHTML($includeJS = true) {
-        ob_start();
+        $html = '';
 
-        if ($includeJS) {
-            ?>
-            <script>
-                <?= file_get_contents(__DIR__ . '/../web/script.js') ?>
-            </script>
-            <?php
-        }
+        if ($includeJS)
+            $html .= '<script>' . file_get_contents(__DIR__ . '/../web/script.js') . '</script>';
 
-        $jsonHtml = htmlspecialchars($this->toJSON(), ENT_COMPAT, 'UTF-8');
-        $uniqueId = 'fail-whale-' . mt_rand();
+        $html .= call_js(<<<js
+(function (data) {
+    return FailWhale.render(data, document);
+})
+js
+            , $this->root->toArray(), true);
 
-        ?>
-        <pre id="<?= $uniqueId ?>"><?= $jsonHtml ?></pre>
-        <script type="text/javascript">
-            document.addEventListener('DOMContentLoaded', function () {
-                var json = document.getElementById('<?= $uniqueId ?>');
-                var html = FailWhale.renderJSON(json.textContent, document);
-
-                json.parentNode.replaceChild(html, json);
-            });
-        </script>
-        <?php
-
-        return ob_get_clean();
+        return $html;
     }
 
     function toJSON($pretty = true) {
-        return $this->root->toJSON($pretty);
+        return JSON::encode($this->root->toArray(), true, $pretty);
     }
 
     function toString(PrettyPrinterSettings $settings = null) {

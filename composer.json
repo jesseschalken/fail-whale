@@ -9,6 +9,9 @@
             "email": "me@jesseschalken.com"
         }
     ],
+    "require": {
+        "jesseschalken/pure-json": "^1.0"
+    },
     "require-dev": {
         "phpunit/phpunit": "*",
         "jesseschalken/autoload-generator": "dev-master"

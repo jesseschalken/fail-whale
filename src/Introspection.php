@@ -2,6 +2,9 @@
 
 namespace FailWhale;
 
+use FailWhale\Test\DummyClass1;
+use FailWhale\Test\DummyClass2;
+
 class IntrospectionSettings {
     public $maxArrayEntries = INF;
     public $maxObjectProperties = INF;

@@ -3,89 +3,49 @@
 namespace FailWhale\Data;
 
 class Base {
-    protected static function convertJSONs(&$json) {
-        if ($json) {
-            foreach ($json as &$json2)
-                static::convertJSON($json2);
+    public static function fromArray($array) {
+        static::convertArray($array);
+        return $array;
+    }
+
+    protected static function convertArrays(&$arrays) {
+        if (is_array($arrays)) {
+            foreach ($arrays as &$v)
+                static::convertArray($v);
         }
     }
 
-    protected static function convertJSON(&$json) {
-        if ($json) {
-            /** @var self $self */
+    protected static function convertArray(&$array) {
+        if (is_array($array)) {
             $self = new static;
-            $self->pushJSON($json);
-            $json = $self;
+            $self->importArray($array);
+            $array = $self;
         }
     }
 
-    private static function JSONify(&$v) {
-        if ($v instanceof self)
-            $v = $v->pullJSON();
-
-        if (is_string($v)) {
-            $v = utf8_encode($v);
-        } else if (is_array($v)) {
-            foreach ($v as &$v2)
-                self::JSONify($v2);
+    protected function importArray(array $array) {
+        foreach (get_object_vars($this) as $k => $v) {
+            $this->$k = isset($array[$k]) ? $array[$k] : null;
         }
     }
 
-    private static function unJSONify(&$json) {
-        if (is_string($json)) {
-            $json = utf8_decode($json);
-        } else if (is_array($json)) {
-            foreach ($json as &$json2)
-                self::unJSONify($json2);
+    final function toArray() {
+        return self::toArray_($this);
+    }
+
+    private static function toArray_($value) {
+        if ($value instanceof self)
+            $value = get_object_vars($value);
+
+        if (is_array($value)) {
+            $r = array();
+            foreach ($value as $k => $v)
+                if ($v !== null)
+                    $r[$k] = self::toArray_($v);
+            return $r;
+        } else {
+            return $value;
         }
-    }
-
-    private static function checkJSONError() {
-        if (json_last_error() !== JSON_ERROR_NONE)
-            throw new \Exception("JSON Error", json_last_error());
-    }
-
-    final function toJSON($pretty = true) {
-        $flags = 0;
-
-        if (defined('JSON_UNESCAPED_SLASHES'))
-            $flags |= JSON_UNESCAPED_SLASHES;
-
-        if ($pretty && defined('JSON_PRETTY_PRINT'))
-            $flags |= JSON_PRETTY_PRINT;
-
-        $value = $this;
-        self::JSONify($value);
-        $json = json_encode($value, $flags);
-
-        self::checkJSONError();
-
-        return $json;
-    }
-
-    /**
-     * @param string $json
-     */
-    final function fromJSON($json) {
-        $json = json_decode($json, true);
-        self::checkJSONError();
-        self::unJSONify($json);
-        $this->pushJSON($json);
-    }
-
-    protected function pushJSON(array $json) {
-        foreach (get_object_vars($this) as $name => $v) {
-            $value       =& $json[$name];
-            $this->$name = $value;
-        }
-    }
-
-    protected function pullJSON() {
-        $json = get_object_vars($this);
-        foreach ($json as $k => &$value)
-            if ($value === null)
-                unset($json[$k]);
-        return $json;
     }
 }
 
@@ -99,12 +59,12 @@ class Root extends Base {
     /** @var Array_[] */
     public $arrays = array();
 
-    protected function pushJSON(array $json) {
-        parent::pushJSON($json);
-        Value_::convertJSON($this->root);
-        String_::convertJSONs($this->strings);
-        Object_::convertJSONs($this->objects);
-        Array_::convertJSONs($this->arrays);
+    protected function importArray(array $array) {
+        parent::importArray($array);
+        Value_::convertArray($this->root);
+        String_::convertArrays($this->strings);
+        Object_::convertArrays($this->objects);
+        Array_::convertArrays($this->arrays);
     }
 }
 
@@ -123,9 +83,9 @@ class Array_ extends Base {
     /** @var bool */
     public $isAssociative;
 
-    protected function pushJSON(array $json) {
-        parent::pushJSON($json);
-        ArrayEntry::convertJSONs($this->entries);
+    protected function importArray(array $array) {
+        parent::importArray($array);
+        ArrayEntry::convertArrays($this->entries);
     }
 }
 
@@ -135,10 +95,10 @@ class ArrayEntry extends Base {
     /** @var Value_ */
     public $value;
 
-    protected function pushJSON(array $json) {
-        parent::pushJSON($json);
-        Value_::convertJSON($this->key);
-        Value_::convertJSON($this->value);
+    protected function importArray(array $array) {
+        parent::importArray($array);
+        Value_::convertArray($this->key);
+        Value_::convertArray($this->value);
     }
 }
 
@@ -152,9 +112,9 @@ class Object_ extends Base {
     /** @var int */
     public $propertiesMissing = 0;
 
-    protected function pushJSON(array $json) {
-        parent::pushJSON($json);
-        Property::convertJSONs($this->properties);
+    protected function importArray(array $array) {
+        parent::importArray($array);
+        Property::convertArrays($this->properties);
     }
 }
 
@@ -164,9 +124,9 @@ class Variable extends Base {
     /** @var Value_ */
     public $value;
 
-    protected function pushJSON(array $json) {
-        parent::pushJSON($json);
-        Value_::convertJSON($this->value);
+    protected function importArray(array $array) {
+        parent::importArray($array);
+        Value_::convertArray($this->value);
     }
 }
 
@@ -200,11 +160,11 @@ class Globals extends Base {
     /** @var int */
     public $globalVariablesMissing = 0;
 
-    protected function pushJSON(array $json) {
-        parent::pushJSON($json);
-        Property::convertJSONs($this->staticProperties);
-        StaticVariable::convertJSONs($this->staticVariables);
-        Variable::convertJSONs($this->globalVariables);
+    protected function importArray(array $array) {
+        parent::importArray($array);
+        Property::convertArrays($this->staticProperties);
+        StaticVariable::convertArrays($this->staticVariables);
+        Variable::convertArrays($this->globalVariables);
     }
 }
 
@@ -230,13 +190,13 @@ class Exception_ extends Base {
     /** @var Exception_ */
     public $previous;
 
-    protected function pushJSON(array $json) {
-        parent::pushJSON($json);
-        Variable::convertJSONs($this->locals);
-        Globals::convertJSON($this->globals);
-        Stack::convertJSONs($this->stack);
-        Location::convertJSON($this->location);
-        self::convertJSON($this->previous);
+    protected function importArray(array $array) {
+        parent::importArray($array);
+        Variable::convertArrays($this->locals);
+        Globals::convertArray($this->globals);
+        Stack::convertArrays($this->stack);
+        Location::convertArray($this->location);
+        self::convertArray($this->previous);
     }
 }
 
@@ -256,10 +216,10 @@ class Stack extends Base {
     /** @var Location */
     public $location;
 
-    protected function pushJSON(array $json) {
-        parent::pushJSON($json);
-        FunctionArg::convertJSONs($this->args);
-        Location::convertJSON($this->location);
+    protected function importArray(array $array) {
+        parent::importArray($array);
+        FunctionArg::convertArrays($this->args);
+        Location::convertArray($this->location);
     }
 }
 
@@ -273,9 +233,9 @@ class FunctionArg extends Base {
     /** @var bool */
     public $isReference;
 
-    protected function pushJSON(array $json) {
-        parent::pushJSON($json);
-        Value_::convertJSON($this->value);
+    protected function importArray(array $array) {
+        parent::importArray($array);
+        Value_::convertArray($this->value);
     }
 }
 
@@ -297,10 +257,10 @@ class Value_ extends Base {
     /** @var Resource_ */
     public $resource;
 
-    protected function pushJSON(array $json) {
-        parent::pushJSON($json);
-        Exception_::convertJSON($this->exception);
-        Resource_::convertJSON($this->resource);
+    protected function importArray(array $array) {
+        parent::importArray($array);
+        Exception_::convertArray($this->exception);
+        Resource_::convertArray($this->resource);
     }
 }
 

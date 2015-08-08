@@ -696,6 +696,7 @@ module FailWhale {
                 return this.italics('none');
 
             return this.expandable({
+                inline: false,
                 head: this.collect([this.keyword('exception'), this.plain(' ' + x.className)]),
                 body: () => {
 
@@ -875,10 +876,8 @@ module FailWhale {
         }
     }
 
-    export function renderJSON(json:string, document:HTMLDocument):Node {
-        var root:Data.Root = JSON.parse(json);
-
-        return new Renderer(root, document).renderRoot();
+    export function render(json:Data.Root, document:HTMLDocument):Node {
+        return new Renderer(json, document).renderRoot();
     }
 
     function decodeUTF8(utf8Bytes:string):string {
