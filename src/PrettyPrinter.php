@@ -287,11 +287,7 @@ class PrettyPrinter {
         if (preg_match("/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/", $name)) {
             return "$$name";
         } else {
-            $string               = new Data\String_;
-            $string->bytes        = $name;
-            $string->bytesMissing = 0;
-
-            return "\${" . $this->renderString($string) . "}";
+            return "\${\"" . $this->escapeString($name) . "\"}";
         }
     }
 
