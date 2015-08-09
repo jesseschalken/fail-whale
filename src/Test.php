@@ -33,7 +33,7 @@ class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
      * @param string $pretty
      */
     private static function assertPrettyIs($value, $pretty) {
-        self::assertEquals("$pretty\n", Value::introspect($value)->toString());
+        self::assertEquals($pretty, Value::introspect($value)->toString());
     }
 
     /**
@@ -50,34 +50,24 @@ class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
 
     function testException() {
         self::assertEquals(Value::mockException()->toString(), <<<'s'
-MuhMockException Dummy exception code in /path/to/muh/file:9000
+MuhMockException Dummy exception code "This is a dummy exception message.
 
-    This is a dummy exception message.
-
-    lololool
-
-source code:
-  not available
-
-local variables:
-  $lol = 8;
-  $foo = "bar";
-  5 more...
-
-stack trace:
-  #1 /path/to/muh/file:9000
-        new FailWhale\DummyClass1 {
+lololool"
+#1  /path/to/muh/file:9000
+        new FailWhale\Test\DummyClass1 {
             private $private1 = null;
             protected $protected1 = null;
             public $public1 = null;
-        }->DummyClass1::aFunction( FailWhale\DummyClass1 $arg1 = new FailWhale\DummyClass1 {
+        }->DummyClass1::aFunction( FailWhale\Test\DummyClass1 $arg1 = new FailWhale\Test\DummyClass1 {
             private $private1 = null;
             protected $protected1 = null;
             public $public1 = null;
         }, 3 more... );
-
-  #2 /path/to/muh/file:9000
-        aFunction( array &$anArray = new FailWhale\DummyClass2 {
+        $lol = 8;
+        $foo = "bar";
+        5 more...
+#2  /path/to/muh/file:9000
+        aFunction( array &$anArray = new FailWhale\Test\DummyClass2 {
             private $private2 = null;
             protected $protected2 = null;
             public $public2 = null;
@@ -85,18 +75,14 @@ stack trace:
             protected $protected1 = null;
             public $public1 = null;
         }, 6 more... );
-
-  8 more...
-
-global variables:
-  private static BlahClass::$blahProperty = null;
-  function blahFunction()::static ${"variable name"} = true;
-  function BlahAnotherClass::blahMethod()::static $lolStatic = null;
-  $_SESSION = true;
-  global $globalVariable = -2734;
-  27 more...
-
-
+8 more...
+globals:
+    private static BlahClass::$blahProperty = null;
+    function blahFunction()::static ${"variable name"} = true;
+    function BlahAnotherClass::blahMethod()::static $lolStatic = null;
+    $_SESSION = true;
+    global $globalVariable = -2734;
+    27 more...
 s
         );
     }
@@ -112,7 +98,6 @@ array(
     3,
     7 more...
 )
-
 s
                 ,
                 Value::introspect(
@@ -126,7 +111,6 @@ array(
     "blarg" => "foo",
     "bar" => "bar",
 )
-
 s
                 ,
                 Value::introspect(
@@ -143,7 +127,6 @@ array(
     "bawreara" => "wrjenrg",
     1 more...
 )
-
 s
                 ,
                 Value::introspect(
@@ -161,7 +144,7 @@ s
         $settings->maxObjectProperties = 5;
         self::assertEquals(
             <<<'s'
-new FailWhale\DummyClass2 {
+new FailWhale\Test\DummyClass2 {
     private $private2 = null;
     protected $protected2 = null;
     public $public2 = null;
@@ -169,7 +152,6 @@ new FailWhale\DummyClass2 {
     protected $protected1 = null;
     1 more...
 }
-
 s
                 ,
                 Value::introspect(new DummyClass2, $settings)->toString()
@@ -180,7 +162,7 @@ s
         $settings                  = new IntrospectionSettings;
         $settings->maxStringLength = 10;
         self::assertEquals(
-            "\"wafkjawejf\" 27 more bytes...\n",
+            "\"wafkjawejf\" 27 more bytes...",
             Value::introspect("wafkjawejf bawjehfb awjhefb j,awhebf ", $settings)->toString()
         );
     }
@@ -223,14 +205,13 @@ array(
         );
     },
 )
-
 s
         );
     }
 
     function testObjectProperties() {
         self::assertPrettyIs(new DummyClass2, <<<'s'
-new FailWhale\DummyClass2 {
+new FailWhale\Test\DummyClass2 {
     private $private2 = null;
     protected $protected2 = null;
     public $public2 = null;

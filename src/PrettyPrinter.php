@@ -18,7 +18,6 @@ final class PrettyPrinterSettings {
     public $maxStringLength                = INF;
     public $useShortArraySyntax            = false;
     public $indentStackTraceFunctions      = true;
-    public $floatPrecision                 = 14;
 }
 
 class PrettyPrinter {
@@ -56,18 +55,15 @@ class PrettyPrinter {
             case Data\Type::NULL:
                 return 'null';
             case Data\Type::POS_INF:
-                return 'INF';
+                return (string) INF;
             case Data\Type::NEG_INF:
-                return '-INF';
+                return (string) -INF;
             case Data\Type::NAN:
-                return 'NAN';
+                return (string) NAN;
             case Data\Type::UNKNOWN:
                 return 'unknown type';
             case Data\Type::FLOAT:
-                list($l, $r) = explode('.', number_format($v->float, $this->settings->floatPrecision, '.', ''));
-                $l = ltrim($l, '0') ?: '0';
-                $r = rtrim($r, '0') ?: '0';
-                return "$l.$r";
+                return (string) $v->float;
             case Data\Type::RESOURCE:
                 return (string) $v->resource->type;
             case Data\Type::EXCEPTION:
@@ -184,6 +180,9 @@ class PrettyPrinter {
             foreach ($object->properties as $prop) {
                 $text .= "$nl2$prop->access " . $this->renderVariable($prop, $nl2);
             }
+            if ($object->propertiesMissing) {
+                $text .= "$nl2$object->propertiesMissing more...";
+            }
             $text .= $nl . $end;
 
             return $text;
@@ -251,7 +250,7 @@ class PrettyPrinter {
             $globals->globalVariablesMissing;
 
         if ($missing)
-            $text .= "$nl$missing missing";
+            $text .= "$nl$missing more...";
 
         return $text ?: "{$nl}none";
     }
@@ -382,7 +381,7 @@ class PrettyPrinter {
 
         $nl2 = "$nl        ";
         if ($this->settings->indentStackTraceFunctions) {
-            $text .= $nl2 . $this->renderFunctionCall($frame, $nl2);
+            $text .= $nl2 . $this->renderFunctionCall($frame, $nl2) . ';';
         } else {
             $text .= ' ' . $this->renderFunctionCall($frame, $nl);
         }
@@ -390,6 +389,9 @@ class PrettyPrinter {
         if ($locals && $this->settings->showExceptionLocalVariables) {
             foreach ($frame->locals as $var) {
                 $text .= $nl2 . $this->renderVariable($var, $nl2);
+            }
+            if ($frame->localsMissing > 0) {
+                $text .= $nl2 . "$frame->localsMissing more...";
             }
         }
 
