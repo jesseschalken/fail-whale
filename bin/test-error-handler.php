@@ -57,30 +57,30 @@ class A {
     }
 
     private /** @noinspection PhpUnusedPrivateFieldInspection */
-        $hebrewChars = "־׀׃׆אבגדהוזחטיךכלםמןנסעףפץצקרשתװױײ׳״";
-    private $allBytes = "";
+            $hebrewChars     = "־׀׃׆אבגדהוזחטיךכלםמןנסעףפץצקרשתװױײ׳״";
+    private $allBytes        = "";
     private /** @noinspection PhpUnusedPrivateFieldInspection */
-        $multiLineString = "SELECT blarg
+            $multiLineString = "SELECT blarg
 FROM foo
 JOIN bah
 	ON foo.a = bah.b
 WHERE foo.id = 4";
     // private $b = 7;
-    var $c = array(array("SELECT blarg",
-                         "FROM \"foo\"",
-                         "WHERE fo\no.blah = 'lol'",
-                         "  · AND foo.boo < 3",
-                         "GROUP BY blarg.lol"),
-                   array(4.0),
-                   array(4.2),
-                   array(4),);
+    var       $c              = array(array("SELECT blarg",
+                                            "FROM \"foo\"",
+                                            "WHERE fo\no.blah = 'lol'",
+                                            "  · AND foo.boo < 3",
+                                            "GROUP BY blarg.lol"),
+                                      array(4.0),
+                                      array(4.2),
+                                      array(4),);
     private /** @noinspection PhpUnusedPrivateFieldInspection */
-        $lol = 5;
+              $lol            = 5;
     private /** @noinspection PhpUnusedPrivateFieldInspection */
-        $blarg = array(null);
-    protected $foo = array();
-    private $recursiveArray = array();
-    static $nums;
+              $blarg          = array(null);
+    protected $foo            = array();
+    private   $recursiveArray = array();
+    static    $nums;
 }
 
 A::$nums = array(NAN, INF, -INF, 0, 0.0, 1 / 3, pi());

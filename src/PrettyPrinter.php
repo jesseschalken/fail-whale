@@ -47,7 +47,7 @@ class PrettyPrinter {
             case Data\Type::OBJECT:
                 return $this->visitObject($v->object, $nl);
             case Data\Type::INT:
-                return (string) $v->int;
+                return (string)$v->int;
             case Data\Type::TRUE:
                 return 'true';
             case Data\Type::FALSE:
@@ -55,17 +55,17 @@ class PrettyPrinter {
             case Data\Type::NULL:
                 return 'null';
             case Data\Type::POS_INF:
-                return (string) INF;
+                return (string)INF;
             case Data\Type::NEG_INF:
-                return (string) -INF;
+                return (string)-INF;
             case Data\Type::NAN:
-                return (string) NAN;
+                return (string)NAN;
             case Data\Type::UNKNOWN:
                 return 'unknown type';
             case Data\Type::FLOAT:
-                return (string) $v->float;
+                return (string)$v->float;
             case Data\Type::RESOURCE:
-                return (string) $v->resource->type;
+                return (string)$v->resource->type;
             case Data\Type::EXCEPTION:
                 return $this->visitException($v->exception, $nl);
             default:

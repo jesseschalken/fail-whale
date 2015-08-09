@@ -7,24 +7,24 @@ use FailWhale\Value;
 
 class DummyClass1 {
     private static /** @noinspection PhpUnusedPrivateFieldInspection */
-        $privateStatic1;
+                     $privateStatic1;
     protected static $protectedStatic1;
-    public static $publicStatic1;
+    public static    $publicStatic1;
     private /** @noinspection PhpUnusedPrivateFieldInspection */
-        $private1;
-    protected $protected1;
-    public $public1;
+                     $private1;
+    protected        $protected1;
+    public           $public1;
 }
 
 class DummyClass2 extends DummyClass1 {
     private static /** @noinspection PhpUnusedPrivateFieldInspection */
-        $privateStatic2;
+                     $privateStatic2;
     protected static $protectedStatic2;
-    public static $publicStatic2;
+    public static    $publicStatic2;
     private /** @noinspection PhpUnusedPrivateFieldInspection */
-        $private2;
-    protected $protected2;
-    public $public2;
+                     $private2;
+    protected        $protected2;
+    public           $public2;
 }
 
 class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
@@ -99,11 +99,11 @@ array(
     7 more...
 )
 s
-                ,
-                Value::introspect(
-                     range(1, 10),
-                     $settings
-                )->toString()
+            ,
+            Value::introspect(
+                range(1, 10),
+                $settings
+            )->toString()
         );
         self::assertEquals(
             <<<'s'
@@ -112,12 +112,12 @@ array(
     "bar" => "bar",
 )
 s
-                ,
-                Value::introspect(
-                     array("blarg" => "foo",
-                           "bar"   => "bar"),
-                     $settings
-                )->toString()
+            ,
+            Value::introspect(
+                array("blarg" => "foo",
+                      "bar"   => "bar"),
+                $settings
+            )->toString()
         );
         self::assertEquals(
             <<<'s'
@@ -128,14 +128,14 @@ array(
     1 more...
 )
 s
-                ,
-                Value::introspect(
-                     array("blarg"    => "foo",
-                           "bar"      => "bar",
-                           "bawreara" => "wrjenrg",
-                           "awfjnrg"  => "awrrg"),
-                     $settings
-                )->toString()
+            ,
+            Value::introspect(
+                array("blarg"    => "foo",
+                      "bar"      => "bar",
+                      "bawreara" => "wrjenrg",
+                      "awfjnrg"  => "awrrg"),
+                $settings
+            )->toString()
         );
     }
 
@@ -153,8 +153,8 @@ new FailWhale\Test\DummyClass2 {
     1 more...
 }
 s
-                ,
-                Value::introspect(new DummyClass2, $settings)->toString()
+            ,
+            Value::introspect(new DummyClass2, $settings)->toString()
         );
     }
 

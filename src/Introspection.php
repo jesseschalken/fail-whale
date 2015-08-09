@@ -46,15 +46,15 @@ class Introspection {
     }
 
     function mockException() {
-        $mock                = new Data\ExceptionData;
-        $mock->className     = 'MuhMockException';
-        $mock->code          = 'Dummy exception code';
-        $mock->message       = <<<'s'
+        $mock               = new Data\ExceptionData;
+        $mock->className    = 'MuhMockException';
+        $mock->code         = 'Dummy exception code';
+        $mock->message      = <<<'s'
 This is a dummy exception message.
 
 lololool
 s;
-        $mock->stackMissing  = 8;
+        $mock->stackMissing = 8;
 
         $location       = new Data\Location;
         $location->file = '/path/to/muh/file';
