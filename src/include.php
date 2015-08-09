@@ -32,7 +32,6 @@ spl_autoload_register(function ($class) {
   'FailWhale\\Test\\DummyClass1' => 'Test.php',
   'FailWhale\\Test\\DummyClass2' => 'Test.php',
   'FailWhale\\Test\\PrettyPrinterTest' => 'Test.php',
-  'FailWhale\\Text' => 'PrettyPrinter.php',
   'FailWhale\\Value' => 'Value.php',
 );
 
