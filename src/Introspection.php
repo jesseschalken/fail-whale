@@ -6,17 +6,17 @@ use FailWhale\Test\DummyClass1;
 use FailWhale\Test\DummyClass2;
 
 class IntrospectionSettings {
-    public $maxArrayEntries = INF;
-    public $maxObjectProperties = INF;
-    public $maxStringLength = INF;
-    public $maxStackFrames = INF;
-    public $maxLocalVariables = INF;
-    public $maxStaticProperties = INF;
-    public $maxStaticVariables = INF;
-    public $maxGlobalVariables = INF;
+    public $maxArrayEntries      = INF;
+    public $maxObjectProperties  = INF;
+    public $maxStringLength      = INF;
+    public $maxStackFrames       = INF;
+    public $maxLocalVariables    = INF;
+    public $maxStaticProperties  = INF;
+    public $maxStaticVariables   = INF;
+    public $maxGlobalVariables   = INF;
     public $maxFunctionArguments = INF;
-    public $maxSourceCodeContext = 10;
-    public $includeSourceCode = true;
+    public $maxSourceCodeContext = 7;
+    public $includeSourceCode    = true;
     /**
      * This prefix will be removed from the start of all file paths if present.
      *
@@ -34,19 +34,19 @@ class IntrospectionSettings {
 class Introspection {
     /** @var Data\Root */
     private $root;
-    private $stringIds = array();
-    private $objectIds = array();
+    private $stringIds   = array();
+    private $objectIds   = array();
     private $arrayIdRefs = array();
     private $nextArrayId = 1;
     private $limits;
 
     function __construct(IntrospectionSettings $limits = null) {
         $this->root   = new Data\Root;
-        $this->limits = $limits ? : new IntrospectionSettings;
+        $this->limits = $limits ?: new IntrospectionSettings;
     }
 
     function mockException() {
-        $mock                = new Data\Exception_;
+        $mock                = new Data\ExceptionData;
         $mock->className     = 'MuhMockException';
         $mock->code          = 'Dummy exception code';
         $mock->message       = <<<'s'
@@ -54,18 +54,16 @@ This is a dummy exception message.
 
 lololool
 s;
-        $mock->previous      = null;
         $mock->stackMissing  = 8;
-        $mock->localsMissing = 5;
 
-        $mock->location       = new Data\Location;
-        $mock->location->file = '/path/to/muh/file';
-        $mock->location->line = 9000;
+        $location       = new Data\Location;
+        $location->file = '/path/to/muh/file';
+        $location->line = 9000;
 
-        $mock->globals                          = new Data\Globals;
-        $mock->globals->staticPropertiesMissing = 1;
-        $mock->globals->globalVariablesMissing  = 19;
-        $mock->globals->staticVariablesMissing  = 7;
+        $globals                          = new Data\Globals;
+        $globals->staticPropertiesMissing = 1;
+        $globals->globalVariablesMissing  = 19;
+        $globals->staticVariablesMissing  = 7;
 
         $prop1            = new Data\Property;
         $prop1->value     = $this->introspect(null);
@@ -74,7 +72,7 @@ s;
         $prop1->className = 'BlahClass';
         $prop1->isDefault = false;
 
-        $mock->globals->staticProperties = array($prop1);
+        $globals->staticProperties = array($prop1);
 
         $static1               = new Data\StaticVariable;
         $static1->name         = 'variable name';
@@ -88,7 +86,7 @@ s;
         $static2->functionName = 'blahMethod';
         $static2->className    = 'BlahAnotherClass';
 
-        $mock->globals->staticVariables = array($static1, $static2);
+        $globals->staticVariables = array($static1, $static2);
 
         $global1        = new Data\Variable;
         $global1->name  = '_SESSION';
@@ -98,7 +96,7 @@ s;
         $global2->name  = 'globalVariable';
         $global2->value = $this->introspect(-2734);
 
-        $mock->globals->globalVariables = array($global1, $global2);
+        $globals->globalVariables = array($global1, $global2);
 
         $local1        = new Data\Variable;
         $local1->name  = 'lol';
@@ -108,22 +106,22 @@ s;
         $local2->name  = 'foo';
         $local2->value = $this->introspect('bar');
 
-        $mock->locals = array($local1, $local2);
-
         $arg1              = new Data\FunctionArg;
         $arg1->name        = 'arg1';
         $arg1->value       = $this->introspect(new DummyClass1);
         $arg1->typeHint    = get_class(new DummyClass1);
         $arg1->isReference = false;
 
-        $stack1               = new Data\Stack;
-        $stack1->args         = array($arg1);
-        $stack1->functionName = 'aFunction';
-        $stack1->className    = 'DummyClass1';
-        $stack1->isStatic     = false;
-        $stack1->location     = clone $mock->location;
-        $stack1->object       = $this->objectId(new DummyClass1);
-        $stack1->argsMissing  = 3;
+        $stack1                = new Data\Stack;
+        $stack1->args          = array($arg1);
+        $stack1->functionName  = 'aFunction';
+        $stack1->className     = 'DummyClass1';
+        $stack1->isStatic      = false;
+        $stack1->location      = clone $location;
+        $stack1->object        = $this->objectId(new DummyClass1);
+        $stack1->argsMissing   = 3;
+        $stack1->localsMissing = 5;
+        $stack1->locals        = array($local1, $local2);
 
         $arg2              = new Data\FunctionArg;
         $arg2->name        = 'anArray';
@@ -136,15 +134,19 @@ s;
         $stack2->functionName = 'aFunction';
         $stack2->className    = null;
         $stack2->isStatic     = null;
-        $stack2->location     = clone $mock->location;
+        $stack2->location     = clone $location;
         $stack2->object       = null;
         $stack2->argsMissing  = 6;
 
         $mock->stack = array($stack1, $stack2);
 
+        $exception             = new Data\Exception_;
+        $exception->globals    = $globals;
+        $exception->exceptions = array($mock);
+
         $value            = new Data\Value_;
         $value->type      = Data\Type::EXCEPTION;
-        $value->exception = $mock;
+        $value->exception = $exception;
         return $value;
     }
 
@@ -238,6 +240,9 @@ s;
     }
 
     private function removeNamespacePrefix($name) {
+        if ($name === null)
+            return null;
+
         $name   = "\\$name";
         $prefix = $this->limits->namespacePrefix;
 
@@ -349,28 +354,32 @@ s;
     }
 
     function introspectException(\Exception $e) {
-        $result            = new Data\Value_;
-        $result->type      = Data\Type::EXCEPTION;
-        $result->exception = $this->introspectException2($e);
+        $result                     = new Data\Value_;
+        $result->type               = Data\Type::EXCEPTION;
+        $result->exception          = new Data\Exception_;
+        $result->exception->globals = $this->introspectGlobals();
+
+        for (; $e instanceof \Exception; $e = $e->getPrevious()) {
+            $result->exception->exceptions[] = $this->introspectException2($e);
+        }
+
         return $result;
     }
 
-    private function introspectException2(\Exception $e = null, $includeGlobals = true) {
-        if (!$e)
-            return null;
+    private function introspectException2(\Exception $e) {
+        $class   = get_class($e);
+        $code    = $e->getCode();
+        $message = $e->getMessage();
+        $trace   = $e->getTrace();
+        $file    = $e->getFile();
+        $line    = $e->getLine();
+        $locals  = $e instanceof ErrorException ? $e->getContext() : null;
 
-        $locals = $e instanceof ErrorException ? $e->getContext() : null;
-
-        $result            = new Data\Exception_;
-        $result->className = $this->removeNamespacePrefix(get_class($e));
-        $result->code      = $e->getCode();
-        $result->message   = $e->getMessage();
-        $result->location  = $this->introspectLocation($e->getFile(), $e->getLine());
-        $result->globals   = $includeGlobals ? $this->introspectGlobals() : null;
-        $result->locals    = $this->introspectVariables($locals, $result->localsMissing,
-                                                        $this->limits->maxLocalVariables);
-        $result->stack     = $this->introspectStack($e->getTrace(), $result->stackMissing);
-        $result->previous  = $this->introspectException2($e->getPrevious(), false);
+        $result            = new Data\ExceptionData;
+        $result->className = $this->removeNamespacePrefix($class);
+        $result->code      = $code;
+        $result->message   = $message;
+        $result->stack     = $this->introspectStack($trace, $result->stackMissing, $file, $line, $locals);
         return $result;
     }
 
@@ -402,7 +411,7 @@ s;
         return $result;
     }
 
-    private function introspectVariables(array &$variables = null, &$missing, $max) {
+    private function introspectVariables(array $variables = null, &$missing, $max) {
         if (!is_array($variables))
             return null;
         /** @var Data\Variable[] $results */
@@ -422,25 +431,32 @@ s;
         return $results;
     }
 
-    private function introspectStack(array $frames, &$missing) {
-        $results = array();
+    private function introspectStack(array $frames, &$missing, $file, $line, array $locals = null) {
+        $results  = array();
+        $frames[] = array(
+            'function' => ltrim($this->limits->namespacePrefix, '\\') . '{main}',
+            'args'     => array(),
+        );
+
         foreach ($frames as $frame) {
             if (count($results) >= $this->limits->maxStackFrames) {
                 $missing++;
             } else {
-                $function =& $frame['function'];
-                $line     =& $frame['line'];
-                $file     =& $frame['file'];
-                $class    =& $frame['class'];
-                $object   =& $frame['object'];
-                $type     =& $frame['type'];
-                $args     =& $frame['args'];
+                $function = array_get_exists($frame, 'function');
+                $line2    = array_get_exists($frame, 'line');
+                $file2    = array_get_exists($frame, 'file');
+                $class    = array_get_exists($frame, 'class');
+                $object   = array_get_exists($frame, 'object');
+                $type     = array_get_exists($frame, 'type');
+                $args     = array_get_exists($frame, 'args');
 
                 $result               = new Data\Stack;
                 $result->functionName = $class === null ? $this->removeNamespacePrefix($function) : $function;
                 $result->location     = $this->introspectLocation($file, $line);
                 $result->className    = $class === null ? null : $this->removeNamespacePrefix($class);
                 $result->object       = $this->objectId($object);
+                $result->locals       = $this->introspectVariables($locals, $result->localsMissing,
+                                                                   $this->limits->maxLocalVariables);
 
                 if ($type === '::')
                     $result->isStatic = true;
@@ -482,6 +498,10 @@ s;
                 }
 
                 $results[] = $result;
+
+                $line   = $line2;
+                $file   = $file2;
+                $locals = null;
             }
         }
 

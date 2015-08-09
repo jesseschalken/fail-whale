@@ -79,7 +79,7 @@ var FailWhale;
     })(Data || (Data = {}));
     var Renderer = (function () {
         function Renderer(root, document) {
-            this.padding = '3px';
+            this.padding = '4px';
             this.root = root;
             this.document = document;
         }
@@ -111,6 +111,7 @@ var FailWhale;
         Renderer.prototype.expandable = function (content) {
             var _this = this;
             var container = this.document.createElement('div');
+            this.reset(container);
             var inline = content.inline;
             if (inline === undefined)
                 inline = true;
@@ -161,14 +162,16 @@ var FailWhale;
         };
         Renderer.prototype.table = function (data) {
             var table = this.document.createElement('table');
-            table.style.borderSpacing = '0';
+            table.style.borderSpacing = this.padding;
             table.style.padding = '0';
+            table.style.margin = '0';
             for (var i = 0; i < data.length; i++) {
                 var tr = this.document.createElement('tr');
                 table.appendChild(tr);
                 for (var j = 0; j < data[i].length; j++) {
                     var td = this.document.createElement('td');
-                    td.style.padding = this.padding;
+                    td.style.padding = '0';
+                    td.style.margin = '0';
                     td.style.verticalAlign = 'baseline';
                     td.appendChild(data[i][j]);
                     tr.appendChild(td);
@@ -297,102 +300,88 @@ var FailWhale;
                 open: false
             });
         };
-        Renderer.prototype.renderStack = function (stack, missing) {
-            var _this = this;
-            var renderFunctionCall = function (call) {
-                var result = _this.document.createDocumentFragment();
-                var prefix = '';
-                if (call.object) {
-                    var object = _this.root.objects[call.object];
-                    result.appendChild(_this.renderObject(object));
-                    prefix += '->';
-                    if (object.className !== call.className)
-                        prefix += call.className + '::';
-                }
-                else if (call.className) {
-                    prefix += call.className;
-                    prefix += call.isStatic ? '::' : '->';
-                }
-                result.appendChild(_this.plain(prefix + call.functionName));
-                if (call.args instanceof Array) {
-                    if (call.args.length == 0 && call.argsMissing == 0) {
-                        result.appendChild(_this.plain('()'));
-                    }
-                    else {
-                        result.appendChild(_this.plain('( '));
-                        for (var i = 0; i < call.args.length; i++) {
-                            if (i != 0)
-                                result.appendChild(_this.plain(', '));
-                            var arg = call.args[i];
-                            if (arg.name) {
-                                if (arg.typeHint) {
-                                    var typeHint;
-                                    switch (arg.typeHint) {
-                                        case 'array':
-                                        case 'callable':
-                                            typeHint = _this.keyword(arg.typeHint);
-                                            break;
-                                        default:
-                                            typeHint = _this.plain(arg.typeHint);
-                                    }
-                                    result.appendChild(typeHint);
-                                    result.appendChild(_this.plain(' '));
-                                }
-                                if (arg.isReference) {
-                                    result.appendChild(_this.plain('&'));
-                                }
-                                result.appendChild(_this.renderVariable(arg.name));
-                                result.appendChild(_this.plain(' = '));
-                            }
-                            result.appendChild(_this.renderValue(arg.value));
-                        }
-                        if (call.argsMissing > 0) {
-                            if (i != 0)
-                                result.appendChild(_this.plain(', '));
-                            result.appendChild(_this.italics(call.argsMissing + ' arguments missing...'));
-                        }
-                        result.appendChild(_this.plain(' )'));
-                    }
+        Renderer.prototype.reset = function (node) {
+            node.style.borderSpacing = '0';
+        };
+        Renderer.prototype.renderFunctionCall = function (call) {
+            var result = this.document.createElement('div');
+            this.reset(result);
+            result.style.padding = this.padding;
+            var prefix = '';
+            if (call.object) {
+                var object = this.root.objects[call.object];
+                result.appendChild(this.renderObject(object));
+                prefix += '->';
+                if (object.className !== call.className)
+                    prefix += call.className + '::';
+            }
+            else if (call.className) {
+                prefix += call.className;
+                prefix += call.isStatic ? '::' : '->';
+            }
+            result.appendChild(this.plain(prefix + call.functionName));
+            if (call.args instanceof Array) {
+                if (call.args.length == 0 && call.argsMissing == 0) {
+                    result.appendChild(this.plain('()'));
                 }
                 else {
-                    result.appendChild(_this.plain('( '));
-                    result.appendChild(_this.italics('not available'));
-                    result.appendChild(_this.plain(' )'));
+                    result.appendChild(this.plain('( '));
+                    for (var i = 0; i < call.args.length; i++) {
+                        if (i != 0)
+                            result.appendChild(this.plain(', '));
+                        var arg = call.args[i];
+                        if (arg.name) {
+                            if (arg.typeHint) {
+                                var typeHint;
+                                switch (arg.typeHint) {
+                                    case 'array':
+                                    case 'callable':
+                                        typeHint = this.keyword(arg.typeHint);
+                                        break;
+                                    default:
+                                        typeHint = this.plain(arg.typeHint);
+                                }
+                                result.appendChild(typeHint);
+                                result.appendChild(this.plain(' '));
+                            }
+                            if (arg.isReference) {
+                                result.appendChild(this.plain('&'));
+                            }
+                            result.appendChild(this.renderVariable(arg.name));
+                            result.appendChild(this.plain(' = '));
+                        }
+                        result.appendChild(this.renderValue(arg.value));
+                    }
+                    if (call.argsMissing > 0) {
+                        if (i != 0)
+                            result.appendChild(this.plain(', '));
+                        result.appendChild(this.italics(call.argsMissing + ' arguments missing...'));
+                    }
+                    result.appendChild(this.plain(' )'));
                 }
-                return result;
-            };
-            var rows = [];
-            for (var x = 0; x < stack.length; x++) {
-                rows.push([
-                    this.plain('#' + String(x + 1)),
-                    this.renderLocation(stack[x].location),
-                    renderFunctionCall(stack[x])
-                ]);
             }
-            if (missing == 0) {
-                rows.push([
-                    this.plain('#' + String(x + 1)),
-                    this.expandable({
-                        head: this.plain('{main}'),
-                        body: function () {
-                            return _this.notice('no source code');
-                        },
-                        open: false
-                    }),
-                    this.collect([])
-                ]);
+            else {
+                result.appendChild(this.plain('( '));
+                result.appendChild(this.italics('not available'));
+                result.appendChild(this.plain(' )'));
             }
-            var container = this.document.createDocumentFragment();
-            container.appendChild(this.table(rows));
+            return result;
+        };
+        Renderer.prototype.renderStack = function (stack, missing) {
+            var container = this.document.createElement('div');
+            this.reset(container);
+            for (var x = 0; x < stack.length; x++)
+                container.appendChild(this.renderLocation(stack[x], x == 0));
             if (missing > 0)
                 container.appendChild(this.notice(missing + " stack frames missing..."));
+            container.style.padding = this.padding;
             return container;
         };
         Renderer.prototype.renderVariable = function (name) {
             var _this = this;
             var red = function (v) {
                 var result = _this.plain(v);
-                result.style.color = '#700';
+                result.style.color = '#600';
                 return result;
             };
             if (/^[a-zA-Z_\x7f-\xff][a-zA-Z0-9_\x7f-\xff]*$/.test(name))
@@ -475,6 +464,7 @@ var FailWhale;
             container.appendChild(this.table(rows));
             var block = function (node) {
                 var div = _this.document.createElement('div');
+                _this.reset(div);
                 div.appendChild(node);
                 return div;
             };
@@ -488,111 +478,112 @@ var FailWhale;
         };
         Renderer.prototype.renderException = function (x) {
             var _this = this;
-            if (!x)
-                return this.italics('none');
-            return this.expandable({
-                inline: false,
-                head: this.collect([this.keyword('exception'), this.plain(' ' + x.className)]),
-                body: function () {
-                    var body = _this.document.createElement('div');
-                    body.appendChild(_this.expandable({
-                        inline: false,
-                        open: true,
-                        head: _this.bold('exception'),
-                        body: function () {
-                            return _this.table([
-                                [_this.bold('code'), _this.plain(x.code)],
-                                [_this.bold('message'), _this.plain(x.message)],
-                                [_this.bold('location'), _this.renderLocation(x.location, true)],
-                                [_this.bold('previous'), _this.renderException(x.previous)]
-                            ]);
-                        }
-                    }));
-                    body.appendChild(_this.expandable({
-                        inline: false,
-                        open: true,
-                        head: _this.bold('locals'),
-                        body: function () {
-                            return _this.renderLocals(x.locals, x.localsMissing);
-                        }
-                    }));
-                    body.appendChild(_this.expandable({
-                        inline: false,
-                        open: true,
-                        head: _this.bold('stack'),
-                        body: function () {
-                            return _this.renderStack(x.stack, x.stackMissing);
-                        }
-                    }));
-                    body.appendChild(_this.expandable({
-                        inline: false,
-                        open: true,
-                        head: _this.bold('globals'),
-                        body: function () {
-                            return _this.renderGlobals(x.globals);
-                        }
-                    }));
-                    body.style.padding = _this.padding;
-                    return body;
-                },
-                open: true
+            var body = this.document.createElement('div');
+            this.reset(body);
+            x.exceptions.forEach(function (e) {
+                body.appendChild(_this.expandable({
+                    inline: false,
+                    open: true,
+                    head: _this.collect([_this.keyword('exception'), _this.plain(' ' + e.className)]),
+                    body: function () { return _this.collect([
+                        _this.table([
+                            [_this.bold('code'), _this.plain(e.code)],
+                            [_this.bold('message'), _this.plain(e.message)],
+                        ]),
+                        _this.renderStack(e.stack, e.stackMissing)
+                    ]); }
+                }));
             });
+            body.appendChild(this.expandable({
+                inline: false,
+                open: true,
+                head: this.bold('globals'),
+                body: function () { return _this.renderGlobals(x.globals); }
+            }));
+            return body;
         };
-        Renderer.prototype.renderLocation = function (location, open) {
+        Renderer.prototype.renderLocation = function (frame, open) {
             var _this = this;
             if (open === void 0) { open = false; }
+            var location = frame.location;
+            var head = this.document.createDocumentFragment();
+            if (location) {
+                head.appendChild(this.plain(location.file + ':'));
+                head.appendChild(this.renderNumber(String(location.line)));
+            }
+            else {
+                head.appendChild(this.plain('[internal function]'));
+            }
+            var name;
+            if (frame.className)
+                name = frame.className + '::' + frame.functionName;
+            else
+                name = frame.functionName;
+            head.appendChild(this.plain('  ' + name));
             return this.expandable({
-                head: location
-                    ? this.collect([this.plain(location.file + ':'), this.renderNumber(String(location.line))])
-                    : this.plain('[internal function]'),
+                inline: false,
+                head: head,
                 body: function () {
-                    if (!location || !location.source)
-                        return _this.notice('no source code');
-                    var padding = '4px';
-                    var lineNumber = _this.document.createElement('div');
-                    lineNumber.style.display = 'inline-block';
-                    lineNumber.style.padding = padding;
-                    lineNumber.style.textAlign = 'right';
-                    lineNumber.style.color = '#999';
-                    lineNumber.style.backgroundColor = '#333';
-                    lineNumber.style.borderRightColor = '#666';
-                    lineNumber.style.borderRightWidth = '1px';
-                    lineNumber.style.borderRightStyle = 'dashed';
-                    lineNumber.style.verticalAlign = 'top';
-                    lineNumber.style.minWidth = '32px';
-                    var code = _this.document.createElement('div');
-                    code.style.display = 'inline-block';
-                    code.style.padding = padding;
-                    code.style.width = '800px';
-                    code.style.overflowX = 'auto';
-                    code.style.backgroundColor = '#222';
-                    code.style.color = '#ccc';
-                    code.style.verticalAlign = 'top';
-                    var codeDiv = _this.document.createElement('div');
-                    code.appendChild(codeDiv);
-                    codeDiv.style.display = 'inline-block';
-                    codeDiv.style.minWidth = '100%';
-                    for (var codeLine in location.source) {
-                        if (!location.source.hasOwnProperty(codeLine))
-                            continue;
-                        var lineDiv = _this.plain(decodeUTF8(location.source[codeLine]) + "\n", false);
-                        if (codeLine == location.line) {
-                            lineDiv.style.backgroundColor = '#f88';
-                            lineDiv.style.color = '#300';
-                            lineDiv.style.borderRadius = padding;
-                        }
-                        lineNumber.appendChild(_this.plain(String(codeLine) + "\n", false));
-                        codeDiv.appendChild(lineDiv);
-                    }
-                    return _this.collect([lineNumber, code]);
+                    var container = _this.document.createDocumentFragment();
+                    container.appendChild(_this.renderFunctionCall(frame));
+                    if (frame.locals)
+                        container.appendChild(_this.renderLocals(frame.locals, frame.localsMissing));
+                    if (location.source)
+                        container.appendChild(_this.renderSourceCode(location));
+                    return container;
                 },
                 open: open
             });
+        };
+        Renderer.prototype.renderSourceCode = function (location) {
+            var lineNumber = this.document.createElement('div');
+            this.reset(lineNumber);
+            lineNumber.style.cssFloat = 'left';
+            lineNumber.style.padding = this.padding;
+            lineNumber.style.textAlign = 'right';
+            lineNumber.style.color = '#999';
+            lineNumber.style.backgroundColor = '#333';
+            lineNumber.style.borderRightColor = '#666';
+            lineNumber.style.borderRightWidth = '1px';
+            lineNumber.style.borderRightStyle = 'dashed';
+            lineNumber.style.verticalAlign = 'top';
+            lineNumber.style.width = '32px';
+            var code = this.document.createElement('div');
+            this.reset(code);
+            code.style.padding = this.padding;
+            code.style.overflowX = 'auto';
+            code.style.backgroundColor = '#222';
+            code.style.color = '#ccc';
+            code.style.verticalAlign = 'top';
+            code.style.marginLeft = '32px';
+            var codeDiv = this.document.createElement('div');
+            this.reset(codeDiv);
+            code.appendChild(codeDiv);
+            codeDiv.style.display = 'inline-block';
+            codeDiv.style.minWidth = '100%';
+            for (var codeLine in location.source) {
+                if (!location.source.hasOwnProperty(codeLine))
+                    continue;
+                var lineDiv = this.plain(decodeUTF8(location.source[codeLine]) + "\n", false);
+                if (codeLine == location.line) {
+                    lineDiv.style.backgroundColor = '#f88';
+                    lineDiv.style.color = '#300';
+                    lineDiv.style.borderRadius = this.padding;
+                }
+                lineNumber.appendChild(this.plain(String(codeLine) + "\n", false));
+                codeDiv.appendChild(lineDiv);
+            }
+            var wrapper = this.document.createElement('div');
+            this.reset(wrapper);
+            wrapper.appendChild(lineNumber);
+            wrapper.appendChild(code);
+            return wrapper;
         };
         Renderer.prototype.renderString = function (x) {
             var _this = this;
             var doRender = function () {
                 var span = _this.document.createElement('span');
+                _this.reset(span);
                 span.style.color = '#080';
                 span.style.fontWeight = 'bold';
                 var translate = {
@@ -628,6 +619,7 @@ var FailWhale;
                 }
                 span.appendChild(_this.plain(buffer + '"'));
                 var container = _this.document.createElement('div');
+                _this.reset(container);
                 container.style.display = 'inline-table';
                 container.appendChild(span);
                 if (x.bytesMissing > 0) {
@@ -656,6 +648,7 @@ var FailWhale;
         return Renderer;
     })();
     function render(json, document) {
+        console.log(json);
         return new Renderer(json, document).renderRoot();
     }
     FailWhale.render = render;

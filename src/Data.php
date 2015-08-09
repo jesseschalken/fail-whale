@@ -3,19 +3,19 @@
 namespace FailWhale\Data;
 
 class Base {
-    public static function fromArray($array) {
+    public final static function fromArray($array) {
         static::convertArray($array);
         return $array;
     }
 
-    protected static function convertArrays(&$arrays) {
+    protected final static function convertArrays(&$arrays) {
         if (is_array($arrays)) {
             foreach ($arrays as &$v)
                 static::convertArray($v);
         }
     }
 
-    protected static function convertArray(&$array) {
+    protected final static function convertArray(&$array) {
         if (is_array($array)) {
             $self = new static;
             $self->importArray($array);
@@ -168,13 +168,7 @@ class Globals extends Base {
     }
 }
 
-class Exception_ extends Base {
-    /** @var Variable[] */
-    public $locals;
-    /** @var int */
-    public $localsMissing = 0;
-    /** @var Globals */
-    public $globals;
+class ExceptionData extends Base {
     /** @var Stack[] */
     public $stack = array();
     /** @var int */
@@ -185,18 +179,23 @@ class Exception_ extends Base {
     public $code;
     /** @var string */
     public $message;
-    /** @var Location */
-    public $location;
-    /** @var Exception_ */
-    public $previous;
 
     protected function importArray(array $array) {
         parent::importArray($array);
-        Variable::convertArrays($this->locals);
-        Globals::convertArray($this->globals);
         Stack::convertArrays($this->stack);
-        Location::convertArray($this->location);
-        self::convertArray($this->previous);
+    }
+}
+
+class Exception_ extends Base {
+    /** @var ExceptionData[] */
+    public $exceptions = array();
+    /** @var Globals */
+    public $globals;
+
+    protected function importArray(array $array) {
+        parent::importArray($array);
+        Globals::convertArray($this->globals);
+        ExceptionData::convertArrays($this->exceptions);
     }
 }
 
@@ -215,11 +214,16 @@ class Stack extends Base {
     public $isStatic;
     /** @var Location */
     public $location;
+    /** @var Variable[] */
+    public $locals;
+    /** @var int */
+    public $localsMissing = 0;
 
     protected function importArray(array $array) {
         parent::importArray($array);
         FunctionArg::convertArrays($this->args);
         Location::convertArray($this->location);
+        Variable::convertArrays($this->locals);
     }
 }
 

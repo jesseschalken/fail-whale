@@ -18,6 +18,7 @@ final class PrettyPrinterSettings {
     public $maxStringLength = INF;
     public $useShortArraySyntax = false;
     public $indentStackTraceFunctions = true;
+    public $floatPrecision = 14;
 }
 
 class PrettyPrinter {
@@ -39,11 +40,11 @@ class PrettyPrinter {
     }
 
     private function text($text = '') {
-        return new Text($text);
+        return Text::fromString($text);
     }
 
-    private function table(array $rows, $alignColumns) {
-        return Text::table($rows, $alignColumns);
+    private function table(array $rows) {
+        return Text::table($rows);
     }
 
     private function renderValue(Data\Value_ $v) {
@@ -158,21 +159,9 @@ class PrettyPrinter {
         else if (!($array->entries) && $array->entriesMissing == 0)
             return $this->text("$start$end");
 
-        $rows = array();
-
-        foreach ($array->entries as $keyValuePair) {
-            $key   = $this->renderValue($keyValuePair->key);
-            $value = $this->renderValue($keyValuePair->value);
-            $value->append(',');
-
-            if ($array->isAssociative) {
-                $rows[] = array($key, $this->text(' => '), $value);
-            } else {
-                $rows[] = array($value);
-            }
-        }
-
-        $result = $this->table($rows, false);
+        $result = $this->text();
+        foreach ($array->entries as $entry)
+            $result->addLines($this->renderArrayEntry($entry, $array->isAssociative));
 
         if ($array->entriesMissing != 0)
             $result->addLine("$array->entriesMissing more...");
@@ -182,6 +171,24 @@ class PrettyPrinter {
         $result->wrapLines($start, $end);
 
         return $result;
+    }
+
+    /**
+     * @param Data\ArrayEntry $entry
+     * @param bool $isAssoc
+     * @return Text
+     */
+    private function renderArrayEntry(Data\ArrayEntry $entry, $isAssoc) {
+        $value = $this->renderValue($entry->value);
+        $value->append(',');
+
+        if ($isAssoc) {
+            $key = $this->renderValue($entry->key);
+            $key->append(' => ');
+            $value->prependLines($key);
+        }
+
+        return $value;
     }
 
     private function renderObjectBody(Data\Object_ $object) {
@@ -204,19 +211,27 @@ class PrettyPrinter {
     }
 
     private function visitFloat($float) {
-        $int = (int)$float;
+        if (!is_finite($float)) {
+            return $this->text("$float");
+        } else {
+            list($l, $r) = explode('.', number_format($float, $this->settings->floatPrecision, '.', ''));
+            $l = ltrim($l, '0') ?: '0';
+            $r = rtrim($r, '0') ?: '0';
 
-        return $this->text("$int" === "$float" ? "$float.0" : "$float");
+            return $this->text("$l.$r");
+        }
     }
 
     private function visitException(Data\Exception_ $exception) {
-        $text = $this->renderException($exception);
+        $text = $this->text();
+        foreach ($exception->exceptions as $e)
+            $text->addLines($this->renderException($e));
 
         if ($this->settings->showExceptionGlobalVariables) {
             $globals = $exception->globals;
 
             if ($globals) {
-                $superGlobals = array(
+                static $superGlobals = array(
                     'GLOBALS',
                     '_SERVER',
                     '_GET',
@@ -259,7 +274,7 @@ class PrettyPrinter {
             }
 
             $t->indent();
-            $text->addLine("global variables:");
+            $text->addLine("globals:");
             $text->addLines($t);
             $text->addLine();
         }
@@ -301,7 +316,7 @@ class PrettyPrinter {
             $escaped .= $char2;
         }
 
-        $result  = $this->text($escaped);
+        $result  = new Text(array($escaped));
         $skipped = max(0, strlen($string->bytes) - strlen($string1));
         $missing = $string->bytesMissing;
         if ($skipped != 0) {
@@ -327,17 +342,16 @@ class PrettyPrinter {
         if (!$variables && $missing == 0)
             return $this->text($noneText);
 
-        $rows = array();
+        $result = $this->text();
 
         foreach ($variables as $k => $variable) {
-            $prefix = $this->text($prefixes[$k]);
-            $prefix->appendLines($this->renderVariable($variable->name));
-            $value = $this->renderValue($variable->value);
-            $value->append(';');
-            $rows[] = array($prefix, $this->text(' = '), $value,);
+            $text = $this->text($prefixes[$k]);
+            $text->appendLines($this->renderVariable($variable->name));
+            $text->append(' = ');
+            $text->appendLines($this->renderValue($variable->value));
+            $text->append(';');
+            $result->addLines($text);
         }
-
-        $result = $this->table($rows, false);
 
         if ($missing != 0)
             $result->addLine("$missing more...");
@@ -345,8 +359,8 @@ class PrettyPrinter {
         return $result;
     }
 
-    private function renderException(Data\Exception_ $e) {
-        $text = $this->text("$e->className $e->code in {$this->renderLocation($e->location)}");
+    private function renderException(Data\ExceptionData $e) {
+        $text = $this->text("$e->className $e->code");
 
         $message = $this->text($e->message);
         $message->indent();
@@ -354,39 +368,8 @@ class PrettyPrinter {
         $message->wrapLines();
         $text->addLines($message);
 
-        if ($this->settings->showExceptionSourceCode) {
-            if (!$e->location || !$e->location->source)
-                $source = $this->text('not available');
-            else
-                $source = $this->renderSourceCode($e->location->source, $e->location->line);
-
-            $source->indent();
-            $source->wrapLines("source code:");
-            $text->addLines($source);
-        }
-
-        if ($this->settings->showExceptionLocalVariables && is_array($e->locals)) {
-            $prefixes = $e->locals ? array_fill(0, count($e->locals), '') : array();
-            $locals   = $this->renderVariables($e->locals, 'none', $e->localsMissing, $prefixes);
-
-            $locals->indent();
-            $locals->wrapLines("local variables:");
-            $text->addLines($locals);
-        }
-
         if ($this->settings->showExceptionStackTrace) {
-            $stack = $this->renderExceptionStack($e);
-            $stack->indent();
-            $stack->wrapLines("stack trace:");
-            $text->addLines($stack);
-        }
-
-        if ($e->previous) {
-            $previous = $this->renderException($e->previous);
-            $previous->indent();
-            $previous->indent();
-            $previous->wrapLines("previous exception:");
-            $text->addLines($previous);
+            $text->addLines($this->renderExceptionStack($e));
         }
 
         return $text;
@@ -423,34 +406,15 @@ class PrettyPrinter {
             );
         }
 
-        return $this->table($rows, true);
+        return $this->table($rows);
     }
 
-    private function renderExceptionStack(Data\Exception_ $exception) {
-        $rows = array();
-        $i    = 1;
+    private function renderExceptionStack(Data\ExceptionData $exception) {
+        $result = $this->text();
 
-        foreach ($exception->stack as $frame) {
-            $location = $this->renderLocation($frame->location);
-            $call     = $this->renderExceptionStackFrame($frame);
-
-            if ($this->settings->indentStackTraceFunctions) {
-                $call->append(';');
-                $call->indent();
-                $call->indent();
-                $call->indent();
-                $call->wrapLines($location);
-                $rows[] = array($this->text("#$i "), $call);
-            } else {
-                $rows[] = array($this->text("#$i "), $this->text("$location "), $call);
-            }
-            $i++;
-        }
-
-        if ($exception->stackMissing == 0)
-            $rows[] = array($this->text("#$i "), $this->text("{main}"));
-
-        $result = $this->table($rows, true);
+        $i = 1;
+        foreach ($exception->stack as $frame)
+            $result->addLines($this->renderFrame($frame, $i++));
 
         if ($exception->stackMissing != 0)
             $result->addLine("$exception->stackMissing more...");
@@ -531,6 +495,39 @@ class PrettyPrinter {
     private function renderLocation(Data\Location $location = null) {
         return $location ? "$location->file:$location->line" : '[internal function]';
     }
+
+    private function renderFrame(Data\Stack $frame, $i) {
+        $location = $frame->location;
+        $locals   = $frame->locals;
+        $prefix   = '#' . str_pad("$i", 2, ' ', STR_PAD_RIGHT) . ' ';
+
+        $text = $this->text($prefix . $this->renderLocation($location));
+        $call = $this->renderExceptionStackFrame($frame);
+
+        if ($this->settings->indentStackTraceFunctions) {
+            $call->append(';');
+            $call->indent();
+            $text->addLines($call);
+        } else {
+            $text->append('  ');
+            $text->appendLines($call);
+        }
+
+        if ($locals && $this->settings->showExceptionLocalVariables) {
+            $prefixes = $locals ? array_fill(0, count($locals), '') : array();
+            $locals   = $this->renderVariables($locals, 'none', $frame->localsMissing, $prefixes);
+            $locals->indent();
+            $text->addLines($locals);
+        }
+
+        if ($location && $location->source && $this->settings->showExceptionSourceCode) {
+            $source = $this->renderSourceCode($location->source, $location->line);
+            $source->indent();
+            $text->addLines($source);
+            return $text;
+        }
+        return $text;
+    }
 }
 
 class RefCounts {
@@ -588,10 +585,6 @@ class RefCounts {
     }
 
     private function doException(Data\Exception_ $e) {
-        if ($e->locals)
-            foreach ($e->locals as $local)
-                $this->doValue($local->value);
-
         if ($e->globals) {
             foreach ($e->globals->staticVariables as $var)
                 $this->doValue($var->value);
@@ -601,48 +594,56 @@ class RefCounts {
                 $this->doValue($var->value);
         }
 
-        if ($e->stack) {
-            foreach ($e->stack as $stack) {
-                if ($stack->object)
-                    $this->doObject($stack->object);
+        foreach ($e->exceptions as $e2) {
+            if ($e2->stack) {
+                foreach ($e2->stack as $stack) {
+                    if ($stack->object)
+                        $this->doObject($stack->object);
 
-                if ($stack->args)
-                    foreach ($stack->args as $arg)
-                        $this->doValue($arg->value);
+                    if ($stack->args)
+                        foreach ($stack->args as $arg)
+                            $this->doValue($arg->value);
+
+                    if ($stack->locals)
+                        foreach ($stack->locals as $local)
+                            $this->doValue($local->value);
+                }
             }
         }
-
-        if ($e->previous)
-            $this->doException($e->previous);
     }
 }
 
 class Text {
-    static function table(array $rows, $alignColumns) {
+    static function fromString($text) {
+        $lines = explode("\n", $text);
+
+        if ($lines && $lines[count($lines) - 1] === "")
+            array_pop($lines);
+
+        return new self($lines);
+    }
+
+    static function table(array $rows) {
         $columnWidths = array();
 
-        if ($alignColumns) {
-            /** @var $cell self */
-            foreach (self::flipArray($rows) as $colNo => $column) {
-                $width = 0;
-
-                foreach ($column as $cell)
-                    $width = max($width, $cell->width());
-
-                $columnWidths[$colNo] = $width;
-            }
+        /** @var $cell self */
+        foreach (self::flipArray($rows) as $colNo => $column) {
+            $width = 0;
+            foreach ($column as $cell)
+                $width = max($width, $cell->width());
+            $columnWidths[$colNo] = $width;
         }
 
-        $result = new self('');
+        $result = self::fromString('');
 
         foreach ($rows as $cells) {
-            $row        = new self('');
+            $row        = self::fromString('');
             $lastColumn = count($cells) - 1;
 
             foreach ($cells as $column => $cell) {
                 $cell = clone $cell;
 
-                if ($alignColumns && $column !== $lastColumn)
+                if ($column !== $lastColumn)
                     $cell->padWidth($columnWidths[$column]);
 
                 $row->appendLines($cell);
@@ -694,12 +695,8 @@ class Text {
     /** @var string[] */
     private $lines;
 
-    function __construct($text) {
-        $lines = explode("\n", $text);
-
-        if ($lines && $lines[count($lines) - 1] === "")
-            array_pop($lines);
-
+    /** @param string[] $lines */
+    function __construct($lines) {
         $this->lines = $lines;
     }
 
@@ -757,6 +754,6 @@ class Text {
     }
 
     private function text($text) {
-        return new self($text);
+        return self::fromString($text);
     }
 }

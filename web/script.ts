@@ -101,19 +101,21 @@ module FailWhale {
         }
 
         export interface Exception {
-            locals: Variable[];
-            localsMissing: number;
-            globals:Globals;
+            globals: Globals;
+            exceptions: ExceptionData[];
+        }
+
+        export interface ExceptionData {
             stack: Stack[];
             stackMissing: number;
             className: string;
             code: string;
             message: string;
-            location: Location;
-            previous: Exception;
         }
 
         export interface Stack {
+            locals: Variable[];
+            localsMissing: number;
             functionName: string;
             args: {
                 value: Value;
@@ -206,7 +208,7 @@ module FailWhale {
     class Renderer implements Data.ValueVisitor<Node> {
         private root:Data.Root;
         private document:Document;
-        private padding = '3px';
+        private padding = '4px';
 
         constructor(root:Data.Root, document:Document) {
             this.root = root;
@@ -247,14 +249,15 @@ module FailWhale {
             open:boolean;
             inline?:boolean;
         }):Node {
-            var container = this.document.createElement('div');
+            const container = this.document.createElement('div');
+            this.reset(container);
             var inline = content.inline;
             if (inline === undefined)
                 inline = true;
             if (inline)
                 container.style.display = 'inline-table';
 
-            var head = this.document.createElement('div');
+            const head = this.document.createElement('div');
             head.style.backgroundColor = '#eee';
             head.style.cursor = 'pointer';
             head.style.padding = this.padding;
@@ -284,7 +287,7 @@ module FailWhale {
 
             var open = content.open;
 
-            var refresh = () => {
+            const refresh = () => {
                 body.innerHTML = '';
 
                 if (open) {
@@ -308,15 +311,17 @@ module FailWhale {
 
         private table(data:Node[][]):Node {
             var table = this.document.createElement('table');
-            table.style.borderSpacing = '0';
+            table.style.borderSpacing = this.padding;
             table.style.padding = '0';
+            table.style.margin = '0';
 
             for (var i = 0; i < data.length; i++) {
                 var tr = this.document.createElement('tr');
                 table.appendChild(tr);
                 for (var j = 0; j < data[i].length; j++) {
                     var td = this.document.createElement('td');
-                    td.style.padding = this.padding;
+                    td.style.padding = '0';
+                    td.style.margin = '0';
                     td.style.verticalAlign = 'baseline';
                     td.appendChild(data[i][j]);
                     tr.appendChild(td);
@@ -339,7 +344,7 @@ module FailWhale {
             return box;
         }
 
-        renderRoot() {
+        public renderRoot() {
             var container = this.document.createElement('div');
             container.style.whiteSpace = 'pre';
             container.style.fontFamily = "'DejaVu Sans Mono', 'Consolas', 'Menlo', monospace";
@@ -353,61 +358,61 @@ module FailWhale {
             return Data.visit(value, this);
         }
 
-        visitInt(val:number) {
+        public visitInt(val:number) {
             return this.renderNumber(String(val));
         }
 
-        visitFloat(val:number) {
+        public visitFloat(val:number) {
             var str = String(val);
             str = val % 1 == 0 ? str + '.0' : str;
             return this.renderNumber(str);
         }
 
-        visitTrue() {
+        public visitTrue() {
             return this.keyword('true');
         }
 
-        visitFalse() {
+        public visitFalse() {
             return this.keyword('false');
         }
 
-        visitString(id:number) {
+        public visitString(id:number) {
             return this.renderString(this.root.strings[id]);
         }
 
-        visitPosInf() {
+        public visitPosInf() {
             return this.renderNumber('INF');
         }
 
-        visitNegInf() {
+        public visitNegInf() {
             return this.renderNumber('-INF');
         }
 
-        visitNaN() {
+        public visitNaN() {
             return this.renderNumber('NAN');
         }
 
-        visitArray(id:number) {
+        public visitArray(id:number) {
             return this.renderArray(id);
         }
 
-        visitObject(id:number) {
+        public visitObject(id:number) {
             return this.renderObject(this.root.objects[id]);
         }
 
-        visitException(val:Data.Exception) {
+        public visitException(val:Data.Exception) {
             return this.renderException(val);
         }
 
-        visitResource(val:Data.Resource) {
+        public visitResource(val:Data.Resource) {
             return this.collect([this.keyword('resource'), this.plain(' ' + val.type)]);
         }
 
-        visitNull() {
+        public visitNull() {
             return this.keyword('null');
         }
 
-        visitUnknown() {
+        public visitUnknown() {
             var span = this.plain('unknown type');
             span.style.fontStyle = 'italic';
             return span;
@@ -471,111 +476,98 @@ module FailWhale {
             });
         }
 
-        private renderStack(stack:Data.Stack[], missing:number):Node {
-            var renderFunctionCall = (call:Data.Stack):Node => {
-                var result = this.document.createDocumentFragment();
-                var prefix = '';
-                if (call.object) {
-                    var object = this.root.objects[call.object];
-                    result.appendChild(this.renderObject(object));
-                    prefix += '->';
-                    if (object.className !== call.className)
-                        prefix += call.className + '::';
-                } else if (call.className) {
-                    prefix += call.className;
-                    prefix += call.isStatic ? '::' : '->';
-                }
+        private reset(node:HTMLElement) {
+            node.style.borderSpacing = '0';
+        }
 
-                result.appendChild(this.plain(prefix + call.functionName));
+        private renderFunctionCall(call:Data.Stack):Node {
+            var result = this.document.createElement('div');
+            this.reset(result);
+            result.style.padding = this.padding;
+            var prefix = '';
+            if (call.object) {
+                var object = this.root.objects[call.object];
+                result.appendChild(this.renderObject(object));
+                prefix += '->';
+                if (object.className !== call.className)
+                    prefix += call.className + '::';
+            } else if (call.className) {
+                prefix += call.className;
+                prefix += call.isStatic ? '::' : '->';
+            }
 
-                if (call.args instanceof Array) {
-                    if (call.args.length == 0 && call.argsMissing == 0) {
-                        result.appendChild(this.plain('()'));
-                    } else {
-                        result.appendChild(this.plain('( '));
+            result.appendChild(this.plain(prefix + call.functionName));
 
-                        for (var i = 0; i < call.args.length; i++) {
-                            if (i != 0)
-                                result.appendChild(this.plain(', '));
-
-                            var arg = call.args[i];
-                            if (arg.name) {
-                                if (arg.typeHint) {
-                                    var typeHint:Node;
-                                    switch (arg.typeHint) {
-                                        case 'array':
-                                        case 'callable':
-                                            typeHint = this.keyword(arg.typeHint);
-                                            break;
-                                        default:
-                                            typeHint = this.plain(arg.typeHint);
-                                    }
-                                    result.appendChild(typeHint);
-                                    result.appendChild(this.plain(' '));
-                                }
-                                if (arg.isReference) {
-                                    result.appendChild(this.plain('&'));
-                                }
-                                result.appendChild(this.renderVariable(arg.name));
-                                result.appendChild(this.plain(' = '));
-                            }
-
-                            result.appendChild(this.renderValue(arg.value));
-                        }
-
-                        if (call.argsMissing > 0) {
-                            if (i != 0)
-                                result.appendChild(this.plain(', '));
-                            result.appendChild(this.italics(call.argsMissing + ' arguments missing...'));
-                        }
-
-                        result.appendChild(this.plain(' )'));
-                    }
+            if (call.args instanceof Array) {
+                if (call.args.length == 0 && call.argsMissing == 0) {
+                    result.appendChild(this.plain('()'));
                 } else {
                     result.appendChild(this.plain('( '));
-                    result.appendChild(this.italics('not available'));
+
+                    for (var i = 0; i < call.args.length; i++) {
+                        if (i != 0)
+                            result.appendChild(this.plain(', '));
+
+                        var arg = call.args[i];
+                        if (arg.name) {
+                            if (arg.typeHint) {
+                                var typeHint:Node;
+                                switch (arg.typeHint) {
+                                    case 'array':
+                                    case 'callable':
+                                        typeHint = this.keyword(arg.typeHint);
+                                        break;
+                                    default:
+                                        typeHint = this.plain(arg.typeHint);
+                                }
+                                result.appendChild(typeHint);
+                                result.appendChild(this.plain(' '));
+                            }
+                            if (arg.isReference) {
+                                result.appendChild(this.plain('&'));
+                            }
+                            result.appendChild(this.renderVariable(arg.name));
+                            result.appendChild(this.plain(' = '));
+                        }
+
+                        result.appendChild(this.renderValue(arg.value));
+                    }
+
+                    if (call.argsMissing > 0) {
+                        if (i != 0)
+                            result.appendChild(this.plain(', '));
+                        result.appendChild(this.italics(call.argsMissing + ' arguments missing...'));
+                    }
+
                     result.appendChild(this.plain(' )'));
                 }
-
-                return result;
-            };
-
-            var rows:Node[][] = [];
-
-            for (var x = 0; x < stack.length; x++) {
-                rows.push([
-                    this.plain('#' + String(x + 1)),
-                    this.renderLocation(stack[x].location),
-                    renderFunctionCall(stack[x])
-                ]);
+            } else {
+                result.appendChild(this.plain('( '));
+                result.appendChild(this.italics('not available'));
+                result.appendChild(this.plain(' )'));
             }
 
-            if (missing == 0) {
-                rows.push([
-                    this.plain('#' + String(x + 1)),
-                    this.expandable({
-                        head: this.plain('{main}'),
-                        body: () => {
-                            return this.notice('no source code');
-                        },
-                        open: false
-                    }),
-                    this.collect([])
-                ]);
-            }
+            return result;
+        }
 
-            var container = this.document.createDocumentFragment();
-            container.appendChild(this.table(rows));
+        private renderStack(stack:Data.Stack[], missing:number):Node {
+            var container = this.document.createElement('div');
+            this.reset(container);
+
+            for (var x = 0; x < stack.length; x++)
+                container.appendChild(this.renderLocation(stack[x], x == 0));
+
             if (missing > 0)
                 container.appendChild(this.notice(missing + " stack frames missing..."));
 
+            container.style.padding = this.padding;
             return container;
         }
 
         private renderVariable(name:string):Node {
             var red = (v:string) => {
                 var result = this.plain(v);
-                result.style.color = '#700';
+                result.style.color = '#600';
                 return result;
             };
 
@@ -675,6 +667,7 @@ module FailWhale {
 
             var block = (node:Node):Node => {
                 var div = this.document.createElement('div');
+                this.reset(div);
                 div.appendChild(node);
                 return div;
             };
@@ -692,117 +685,119 @@ module FailWhale {
         }
 
         private renderException(x:Data.Exception):Node {
-            if (!x)
-                return this.italics('none');
+            var body = this.document.createElement('div');
+            this.reset(body);
+
+            x.exceptions.forEach((e:Data.ExceptionData) => {
+                body.appendChild(this.expandable({
+                    inline: false,
+                    open:   true,
+                    head:   this.collect([this.keyword('exception'), this.plain(' ' + e.className)]),
+                    body:   () => this.collect([
+                        this.table([
+                            [this.bold('code'), this.plain(e.code)],
+                            [this.bold('message'), this.plain(e.message)],
+                        ]),
+                        this.renderStack(e.stack, e.stackMissing)
+                    ])
+                }));
+            });
+            body.appendChild(this.expandable({
+                inline: false,
+                open:   true,
+                head:   this.bold('globals'),
+                body:   () => this.renderGlobals(x.globals)
+            }));
+            return body;
+        }
+
+        private renderLocation(frame:Data.Stack, open:boolean = false):Node {
+            const location = frame.location;
+
+            var head = this.document.createDocumentFragment();
+            if (location) {
+                head.appendChild(this.plain(location.file + ':'));
+                head.appendChild(this.renderNumber(String(location.line)));
+            } else {
+                head.appendChild(this.plain('[internal function]'))
+            }
+
+            var name:string;
+            if (frame.className)
+                name = frame.className + '::' + frame.functionName;
+            else
+                name = frame.functionName;
+            head.appendChild(this.plain('  ' + name));
 
             return this.expandable({
                 inline: false,
-                head: this.collect([this.keyword('exception'), this.plain(' ' + x.className)]),
-                body: () => {
-
-                    var body = this.document.createElement('div');
-                    body.appendChild(this.expandable({
-                        inline: false,
-                        open:   true,
-                        head:   this.bold('exception'),
-                        body:   () => {
-                            return this.table([
-                                [this.bold('code'), this.plain(x.code)],
-                                [this.bold('message'), this.plain(x.message)],
-                                [this.bold('location'), this.renderLocation(x.location, true)],
-                                [this.bold('previous'), this.renderException(x.previous)]
-                            ]);
-                        }
-                    }));
-                    body.appendChild(this.expandable({
-                        inline: false,
-                        open:   true,
-                        head:   this.bold('locals'),
-                        body:   () => {
-                            return this.renderLocals(x.locals, x.localsMissing);
-                        }
-                    }));
-                    body.appendChild(this.expandable({
-                        inline: false,
-                        open:   true,
-                        head:   this.bold('stack'),
-                        body:   () => {
-                            return this.renderStack(x.stack, x.stackMissing);
-                        }
-                    }));
-                    body.appendChild(this.expandable({
-                        inline: false,
-                        open:   true,
-                        head:   this.bold('globals'),
-                        body:   () => {
-                            return this.renderGlobals(x.globals);
-                        }
-                    }));
-                    body.style.padding = this.padding;
-                    return body;
+                head:   head,
+                body:   () => {
+                    var container = this.document.createDocumentFragment();
+                    container.appendChild(this.renderFunctionCall(frame));
+                    if (frame.locals)
+                        container.appendChild(this.renderLocals(frame.locals, frame.localsMissing));
+                    if (location.source)
+                        container.appendChild(this.renderSourceCode(location));
+                    return container;
                 },
-                open: true
+                open:   open
             });
         }
 
-        private renderLocation(location:Data.Location, open:boolean = false):Node {
-            return this.expandable({
-                head: location
-                          ? this.collect([this.plain(location.file + ':'), this.renderNumber(String(location.line))])
-                          : this.plain('[internal function]'),
-                body: () => {
-                    if (!location || !location.source)
-                        return this.notice('no source code');
+        private renderSourceCode(location:Data.Location) {
+            var lineNumber = this.document.createElement('div');
+            this.reset(lineNumber);
+            lineNumber.style.cssFloat = 'left';
+            lineNumber.style.padding = this.padding;
+            lineNumber.style.textAlign = 'right';
+            lineNumber.style.color = '#999';
+            lineNumber.style.backgroundColor = '#333';
+            lineNumber.style.borderRightColor = '#666';
+            lineNumber.style.borderRightWidth = '1px';
+            lineNumber.style.borderRightStyle = 'dashed';
+            lineNumber.style.verticalAlign = 'top';
+            lineNumber.style.width = '32px';
 
-                    var padding = '4px';
-                    var lineNumber = this.document.createElement('div');
-                    lineNumber.style.display = 'inline-block';
-                    lineNumber.style.padding = padding;
-                    lineNumber.style.textAlign = 'right';
-                    lineNumber.style.color = '#999';
-                    lineNumber.style.backgroundColor = '#333';
-                    lineNumber.style.borderRightColor = '#666';
-                    lineNumber.style.borderRightWidth = '1px';
-                    lineNumber.style.borderRightStyle = 'dashed';
-                    lineNumber.style.verticalAlign = 'top';
-                    lineNumber.style.minWidth = '32px';
+            var code = this.document.createElement('div');
+            this.reset(code);
+            code.style.padding = this.padding;
+            code.style.overflowX = 'auto';
+            code.style.backgroundColor = '#222';
+            code.style.color = '#ccc';
+            code.style.verticalAlign = 'top';
+            code.style.marginLeft = '32px';
+            var codeDiv = this.document.createElement('div');
+            this.reset(codeDiv);
+            code.appendChild(codeDiv);
+            codeDiv.style.display = 'inline-block';
+            codeDiv.style.minWidth = '100%';
 
-                    var code = this.document.createElement('div');
-                    code.style.display = 'inline-block';
-                    code.style.padding = padding;
-                    code.style.width = '800px';
-                    code.style.overflowX = 'auto';
-                    code.style.backgroundColor = '#222';
-                    code.style.color = '#ccc';
-                    code.style.verticalAlign = 'top';
-                    var codeDiv = this.document.createElement('div');
-                    code.appendChild(codeDiv);
-                    codeDiv.style.display = 'inline-block';
-                    codeDiv.style.minWidth = '100%';
+            for (var codeLine in location.source) {
+                if (!location.source.hasOwnProperty(codeLine))
+                    continue;
 
-                    for (var codeLine in location.source) {
-                        if (!location.source.hasOwnProperty(codeLine))
-                            continue;
+                var lineDiv = this.plain(decodeUTF8(location.source[codeLine]) + "\n", false);
+                if (codeLine == location.line) {
+                    lineDiv.style.backgroundColor = '#f88';
+                    lineDiv.style.color = '#300';
+                    lineDiv.style.borderRadius = this.padding;
+                }
+                lineNumber.appendChild(this.plain(String(codeLine) + "\n", false));
+                codeDiv.appendChild(lineDiv);
+            }
 
-                        var lineDiv = this.plain(decodeUTF8(location.source[codeLine]) + "\n", false);
-                        if (codeLine == location.line) {
-                            lineDiv.style.backgroundColor = '#f88';
-                            lineDiv.style.color = '#300';
-                            lineDiv.style.borderRadius = padding;
-                        }
-                        lineNumber.appendChild(this.plain(String(codeLine) + "\n", false));
-                        codeDiv.appendChild(lineDiv);
-                    }
-
-                    return this.collect([lineNumber, code]);
-                },
-                open: open
-            });
+            var wrapper = this.document.createElement('div');
+            this.reset(wrapper);
+            wrapper.appendChild(lineNumber);
+            wrapper.appendChild(code);
+            return wrapper;
         }
 
         private renderString(x:Data.String1):Node {
             var doRender = ():Node => {
                 var span = this.document.createElement('span');
+                this.reset(span);
                 span.style.color = '#080';
                 span.style.fontWeight = 'bold';
 
@@ -843,6 +838,7 @@ module FailWhale {
                 span.appendChild(this.plain(buffer + '"'));
 
                 var container = this.document.createElement('div');
+                this.reset(container);
                 container.style.display = 'inline-table';
                 container.appendChild(span);
 
@@ -877,6 +873,7 @@ module FailWhale {
     }
 
     export function render(json:Data.Root, document:HTMLDocument):Node {
+        console.log(json);
         return new Renderer(json, document).renderRoot();
     }
 

@@ -7,6 +7,7 @@ spl_autoload_register(function ($class) {
   'FailWhale\\Data\\ArrayEntry' => 'Data.php',
   'FailWhale\\Data\\Array_' => 'Data.php',
   'FailWhale\\Data\\Base' => 'Data.php',
+  'FailWhale\\Data\\ExceptionData' => 'Data.php',
   'FailWhale\\Data\\Exception_' => 'Data.php',
   'FailWhale\\Data\\FunctionArg' => 'Data.php',
   'FailWhale\\Data\\Globals' => 'Data.php',
@@ -41,4 +42,5 @@ spl_autoload_register(function ($class) {
 
 require_once __DIR__ . '/call_js.php';
 require_once __DIR__ . '/error helpers.php';
+require_once __DIR__ . '/functions.php';
 

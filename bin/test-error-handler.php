@@ -5,12 +5,14 @@ namespace FailWhale;
 require_once __DIR__ . '/../vendor/autoload.php';
 
 set_error_and_exception_handler(function (\Exception $e) {
+    set_error_handler(null);
     $i = new IntrospectionSettings;
 
     $i->fileNamePrefix  = dirname(__DIR__) . DIRECTORY_SEPARATOR;
     $i->namespacePrefix = '\\FailWhale\\';
 
     $v = Value::introspectException($e, $i);
+    $v = Value::fromJSON($v->toJSON());
     if (PHP_SAPI === 'cli')
         print $v->toString();
     else
@@ -26,7 +28,7 @@ $v->foo['recurse'] =& $v->foo;
 error_reporting(-1);
 
 /** @noinspection PhpUnusedLocalVariableInspection */
-$f = curl_init();
+$f = fopen('php://memory', 'rb');
 
 class A {
     function __construct($blah) {
