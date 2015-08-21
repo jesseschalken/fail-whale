@@ -2,34 +2,9 @@
 
 namespace FailWhale;
 
+use FailWhale\Data;
 use FailWhale\Test\DummyClass1;
 use FailWhale\Test\DummyClass2;
-
-class IntrospectionSettings {
-    public $maxArrayEntries      = INF;
-    public $maxObjectProperties  = INF;
-    public $maxStringLength      = INF;
-    public $maxStackFrames       = INF;
-    public $maxLocalVariables    = INF;
-    public $maxStaticProperties  = INF;
-    public $maxStaticVariables   = INF;
-    public $maxGlobalVariables   = INF;
-    public $maxFunctionArguments = INF;
-    public $maxSourceCodeContext = 7;
-    public $includeSourceCode    = true;
-    /**
-     * This prefix will be removed from the start of all file paths if present.
-     *
-     * @var string
-     */
-    public $fileNamePrefix = '';
-    /**
-     * This prefix will be removed from the start of all names of classes and functions.
-     *
-     * @var string
-     */
-    public $namespacePrefix = '\\';
-}
 
 class Introspection {
     /** @var Data\Root */
@@ -254,7 +229,7 @@ s;
 
     private function introspectArray(array $array) {
         $result                = new Data\Array_;
-        $result->isAssociative = self::isAssoc($array);
+        $result->isAssociative = Util::isAssoc($array);
 
         foreach ($array as $key => &$value) {
             if (count($result->entries) >= $this->limits->maxArrayEntries) {
@@ -290,14 +265,6 @@ s;
         return $results;
     }
 
-    private static function isAssoc(array $array) {
-        $i = 0;
-        foreach ($array as $k => $v)
-            if ($k !== $i++)
-                return true;
-        return false;
-    }
-
     function introspectRef(&$value) {
         if (is_array($value)) {
             $result        = new Data\Value_;
@@ -331,7 +298,7 @@ s;
 
     private function arrayRefId(array &$array) {
         foreach ($this->arrayIdRefs as $id => &$array2) {
-            if (self::refEqual($array2, $array))
+            if (Util::refEq($array2, $array))
                 return $id;
         }
 
@@ -342,15 +309,6 @@ s;
         unset($this->arrayIdRefs[$id]);
 
         return $id;
-    }
-
-    private static function refEqual(&$x, &$y) {
-        $xOld   = $x;
-        $x      = new \stdClass;
-        $result = $x === $y;
-        $x      = $xOld;
-
-        return $result;
     }
 
     function introspectException(\Exception $e) {
@@ -442,13 +400,13 @@ s;
             if (count($results) >= $this->limits->maxStackFrames) {
                 $missing++;
             } else {
-                $function = array_get_exists($frame, 'function');
-                $line2    = array_get_exists($frame, 'line');
-                $file2    = array_get_exists($frame, 'file');
-                $class    = array_get_exists($frame, 'class');
-                $object   = array_get_exists($frame, 'object');
-                $type     = array_get_exists($frame, 'type');
-                $args     = array_get_exists($frame, 'args');
+                $function = Util::refGet($frame['function']);
+                $line2    = Util::refGet($frame['line']);
+                $file2    = Util::refGet($frame['file']);
+                $class    = Util::refGet($frame['class']);
+                $object   = Util::refGet($frame['object']);
+                $type     = Util::refGet($frame['type']);
+                $args     = Util::refGet($frame['args']);
 
                 $result               = new Data\Stack;
                 $result->functionName = $class === null ? $this->removeNamespacePrefix($function) : $function;

@@ -13,8 +13,7 @@
         "jesseschalken/pure-json": "^1.0"
     },
     "require-dev": {
-        "phpunit/phpunit": "*",
-        "jesseschalken/autoload-generator": "dev-master"
+        "phpunit/phpunit": "*"
     },
     "autoload": {
         "files": ["src/include.php"]

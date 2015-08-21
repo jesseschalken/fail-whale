@@ -70,7 +70,7 @@ html;
         if ($includeJS)
             $html .= '<script>' . file_get_contents(__DIR__ . '/../web/script.js') . '</script>';
 
-        $html .= call_js(<<<js
+        $html .= Util::callJS(<<<js
 (function (data) {
     return FailWhale.render(data, document);
 })
