@@ -78,10 +78,6 @@ and a CR",
 A `Value` can represent an `Exception` or a single PHP value.
 
 ### `Value::introspect()`, `Value::introspectRef()`, `Value::introspectException()`
-- `Value::fromJSON()`
-- `Value->toJSON()`
-- `Value->toString()`
-- `Value->toHTML()`
 
 `Value::introspect()` and `Value::introspectRef()` will handle arbitrary PHP values, including recursive arrays (eg `$a = [&$a]`) and recursive objects.
 
