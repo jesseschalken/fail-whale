@@ -310,8 +310,6 @@ s;
             $result->access = 'protected';
         else if ($property->isPublic())
             $result->access = 'public';
-        else
-            $result->access = null;
 
         return $result;
     }

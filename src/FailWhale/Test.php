@@ -2,6 +2,7 @@
 
 namespace FailWhale\Test;
 
+use FailWhale\ErrorExceptionWithContext;
 use FailWhale\IntrospectionSettings;
 use FailWhale\PrettyPrinterSettings;
 use FailWhale\Value;
@@ -382,4 +383,15 @@ s
     }
 }
 
+class IntrospectionTest extends \PHPUnit_Framework_TestCase {
+    function testException() {
+        ini_set('memory_limit', '-1');
+        $e = new ErrorExceptionWithContext('message', 0, 100, 'file', 100, new \Exception);
+        $e->setCode('an code');
+        $e->setContext(array(
+            'foo' => 'bar'
+        ));
+        Value::introspectException($e)->toHTML();
+    }
+}
 
