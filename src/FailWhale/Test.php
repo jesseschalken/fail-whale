@@ -3,6 +3,7 @@
 namespace FailWhale\Test;
 
 use FailWhale\IntrospectionSettings;
+use FailWhale\PrettyPrinterSettings;
 use FailWhale\Value;
 
 class DummyClass1 {
@@ -62,27 +63,59 @@ lololool"
             private $private1 = null;
             protected $protected1 = null;
             public $public1 = null;
-        }, 3 more... );
-        $lol = 8;
-        $foo = "bar";
-        5 more...
-#2  /path/to/muh/file:9000
-        aFunction( array &$anArray = new FailWhale\Test\DummyClass2 {
+        }, array &$anArray = new FailWhale\Test\DummyClass2 {
             private $private2 = null;
             protected $protected2 = null;
             public $public2 = null;
             private $private1 = null;
             protected $protected1 = null;
             public $public1 = null;
-        }, 6 more... );
+        }, 3 more... );
+        $lol = 8;
+        $foo = "bar";
+        5 more...
+          8999 line
+        > 9000 line
+          9001 line
+#2  /path/to/muh/file:9000
+        aFunction();
+#3  [internal function]
+        AnClass->aFunction( ? );
 8 more...
 globals:
     private static BlahClass::$blahProperty = null;
-    function blahFunction()::static ${"variable name"} = true;
+    function blahFunction()::static ${"variable name"} = unknown type 'hurr durr';
     function BlahAnotherClass::blahMethod()::static $lolStatic = null;
-    $_SESSION = true;
+    $_SESSION = unknown type;
     global $globalVariable = -2734;
     27 more...
+s
+        );
+
+        $settings                                 = new PrettyPrinterSettings;
+        $settings->showExceptionFunctionArguments = false;
+        $settings->indentStackTraceFunctions      = false;
+
+        self::assertEquals(Value::mockException(false)->toString($settings), <<<'s'
+MuhMockException Dummy exception code "This is a dummy exception message.
+
+lololool"
+#1  /path/to/muh/file:9000 new FailWhale\Test\DummyClass1 {
+    private $private1 = null;
+    protected $protected1 = null;
+    public $public1 = null;
+}->DummyClass1::aFunction( ... )
+        $lol = 8;
+        $foo = "bar";
+        5 more...
+          8999 line
+        > 9000 line
+          9001 line
+#2  /path/to/muh/file:9000 aFunction()
+#3  [internal function] AnClass->aFunction( ? )
+8 more...
+globals:
+    not available
 s
         );
     }
@@ -108,14 +141,14 @@ s
         self::assertEquals(
             <<<'s'
 array(
-    "blarg" => "foo",
+    "blarg\x00" => "foo",
     "bar" => "bar",
 )
 s
             ,
             Value::introspect(
-                array("blarg" => "foo",
-                      "bar"   => "bar"),
+                array("blarg\x00" => "foo",
+                      "bar"       => "bar"),
                 $settings
             )->toString()
         );
@@ -296,6 +329,49 @@ new stdClass {
 }
 s
         );
+    }
+
+    function testShortArray() {
+        $settings                      = new PrettyPrinterSettings;
+        $settings->useShortArraySyntax = true;
+        self::assertEquals('[]', Value::introspect(array())->toString($settings));
+    }
+
+    function testNoShowObjectPoperties() {
+        $settings                       = new PrettyPrinterSettings;
+        $settings->showObjectProperties = false;
+        self::assertEquals('new stdClass', Value::introspect(new \stdClass)->toString($settings));
+    }
+
+    function testLongStrings() {
+        $settings                      = new PrettyPrinterSettings;
+        $settings->longStringThreshold = 10;
+
+        $string = str_repeat('hello', 10);
+        $value  = array($string, $string, $string);
+        self::assertEquals(<<<'s'
+array(
+    &string001 "hellohellohellohellohellohellohellohellohellohello",
+    *string001,
+    *string001,
+)
+s
+            , Value::introspect($value)->toString($settings));
+    }
+
+    function testShortString() {
+        $settings                  = new PrettyPrinterSettings;
+        $settings->maxStringLength = 10;
+
+        $string = str_repeat('hello', 10);
+        self::assertEquals(<<<'s'
+"hellohello...
+s
+            , Value::introspect($string)->toString($settings));
+    }
+
+    function testResource() {
+        self::assertPrettyIs(fopen('php://memory', 'rb'), 'stream');
     }
 }
 

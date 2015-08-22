@@ -23,9 +23,9 @@ final class Value {
         return new self($i->root($i->introspectException($exception)));
     }
 
-    static function mockException() {
+    static function mockException($includeGlobals = true) {
         $i = new Introspection;
-        return new self($i->root($i->mockException()));
+        return new self($i->root($i->mockException($includeGlobals)));
     }
 
     static function fromJSON($json) {
