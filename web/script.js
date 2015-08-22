@@ -648,7 +648,6 @@ var FailWhale;
         return Renderer;
     })();
     function render(json, document) {
-        console.log(json);
         return new Renderer(json, document).renderRoot();
     }
     FailWhale.render = render;

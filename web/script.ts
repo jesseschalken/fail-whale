@@ -873,7 +873,6 @@ module FailWhale {
     }
 
     export function render(json:Data.Root, document:HTMLDocument):Node {
-        console.log(json);
         return new Renderer(json, document).renderRoot();
     }
 
