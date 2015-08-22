@@ -68,7 +68,7 @@ html;
         $html = '';
 
         if ($includeJS)
-            $html .= '<script>' . file_get_contents(__DIR__ . '/../web/script.js') . '</script>';
+            $html .= '<script>' . file_get_contents(__DIR__ . '/../../web/script.js') . '</script>';
 
         $html .= Util::callJS(<<<js
 (function (data) {
