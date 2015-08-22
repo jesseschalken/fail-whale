@@ -331,7 +331,7 @@ s;
         $trace   = $e->getTrace();
         $file    = $e->getFile();
         $line    = $e->getLine();
-        $locals  = $e instanceof ErrorException ? $e->getContext() : null;
+        $locals  = $e instanceof ErrorExceptionWithContext ? $e->getContext() : null;
 
         $result            = new Data\ExceptionData;
         $result->className = $this->removeNamespacePrefix($class);

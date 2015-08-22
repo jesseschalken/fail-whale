@@ -1,6 +1,6 @@
 # fail-whale
 
-A universal PHP error handler, pretty printer and PHP value browser.
+`fail-whale` is a system for introspecting PHP values and exceptions and rendering them in plain text and interactive HTML.
 
 ## Installation
 
@@ -8,55 +8,82 @@ Install [the Composer package](https://packagist.org/packages/fail-whale/fail-wh
 
 ## Usage
 
-### Pretty Printer
-
-`Value` provides a complete system for introspecting and rendering PHP values and exceptions, both as plain text and HTML. A `Value` can also be converted to JSON and back again.
-
 Example:
 
 ```php
 use FailWhale\Value;
 
-class A {
-    private $foo      = "bar";
+class Foo {
+    private $baz = "bar";
     protected $an_int = 967;
-    public $an_array  = array(
-        'key'  => 'value',
-        'key2' => 'value2',
-        8      => 762.192,
-    );
+    public $an_array = [
+        'baz' => [
+            8346 => 762.192,
+            'key1' => "string with\nnew lines\n\t\tand\r\n\ttabs\nand a CR",
+            'key2' => "random bytes \xc4\x08\x12\xb1",
+            'key3' => M_PI,
+            'key4' => null,
+            'key6' => true,
+        ]
+    ];
+    private $bar;
+
+    function __construct() {
+        $this->bar = new Bar();
+        $baz =& $this->an_array['baz'];
+        $baz['recurse'] =& $baz;
+        $baz['stream'] = fopen('php://memory', 'wb');
+    }
 }
 
-$a = new A;
+class Bar {
+    private $copies;
+    function __construct() {
+        $this->copies = [$this, $this];
+    }
+}
 
-print Value::introspect($a)->toString();
+print Value::introspect(new Foo)->toString();
 ```
 
 ```
-new A {
-    private $foo = "bar";
+new Foo {
+    private $baz = "bar";
     protected $an_int = 967;
     public $an_array = array(
-        "key" => "value",
-        "key2" => "value2",
-        8 => 762.192,
+        "baz" => &array002 array(
+            8346 => 762.192,
+            "key1" => "string with
+new lines
+		and\r
+	tabs
+and a CR",
+            "key2" => "random bytes \xc4\x08\x12\xb1",
+            "key3" => 3.1415926535898,
+            "key4" => null,
+            "key6" => true,
+            "recurse" => *array002,
+            "stream" => stream,
+        ),
     );
+    private $bar = &object002 new Bar {
+        private $copies = array(
+            *object002 new Bar,
+            *object002 new Bar,
+        );
+    };
 }
 ```
 
 A `Value` can represent an `Exception` or a single PHP value.
 
-The full list of methods for `Value` are:
-
-- `Value::introspect()`
-- `Value::introspectRef()`
-- `Value::introspectException()`
+### `Value::introspect()`, `Value::introspectRef()`, `Value::introspectException()`
 - `Value::fromJSON()`
 - `Value->toJSON()`
 - `Value->toString()`
 - `Value->toHTML()`
 
-`Value::introspect()` (and `Value::introspectRef()`) will handle arbitrary PHP values, including recursive arrays (such as `$a = [&$a]`) and recursive objects.
+`Value::introspect()` and `Value::introspectRef()` will handle arbitrary PHP values, including recursive arrays (eg `$a = [&$a]`) and recursive objects.
 
 `Value::introspectException()` will handle any `Exception` and retrieve:
 - it's code, message, file and line
@@ -65,98 +92,127 @@ The full list of methods for `Value` are:
     - global variables
     - static class properties
     - static variables
-- if it is a `FailWhale\ErrorException`, the local variables at the point that the PHP error occurred
+- if it is a `ErrorExceptionWithContext`, the local variables ("context") at the point that the PHP error occurred
 - the source code which surrounds the line where the exception was thrown and the surrounding code for each function call on the stack
 
 All `Value::introspect*()` methods optionally accept a `IntrospectionSettings` object.
 
+### `Value::toJSON()`, `Value::fromJSON()`
+
 `Value->toJSON()` will return a JSON string suitable for `Value::fromJSON()`.
+
+### `Value::toHTML()`, `Value::toInlineHTML()`
 
 `Value->toHTML()` will return a full HTML document which represents the value in a browsable, expandable/collapsible form.
 
-`Value->toString()` will return a string. It optionally accepts a `PrettyPrinterSettings` object to control how the value is rendered. PHP values (and exceptions) containing repeated arrays, objects and strings are handled gracefully, as are recursive arrays and objects.
+`Value->toInlineHTML()` will return HTML suitable for embedding in another HTML document.
 
-### Error Handler
+### `Value::toString()`
 
-#### `\FailWhale\set_exception_trace()`, `\FailWhale\Exception`
+`Value->toString()` will pretty-print the value as a string. It optionally accepts a `PrettyPrinterSettings` object to control how the value is rendered.
 
-In order to see the `$this` object (current object) for each stack frame in an exception, you should overwrite the default trace for an exception with one provided by `debug_backtrace()` using `\FailWhale\set_exception_trace()`:
+PHP values (and exceptions) containing repeated arrays, objects and strings are handled gracefully, as are recursive arrays and objects.
+
+Scalar values (`int`, `string`, `bool`, `float`, `null`) and non-recursive arrays are rendered as valid PHP code.
+
+## Error Handler
+
+### `ErrorUtil::setExceptionTrace()`, `ExceptionWithTraceObjects`
+
+In order to see the `$this` object (current object) for each stack frame in an exception, you should overwrite the default trace for an exception with one provided by `debug_backtrace()` using `ErrorUtil::setExceptionTrace()`:
 
 ```php
-$e = new \Exception('oh no!');
-\FailWhale\set_exception_trace($e, debug_backtrace());
+use FailWhale\ErrorUtil;
+
+$e = new Exception('oh no!');
+ErrorUtil::setExceptionTrace($e, debug_backtrace());
 throw $e;
 ```
 
 It is more convenient to do this in the constructor of your exception:
 
 ```php
+use FailWhale\ErrorUtil;
+
 class BadException {
     function __construct($message) {
         parent::__construct($message);
-        \FailWhale\set_exception_trace($this, debug_backtrace());
+        ErrorUtil::setExceptionTrace($this, debug_backtrace());
     }
 }
 
 throw new BadException('oh no!');
 ```
 
-Or you could instantiate or extend `FailWhale\Exception` which will do this for you:
+Or you could instantiate or extend `ExceptionWithTraceObjects` which will do this for you:
 
 ```php
-throw new \FailWhale\Exception('oh no!');
+use FailWhale\ExceptionWithTraceObjects;
+
+throw new ExceptionWithTraceObjects('oh no!');
 ```
 
-`\FailWhale\set_exception_trace()` uses reflection to set the private `$trace` property of `\Exception`, which is returned by `$e->getTrace()`. Try not to think about that too much. ;)
+`ErrorUtil::setExceptionTrace()` uses reflection to set the private property `Exception::$trace`, which is returned by `$e->getTrace()`. Try not to think about that too much. ;)
 
-You can also use `\FailWhale\set_exception_trace()` to remove the top stack frame from an exception, to avoid your error handler appearing in the trace, for example.
+You can also use `ErrorUtil::setExceptionTrace()` to remove the top stack frame from an exception, to avoid your error handler appearing in the trace, for example.
 
 ```php
-\set_error_handler(function ($type, $message, $file, $line, $context = null) {
-    $e = new \ErrorException($message, 0, $type, $file, $line);
-    \FailWhale\set_exception_trace($e, array_slice($e->getTrace(), 1)); // <=
+use FailWhale\ErrorUtil;
+
+set_error_handler(function ($type, $message, $file, $line, $context = null) {
+    $e = new ErrorException($message, 0, $type, $file, $line);
+    ErrorUtil::setExceptionTrace($e, array_slice($e->getTrace(), 1)); // <=
     throw $e;
 })
 ```
 
-#### `\FailWhale\ErrorException`
+### `ErrorExceptionWithContext`
 
-In order to see the local variables for PHP errors, you should use `\FailWhale\ErrorException` in place of `\ErrorException` in your error handler, and call `$e->setContext()` with the `$context` array provided to your error handler from `\set_error_handler()`. For example:
+In order to see the local variables for PHP errors, you should use `ErrorExceptionWithContext` in place of `ErrorException` in your error handler, and call `$e->setContext()` with the `$context` array provided to your error handler from `set_error_handler()`. For example:
 
 ```php
-\set_error_handler(function ($type, $message, $file, $line, $context = null) {
-    $e = new \FailWhale\ErrorException($message, 0, $type, $file, $line);
+use FailWhale\ErrorExceptionWithContext;
+
+set_error_handler(function ($type, $message, $file, $line, $context = null) {
+    $e = new ErrorExceptionWithContext($message, 0, $type, $file, $line);
     $e->setContext($context); // <=
     throw $e;
 })
 ```
 
-#### `\FailWhale\php_error_constant()`, `\FailWhale\php_error_name()`
+### `ErrorUtil::phpErrorConstant()`, `ErrorUtil::phpErrorName()`
 
-For a given PHP error type, `\FailWhale\php_error_constant()` and `\FailWhale\php_error_name()` will return the name of the constant and descriptive name respectively.
+For a given PHP error type, `ErrorUtil::phpErrorConstant()` and `ErrorUtil::phpErrorName()` will return the name of the constant and descriptive name respectively.
 
 ```php
-print \FailWhale\php_error_constant(E_PARSE); // E_PARSE
-print \FailWhale\php_error_name(E_PARSE); // Parse Error
+use FailWhale\ErrorUtil;
+
+print ErrorUtil::phpErrorConstant(E_PARSE); // E_PARSE
+print ErrorUtil::phpErrorName(E_PARSE); // Parse Error
 ```
 
-This can be useful for setting the code (as opposed to the severity/level/type) for an `\ErrorException`, which is usually set to _0_. Since `new \ErrorException(...)` only accepts integers for `$code`, you should use `\FailWhale\ErrorException` instead and call `setCode()`. For example:
+This can be useful for setting the code (as opposed to the severity/level/type) for an `ErrorException`, which is usually set to _0_. Since `new ErrorException(...)` only accepts integers for `$code`, you should use `ErrorExceptionWithContext` instead and call `setCode()`. For example:
 
 ```php
-\set_error_handler(function ($type, $message, $file, $line, $context = null) {
-    $e = new \FailWhale\ErrorException($message, 0, $type, $file, $line);
-    $e->setCode(\FailWhale\php_error_constant($type)); // <=
+use FailWhale\ErrorExceptionWithContext;
+use FailWhale\ErrorUtil;
+
+set_error_handler(function ($type, $message, $file, $line, $context = null) {
+    $e = new ErrorException($message, 0, $type, $file, $line);
+    $e->setCode(ErrorUtil::phpErrorConstant($type)); // <=
     throw $e;
 })
 ```
 
-#### `\FailWhale\set_error_and_exception_handler()`
+### `ErrorUtil::setErrorAndExceptionHandler()`
 
-`\FailWhale\set_error_and_exception_handler()` provides a PHP error handler which does all of the above for you, in addition to handling fatal errors. You are welcome to use that:
+`ErrorUtil::setErrorAndExceptionHandler()` provides a PHP error handler which does all of the above for you, in addition to handling fatal errors. You are welcome to use that:
 
 ```php
-\FailWhale\set_error_and_exception_handler(function (\Exception $e) {
-    if ($e instanceof \ErrorException)
+use FailWhale\ErrorUtil;
+
+ErrorUtil::setErrorAndExceptionHandler(function (Exception $e) {
+    if ($e instanceof ErrorException)
         print "A PHP error occurred!\n";
     else
         print "An exception occurred!\n";
@@ -165,13 +221,16 @@ This can be useful for setting the code (as opposed to the severity/level/type) 
 });
 ```
 
-#### Error Handler + Pretty Printer
+## Error Handler + Pretty Printer
 
-Putting these two pieces together, an error handler which prints a browseable HTML version of an exception to the browser might look like this:
+Putting these two pieces together, an error handler which prints a interactive HTML version of an exception to the browser might look like this:
 
 ```php
-\FailWhale\set_error_and_exception_handler(function (\Exception $e) {
-    $value = \FailWhale\Value::introspectException($e);
+use FailWhale\ErrorUtil;
+use FailWhale\Value;
+
+ErrorUtil::setErrorAndExceptionHandler(function (Exception $e) {
+    $value = Value::introspectException($e);
 
     if (PHP_SAPI === 'cli')
         print $value->toString();

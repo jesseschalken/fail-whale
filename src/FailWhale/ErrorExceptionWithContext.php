@@ -7,7 +7,7 @@ namespace FailWhale;
  * stack frame, and provides a method to set the context (local variables)
  * provided by PHP's error handler.
  */
-class ErrorException extends \ErrorException {
+class ErrorExceptionWithContext extends \ErrorException {
     /** @var array|null */
     private $context;
 
