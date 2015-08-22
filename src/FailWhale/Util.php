@@ -38,16 +38,8 @@ html;
         return false;
     }
 
-    static function &refNew($x) { return $x; }
-    static function refGet(&$x) { return $x; }
-    static function refSet(&$x, $y) { $x = $y; }
-    static function refInc(&$x) { $x++; }
-    static function refDec(&$x) { $x--; }
-
-    static function refSwap(&$x, &$y) {
-        $_ = $x;
-        $x = $y;
-        $y = $_;
+    static function refGet(&$x) {
+        return $x;
     }
 
     static function refEq(&$x, &$y) {
