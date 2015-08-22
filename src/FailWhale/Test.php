@@ -34,7 +34,9 @@ class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
      * @param string $pretty
      */
     private static function assertPrettyIs($value, $pretty) {
-        self::assertEquals($pretty, Value::introspect($value)->toString());
+        $value = Value::introspect($value);
+        $value = Value::fromJSON($value->toJSON());
+        self::assertEquals($pretty, $value->toString());
     }
 
     /**
@@ -42,7 +44,9 @@ class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
      * @param string $pretty
      */
     private static function assertPrettyRefIs(&$ref, $pretty) {
-        self::assertEquals($pretty, Value::introspectRef($ref)->toString());
+        $value = Value::introspectRef($ref);
+        $value = Value::fromJSON($value->toJSON());
+        self::assertEquals($pretty, $value->toString());
     }
 
     function testClosure() {
@@ -50,7 +54,10 @@ class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
     }
 
     function testException() {
-        self::assertEquals(Value::mockException()->toString(), <<<'s'
+        $mock = Value::mockException();
+        $mock = Value::fromJSON($mock->toJSON());
+
+        self::assertEquals($mock->toString(), <<<'s'
 MuhMockException Dummy exception code "This is a dummy exception message.
 
 lololool"
