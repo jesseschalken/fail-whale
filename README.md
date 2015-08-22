@@ -78,23 +78,25 @@ All `Value::introspect*()` methods optionally accept a `IntrospectionSettings` o
 
 ### Error Handler
 
-#### `\FailWhale\set_exception_trace()`, `\FailWhale\Exception`
+#### `ErrorUtil::setExceptionTrace()`, `\FailWhale\Exception`
 
-In order to see the `$this` object (current object) for each stack frame in an exception, you should overwrite the default trace for an exception with one provided by `debug_backtrace()` using `\FailWhale\set_exception_trace()`:
+In order to see the `$this` object (current object) for each stack frame in an exception, you should overwrite the default trace for an exception with one provided by `debug_backtrace()` using `ErrorUtil::setExceptionTrace()`:
 
 ```php
-$e = new \Exception('oh no!');
-\FailWhale\set_exception_trace($e, debug_backtrace());
+use FailWhale\ErrorUtil;
+$e = new Exception('oh no!');
+ErrorUtil::setExceptionTrace($e, debug_backtrace());
 throw $e;
 ```
 
 It is more convenient to do this in the constructor of your exception:
 
 ```php
+use FailWhale\ErrorUtil;
 class BadException {
     function __construct($message) {
         parent::__construct($message);
-        \FailWhale\set_exception_trace($this, debug_backtrace());
+        \FailWhale\ErrorUtil::setExceptionTrace($this, debug_backtrace());
     }
 }
 
@@ -107,14 +109,14 @@ Or you could instantiate or extend `FailWhale\Exception` which will do this for 
 throw new \FailWhale\Exception('oh no!');
 ```
 
-`\FailWhale\set_exception_trace()` uses reflection to set the private `$trace` property of `\Exception`, which is returned by `$e->getTrace()`. Try not to think about that too much. ;)
+`\FailWhale\ErrorUtil::setExceptionTrace()` uses reflection to set the private `$trace` property of `\Exception`, which is returned by `$e->getTrace()`. Try not to think about that too much. ;)
 
-You can also use `\FailWhale\set_exception_trace()` to remove the top stack frame from an exception, to avoid your error handler appearing in the trace, for example.
+You can also use `\FailWhale\ErrorUtil::setExceptionTrace()` to remove the top stack frame from an exception, to avoid your error handler appearing in the trace, for example.
 
 ```php
 \set_error_handler(function ($type, $message, $file, $line, $context = null) {
     $e = new \ErrorException($message, 0, $type, $file, $line);
-    \FailWhale\set_exception_trace($e, array_slice($e->getTrace(), 1)); // <=
+    \FailWhale\ErrorUtil::setExceptionTrace($e, array_slice($e->getTrace(), 1)); // <=
     throw $e;
 })
 ```
@@ -131,13 +133,13 @@ In order to see the local variables for PHP errors, you should use `\FailWhale\E
 })
 ```
 
-#### `\FailWhale\php_error_constant()`, `\FailWhale\php_error_name()`
+#### `\FailWhale\ErrorUtil::phpErrorConstant()`, `\FailWhale\ErrorUtil::phpErrorName()`
 
-For a given PHP error type, `\FailWhale\php_error_constant()` and `\FailWhale\php_error_name()` will return the name of the constant and descriptive name respectively.
+For a given PHP error type, `\FailWhale\ErrorUtil::phpErrorConstant()` and `\FailWhale\ErrorUtil::phpErrorName()` will return the name of the constant and descriptive name respectively.
 
 ```php
-print \FailWhale\php_error_constant(E_PARSE); // E_PARSE
-print \FailWhale\php_error_name(E_PARSE); // Parse Error
+print \FailWhale\ErrorUtil::phpErrorConstant(E_PARSE); // E_PARSE
+print \FailWhale\ErrorUtil::phpErrorName(E_PARSE); // Parse Error
 ```
 
 This can be useful for setting the code (as opposed to the severity/level/type) for an `\ErrorException`, which is usually set to _0_. Since `new \ErrorException(...)` only accepts integers for `$code`, you should use `\FailWhale\ErrorException` instead and call `setCode()`. For example:
@@ -145,17 +147,17 @@ This can be useful for setting the code (as opposed to the severity/level/type) 
 ```php
 \set_error_handler(function ($type, $message, $file, $line, $context = null) {
     $e = new \FailWhale\ErrorException($message, 0, $type, $file, $line);
-    $e->setCode(\FailWhale\php_error_constant($type)); // <=
+    $e->setCode(\FailWhale\ErrorUtil::phpErrorConstant($type)); // <=
     throw $e;
 })
 ```
 
-#### `\FailWhale\set_error_and_exception_handler()`
+#### `\FailWhale\ErrorUtil::setErrorAndExceptionHandler()`
 
-`\FailWhale\set_error_and_exception_handler()` provides a PHP error handler which does all of the above for you, in addition to handling fatal errors. You are welcome to use that:
+`\FailWhale\ErrorUtil::setErrorAndExceptionHandler()` provides a PHP error handler which does all of the above for you, in addition to handling fatal errors. You are welcome to use that:
 
 ```php
-\FailWhale\set_error_and_exception_handler(function (\Exception $e) {
+\FailWhale\ErrorUtil::setErrorAndExceptionHandler(function (\Exception $e) {
     if ($e instanceof \ErrorException)
         print "A PHP error occurred!\n";
     else
@@ -170,7 +172,7 @@ This can be useful for setting the code (as opposed to the severity/level/type) 
 Putting these two pieces together, an error handler which prints a browseable HTML version of an exception to the browser might look like this:
 
 ```php
-\FailWhale\set_error_and_exception_handler(function (\Exception $e) {
+\FailWhale\ErrorUtil::setErrorAndExceptionHandler(function (\Exception $e) {
     $value = \FailWhale\Value::introspectException($e);
 
     if (PHP_SAPI === 'cli')
