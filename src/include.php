@@ -1,14 +1,13 @@
 <?php
 
 spl_autoload_register(function ($class) {
-    $path = __DIR__;
+    $dir = __DIR__;
     foreach (explode('\\', $class) as $part) {
-        $path .= DIRECTORY_SEPARATOR . $part;
-        if (file_exists("$path.php")) {
-            require_once "$path.php";
-        } else if (!file_exists($path)) {
+        $dir = $dir . DIRECTORY_SEPARATOR . $part;
+        $php = $dir . '.php';
+        if (file_exists($php))
+            require_once $php;
+        if (!file_exists($dir))
             break;
-        }
     }
 });
-
