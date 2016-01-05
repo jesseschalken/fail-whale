@@ -1,12 +1,13 @@
 <?php
 
-spl_autoload_register(function ($class) {
-    $dir = __DIR__;
-    foreach (explode('\\', $class) as $part) {
-        $dir = $dir . DIRECTORY_SEPARATOR . $part;
-        $php = $dir . '.php';
-        if (file_exists($dir)) continue;
-        if (file_exists($php)) require_once $php;
-        break;
+spl_autoload_register(function ($cls) {
+    $sep = DIRECTORY_SEPARATOR;
+    for ($cls = explode('\\', $cls); $cls; array_pop($cls)) {
+        $php = __DIR__ . $sep . join($sep, $cls) . '.php';
+        if (file_exists($php)) {
+            /** @noinspection PhpIncludeInspection */
+            require_once $php;
+            break;
+        }
     }
 });
