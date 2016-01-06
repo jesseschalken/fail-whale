@@ -36,9 +36,9 @@ s;
         $unknown2       = new Data\Value_;
         $unknown2->type = Data\Type::UNKNOWN;
 
-        $location       = new Data\Location;
-        $location->file = '/path/to/muh/file';
-        $location->line = 9000;
+        $location         = new Data\Location;
+        $location->file   = '/path/to/muh/file';
+        $location->line   = 9000;
         $location->source = array(
             8999 => 'line',
             9000 => 'line',
@@ -124,14 +124,14 @@ s;
         $stack2->object           = null;
         $stack2->argsMissing      = 0;
 
-        $stack3                   = new Data\Stack;
-        $stack3->args             = null;
-        $stack3->functionName     = 'aFunction';
-        $stack3->className        = 'AnClass';
-        $stack3->isStatic         = null;
-        $stack3->location         = null;
-        $stack3->object           = null;
-        $stack3->argsMissing      = 0;
+        $stack3               = new Data\Stack;
+        $stack3->args         = null;
+        $stack3->functionName = 'aFunction';
+        $stack3->className    = 'AnClass';
+        $stack3->isStatic     = null;
+        $stack3->location     = null;
+        $stack3->object       = null;
+        $stack3->argsMissing  = 0;
 
         $mock->stack = array($stack1, $stack2, $stack3);
 
@@ -188,8 +188,9 @@ s;
     }
 
     private function objectId($object) {
-        if (!$object)
+        if (!$object) {
             return null;
+        }
         $id =& $this->objectIds[spl_object_hash($object)];
         if ($id === null) {
             $id = count($this->objectIds);
@@ -235,16 +236,18 @@ s;
     }
 
     private function removeNamespacePrefix($name) {
-        if ($name === null)
+        if ($name === null) {
             return null;
+        }
 
         $name   = "\\$name";
         $prefix = $this->limits->namespacePrefix;
 
-        if (substr($name, 0, strlen($prefix)) === $prefix)
+        if (substr($name, 0, strlen($prefix)) === $prefix) {
             return (string)substr($name, strlen($prefix));
-        else
+        } else {
             return $name;
+        }
     }
 
     private function introspectArray(array $array) {
@@ -274,10 +277,11 @@ s;
              $reflection = $reflection->getParentClass()) {
             foreach ($reflection->getProperties() as $property) {
                 if (!$property->isStatic() && $property->class === $reflection->name) {
-                    if (count($results) >= $this->limits->maxObjectProperties)
+                    if (count($results) >= $this->limits->maxObjectProperties) {
                         $missing++;
-                    else
+                    } else {
                         $results[] = $this->introspectProperty($property, $object);
+                    }
                 }
             }
         }
@@ -304,20 +308,22 @@ s;
         $result->value     = $this->introspect($property->getValue($object));
         $result->isDefault = $property->isDefault();
 
-        if ($property->isPrivate())
+        if ($property->isPrivate()) {
             $result->access = 'private';
-        else if ($property->isProtected())
+        } else if ($property->isProtected()) {
             $result->access = 'protected';
-        else if ($property->isPublic())
+        } else if ($property->isPublic()) {
             $result->access = 'public';
+        }
 
         return $result;
     }
 
     private function arrayRefId(array &$array) {
         foreach ($this->arrayIdRefs as $id => &$array2) {
-            if (Util::refEq($array2, $array))
+            if (Util::refEq($array2, $array)) {
                 return $id;
+            }
         }
 
         $id = $this->nextArrayId++;
@@ -360,8 +366,9 @@ s;
     }
 
     private function introspectLocation($file, $line) {
-        if (!$file)
+        if (!$file) {
             return null;
+        }
         $result         = new Data\Location;
         $result->file   = $this->removeFileNamePrefix($file);
         $result->line   = $line;
@@ -372,24 +379,26 @@ s;
     private function removeFileNamePrefix($file) {
         $prefix = $this->limits->fileNamePrefix;
 
-        if (substr($file, 0, strlen($prefix)) === $prefix)
+        if (substr($file, 0, strlen($prefix)) === $prefix) {
             return (string)substr($file, strlen($prefix));
-        else
+        } else {
             return $file;
+        }
     }
 
     private function introspectGlobals() {
         $result                   = new Data\Globals;
         $result->globalVariables  = $this->introspectVariables($GLOBALS, $result->globalVariablesMissing,
-                                                               $this->limits->maxGlobalVariables);
+            $this->limits->maxGlobalVariables);
         $result->staticProperties = $this->introspectStaticProperties($result->staticPropertiesMissing);
         $result->staticVariables  = $this->introspectStaticVariables($result->staticVariablesMissing);
         return $result;
     }
 
     private function introspectVariables(array $variables = null, &$missing, $max) {
-        if (!is_array($variables))
+        if (!is_array($variables)) {
             return null;
+        }
         /** @var Data\Variable[] $results */
         $results = array();
 
@@ -432,22 +441,24 @@ s;
                 $result->className    = $class === null ? null : $this->removeNamespacePrefix($class);
                 $result->object       = $this->objectId($object);
                 $result->locals       = $this->introspectVariables($locals, $result->localsMissing,
-                                                                   $this->limits->maxLocalVariables);
+                    $this->limits->maxLocalVariables);
 
-                if ($type === '::')
+                if ($type === '::') {
                     $result->isStatic = true;
-                else if ($type === '->')
+                } else if ($type === '->') {
                     $result->isStatic = false;
-                else
+                } else {
                     $result->isStatic = null;
+                }
 
                 if ($args !== null) {
-                    if ($class === null && function_exists($function))
+                    if ($class === null && function_exists($function)) {
                         $reflection = new \ReflectionFunction($function);
-                    else if ($class !== null && method_exists($class, $function))
+                    } else if ($class !== null && method_exists($class, $function)) {
                         $reflection = new \ReflectionMethod($class, $function);
-                    else
+                    } else {
                         $reflection = null;
+                    }
 
                     $params = $reflection ? $reflection->getParameters() : null;
 
@@ -460,14 +471,15 @@ s;
                         $arg1->value       = $this->introspectRef($arg);
                         $arg1->isReference = $param ? $param->isPassedByReference() : null;
 
-                        if (!$param)
+                        if (!$param) {
                             $arg1->typeHint = null;
-                        else if ($param->isArray())
+                        } else if ($param->isArray()) {
                             $arg1->typeHint = 'array';
-                        else if (method_exists($param, 'isCallable') && $param->isCallable())
+                        } else if (method_exists($param, 'isCallable') && $param->isCallable()) {
                             $arg1->typeHint = 'callable';
-                        else
+                        } else {
                             $arg1->typeHint = $this->getParameterClass($param);
+                        }
 
                         $result->args[] = $arg1;
                     }
@@ -490,23 +502,27 @@ s;
     }
 
     private function introspectSourceCode($file, $line) {
-        if (!$this->limits->includeSourceCode)
+        if (!$this->limits->includeSourceCode) {
             return null;
+        }
 
-        if (!@is_readable($file))
+        if (!@is_readable($file)) {
             return null;
+        }
 
         $contents = @file_get_contents($file);
 
-        if (!is_string($contents))
+        if (!is_string($contents)) {
             return null;
+        }
 
         $lines   = explode("\n", $contents);
         $results = array();
         $context = $this->limits->maxSourceCodeContext;
         foreach (range($line - $context, $line + $context) as $line1) {
-            if (isset($lines[$line1 - 1]))
+            if (isset($lines[$line1 - 1])) {
                 $results[$line1] = $lines[$line1 - 1];
+            }
         }
 
         return $results;
@@ -520,10 +536,11 @@ s;
 
             foreach ($reflection->getProperties(\ReflectionProperty::IS_STATIC) as $property) {
                 if ($property->class === $reflection->name) {
-                    if (count($results) >= $this->limits->maxStaticProperties)
+                    if (count($results) >= $this->limits->maxStaticProperties) {
                         $missing++;
-                    else
+                    } else {
                         $results[] = $this->introspectProperty($property);
+                    }
                 }
             }
         }
@@ -538,8 +555,9 @@ s;
             $reflection = new \ReflectionClass($class);
 
             foreach ($reflection->getMethods() as $method) {
-                if ($method->class !== $reflection->name)
+                if ($method->class !== $reflection->name) {
                     continue;
+                }
 
                 $staticVariables = $method->getStaticVariables();
 

@@ -122,10 +122,11 @@ class PrettyPrinter {
             $end   = ")";
         }
 
-        if (!$this->settings->showArrayEntries)
+        if (!$this->settings->showArrayEntries) {
             return "array";
-        else if (!($array->entries) && $array->entriesMissing == 0)
+        } else if (!($array->entries) && $array->entriesMissing == 0) {
             return "$start$end";
+        }
 
         $result = "$start";
         foreach ($array->entries as $entry) {
@@ -139,8 +140,9 @@ class PrettyPrinter {
             }
         }
 
-        if ($array->entriesMissing != 0)
+        if ($array->entriesMissing != 0) {
             $result .= "$nl2$array->entriesMissing more...";
+        }
 
         $result .= "$nl$end";
 
@@ -155,8 +157,9 @@ class PrettyPrinter {
             $start = "new $object->className {";
             $end   = "}";
 
-            if (!$object->properties && $object->propertiesMissing == 0)
+            if (!$object->properties && $object->propertiesMissing == 0) {
                 return "$start$end";
+            }
 
             $text = $start;
             foreach ($object->properties as $prop) {
@@ -231,15 +234,17 @@ class PrettyPrinter {
             $globals->staticVariablesMissing +
             $globals->globalVariablesMissing;
 
-        if ($missing)
+        if ($missing) {
             $text .= "$nl$missing more...";
+        }
 
         return $text ?: "{$nl}none";
     }
 
     private function renderString(Data\String_ $string) {
-        if (!$this->settings->showStringContents)
+        if (!$this->settings->showStringContents) {
             return "string";
+        }
 
         $max     = $this->settings->maxStringLength;
         $bytes   = $string->bytes;
@@ -278,11 +283,13 @@ class PrettyPrinter {
 
         if ($this->settings->showExceptionStackTrace) {
             $i = 1;
-            foreach ($e->stack as $frame)
+            foreach ($e->stack as $frame) {
                 $text .= $nl . $this->renderStackFrame($frame, $i++, $nl);
+            }
 
-            if ($e->stackMissing != 0)
+            if ($e->stackMissing != 0) {
                 $text .= $nl . "$e->stackMissing more...";
+            }
         }
 
         return $text;
@@ -309,8 +316,9 @@ class PrettyPrinter {
     private function renderFunctionCall(Data\Stack $frame, $nl) {
         if ($frame->object && $this->settings->showExceptionFunctionObject) {
             $text = $this->visitObject($frame->object, $nl) . '->';
-            if ($this->root->objects[$frame->object]->className !== $frame->className)
+            if ($this->root->objects[$frame->object]->className !== $frame->className) {
                 $text .= "$frame->className::";
+            }
         } else if ($frame->className) {
             $text = $frame->className . ($frame->isStatic ? '::' : '->');
         } else {
@@ -332,17 +340,21 @@ class PrettyPrinter {
             /** @var Data\FunctionArg $arg */
             foreach ($frame->args as $arg) {
                 $prefix = '';
-                if ($arg->typeHint !== null)
+                if ($arg->typeHint !== null) {
                     $prefix .= "$arg->typeHint ";
-                if ($arg->isReference)
+                }
+                if ($arg->isReference) {
                     $prefix .= '&';
-                if ($arg->name)
+                }
+                if ($arg->name) {
                     $prefix .= $this->renderVariableName($arg->name) . ' = ';
+                }
                 $args[] = $prefix . $this->renderValue($arg->value, $nl);
             }
 
-            if ($frame->argsMissing != 0)
+            if ($frame->argsMissing != 0) {
                 $args[] = "$frame->argsMissing more...";
+            }
 
             $text .= '( ' . join(', ', $args) . ' )';
         }

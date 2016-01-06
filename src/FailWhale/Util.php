@@ -32,9 +32,11 @@ html;
      */
     static function isAssoc(array $a) {
         $i = 0;
-        foreach ($a as $k => $v)
-            if ($k !== $i++)
+        foreach ($a as $k => $v) {
+            if ($k !== $i++) {
                 return true;
+            }
+        }
         return false;
     }
 

@@ -67,8 +67,9 @@ html;
     function toInlineHTML($includeJS = true) {
         $html = '';
 
-        if ($includeJS)
+        if ($includeJS) {
             $html .= '<script>' . file_get_contents(__DIR__ . '/../../web/script.js') . '</script>';
+        }
 
         $html .= Util::callJS(<<<js
 (function (data) {

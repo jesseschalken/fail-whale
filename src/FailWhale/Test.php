@@ -389,7 +389,7 @@ class IntrospectionTest extends \PHPUnit_Framework_TestCase {
         $e = new ErrorExceptionWithContext('message', 0, 100, 'file', 100, new \Exception);
         $e->setCode('an code');
         $e->setContext(array(
-            'foo' => 'bar'
+            'foo' => 'bar',
         ));
         Value::introspectException($e)->toHTML();
     }

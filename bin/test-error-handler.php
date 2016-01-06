@@ -13,10 +13,11 @@ ErrorUtil::setErrorAndExceptionHandler(function (\Exception $e) {
 
     $v = Value::introspectException($e, $i);
     $v = Value::fromJSON($v->toJSON());
-    if (PHP_SAPI === 'cli')
+    if (PHP_SAPI === 'cli') {
         print $v->toString();
-    else
+    } else {
         print $v->toHTML();
+    }
 });
 
 ini_set('display_errors', 1);
@@ -38,8 +39,9 @@ class A {
 
     private function blarg(/** @noinspection PhpUnusedParameterInspection */
         array &$aaaaaa) {
-        for ($i = 0; $i < 256; $i++)
+        for ($i = 0; $i < 256; $i++) {
             $this->allBytes .= chr($i);
+        }
 
         $this->recursiveArray['a']    =& $this->recursiveArray;
         $this->recursiveArray['this'] = $this;
