@@ -17,7 +17,7 @@ final class ErrorUtil {
      * @param \Exception $e
      * @param array      $trace
      */
-    static function setExceptionTrace(\Exception $e, array $trace) {
+    public static function setExceptionTrace(\Exception $e, array $trace) {
         $i = 0;
         while (
             isset($trace[$i]['object']) &&
@@ -37,7 +37,7 @@ final class ErrorUtil {
      * @param int $type
      * @return string
      */
-    static function phpErrorConstant($type) {
+    public static function phpErrorConstant($type) {
         /** @var string[] $values */
         static $values = array(
             E_ERROR             => 'E_ERROR',
@@ -64,7 +64,7 @@ final class ErrorUtil {
      * @param int $type
      * @return string
      */
-    static function phpErrorName($type) {
+    public static function phpErrorName($type) {
         /** @var string[] $values */
         static $values = array(
             E_ERROR             => 'Fatal Error',
@@ -94,7 +94,7 @@ final class ErrorUtil {
      * - Binds a shutdown function which catches fatal PHP errors.
      * @param callable $handler Will be called with the uncaught \Exception or \ErrorException.
      */
-    static function setErrorAndExceptionHandler(callable $handler) {
+    public static function setErrorAndExceptionHandler(callable $handler) {
         set_exception_handler($handler);
 
         set_error_handler(function ($type, $message, $file, $line, $context = null) {

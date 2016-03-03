@@ -8,7 +8,7 @@ class RefCounts {
     public  $objects = array();
     private $root;
 
-    function __construct(Data\Root $root) {
+    public function __construct(Data\Root $root) {
         $this->root = $root;
         $this->doValue($root->root);
     }

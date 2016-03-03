@@ -32,7 +32,7 @@ error_reporting(-1);
 $f = fopen('php://memory', 'rb');
 
 class A {
-    function __construct($blah) {
+    public function __construct($blah) {
         $v = array($this);
         $this->blarg($v);
     }
@@ -88,7 +88,7 @@ WHERE foo.id = 4";
 A::$nums = array(NAN, INF, -INF, 0, 0.0, 1 / 3, pi());
 
 class Blarg {
-    static function foo() {
+    public static function foo() {
         new A(array(array(array(array(3, 6, 2, 4)))), 'lol');
     }
 }

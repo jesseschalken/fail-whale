@@ -11,7 +11,7 @@ class ErrorException extends \ErrorException {
     /** @var array|null */
     private $context;
 
-    function __construct(
+    public function __construct(
         $message = "",
         $code = 0,
         $severity = 1,
@@ -29,7 +29,7 @@ class ErrorException extends \ErrorException {
      * `$code`, you can use this to set it to something besides an integer.
      * @param mixed|int $code
      */
-    function setCode($code) {
+    public function setCode($code) {
         $this->code = $code;
     }
 
@@ -37,7 +37,7 @@ class ErrorException extends \ErrorException {
      * Set the context (local variables)
      * @param array|null $context
      */
-    function setContext(array $context = null) {
+    public function setContext(array $context = null) {
         $this->context = $context;
     }
 
@@ -45,7 +45,7 @@ class ErrorException extends \ErrorException {
      * Get the context (local variables)
      * @return array|null
      */
-    function getContext() {
+    public function getContext() {
         return $this->context;
     }
 }

@@ -15,12 +15,12 @@ class Introspection {
     private $nextArrayId = 1;
     private $limits;
 
-    function __construct(IntrospectionSettings $limits = null) {
+    public function __construct(IntrospectionSettings $limits = null) {
         $this->root   = new Data\Root;
         $this->limits = $limits ?: new IntrospectionSettings;
     }
 
-    function mockException() {
+    public function mockException() {
         $mock               = new Data\ExceptionData;
         $mock->className    = 'MuhMockException';
         $mock->code         = 'Dummy exception code';
@@ -125,7 +125,7 @@ s;
         return $value;
     }
 
-    function introspect($value) {
+    public function introspect($value) {
         $result = new Data\Value_;
 
         if (is_string($value)) {
@@ -269,7 +269,7 @@ s;
         return $results;
     }
 
-    function introspectRef(&$value) {
+    public function introspectRef(&$value) {
         if (is_array($value)) {
             $result        = new Data\Value_;
             $result->type  = Data\Type::ARRAY1;
@@ -317,7 +317,7 @@ s;
         return $id;
     }
 
-    function introspectException(\Exception $e) {
+    public function introspectException(\Exception $e) {
         $result                     = new Data\Value_;
         $result->type               = Data\Type::EXCEPTION;
         $result->exception          = new Data\Exception_;
@@ -580,7 +580,7 @@ s;
         return $globals;
     }
 
-    function root(Data\Value_ $value) {
+    public function root(Data\Value_ $value) {
         $root       = clone $this->root;
         $root->root = $value;
         return $root;

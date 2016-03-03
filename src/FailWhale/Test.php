@@ -44,11 +44,11 @@ class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
         self::assertEquals($pretty, Value::introspectRef($ref)->toString());
     }
 
-    function testClosure() {
+    public function testClosure() {
         self::assertPrettyIs(function () { }, 'new Closure {}');
     }
 
-    function testException() {
+    public function testException() {
         self::assertEquals(Value::mockException()->toString(), <<<'s'
 MuhMockException Dummy exception code "This is a dummy exception message.
 
@@ -87,7 +87,7 @@ s
         );
     }
 
-    function testMaxArrayEntries() {
+    public function testMaxArrayEntries() {
         $settings                  = new IntrospectionSettings;
         $settings->maxArrayEntries = 3;
         self::assertEquals(
@@ -139,7 +139,7 @@ s
         );
     }
 
-    function testMaxObjectProperties() {
+    public function testMaxObjectProperties() {
         $settings                      = new IntrospectionSettings;
         $settings->maxObjectProperties = 5;
         self::assertEquals(
@@ -158,7 +158,7 @@ s
         );
     }
 
-    function testMaxStringLength() {
+    public function testMaxStringLength() {
         $settings                  = new IntrospectionSettings;
         $settings->maxStringLength = 10;
         self::assertEquals(
@@ -167,7 +167,7 @@ s
         );
     }
 
-    function testMultiLineString() {
+    public function testMultiLineString() {
         self::assertPrettyIs(<<<'s'
  weaf waef 8we 7f8tweyufgij2k3e wef f
 sdf wf wef
@@ -192,7 +192,7 @@ s
         );
     }
 
-    function testObjectArrayRecursion() {
+    public function testObjectArrayRecursion() {
         $object      = new \stdClass;
         $array       = array($object);
         $object->foo =& $array;
@@ -209,7 +209,7 @@ s
         );
     }
 
-    function testObjectProperties() {
+    public function testObjectProperties() {
         self::assertPrettyIs(new DummyClass2, <<<'s'
 new FailWhale\Test\DummyClass2 {
     private $private2 = null;
@@ -223,7 +223,7 @@ s
         );
     }
 
-    function testRecursiveArray() {
+    public function testRecursiveArray() {
         $recursiveArray            = array();
         $recursiveArray['recurse'] =& $recursiveArray;
 
@@ -248,7 +248,7 @@ s
         );
     }
 
-    function testSimpleValues() {
+    public function testSimpleValues() {
         self::assertPrettyIs(null, "null");
         self::assertPrettyIs(false, "false");
         self::assertPrettyIs(true, "true");
@@ -286,7 +286,7 @@ s
         );
     }
 
-    function testStdClass() {
+    public function testStdClass() {
         $object      = new \stdClass;
         $object->foo = 'bar';
 

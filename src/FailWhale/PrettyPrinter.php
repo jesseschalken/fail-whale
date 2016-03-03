@@ -10,13 +10,13 @@ class PrettyPrinter {
     /** @var Data\Root */
     private $root;
 
-    function __construct(Data\Root $root, PrettyPrinterSettings $settings = null) {
+    public function __construct(Data\Root $root, PrettyPrinterSettings $settings = null) {
         $this->settings  = $settings ?: new PrettyPrinterSettings;
         $this->root      = $root;
         $this->refCounts = new RefCounts($root);
     }
 
-    function render() {
+    public function render() {
         return $this->renderValue($this->root->root, "\n");
     }
 

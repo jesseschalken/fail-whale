@@ -5,30 +5,30 @@ namespace FailWhale;
 use PureJSON\JSON;
 
 final class Value {
-    static function introspect($value, IntrospectionSettings $settings = null) {
+    public static function introspect($value, IntrospectionSettings $settings = null) {
         $i = new Introspection($settings);
 
         return new self($i->root($i->introspect($value)));
     }
 
-    static function introspectRef(&$value, IntrospectionSettings $settings = null) {
+    public static function introspectRef(&$value, IntrospectionSettings $settings = null) {
         $i = new Introspection($settings);
 
         return new self($i->root($i->introspectRef($value)));
     }
 
-    static function introspectException(\Exception $exception, IntrospectionSettings $limits = null) {
+    public static function introspectException(\Exception $exception, IntrospectionSettings $limits = null) {
         $i = new Introspection($limits);
 
         return new self($i->root($i->introspectException($exception)));
     }
 
-    static function mockException() {
+    public static function mockException() {
         $i = new Introspection;
         return new self($i->root($i->mockException()));
     }
 
-    static function fromJSON($json) {
+    public static function fromJSON($json) {
         return new self(Data\Root::fromArray(JSON::decode($json, true)));
     }
 
@@ -42,7 +42,7 @@ final class Value {
      * Converts the value to a complete HTML document
      * @return string
      */
-    function toHTML() {
+    public function toHTML() {
         $html = $this->toInlineHTML(true);
 
         return <<<html
@@ -64,7 +64,7 @@ html;
      *                        times, but the output will be bloated. You can also include web/script.js manually.
      * @return string
      */
-    function toInlineHTML($includeJS = true) {
+    public function toInlineHTML($includeJS = true) {
         $html = '';
 
         if ($includeJS) {
@@ -81,11 +81,11 @@ js
         return $html;
     }
 
-    function toJSON($pretty = true) {
+    public function toJSON($pretty = true) {
         return JSON::encode($this->root->toArray(), true, $pretty);
     }
 
-    function toString(PrettyPrinterSettings $settings = null) {
+    public function toString(PrettyPrinterSettings $settings = null) {
         $visitor = new PrettyPrinter($this->root, $settings);
 
         return $visitor->render();
