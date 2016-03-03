@@ -8,8 +8,8 @@ final class Util {
     /**
      * Call a JavaScript function to render HTML
      * @param string $function A JavaScript expression that evaluates to a function
-     * @param mixed $param A value which will be JSON-encoded and passed as the first parameter
-     * @param bool $binary
+     * @param mixed  $param    A value which will be JSON-encoded and passed as the first parameter
+     * @param bool   $binary
      * @return string
      */
     static function callJS($function, $param, $binary = false) {
@@ -32,16 +32,22 @@ html;
      */
     static function isAssoc(array $a) {
         $i = 0;
-        foreach ($a as $k => $v)
-            if ($k !== $i++)
+        foreach ($a as $k => $v) {
+            if ($k !== $i++) {
                 return true;
+            }
+        }
         return false;
     }
 
     static function &refNew($x) { return $x; }
+
     static function refGet(&$x) { return $x; }
+
     static function refSet(&$x, $y) { $x = $y; }
+
     static function refInc(&$x) { $x++; }
+
     static function refDec(&$x) { $x--; }
 
     static function refSwap(&$x, &$y) {

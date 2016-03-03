@@ -10,8 +10,9 @@ class Base {
 
     protected final static function convertArrays(&$arrays) {
         if (is_array($arrays)) {
-            foreach ($arrays as &$v)
+            foreach ($arrays as &$v) {
                 static::convertArray($v);
+            }
         }
     }
 
@@ -34,14 +35,17 @@ class Base {
     }
 
     private static function toArray_($value) {
-        if ($value instanceof self)
+        if ($value instanceof self) {
             $value = get_object_vars($value);
+        }
 
         if (is_array($value)) {
             $r = array();
-            foreach ($value as $k => $v)
-                if ($v !== null)
+            foreach ($value as $k => $v) {
+                if ($v !== null) {
                     $r[$k] = self::toArray_($v);
+                }
+            }
             return $r;
         } else {
             return $value;

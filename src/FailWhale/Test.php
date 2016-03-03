@@ -29,7 +29,7 @@ class DummyClass2 extends DummyClass1 {
 
 class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
     /**
-     * @param mixed $value
+     * @param mixed  $value
      * @param string $pretty
      */
     private static function assertPrettyIs($value, $pretty) {
@@ -37,7 +37,7 @@ class PrettyPrinterTest extends \PHPUnit_Framework_TestCase {
     }
 
     /**
-     * @param mixed $ref
+     * @param mixed  $ref
      * @param string $pretty
      */
     private static function assertPrettyRefIs(&$ref, $pretty) {

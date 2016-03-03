@@ -15,7 +15,7 @@ final class ErrorUtil {
      * `$this` for each stack frame.
      *
      * @param \Exception $e
-     * @param array $trace
+     * @param array      $trace
      */
     static function setExceptionTrace(\Exception $e, array $trace) {
         $i = 0;
