@@ -51,7 +51,7 @@ class PrettyPrinter {
             case Data\Type::EXCEPTION:
                 return $this->visitException($v->exception, $nl);
             default:
-                return "unknown type $v->type";
+                return "unknown type '$v->type'";
         }
     }
 

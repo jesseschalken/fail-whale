@@ -23,9 +23,9 @@ final class Value {
         return new self($i->root($i->introspectException($exception)));
     }
 
-    public static function mockException() {
+    public static function mockException($includeGlobals = true) {
         $i = new Introspection;
-        return new self($i->root($i->mockException()));
+        return new self($i->root($i->mockException($includeGlobals)));
     }
 
     public static function fromJSON($json) {
@@ -68,7 +68,7 @@ html;
         $html = '';
 
         if ($includeJS) {
-            $html .= '<script>' . file_get_contents(__DIR__ . '/../web/script.js') . '</script>';
+            $html .= '<script>' . file_get_contents(__DIR__ . '/../../web/script.js') . '</script>';
         }
 
         $html .= \FailWhale\_Internal\call_js(<<<js

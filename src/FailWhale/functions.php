@@ -57,7 +57,7 @@ function set_error_and_exception_handler(callable $handler) {
     \set_exception_handler($handler);
 
     \set_error_handler(function ($type, $message, $file, $line, $context = null) {
-        $e = new ErrorException($message, 0, $type, $file, $line);
+        $e = new ErrorExceptionWithContext($message, 0, $type, $file, $line);
         $e->setCode(php_error_constant($type));
         $e->setContext($context);
         // remove the top stack frame (this function)
@@ -68,7 +68,7 @@ function set_error_and_exception_handler(callable $handler) {
     \register_shutdown_function(function () use ($handler) {
         $e = error_get_last();
         if ($e !== null && ($e['type'] & (E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR))) {
-            $ex = new ErrorException(
+            $ex = new ErrorExceptionWithContext(
                 $e['message'],
                 0,
                 $e['type'],
