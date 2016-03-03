@@ -21,7 +21,7 @@ class ErrorException extends \ErrorException {
     ) {
         parent::__construct($message, $code, $severity, $filename, $lineno, $previous);
 
-        ErrorUtil::setExceptionTrace($this, debug_backtrace());
+        set_exception_trace($this, debug_backtrace());
     }
 
     /**

@@ -71,7 +71,7 @@ html;
             $html .= '<script>' . file_get_contents(__DIR__ . '/../web/script.js') . '</script>';
         }
 
-        $html .= Util::callJS(<<<js
+        $html .= \FailWhale\_Internal\call_js(<<<js
 (function (data) {
     return FailWhale.render(data, document);
 })

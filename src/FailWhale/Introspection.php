@@ -232,7 +232,7 @@ s;
 
     private function introspectArray(array $array) {
         $result                = new Data\Array_;
-        $result->isAssociative = Util::isAssoc($array);
+        $result->isAssociative = \FailWhale\_Internal\array_is_assoc($array);
 
         foreach ($array as $key => &$value) {
             if (count($result->entries) >= $this->limits->maxArrayEntries) {
@@ -303,7 +303,7 @@ s;
 
     private function arrayRefId(array &$array) {
         foreach ($this->arrayIdRefs as $id => &$array2) {
-            if (Util::refEq($array2, $array)) {
+            if (\FailWhale\_Internal\ref_eq($array2, $array)) {
                 return $id;
             }
         }
@@ -409,13 +409,13 @@ s;
             if (count($results) >= $this->limits->maxStackFrames) {
                 $missing++;
             } else {
-                $function = Util::refGet($frame['function']);
-                $line2    = Util::refGet($frame['line']);
-                $file2    = Util::refGet($frame['file']);
-                $class    = Util::refGet($frame['class']);
-                $object   = Util::refGet($frame['object']);
-                $type     = Util::refGet($frame['type']);
-                $args     = Util::refGet($frame['args']);
+                $function = \FailWhale\_Internal\ref_get($frame['function']);
+                $line2    = \FailWhale\_Internal\ref_get($frame['line']);
+                $file2    = \FailWhale\_Internal\ref_get($frame['file']);
+                $class    = \FailWhale\_Internal\ref_get($frame['class']);
+                $object   = \FailWhale\_Internal\ref_get($frame['object']);
+                $type     = \FailWhale\_Internal\ref_get($frame['type']);
+                $args     = \FailWhale\_Internal\ref_get($frame['args']);
 
                 $result               = new Data\Stack;
                 $result->functionName = $class === null ? $this->removeNamespacePrefix($function) : $function;

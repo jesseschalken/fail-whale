@@ -4,7 +4,7 @@ namespace FailWhale;
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-ErrorUtil::setErrorAndExceptionHandler(function (\Exception $e) {
+set_error_and_exception_handler(function (\Exception $e) {
     set_error_handler(null);
     $i = new IntrospectionSettings;
 

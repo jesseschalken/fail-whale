@@ -11,3 +11,6 @@ spl_autoload_register(function ($cls) {
         }
     }
 });
+
+require_once __DIR__ . '/FailWhale/functions.php';
+require_once __DIR__ . '/FailWhale/_Internal\functions.php';

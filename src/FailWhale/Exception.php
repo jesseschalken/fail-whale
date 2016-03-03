@@ -10,7 +10,7 @@ class Exception extends \Exception {
     public function __construct($message = "", $code = 0, \Exception $previous = null) {
         parent::__construct($message, $code, $previous);
 
-        ErrorUtil::setExceptionTrace($this, debug_backtrace());
+        \FailWhale\set_exception_trace($this, debug_backtrace());
     }
 }
 
