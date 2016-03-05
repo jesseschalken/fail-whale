@@ -240,9 +240,9 @@ s
 
         self::assertPrettyRefIs($array, <<<'s'
 array(
-    &object001 new stdClass {
+    &object000 new stdClass {
         public $foo = array(
-            *object001 new stdClass,
+            *object000 new stdClass,
         );
     },
 )
@@ -271,17 +271,17 @@ s
         self::assertPrettyIs(array(&$recursiveArray, $recursiveArray, $recursiveArray),
             <<<'s'
 array(
-    &array002 array(
-        "recurse" => *array002,
+    &array001 array(
+        "recurse" => *array001,
     ),
     array(
-        "recurse" => &array004 array(
-            "recurse" => *array004,
+        "recurse" => &array003 array(
+            "recurse" => *array003,
         ),
     ),
     array(
-        "recurse" => &array006 array(
-            "recurse" => *array006,
+        "recurse" => &array005 array(
+            "recurse" => *array005,
         ),
     ),
 )
@@ -359,9 +359,9 @@ s
         $value  = array($string, $string, $string);
         self::assertEquals(<<<'s'
 array(
-    &string001 "hellohellohellohellohellohellohellohellohellohello",
-    *string001,
-    *string001,
+    &string000 "hellohellohellohellohellohellohellohellohellohello",
+    *string000,
+    *string000,
 )
 s
             , Value::introspect($value)->toString($settings));

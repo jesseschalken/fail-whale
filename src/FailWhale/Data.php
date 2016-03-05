@@ -2,58 +2,46 @@
 
 namespace FailWhale\Data;
 
-class Base {
-    public final static function fromArray($array) {
-        static::convertArray($array);
-        return $array;
+use FailWhale\_Internal\JsonSerializable;
+
+abstract class Base implements JsonSerializable {
+    /**
+     * Alternative to ::class for PHP < 5.5
+     * @return string
+     */
+    public final static function class_() {
+        return get_called_class();
     }
 
-    protected final static function convertArrays(&$arrays) {
-        if (is_array($arrays)) {
-            foreach ($arrays as &$v) {
-                static::convertArray($v);
-            }
-        }
-    }
-
-    protected final static function convertArray(&$array) {
-        if (is_array($array)) {
-            $self = new static;
-            $self->importArray($array);
-            $array = $self;
-        }
-    }
-
-    protected function importArray(array $array) {
-        foreach (get_object_vars($this) as $k => $v) {
-            $this->$k = isset($array[$k]) ? $array[$k] : null;
-        }
-    }
-
-    final function toArray() {
-        return self::toArray_($this);
-    }
-
-    private static function toArray_($value) {
-        if ($value instanceof self) {
-            $value = get_object_vars($value);
-        }
-
-        if (is_array($value)) {
-            $r = array();
-            foreach ($value as $k => $v) {
-                if ($v !== null) {
-                    $r[$k] = self::toArray_($v);
-                }
-            }
-            return $r;
-        } else {
-            return $value;
-        }
+    /**
+     * @return string[]
+     */
+    public final static function classes() {
+        return array(
+            Root::class_(),
+            String_::class_(),
+            Array_::class_(),
+            ArrayEntry::class_(),
+            Object_::class_(),
+            Variable::class_(),
+            Property::class_(),
+            StaticVariable::class_(),
+            Globals::class_(),
+            ExceptionData::class_(),
+            Exception_::class_(),
+            Stack::class_(),
+            FunctionArg::class_(),
+            Value_::class_(),
+            Resource_::class_(),
+            Location::class_(),
+            CodeLine::class_(),
+        );
     }
 }
 
 class Root extends Base {
+    public static function jsonType() { return 'Root'; }
+
     /** @var Value_ */
     public $root;
     /** @var String_[] */
@@ -62,17 +50,11 @@ class Root extends Base {
     public $objects = array();
     /** @var Array_[] */
     public $arrays = array();
-
-    protected function importArray(array $array) {
-        parent::importArray($array);
-        Value_::convertArray($this->root);
-        String_::convertArrays($this->strings);
-        Object_::convertArrays($this->objects);
-        Array_::convertArrays($this->arrays);
-    }
 }
 
 class String_ extends Base {
+    public static function jsonType() { return 'String'; }
+
     /** @var string */
     public $bytes;
     /** @var int */
@@ -80,33 +62,28 @@ class String_ extends Base {
 }
 
 class Array_ extends Base {
+    public static function jsonType() { return 'Array'; }
+
     /** @var int */
     public $entriesMissing = 0;
     /** @var ArrayEntry[] */
     public $entries = array();
     /** @var bool */
     public $isAssociative;
-
-    protected function importArray(array $array) {
-        parent::importArray($array);
-        ArrayEntry::convertArrays($this->entries);
-    }
 }
 
 class ArrayEntry extends Base {
+    public static function jsonType() { return 'ArrayEntry'; }
+
     /** @var Value_ */
     public $key;
     /** @var Value_ */
     public $value;
-
-    protected function importArray(array $array) {
-        parent::importArray($array);
-        Value_::convertArray($this->key);
-        Value_::convertArray($this->value);
-    }
 }
 
 class Object_ extends Base {
+    public static function jsonType() { return 'Object'; }
+
     /** @var string */
     public $hash;
     /** @var string */
@@ -115,26 +92,20 @@ class Object_ extends Base {
     public $properties = array();
     /** @var int */
     public $propertiesMissing = 0;
-
-    protected function importArray(array $array) {
-        parent::importArray($array);
-        Property::convertArrays($this->properties);
-    }
 }
 
 class Variable extends Base {
+    public static function jsonType() { return 'Variable'; }
+
     /** @var string */
     public $name;
     /** @var Value_ */
     public $value;
-
-    protected function importArray(array $array) {
-        parent::importArray($array);
-        Value_::convertArray($this->value);
-    }
 }
 
 class Property extends Variable {
+    public static function jsonType() { return 'Property'; }
+
     /** @var string */
     public $className;
     /** @var string */
@@ -144,6 +115,8 @@ class Property extends Variable {
 }
 
 class StaticVariable extends Variable {
+    public static function jsonType() { return 'StaticVariable'; }
+
     /** @var string */
     public $className;
     /** @var string */
@@ -151,6 +124,8 @@ class StaticVariable extends Variable {
 }
 
 class Globals extends Base {
+    public static function jsonType() { return 'Globals'; }
+
     /** @var Property[] */
     public $staticProperties;
     /** @var int */
@@ -163,16 +138,11 @@ class Globals extends Base {
     public $globalVariables;
     /** @var int */
     public $globalVariablesMissing = 0;
-
-    protected function importArray(array $array) {
-        parent::importArray($array);
-        Property::convertArrays($this->staticProperties);
-        StaticVariable::convertArrays($this->staticVariables);
-        Variable::convertArrays($this->globalVariables);
-    }
 }
 
 class ExceptionData extends Base {
+    public static function jsonType() { return 'ExceptionData'; }
+
     /** @var Stack[] */
     public $stack = array();
     /** @var int */
@@ -183,27 +153,20 @@ class ExceptionData extends Base {
     public $code;
     /** @var string */
     public $message;
-
-    protected function importArray(array $array) {
-        parent::importArray($array);
-        Stack::convertArrays($this->stack);
-    }
 }
 
 class Exception_ extends Base {
+    public static function jsonType() { return 'Exception'; }
+
     /** @var ExceptionData[] */
     public $exceptions = array();
     /** @var Globals */
     public $globals;
-
-    protected function importArray(array $array) {
-        parent::importArray($array);
-        Globals::convertArray($this->globals);
-        ExceptionData::convertArrays($this->exceptions);
-    }
 }
 
 class Stack extends Base {
+    public static function jsonType() { return 'Stack'; }
+
     /** @var string */
     public $functionName;
     /** @var FunctionArg[] */
@@ -222,16 +185,11 @@ class Stack extends Base {
     public $locals;
     /** @var int */
     public $localsMissing = 0;
-
-    protected function importArray(array $array) {
-        parent::importArray($array);
-        FunctionArg::convertArrays($this->args);
-        Location::convertArray($this->location);
-        Variable::convertArrays($this->locals);
-    }
 }
 
 class FunctionArg extends Base {
+    public static function jsonType() { return 'FunctionArg'; }
+
     /** @var string */
     public $name;
     /** @var Value_ */
@@ -240,14 +198,11 @@ class FunctionArg extends Base {
     public $typeHint;
     /** @var bool */
     public $isReference;
-
-    protected function importArray(array $array) {
-        parent::importArray($array);
-        Value_::convertArray($this->value);
-    }
 }
 
 class Value_ extends Base {
+    public static function jsonType() { return 'Value'; }
+
     /** @var string */
     public $type;
     /** @var Exception_ */
@@ -264,12 +219,6 @@ class Value_ extends Base {
     public $float;
     /** @var Resource_ */
     public $resource;
-
-    protected function importArray(array $array) {
-        parent::importArray($array);
-        Exception_::convertArray($this->exception);
-        Resource_::convertArray($this->resource);
-    }
 }
 
 class Type {
@@ -290,6 +239,8 @@ class Type {
 }
 
 class Resource_ extends Base {
+    public static function jsonType() { return 'Resource'; }
+
     /** @var string */
     public $type;
     /** @var int */
@@ -297,11 +248,21 @@ class Resource_ extends Base {
 }
 
 class Location extends Base {
+    public static function jsonType() { return 'Location'; }
+
     /** @var string */
     public $file;
     /** @var int */
     public $line;
-    /** @var string[] */
+    /** @var CodeLine[] */
     public $source;
 }
 
+class CodeLine extends Base {
+    public static function jsonType() { return 'CodeLine'; }
+
+    /** @var int */
+    public $line;
+    /** @var string */
+    public $code;
+}

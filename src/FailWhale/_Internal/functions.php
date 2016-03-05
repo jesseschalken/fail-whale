@@ -47,4 +47,68 @@ function call_js($function, $param, $binary = false) {
 html;
 }
 
+interface JsonSerializable {
+    /** @return string */
+    public static function jsonType();
+}
+
+/**
+ * @param mixed $value
+ * @return mixed
+ * @throws \Exception
+ */
+function json_serialize($value) {
+    if (is_array($value)) {
+        if (array_is_assoc($value)) {
+            throw new \Exception('Associative arrays are not supported');
+        } else {
+            $result = array();
+            foreach ($value as $v) {
+                $result[] = json_serialize($v);
+            }
+            return $result;
+        }
+    } else if ($value instanceof JsonSerializable) {
+        $result = array('@type' => $value->jsonType());
+        foreach (get_object_vars($value) as $k => $v) {
+            $result[$k] = json_serialize($v);
+        }
+        return $result;
+    } else {
+        return $value;
+    }
+}
+
+/**
+ * @param mixed    $value
+ * @param string[] $classes
+ * @return mixed
+ * @throws \Exception
+ */
+function json_deserialize($value, array $classes) {
+    if (is_array($value)) {
+        if (array_is_assoc($value)) {
+            $type = $value['@type'];
+            /** @var mixed $class */
+            foreach ($classes as $class) {
+                if ($class::jsonType() === $type) {
+                    $object = new $class();
+                    foreach (get_object_vars($object) as $k => $v) {
+                        $object->$k = json_deserialize(isset($value[$k]) ? $value[$k] : null, $classes);
+                    }
+                    return $object;
+                }
+            }
+            throw new \Exception("Unknown type '$type'");
+        } else {
+            $result = array();
+            foreach ($value as $v) {
+                $result[] = json_deserialize($v, $classes);
+            }
+            return $result;
+        }
+    } else {
+        return $value;
+    }
+}
 

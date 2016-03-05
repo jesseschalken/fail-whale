@@ -29,7 +29,7 @@ final class Value {
     }
 
     public static function fromJSON($json) {
-        return new self(Data\Root::fromArray(JSON::decode($json, true)));
+        return new self(\FailWhale\_Internal\json_deserialize(JSON::decode($json, true), Data\Base::classes()));
     }
 
     private $root;
@@ -76,13 +76,13 @@ html;
     return FailWhale.render(data, document);
 })
 js
-            , $this->root->toArray(), true);
+            , \FailWhale\_Internal\json_serialize($this->root), true);
 
         return $html;
     }
 
     public function toJSON($pretty = true) {
-        return JSON::encode($this->root->toArray(), true, $pretty);
+        return JSON::encode(\FailWhale\_Internal\json_serialize($this->root), true, $pretty);
     }
 
     public function toString(PrettyPrinterSettings $settings = null) {

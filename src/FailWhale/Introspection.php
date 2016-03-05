@@ -12,7 +12,6 @@ class Introspection {
     private $stringIds   = array();
     private $objectIds   = array();
     private $arrayIdRefs = array();
-    private $nextArrayId = 1;
     private $limits;
 
     public function __construct(IntrospectionSettings $limits = null) {
@@ -40,9 +39,9 @@ s;
         $location->file   = '/path/to/muh/file';
         $location->line   = 9000;
         $location->source = array(
-            8999 => 'line',
-            9000 => 'line',
-            9001 => 'line',
+            $this->codeLine(8999, 'line'),
+            $this->codeLine(9000, 'line'),
+            $this->codeLine(9001, 'line'),
         );
 
         $globals                          = new Data\Globals;
@@ -193,8 +192,9 @@ s;
         }
         $id =& $this->objectIds[spl_object_hash($object)];
         if ($id === null) {
-            $id = count($this->objectIds);
+            $id = count($this->root->objects);
 
+            $this->root->objects[$id] = null;
             $this->root->objects[$id] = $this->introspectObject($object);
             return $id;
         }
@@ -204,7 +204,9 @@ s;
     private function stringId($value) {
         $id =& $this->stringIds[$value];
         if ($id === null) {
-            $id = count($this->stringIds);
+            $id = count($this->root->strings);
+
+            $this->root->strings[$id] = null;
 
             $maxLength = $this->limits->maxStringLength;
             $maxLength = $maxLength === INF ? PHP_INT_MAX : $maxLength;
@@ -221,8 +223,9 @@ s;
     }
 
     private function arrayId(array $value) {
-        $id = $this->nextArrayId++;
+        $id = count($this->root->arrays);
 
+        $this->root->arrays[$id] = null;
         $this->root->arrays[$id] = $this->introspectArray($value);
         return $id;
     }
@@ -326,9 +329,10 @@ s;
             }
         }
 
-        $id = $this->nextArrayId++;
+        $id = count($this->root->arrays);
 
         $this->arrayIdRefs[$id]  =& $array;
+        $this->root->arrays[$id] = null;
         $this->root->arrays[$id] = $this->introspectArray($array);
         unset($this->arrayIdRefs[$id]);
 
@@ -521,11 +525,18 @@ s;
         $context = $this->limits->maxSourceCodeContext;
         foreach (range($line - $context, $line + $context) as $line1) {
             if (isset($lines[$line1 - 1])) {
-                $results[$line1] = $lines[$line1 - 1];
+                $results[] = $this->codeLine($line1, $lines[$line1 - 1]);
             }
         }
 
         return $results;
+    }
+
+    private function codeLine($line, $code) {
+        $codeLine        = new Data\CodeLine;
+        $codeLine->line  = $line;
+        $codeLine->code  = $code;
+        return $codeLine;
     }
 
     private function introspectStaticProperties(&$missing) {

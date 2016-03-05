@@ -296,7 +296,7 @@ class PrettyPrinter {
     }
 
     /**
-     * @param string[] $code
+     * @param Data\CodeLine[] $code
      * @param int      $line
      * @param string   $nl
      * @return string
@@ -304,10 +304,10 @@ class PrettyPrinter {
     private function renderSourceCode(array $code, $line, $nl) {
         $text = '';
 
-        foreach ($code as $codeLine => $codeText) {
-            $p = $codeLine == $line ? '>' : ' ';
-            $n = str_pad("$codeLine", 4, ' ', STR_PAD_LEFT);
-            $text .= "$nl$p $n $codeText";
+        foreach ($code as $codeLine) {
+            $p = $codeLine->line == $line ? '>' : ' ';
+            $n = str_pad("$codeLine->line", 4, ' ', STR_PAD_LEFT);
+            $text .= "$nl$p $n $codeLine->code";
         }
 
         return $text;
