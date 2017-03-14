@@ -345,14 +345,23 @@ s;
         return $result;
     }
 
-    function introspectException(\Exception $e) {
+    /**
+     * @param \Throwable $e
+     * @return ValueImpl
+     */
+    function introspectException($e) {
         $result            = new ValueImpl;
         $result->type      = Type::EXCEPTION;
         $result->exception = $this->introspectException2($e);
         return $result;
     }
 
-    private function introspectException2(\Exception $e = null, $includeGlobals = true) {
+    /**
+     * @param \Throwable|null $e
+     * @param bool $includeGlobals
+     * @return ExceptionImpl|null
+     */
+    private function introspectException2($e = null, $includeGlobals = true) {
         if (!$e)
             return null;
 

@@ -72,7 +72,10 @@ class ErrorHandler {
         );
 
         set_exception_handler(
-            function (\Exception $exception) use (&$lastError, $handleException) {
+            /**
+             * @param \Throwable $exception
+             */
+            function ($exception) use (&$lastError, $handleException) {
                 // \DateTime->__construct() both throws an exception _and_ triggers a PHP error on invalid input.
                 // The PHP error bypasses set_error_handler, so to avoid it being treated as a fatal error by the
                 // shutdown handler, we have to set $lastError when handling the exception.
@@ -134,7 +137,7 @@ class ErrorException extends \ErrorException {
  * @package ErrorHandler
  */
 class Exception extends \Exception {
-    function __construct($message = "", $code = 0, \Exception $previous = null) {
+    function __construct($message = "", $code = 0, $previous = null) {
         parent::__construct($message, $code, $previous);
 
         $trace = debug_backtrace();

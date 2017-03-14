@@ -5,7 +5,10 @@ namespace FailWhale;
 require_once __DIR__ . '/../vendor/autoload.php';
 
 ErrorHandler::bind(
-    function (\Exception $e) {
+    /**
+     * @param \Throwable $e
+     */
+    function ($e) {
         $i = new IntrospectionSettings;
         $i->fileNamePrefix = dirname(__DIR__) . DIRECTORY_SEPARATOR;
         $v = Value::introspectException($e, $i);

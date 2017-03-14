@@ -15,7 +15,12 @@ class Value {
         return new self($i->root($i->introspectRef($value)));
     }
 
-    static function introspectException(\Exception $exception, IntrospectionSettings $limits = null) {
+    /**
+     * @param \Throwable $exception
+     * @param IntrospectionSettings|null $limits
+     * @return Value
+     */
+    static function introspectException($exception, IntrospectionSettings $limits = null) {
         $i = new Introspection($limits);
 
         return new self($i->root($i->introspectException($exception)));
